@@ -78,7 +78,7 @@ failed scheduled run to the person who last changed the schedule.
 
 ## Progress log
 
-`progress-log.yml` runs daily and on demand. It reads `main`'s history since the last commit it recorded, updates the weekly and monthly files, and pushes them to the `progress-log` branch; [ADR 0095 (Progress log)](../../../decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md) decides what it reads, where it writes and why. It is the one workflow here that holds a write token: `contents: write` is on its `publish` job alone, and the job pushes to `progress-log` and nowhere else, with a plain push to a branch that must already exist, so a rejected push fails the run. Nothing goes to `main`, and a day with nothing new pushes nothing. GitHub emails a failed scheduled run to the person who last changed the schedule.
+`progress-log.yml` runs daily and on demand. It reads `main`'s history since the last commit it recorded, updates the weekly and monthly files, and pushes them to the `progress-log` branch; [ADR 0095 (Progress log)](../../../decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md) decides what it reads, where it writes and why, and [Progress Log](../progress-log.md) says how to read and rebuild it. It is the one workflow here that holds a write token: `contents: write` is on its `publish` job alone, and the job pushes to `progress-log` and nowhere else, with a plain push to a branch that must already exist, so a rejected push fails the run. Nothing goes to `main`, and a day with nothing new pushes nothing. GitHub emails a failed scheduled run to the person who last changed the schedule.
 
 ## Image vulnerability assessment
 

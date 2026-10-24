@@ -2,7 +2,8 @@ name: Progress log
 
 # Once a day, and on demand. Reads what has been merged to main since the last
 # run and adds it to the weekly and monthly record on the progress-log branch —
-# see docs/decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md.
+# see docs/decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md
+# and docs/topics/engineering/progress-log.md.
 #
 # This is the one workflow with a write token. It is held by the publish job
 # alone, and the job pushes to progress-log and nowhere else: a plain push

@@ -47,7 +47,7 @@ OPNsense is the lab's gateway, and its configuration is the network boundary tha
 
 - **DHCP:** Kea only, and only on a network that has clients Tofu does not place. Tofu VMs get static addresses from cloud-init, so they have no reservations. There is no dynamic DNS.
 - **DNS:** Unbound recurses directly, validates DNSSEC, and forwards each internal zone to that zone's authoritative server ([ADR 0040 (Tofu VM DNS)](../0040-dns-for-tofu-provisioned-vms/revision-000.md)). The BIND plugin is not installed.
-- **GUI certificate:** the gateway holds its own certificate with its management name in the subject alternative name, and the tools verify against it. There is no ACME client and no DNS-provider token on the gateway.
+- **GUI certificate:** the gateway holds its own certificate with its management name in the subject alternative name, and the tools verify against it. The play's CA file is that certificate, read at the gateway's console through the VM's serial port after each first boot, rebuild or renewal, and never fetched over the network. A play whose verification fails stops until the certificate is read again. There is no ACME client and no DNS-provider token on the gateway.
 - **Time:** the gateway serves NTP to the VLANs.
 
 **Two layers define the configuration.**
@@ -84,6 +84,8 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 - **A complete `config.xml` rendered and pushed.** Couples the repo to one release's XML model and offers no partial apply or rollback.
 - **Importing the hand-built gateway's configuration.** Carries forward services the lab no longer uses.
 - **Fronting the GUI with Caddy.** Makes the debugging path depend on a VM behind the gateway.
+- **Trusting the certificate on first use over the network.** The first fetch is unauthenticated, while the console is an authenticated channel the install already needs.
+- **A certificate generated in the repo and carried in the seed.** The seed would hold a private key, and the gateway's own key would no longer be created on the gateway.
 - **A certificate from the internal CA.** step-ca is reachable only from the proxy network and issues against a provisioner password, so it would need a new import job.
 - **ACME with an external CA.** Keeps a DNS-provider token and an extra plugin on the gateway.
 
@@ -98,6 +100,7 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 - [ADR 0040 (Tofu VM DNS)](../0040-dns-for-tofu-provisioned-vms/revision-000.md) needs a revision: no dynamic DNS and per-zone forwards in place of delegation between the two BIND9 instances.
 - [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md) names this configuration, not Tofu, as what carries its rules. The subnet router's admission there is to the coding-agent VLAN only, so this ADR's management rule does not conflict with it.
 - The credentials file of ADR 0048 also feeds the Ansible play. Whether that needs a revision of ADR 0048 is decided when the play lands.
+- A rebuild and the yearly certificate renewal each need a console read of the certificate, through the serial socket on the Proxmox node, before the play can connect.
 - Moving to a newer OPNsense series waits for a collection release for it.
 - The settings only the seed sets are not reported by `--check --diff`. A change to one reaches an existing gateway only by hand in the GUI, and nothing detects the drift.
 - The hand-built rules for the zones of ADR 0053 and ADR 0058 are written again in code on the new gateway, not imported.

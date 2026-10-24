@@ -97,20 +97,29 @@ static address and no DDNS name, and every generated CNAME points at
 is last because its BIND9 serves the zones every other host resolves
 through. Each host keeps its current vCPU and memory, and its disk shrinks
 to what the host uses plus headroom, on `local-lvm` (NVMe) instead of the
-`backup` pool:
+`backup` pool. `storage` is the exception and stays on `backup` (HDD), so
+the on-site copy of every backup does not share a disk with the hosts it
+protects:
 
 | Host | VMID | vCPU | RAM | Disk | Used today |
 | :--- | :-: | :-: | :-: | :-: | :-: |
 | `play` | 204 | 4 | 4 GB | 64 GB | 25 GB |
 | `tailscale` | 202 | 2 | 2 GB | 16 GB | 6.5 GB |
-| `storage` | 207 | 4 | 4 GB | 128 GB | 39 GB |
+| `storage` | 207 | 4 | 4 GB | 128 GB (`backup`) | 39 GB |
 | `security` | 205 | 4 | 2 GB | 64 GB | 24 GB |
 | `services` | 203 | 4 | 2 GB | 64 GB | 39 GB |
 
 **One host at a time.** Each rebuild is its own pull request and runs
 the same cycle:
 
-1. Back up the host's apps ([`backup.md`](../topics/disaster-recovery/backup.md)).
+1. Back up the host's apps on demand
+   ([`backup.md`](../topics/disaster-recovery/backup.md#running-a-backup-now))
+   and confirm each archive is in SeaweedFS. For `security`, also take the
+   OpenBao snapshot
+   ([`openbao-backup-restore.md`](../topics/secrets/openbao-backup-restore.md#running-a-backup)),
+   which is not part of that pipeline; the script exits 0 only once R2 and
+   B2 both have it. Take a copy of Tofu's state that is off the dev VM
+   ([open items](#open-items)).
 2. `vzdump --compress zstd` the stopped old VM to the `vzdump` storage
    ([below](#dump-storage)), then destroy it. The dump is the rollback:
    `qmrestore` it to a 9XX VMID.
@@ -120,16 +129,26 @@ the same cycle:
    `inventory.yaml`, keeping its group membership.
 5. Deploy with `deploy.yaml` and restore its apps with `restore.yaml`, as
    [`fire-drill.md`](../topics/disaster-recovery/fire-drill.md) does on the
-   scratch host.
+   scratch host, and add a row for the host's restores to its
+   [results](../topics/disaster-recovery/fire-drill.md#results). `security`
+   restores OpenBao first, from the step 1 snapshot, as the
+   [restore drill](../topics/secrets/openbao-backup-restore.md#restore-drill)
+   does: it has no `backup:` entry, so `restore.yaml` does not bring it
+   back, and the playbooks read their secrets from it.
 6. Delete the dump once the host's apps are confirmed healthy on the new
    VM.
 
 `storage` can't take the cycle as written: SeaweedFS keeps its data in a
 Docker volume on the VM's own root disk, so destroying VM 206 destroys it,
 and `storage` has to stay up. It is built beside the old VM at the free
-VMID 207 (`192.168.20.7`), its buckets are copied across, its record is
-flipped to the new address, and VM 206 is dumped and destroyed once a full
-backup cycle has reached the new VM and the cloud sync has run.
+VMID 207 (`192.168.20.7`) with its module call setting `datastore_id` to
+`backup`, which needs the `tofu@pve` ACL on that storage
+([Proxmox API token](../topics/infra/vm-provisioning.md#proxmox-api-token)),
+its buckets are copied across, its record is
+flipped to the new address, and VM 206 is dumped and destroyed once every
+app host's on-demand backup
+([`backup.md`](../topics/disaster-recovery/backup.md#running-a-backup-now))
+has reached the new VM and a cloud sync started by hand has relayed it.
 
 The gateway (VM 201) isn't rebuilt here. The hosts keep using the live
 gateway at `.1` throughout, and [`opnsense-config.md`](opnsense-config.md)'s
@@ -178,6 +197,9 @@ it.
 - [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
 - [ ] The old Ubuntu VMs are decommissioned.
 - [ ] `storage` stayed up throughout.
+- [ ] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
+- [ ] Every rebuilt host's restores are in the fire drill's results.
+- [ ] Tofu's state has a copy off the dev VM, refreshed after each apply.
 - [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Open items
@@ -185,6 +207,13 @@ it.
 - How the buckets are copied from VM 206 to VM 207, and how the flip is
   made once the records exist. Needs the records stage's design and the
   admin identity's reach.
+- Where Tofu's state is kept off the dev VM. The state file is the only
+  copy of what Tofu built, and each rebuild changes it, but the backup
+  [State backend & secrets](../topics/infra/vm-provisioning.md#state-backend--secrets)
+  describes lands on that same VM. The remote backend that replaces it is
+  its own decision and needs an ADR for its host; the first rebuild needs
+  only a place off the VM for the `tofu state pull` copy, settled before
+  it.
 
 ## Closing checklist
 

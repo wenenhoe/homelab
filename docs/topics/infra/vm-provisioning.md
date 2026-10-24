@@ -96,7 +96,9 @@ Default sizing (adjust per host once real usage is observed):
 | play (Minecraft) | 4 | 4 GB | 64 GB |
 | storage | 2 | 4 GB | 64 GB+ |
 
-VM disks go on `local-lvm` (NVMe) for performance; the OPNsense ISO and
+VM disks go on `local-lvm` (NVMe) for performance, except `storage`'s,
+which goes on `backup` (HDD): it holds the on-site copy of every backup,
+so it must not share a disk with the hosts it protects. The OPNsense ISO and
 Ubuntu cloud image go on `tofu-images`, a directory storage that holds
 only ISO and import content — both small, one-time downloads, no need
 for HDD or NVMe capacity planning around them.
@@ -337,6 +339,7 @@ pveum acl modify /nodes/pve --users tofu@pve --roles TofuProvision
 pveum role add TofuImageStore -privs "Datastore.Allocate"
 pveum acl modify /storage/tofu-images --users tofu@pve --roles TofuProvision,TofuImageStore
 pveum acl modify /storage/local-lvm --users tofu@pve --roles TofuProvision
+pveum acl modify /storage/backup --users tofu@pve --roles TofuProvision
 pveum acl modify /vms --users tofu@pve --roles TofuProvision
 pveum acl modify /sdn/zones/localnetwork/vmbr0 --users tofu@pve --roles TofuProvision
 pveum acl modify /sdn/zones/localnetwork/vmbr1 --users tofu@pve --roles TofuProvision
@@ -348,6 +351,7 @@ pveum user token add tofu@pve skeleton --privsep=0
 | `/nodes/pve` | Reading the node, and the image download with its size lookup (`Sys.AccessNetwork`) |
 | `/storage/tofu-images` | Storing and removing images, and reading them for the disk import (`Datastore.Allocate`, from `TofuImageStore`, only here) |
 | `/storage/local-lvm` | VM disks and cloud-init drives |
+| `/storage/backup` | The disk and cloud-init drive of `storage` |
 | `/vms` | Creating, cloning, configuring and starting VMs: every VM on the node, Tofu-managed or not |
 | `/sdn/zones/localnetwork/vmbr0` | Attaching the OPNsense WAN NIC to the physical bridge |
 | `/sdn/zones/localnetwork/vmbr1` | Attaching a NIC to the VLAN-aware bridge |

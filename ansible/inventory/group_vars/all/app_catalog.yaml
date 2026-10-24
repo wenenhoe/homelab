@@ -84,7 +84,6 @@ app_catalog:
     routes:
       default:
         upstream: "dashy:8080"
-        auth: false
 
   kms:
     volumes:

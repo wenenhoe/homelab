@@ -1,0 +1,77 @@
+name: Progress log
+
+# Once a day, and on demand. Reads what has been merged to main since the last
+# run and adds it to the weekly and monthly record on the progress-log branch —
+# see docs/decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md
+# and docs/topics/engineering/progress-log.md.
+#
+# This is the one workflow with a write token. It is held by the publish job
+# alone, and the job pushes to progress-log and nowhere else: a plain push
+# (never forced) to a branch that must already exist, so a rejected push fails
+# the run and nothing is created or overwritten. Nothing goes to main.
+#
+# The minute is off the hour to stay clear of the top-of-the-hour crowd on
+# GitHub's scheduler; 16:17 UTC is 00:17 in Asia/Singapore, just after a day
+# ends there, and clear of renovate.yml's 17:37.
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: "17 16 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: progress-log
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-26.04
+    # Reading the history and writing a few files takes seconds; this bounds a
+    # hung fetch or push.
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # main in full: the generator reads its first-parent history.
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          path: main
+          persist-credentials: false
+
+      # Fails the run if the branch is missing, rather than creating it.
+      - name: Checkout the progress-log branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: progress-log
+          path: log
+          persist-credentials: false
+
+      # Stdlib-only, so plain python3 (no uv, no dependencies).
+      - name: Update the log from main
+        run: python3 -m progress_log --repo ../ --out ../../log --repo-url "$REPO_URL"
+        working-directory: main/tools
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+
+      # The token is passed to this one command as a header, not stored in the
+      # checkout. There is nothing to commit when main has not moved.
+      - name: Commit and push the log
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing new on main since the last run."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "chore: update the log to $(git -C ../main rev-parse --short HEAD)"
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+          echo "::add-mask::${auth}"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" push origin HEAD:refs/heads/progress-log
+        working-directory: log
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

@@ -1,0 +1,194 @@
+---
+id: ADR-0095
+revision: 0
+type: adr
+title: "Recording what was worked on each week and month"
+short: Progress log
+solution: "A scheduled job generates markdown from main's first-parent history and writes it to a separate progress-log branch, resuming from the last commit it read"
+summary: "Where the weekly and monthly record of work comes from, where it is stored, and how it is kept current without adding to main's history."
+topic: repository-tooling
+status: approved
+related: [ADR-0031, ADR-0064, ADR-0076]
+---
+
+# 0095. Recording what was worked on each week and month
+
+## Problem
+
+The maintainer needs to see, for any week or month, what was worked on:
+which projects advanced or finished, which decisions moved, which
+components were added or removed. That record has to be derived from the
+repository rather than kept by hand, readable without tooling, and kept
+current without adding to the history it summarises.
+
+## Context
+
+Neither git history nor the working tree answers the question directly.
+
+- Raw history is noisy. Of the 217 pull requests merged in October 2026
+  up to the 25th, 65 were dependency updates. History also holds merge
+  commits, direct commits from before pull requests were used, and
+  changes of very different size.
+- The working tree shows only the present. A finished project's doc is
+  deleted when it closes
+  ([closing checklist](../../projects/README.md#closing-checklist)), and an
+  earlier state of a decision revision exists only in history.
+- What the record needs is all in `main`'s first-parent history: one merge
+  commit per pull request, whose body is the pull request title (15 of 527
+  have an empty body, where the branch name is the only title); the files
+  each change touched; and the frontmatter `status:` of project docs and
+  decision revisions before and after it.
+
+The job token's reach follows the rulesets. With the default token
+permission read-only and `contents: write` declared on one job, that job's
+token can push to a branch whose rules only block deletion and force-push,
+and is refused a push to a branch that requires a pull request, and a
+force-push or deletion where a rule blocks them. A push made with it starts
+no workflow run. This was checked on a scratch repository with rulesets of
+the shape ADR 0076 describes.
+
+Four constraints shape the design.
+
+- The repository is public, so the record is too. The public-repo rule in
+  [`docs/README.md`](../../README.md#public-repo) applies to it as it does
+  to any doc.
+- Only `main` is deployed, and the CD agent fetches no other ref
+  ([ADR 0076 (Branch separation)](../0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)).
+- Code that decides an outcome is unit-tested Python under `tools/`, and
+  workflows only call it
+  ([ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)).
+- The weekly checks that only read this repository, such as the
+  image-provenance check, run with the workflow's read-only
+  `GITHUB_TOKEN`. Publishing the record needs a write.
+
+## Decision
+
+- **Generator.** A stdlib-only Python package, `tools/progress_log/`,
+  unit-tested
+  ([ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md),
+  [ADR 0069 (Python test style)](../0069-how-python-unit-tests-are-written-and-run/revision-000.md)).
+  It reads the first-parent history of `main` and records, for each change,
+  its date, title, pull request number, kind, and the project, decision and
+  component events it caused. Classification is by rule, with no model, no
+  network and no API call, so everything comes from the checkout:
+  dependency-bot changes are set apart; a change touching code, config,
+  tests or deployment is **code**; one touching only docs and decisions is
+  **docs**; one touching only project docs is a **project-doc edit**. A
+  change is filed under the project it advanced, else under decisions,
+  else under the directory it mostly touched.
+- **Output.** Markdown with collapsible sections, which GitHub renders
+  without a build: one file per week (Monday to Sunday, UTC+8); one per
+  month that summarises its weeks and links to them; and an index. Each
+  opens with highlights (projects closed or started, decisions that moved,
+  components added or removed) and a small table of counts. The full list
+  of changes is a collapsed section.
+- **Where.** An orphan branch of this repository, `progress-log`. It is
+  never merged into `main`, never fetched by the CD agent, and not part of
+  pre-commit or pull request checks. The maintainer creates it once by
+  hand, so the workflow never creates a ref. A ruleset on it blocks
+  deletion and force-push, with no bypass, and nothing else: no required
+  pull request, status check or signed commit.
+- **When and how.** A scheduled workflow, daily, runs the generator from
+  `tools/` and pushes the result to `progress-log`. A state file on that
+  branch holds the last `main` commit read, and the next run reads only
+  what came after it. A week that has closed is not regenerated, so notes
+  the maintainer writes in it, below a marked line, are kept. If the
+  recorded commit is no longer an ancestor of `main`, the run regenerates
+  every week, keeping each week's notes, and commits the result on top of
+  the branch; the branch is never force-pushed or recreated. The job holds
+  `contents: write`, no other job in the workflow does, and it pushes only
+  to `progress-log`.
+- **What keeps the token off the other branches.** The rulesets and branch
+  protection on `main`, and those ADR 0076 adds for `maintenance` and
+  `develop`, target those branches by name or as the default branch, so
+  none matches `progress-log`, and GitHub Actions is on no bypass list.
+- **Source.** The record reads this repository's history and nothing else.
+
+## Alternatives considered
+
+- **Commit the record to `main`**, regenerated by a hook or on each pull
+  request: every refresh would add to the history it reports, collide with
+  the hooks that regenerate the doc views, and put generated files in the
+  branch ADR 0076 keeps as exactly what is deployed.
+- **Keep it in `homelab-security`**: the record reads no private data, so a
+  private repository adds a cross-repository dependency and protects
+  nothing.
+- **A third repository**: its own settings, branch rules, workflow and
+  credentials to maintain, for a record that holds only what this
+  repository already shows.
+- **An HTML dashboard on GitHub Pages**: needs a build and hosting, and
+  pulls toward charts and metrics the record does not need. Markdown with
+  collapsible sections reads as it is on GitHub.
+- **Rebuild everything on every run, with no state**: takes seconds, but
+  rewrites past weeks, so notes written in them would have to be merged
+  back and every run's diff touches old files. It stays as the fallback
+  when the state no longer matches history.
+- **No ruleset on `progress-log`**: nothing would stop a mistaken
+  force-push or deletion from erasing the record, and closed weeks are
+  meant to stay as written.
+- **A narrative summary written by a model in CI**: not deterministic, and
+  needs a model credential that CI does not otherwise hold. The maintainer
+  can write a note into any week.
+
+## Consequences
+
+- A fourth long-lived branch exists. Unlike the three in ADR 0076 it holds
+  generated output only, never promotes into `main`, and is never fetched
+  for deployment.
+- The record is as clear as the titles it reads. Where a pull request has
+  no title in its merge commit, the branch name is shown.
+- A project counts as closed when its doc is deleted, which also happens
+  when projects are merged or split. A project opened as not-started and
+  removed within the same span is dropped as re-scoping; other
+  consolidations show as closed.
+- Counts are merged pull requests, not effort.
+- Decision states appear only from when revisions carried frontmatter, in
+  September 2026.
+- The workflow holds a write token whose reach is the `progress-log`
+  branch, because the rules on the protected branches refuse it.
+- A rebuild adds a commit instead of rewriting the branch, so the branch
+  only grows.
+- The behaviour is described in a topic doc added with the implementation.
+
+## Invariants
+
+- The record is a function of `main`'s first-parent history, the state
+  file and the maintainer's notes, and of nothing else.
+- Nothing is written to `main`, and nothing on `progress-log` is read by a
+  build, test, deployment or check.
+- It carries only what this repository's public history already shows. No
+  finding, scan result, mutation result or other private data reaches it.
+- A normal run does not rewrite a closed week.
+- No ref is force-pushed, deleted or created by the workflow.
+- GitHub Actions is on no bypass list of a protected branch.
+- A run resumed from the recorded commit and a full rebuild produce the
+  same files for the same history.
+
+## Non-goals
+
+- Measuring effort, time or velocity, per-person figures, or charts.
+- Judging whether work was good or finished: it reports what changed.
+- Replacing project docs and decisions as the record of why.
+- Notifying anyone or posting the record elsewhere.
+
+## Validation
+
+- Unit tests for classification, week and month boundaries, and project
+  and decision events, on a fixture repository.
+- A test that resuming from any earlier commit gives output identical to a
+  full rebuild.
+- A rejected push fails the workflow run.
+- A test over the workflow asserts that `contents: write` appears on the
+  publishing job and nowhere else in it.
+- Before the first scheduled run, the maintainer reads the live rulesets
+  and branch protection: the rules the API reports for `progress-log` are
+  deletion and non-fast-forward only, each protected branch that exists
+  requires a pull request, and no bypass list names GitHub Actions.
+
+## Reconsideration triggers
+
+- The record needs facts git does not hold, such as review time or deploy
+  results.
+- More than one contributor makes "what I worked on" ambiguous.
+- Branch rules change so the token can no longer push to the branch, or
+  the record is wanted somewhere other than GitHub.

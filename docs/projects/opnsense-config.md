@@ -50,7 +50,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - The hand-built rules stay authoritative until Stage 6, and drift until then.
 - The collection works only with the OPNsense release of the same version, so the gateway's release waits for the collection's.
-- A play applied to the live gateway changes live rules, so it runs with `--check --diff` first and applies firewall changes under a savepoint.
+- A play applied to the live gateway changes live rules, so it runs with `--check --diff` first and the gateway VM is snapshotted before each apply.
 
 ## Open items
 

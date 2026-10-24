@@ -1,7 +1,7 @@
 FROM busybox:1.38.0-musl@sha256:ea2b9914a16a4ac1981994af97b318f7c7d4db76b580c56177f08bf76f4a0be8 AS data-dir
 RUN mkdir -p /data
 
-FROM quxfoo/wastebin:3.8.0@sha256:842f695438e6b1cc70b997f3e938bfba96eccb136880b38056506061dea8e11f
+FROM quxfoo/wastebin:3.9.0@sha256:d441b009827b896b67d7df5d7bf849cc5cff970c505cb50d72c946c3d3fd0a5e
 
 # quxfoo/wastebin is FROM scratch — no shell, no libc, nothing a
 # HEALTHCHECK can exec. busybox:musl's wget is a single statically

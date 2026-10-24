@@ -11,6 +11,10 @@ options {
     recursion no;
     allow-query { any; };
 
+    // Zone transfers: no secondaries are configured, so refuse AXFR/IXFR
+    // to everyone rather than hand the full zone to any client
+    allow-transfer { none; };
+
     // Not using dynamic DNS update
     // Set to "/var/cache/bind/session.key" if using
     session-keyfile none;

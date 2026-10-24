@@ -100,6 +100,8 @@ app_catalog:
       default:
         upstream: "librespeed:8080"
 
+  # Link data lives in the container's writable layer (SQLite), with no volume
+  # or backup: it is disposable and rebuilt by re-creating the links.
   shlink:
     configs:
       - src: env.j2

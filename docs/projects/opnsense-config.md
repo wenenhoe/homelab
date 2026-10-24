@@ -24,6 +24,8 @@ Implements [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsens
 
 The pinned pair is OPNsense 26.1.11 and the `oxlorg.opnsense` collection at commit `5cec92ea25c8280a9913dfb958109f78ce930d00`, whose `galaxy.yml` reads version 26.1.11. The collection's git tag `26.1.11` carries an earlier version's metadata, so the pin is the commit. The pair lives in the Ansible role's defaults once Stage 2 builds the role; until then this paragraph is its only record.
 
+The scratch gateway is built with a `qm` kit on the node, not by Tofu, and attaches both NICs to `vmbr9`, an isolated bridge with no physical port. The kit refuses a bridge that has one. `vmbr9` has no route out, so it cannot run the package install and remove check or the firmware update; those wait for a bridge that has one. Do not give a scratch gateway the production WAN bridge.
+
 ## Execution plan
 
 Update at the start and end of each PR that works a stage.
@@ -61,6 +63,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - The live gateway (VM 201) is an `i440fx` machine with SeaBIOS and an 8 GB disk, while the OPNsense module builds `q35`. Settle which the rebuilt gateway uses before Stage 6.
 - How the console read of the gateway's certificate is wired into the play, and how a renewal (every 397 days) is noticed: the play's failed verification. The operator host must also resolve the management name.
 - Install and remove a package that is not installed, against a gateway with a route out, before the play declares packages: the scratch bridge could not run it.
+- `vmbr9` and the Proxmox permissions left on it by the earlier spike go when the bridge is removed. List the permissions on the node before removing it.
 - Update a gateway built from the `nano` image to the pinned release and check that the seed survives it.
 - Which credential takes the snapshot [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md) requires before each apply. The Proxmox token in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#proxmox-api-token) holds no snapshot privilege. The leading option is a token of its own, scoped to the gateway VM, that can create and delete snapshots but not roll back, kept with the play's other credentials in the file ADR 0048 decides because the play runs when OpenBao may be unreachable behind the gateway it changes. A rollback stays a person's act, and a CD agent job could hold the token later.
 - How a clean `--check --diff` is judged. The exit conditions of Stages 2 to 4 say a converged gateway reports no change, but ADR 0089's Context lists objects whose report is never clean: package locks, anything set through the generic call, a user password set to `always`, extra lines in alias and user diffs, and a forward reported changed with no diff. The settings only the seed sets are never reported at all. Options are an allow-list of the known noise, a comparison of the downloaded configuration against the seed for the seed-only settings, or leaving those objects out of the check. Settle it before Stage 3, and keep each module's raw output from a clean run, a run after a GUI change and a second converge as test fixtures in Stage 2, so the choice rests on real output.

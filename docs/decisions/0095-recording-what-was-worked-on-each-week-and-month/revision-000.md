@@ -7,7 +7,7 @@ short: Progress log
 solution: "A scheduled job generates markdown from main's first-parent history and writes it to a separate progress-log branch, resuming from the last commit it read"
 summary: "Where the weekly and monthly record of work comes from, where it is stored, and how it is kept current without adding to main's history."
 topic: repository-tooling
-status: working
+status: approved
 related: [ADR-0031, ADR-0064, ADR-0076]
 ---
 

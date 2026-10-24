@@ -5,6 +5,8 @@ type: project
 status: not-started
 blocked: false
 summary: "Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image."
+super_project: compose-stack-files
+track: docker-api
 allowed_paths:
   - docker/beszel-agent/**
   - ansible/inventory/group_vars/all/app_catalog.yaml

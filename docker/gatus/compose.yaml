@@ -20,8 +20,14 @@ services:
       start_period: 10s
     # Matches the image's own USER — see docker/gatus/Dockerfile.
     user: 10001:10001
+    # Non-root with no file capabilities, and no ICMP check is configured, so
+    # it needs no capability.
+    cap_drop:
+      - ALL
     expose:
       - '8080'
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

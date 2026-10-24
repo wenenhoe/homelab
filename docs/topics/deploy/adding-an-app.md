@@ -60,6 +60,7 @@ pair today. What each one keeps, and why:
 | `beszel-hub` | Nothing | Root, reading and writing only files its own root-owned volume holds. |
 | `beszel-agent` | Nothing | Root on the host network. |
 | `dashy` | Nothing | Its image gives `ping` `cap_net_raw`, but only an ICMP ping check runs it. The HTTP status checks configured here do not, and a ping check added to its config would stop working. |
+| `gatus` | Nothing | Non-root (uid 10001) with no file capabilities. No ICMP check is configured; one would need `NET_RAW`. |
 | `bluemap` | `DAC_OVERRIDE` | Creates files in a directory another user owns. |
 | `tinyauth` | `DAC_OVERRIDE` | Root over a `/data` the volume seed leaves owned by another user. SQLite must create its journal beside `tinyauth.db`; without the capability the session insert at login fails with a read-only database error. |
 | `backup-agent` | `DAC_READ_SEARCH` | Root, only reading files other users own (schedule files belong to the deploy user, each volume to its app's user). Without it the container stays healthy but cannot open what it archives. |

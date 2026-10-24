@@ -64,4 +64,5 @@ image; `--tags images` redeploys without touching DNS data. See
 all interfaces, and mounts four volumes: `config` (seeded when
 `bind9_dns_changed`, see [`volumes.md`](../deploy/volumes.md)) plus
 `cache`/`records`/`run` for BIND's own state. Recursion is disabled — it
-only answers authoritatively for its own zones.
+only answers authoritatively for its own zones, and `allow-transfer { none; }`
+refuses zone transfers, as no secondary server exists.

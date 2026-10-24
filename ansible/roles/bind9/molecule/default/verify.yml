@@ -35,6 +35,16 @@
         that:
           - "'zone \"svc.lan.example.test\"' in (bind9_named_conf_local_raw.content | b64decode)"
 
+    - name: Read back named.conf
+      ansible.builtin.slurp:
+        path: "{{ bind9_config_dir }}/named.conf"
+      register: bind9_named_conf_raw
+
+    - name: Confirm zone transfers are refused
+      ansible.builtin.assert:
+        that:
+          - "'allow-transfer { none; };' in (bind9_named_conf_raw.content | b64decode)"
+
     - name: Read back the zone file
       ansible.builtin.slurp:
         path: "{{ bind9_config_dir }}/zones/db.svc.lan.example.test"

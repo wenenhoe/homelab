@@ -58,9 +58,9 @@ calls for a project, while a working one still has to be settled.
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the coding-agent zone and its proxy. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
 | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
+| [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | De-risking | Serve the host zone from services with a static record for every host, retire the gateway's BIND9 zone and dynamic DNS, and add a secondary on storage that the gateway's Unbound forwards to. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
-| [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | De-risking | Internal DNS records for Tofu-provisioned VMs, as ADR 0040 decides. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
 | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | — | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
@@ -86,7 +86,8 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | De-risking |
+| `tofu-vm-provisioning` | `dns` | — | [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | De-risking |
+| | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Not started — waiting on [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
 | | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
 | | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building — waiting on [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) |

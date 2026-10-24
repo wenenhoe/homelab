@@ -39,7 +39,7 @@ Read directly off the host, not assumed:
 | Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
 | DDNS name | `tailscale.{{ ddns_domain }}` — same `<host>.{{ ddns_domain }}` structure as every `managed_hosts` member; this is what `inventory.yaml`'s `ansible_host` actually uses |
-| LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
+| LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained from a reservation on the gateway (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
 | `qemu-guest-agent` | Already installed and active (pre-dates this being under management) |
 | SSH admin user | `tsadmin` |
 
@@ -47,11 +47,11 @@ Read directly off the host, not assumed:
 scheme](vm-provisioning.md#vmid--vlan--ip-scheme) would predict for
 VMID 202 — but that scheme is written for Tofu-provisioned VMs, VM 202
 predates Tofu, and the interface shows a DHCP-obtained lease rather
-than a static netplan config. Whether Kea holds a MAC-keyed
-reservation that makes this address effectively permanent, or it's
-coincidence, still hasn't been confirmed — no longer operationally
-relevant to `ansible_host` now that it resolves through DDNS the same
-as every other host, but relevant to whether this host would ever
+than a static netplan config. The gateway's DHCP server holds a
+reservation for it, as it does for every host, so the address is
+effectively permanent. That is not relevant to `ansible_host` now that
+it resolves through DDNS the same as every other host, but it is
+relevant to whether this host would ever
 belong in `sos-inventory.yaml` (static-IP-only, DNS-independent
 recovery path). Not added there yet: `reset-network.yaml`'s whole
 reason to exist is reaching a host when DNS itself might be down, and

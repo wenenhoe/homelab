@@ -189,16 +189,17 @@ wheels = [
 
 [[package]]
 name = "b2sdk"
-version = "2.13.1"
+version = "2.13.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-types" },
+    { name = "certifi" },
     { name = "logfury" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/1d/18ad9b5ed6408b74d159a65544a786813149aaf34128e888c6c42ed49595/b2sdk-2.13.1.tar.gz", hash = "sha256:45f91907bb677f916c920e9ccc3d120fdbd2b11d0059ff2cd06360973c281e6f", size = 210410, upload-time = "2026-10-04T16:19:26.16Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/b6/1a79829948f3fa23b61216cf6330dbc8d1bb0999ae95a7e9c031d08b35ea/b2sdk-2.13.2.tar.gz", hash = "sha256:ff71d70f24694158c0d6eb1b904bf2cff74e61d46e4b34e3d32186189045866a", size = 210426, upload-time = "2026-10-21T15:30:00.835Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/0c/5f3b9a75835f4dd897ee65b3a4d719700e7583989c38a01dba76280ca18e/b2sdk-2.13.1-py3-none-any.whl", hash = "sha256:ce6533be17f75785ce9511f063b9dd1142adbe71fa124417005b65bad69e8abe", size = 301509, upload-time = "2026-10-04T16:19:24.848Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/ba/29431ba5a72402d59b6f13cc4ea9ce501174ae60b115289e493005d20335/b2sdk-2.13.2-py3-none-any.whl", hash = "sha256:f2d7663392d869c17d44b7304bae6e06ecefda18742b197a693a93298943310d", size = 301525, upload-time = "2026-10-21T15:29:59.438Z" },
 ]
 
 [[package]]
@@ -263,11 +264,11 @@ wheels = [
 
 [[package]]
 name = "certifi"
-version = "2026.7.22"
+version = "2026.10.23"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a3/c2/24167ea9858356b47a87a50d39908bfdb72ceeefe0041586e704e5376b3a/certifi-2026.7.22.tar.gz", hash = "sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55", size = 138112, upload-time = "2026-07-22T03:35:12.644Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/11/b524cbd9bbdaca58608e4cf4053fd463417549e1959fa8d3aa18319f9555/certifi-2026.10.23.tar.gz", hash = "sha256:a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd", size = 136225, upload-time = "2026-10-23T11:36:16.478Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl", hash = "sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775", size = 136983, upload-time = "2026-07-22T03:35:11.276Z" },
+    { url = "https://files.pythonhosted.org/packages/32/d1/a3652fe2c19134d0d15922177821d863cbd7e842d53a21bbe7e8e3a1b5ac/certifi-2026.10.23-py3-none-any.whl", hash = "sha256:e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1", size = 135082, upload-time = "2026-10-23T11:36:14.763Z" },
 ]
 
 [[package]]
@@ -1039,7 +1040,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.188.0"
+version = "2.189.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -1054,9 +1055,9 @@ dependencies = [
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/09/69de33858a8574f6e7f7ebf3d027ac198986c95d3f0efd5c203a882be8d6/oci-2.188.0.tar.gz", hash = "sha256:a4ff307ed315112cf357d9dc0bd5091cb0bae77892870b51ffd0cf46175ba8b6", size = 18377765, upload-time = "2026-10-13T03:51:53.525Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b8/69/8845bfdfbf919ab93f9539f5433cf1ababa1a621167465f050ab089c031b/oci-2.189.0.tar.gz", hash = "sha256:0df9efe9eb0f18e66f1fdf05b46e60c5a77ddfbd46f5b274ad95b2afce4dc687", size = 18560848, upload-time = "2026-10-20T04:58:35.052Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/1b/3138ece59f7ff4afbf4ad53c9d2f88ec7e693f8eae893ebac305e31b45f4/oci-2.188.0-py3-none-any.whl", hash = "sha256:97cf5a0253b45f758c22070c009b7c3197d605d0711a64c7bb060e3d67eda127", size = 37373455, upload-time = "2026-10-13T03:51:47.162Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/2c/a69926bf208c548bee1e312c030d955c67b17833bd8d69c033e11fc98f3c/oci-2.189.0-py3-none-any.whl", hash = "sha256:134e7cc634d4963ffc0c5411e9c2b2d8695d2f154fd5f8b873dd9fa8a4cb36a6", size = 37730843, upload-time = "2026-10-20T04:58:28.551Z" },
 ]
 
 [[package]]
@@ -1070,7 +1071,7 @@ wheels = [
 
 [[package]]
 name = "paramiko"
-version = "5.0.0"
+version = "5.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcrypt" },
@@ -1078,9 +1079,9 @@ dependencies = [
     { name = "invoke" },
     { name = "pynacl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/62/93/dcc25d52f49022ae6175d15e6bd751f1acc99b98bc61fc55e5155a7be2e7/paramiko-5.0.0.tar.gz", hash = "sha256:36763b5b95c2a0dcfdf1abc48e48156ee425b21efe2f0e787c2dd5a95c0e5e79", size = 1548586, upload-time = "2026-05-09T18:28:52.256Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/cb/b1fde76618d84b1acf54d3d03d2b833ba5878afd12b9899346cc080f209d/paramiko-5.1.0.tar.gz", hash = "sha256:239b5f9b2a53006cd54f83cf8495ee742083708ead947882c8dd2786de79f39b", size = 1579549, upload-time = "2026-10-18T02:38:51.931Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/82/5b/eadf6d45de38d30ab603f49393b6cd2cbe7e233af8cf90197e32782b68a9/paramiko-5.0.0-py3-none-any.whl", hash = "sha256:b7044611c30140d9a75261653210e2002977b71a0497ff3ba0d98d7edbf62f7c", size = 208919, upload-time = "2026-05-09T18:28:50.295Z" },
+    { url = "https://files.pythonhosted.org/packages/13/45/fa0e8d70cb25d2dae06bc238e580a84834f6ca53a4e2408cccc19a78db7b/paramiko-5.1.0-py3-none-any.whl", hash = "sha256:d9fe6d67a9d0bbf3eb85b051d26ab850b678c02d060f32915b944e5ca6d0d9e1", size = 211623, upload-time = "2026-10-18T02:38:49.903Z" },
 ]
 
 [[package]]

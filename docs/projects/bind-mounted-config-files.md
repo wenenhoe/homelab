@@ -6,6 +6,9 @@ status: not-started
 blocked: false
 summary: "Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own."
 decision: ADR-0087/0
+super_project: compose-stack-files
+track: mounts
+phase: 2-bind-mounts
 depends_on:
   - project: PROJ-compose-restart-on-changed-mount
     reason: an app's file can move to a bind mount only once a change to it restarts its container

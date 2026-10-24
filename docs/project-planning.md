@@ -79,6 +79,10 @@ calls for a project, while a working one still has to be settled.
 | | `lifecycle` | — | [`coding-agent-management.md`](projects/coding-agent-management.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
+| `compose-stack-files` | `docker-api` | — | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready |
+| | `mounts` | `1-restart` | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready |
+| | `mounts` | `2-bind-mounts` | [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) |
+| | `role-stacks` | — | [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) |
 | `controller-separation` | `operator` | — | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking |
 | | `operator` | — | [`operator-host-takeover.md`](projects/operator-host-takeover.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
 | | `workstation` | — | [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready |
@@ -99,10 +103,6 @@ calls for a project, while a working one still has to be settled.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
-| [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) | Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app. |
-| [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
-| [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
-| [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`kms-image.md`](projects/kms-image.md) | — | Not started — waiting on [ADR-0091/0](decisions/0091-where-the-activation-hosts-image-comes-from/revision-000.md) | Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app. |
 | [`licence-check.md`](projects/licence-check.md) | — | Not started — waiting on [ADR-0090/0](decisions/0090-licences-of-adopted-software/revision-000.md) | A registry of every pinned dependency's licence, a check when a pin changes, and a weekly check of each upstream's default-branch licence file, as ADR 0090 decides. |

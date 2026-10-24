@@ -6,6 +6,9 @@ status: not-started
 blocked: false
 summary: The compose role restarts a container when a file bind-mounted into it changes, and nothing else.
 decision: ADR-0087/0
+super_project: compose-stack-files
+track: mounts
+phase: 1-restart
 allowed_paths:
   - ansible/roles/compose/**
   - docs/topics/deploy/**

@@ -22,6 +22,8 @@ The seed image and its attachment to the OPNsense module, the Ansible role that 
 
 Implements [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md), `approved` once its assumptions were resolved. Stages 4 and 5 also carry out the last bullet of [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)'s Decision, which becomes `accepted` when the network project completes.
 
+The pinned pair is OPNsense 26.1.11 and the `oxlorg.opnsense` collection at commit `5cec92ea25c8280a9913dfb958109f78ce930d00`, whose `galaxy.yml` reads version 26.1.11. The collection's git tag `26.1.11` carries an earlier version's metadata, so the pin is the commit. The pair lives in the Ansible role's defaults once Stage 2 builds the role; until then this paragraph is its only record.
+
 ## Execution plan
 
 Update at the start and end of each PR that works a stage.

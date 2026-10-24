@@ -56,12 +56,11 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Risks
 
 - The live gateway's configuration is hand-built until its rebuild, so Stages 3 and 4 change it by hand and the change is drift until [`opnsense-config.md`](opnsense-config.md) writes it in code.
-- Stage 2 needs each current host's address. [`network-infra.md`](../topics/infra/network-infra.md) records that `tailscale`'s address is DHCP-obtained and that whether a reservation holds it is unconfirmed.
+- Every current host's address is a DHCP reservation on the live gateway, and Stage 2 repeats each one in a static record. A reservation changed by hand makes its record wrong until that host is rebuilt.
 
 ## Open items
 
-- Whether the other current hosts hold Kea reservations, which decides if their static records are stable until they are rebuilt.
-- Whether retiring dynamic DNS before the SIEM project loses a name something still reads, such as a dashboard link.
+None beyond the assumption recorded in the decision.
 
 ## Closing checklist
 

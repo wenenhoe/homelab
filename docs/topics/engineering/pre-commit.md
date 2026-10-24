@@ -30,10 +30,13 @@ done
 Patches leave out the generated views (`docs/projects/README.md`,
 `docs/project-planning.md`, `docs/decisions/README.md`), so two series that
 each add a project or a decision never conflict on them. After a patch is
-applied, `pre-applypatch` regenerates and stages the views, then runs the
-installed `pre-commit` hook. `git am` commits its own tree, not the index,
-so `post-applypatch` amends the views into the commit it just made, with
-`--no-verify` because the checks already passed.
+applied, `pre-applypatch` stages the views, regenerates and stages them
+again, then runs the installed `pre-commit` hook. `git am` commits its own
+tree, not the index, so `post-applypatch` amends the views into the commit
+it just made, with `--no-verify` because the checks already passed. It then
+writes back an index without those views, leaving them unstaged for the next
+patch of the series; the first staging is what keeps `pre-commit` from
+stashing them and rolling the regenerated views back over its own rewrite.
 
 A failing hook stops `git am` with the patch staged. Hooks that fix
 files (`ruff`, `dclint`, `end-of-file-fixer`) leave the fix unstaged and

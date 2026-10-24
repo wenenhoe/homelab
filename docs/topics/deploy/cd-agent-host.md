@@ -30,7 +30,7 @@ These four have no default, and the role stops on the first check that finds one
 
 | Variable | Holds |
 | :--- | :--- |
-| `cd_agent_runner_source_dir` | The controller's path to `tools/cd_agent/`; the role copies `__init__.py` and `run_job.py` from it. |
+| `cd_agent_runner_source_dir` | The controller's path to `tools/cd_agent/`; the role copies `__init__.py`, `run_job.py` and `toolchain.py` from it. |
 | `cd_agent_operator_address` | The one IPv4 address `sshd` accepts. A pattern, CIDR range or out-of-range octet is refused, because the value is written into `sshd`'s configuration. |
 | `cd_agent_admin_users` | The only users `sshd` lets in: plain names, none of them a job's user. |
 | `cd_agent_jobs` | One entry per job, with unique names. |

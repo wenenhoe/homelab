@@ -58,6 +58,8 @@ python_unit_tests:
   - 'tools/openbao_utils/**'
   - 'tools/cd_agent/**'
   - 'tools/tofu_inventory/**'
+  # The progress log generator (ADR 0095); its tests are under tools/tests/.
+  - 'tools/progress_log/**'
   - 'tools/container_hardening/**'
   - 'tools/utils/**'
   # CI logic that detect-changes and the other workflows run (see

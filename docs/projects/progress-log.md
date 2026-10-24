@@ -34,7 +34,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The generator and its tests | Not started | `python -m progress_log` writes the weekly files, monthly files, index and `state.json` from a git repository, and its tests pass, including that resuming gives the same files as a full rebuild |
+| 1 | The generator and its tests | Done | `python -m progress_log` writes the weekly files, monthly files, index and `state.json` from a git repository, and its tests pass, including that resuming gives the same files as a full rebuild |
 | 2 | The scheduled workflow | Not started | `progress-log.yml` runs daily and on demand, only its publishing job holds `contents: write`, a test asserts that, and its row is in the scheduled-jobs table |
 | 3 | The topic doc | Not started | The topic doc says how to read the log, how notes survive, and how to rebuild it, and is in the topics index |
 | 4 | First live run | Not started | The maintainer has dispatched the workflow once, the branch holds the log and `state.json`, and a second run adds only what is new |

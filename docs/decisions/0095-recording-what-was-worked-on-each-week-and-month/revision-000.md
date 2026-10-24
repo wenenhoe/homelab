@@ -39,6 +39,14 @@ Neither git history nor the working tree answers the question directly.
   each change touched; and the frontmatter `status:` of project docs and
   decision revisions before and after it.
 
+The job token's reach follows the rulesets. With the default token
+permission read-only and `contents: write` declared on one job, that job's
+token can push to a branch whose rules only block deletion and force-push,
+and is refused a push to a branch that requires a pull request, and a
+force-push or deletion where a rule blocks them. A push made with it starts
+no workflow run. This was checked on a scratch repository with rulesets of
+the shape ADR 0076 describes.
+
 Four constraints shape the design.
 
 - The repository is public, so the record is too. The public-repo rule in
@@ -76,15 +84,23 @@ Four constraints shape the design.
   of changes is a collapsed section.
 - **Where.** An orphan branch of this repository, `progress-log`. It is
   never merged into `main`, never fetched by the CD agent, and not part of
-  pre-commit or pull request checks.
+  pre-commit or pull request checks. The maintainer creates it once by
+  hand, so the workflow never creates a ref. A ruleset on it blocks
+  deletion and force-push, with no bypass, and nothing else: no required
+  pull request, status check or signed commit.
 - **When and how.** A scheduled workflow, daily, runs the generator from
   `tools/` and pushes the result to `progress-log`. A state file on that
   branch holds the last `main` commit read, and the next run reads only
   what came after it. A week that has closed is not regenerated, so notes
   the maintainer writes in it, below a marked line, are kept. If the
-  recorded commit is no longer an ancestor of `main`, the run rebuilds from
-  the start. The job holds `contents: write`, no other job in the workflow
-  does, and it pushes only to `progress-log`.
+  recorded commit is no longer an ancestor of `main`, the run regenerates
+  every week, keeping each week's notes, and commits the result on top of
+  the branch; the branch is never force-pushed or recreated. The job holds
+  `contents: write`, no other job in the workflow does, and it pushes only
+  to `progress-log`.
+- **What keeps the token off the other branches.** The rulesets that
+  protect `main`, `maintenance` and `develop` name those branches, so none
+  matches `progress-log`, and GitHub Actions is on no bypass list.
 - **Source.** The record reads this repository's history and nothing else.
 
 ## Alternatives considered
@@ -106,19 +122,12 @@ Four constraints shape the design.
   rewrites past weeks, so notes written in them would have to be merged
   back and every run's diff touches old files. It stays as the fallback
   when the state no longer matches history.
+- **No ruleset on `progress-log`**: nothing would stop a mistaken
+  force-push or deletion from erasing the record, and closed weeks are
+  meant to stay as written.
 - **A narrative summary written by a model in CI**: not deterministic, and
   needs a model credential that CI does not otherwise hold. The maintainer
   can write a note into any week.
-
-## Assumptions
-
-- **Claim:** The workflow's `GITHUB_TOKEN` with `contents: write` can push
-  to `progress-log` and cannot push to `main`, `maintenance` or `develop`,
-  whose rulesets refuse it.
-  **Breaks if wrong:** the push fails, or the token reaches a protected
-  branch it should not.
-  **Checked by:** reading the repository rulesets, then a run of the
-  workflow against a scratch branch.
 
 ## Consequences
 
@@ -135,7 +144,9 @@ Four constraints shape the design.
 - Decision states appear only from when revisions carried frontmatter, in
   September 2026.
 - The workflow holds a write token whose reach is the `progress-log`
-  branch.
+  branch, because the rulesets of the other three refuse it.
+- A rebuild adds a commit instead of rewriting the branch, so the branch
+  only grows.
 - The behaviour is described in a topic doc added with the implementation.
 
 ## Invariants
@@ -147,6 +158,9 @@ Four constraints shape the design.
 - It carries only what this repository's public history already shows. No
   finding, scan result, mutation result or other private data reaches it.
 - A normal run does not rewrite a closed week.
+- No ref is force-pushed, deleted or created by the workflow.
+- GitHub Actions is on no bypass list of `main`, `maintenance` or
+  `develop`.
 - A run resumed from the recorded commit and a full rebuild produce the
   same files for the same history.
 
@@ -164,6 +178,12 @@ Four constraints shape the design.
 - A test that resuming from any earlier commit gives output identical to a
   full rebuild.
 - A rejected push fails the workflow run.
+- A test over the workflow asserts that `contents: write` appears on the
+  publishing job and nowhere else in it.
+- Before the first scheduled run, the maintainer reads the live rulesets:
+  the rules the API reports for `progress-log` are deletion and
+  non-fast-forward only, each of the other three requires a pull request,
+  and no bypass list names GitHub Actions.
 
 ## Reconsideration triggers
 

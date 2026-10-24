@@ -30,8 +30,8 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike on a scratch OPNsense in the isolated block: the seed's first-boot import, the API user and its key, the collection's coverage, savepoint revert, the gateway certificate, Unbound forwards, the unattended install | Done | Each assumption in ADR 0089 is resolved and folded into its Context, and the revision can be `approved` |
 | 2 | The seed image and the Ansible role's skeleton. Starts from Tofu's root module and credentials file | Not started | A scratch gateway builds from the seed, and the play's `--check --diff` reports no change after it converges |
-| 3 | Policy, NAT, Unbound forwards and the Kea scratch network for the existing zones, with the hardening baseline | Not started | `--check --diff` reports no change, and probes from a canary VM confirm the allowed flows work and the others fail |
-| 4 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | `--check --diff` reports no change, and the zone's canary probes pass |
+| 3 | Policy, NAT, Unbound forwards and the Kea scratch network for the existing zones, with the hardening baseline | Not started | `--check --diff` reports no change, and the flow list's probes ([`network-boundary-checks.md`](network-boundary-checks.md)) confirm the allowed flows work and the others fail |
+| 4 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | `--check --diff` reports no change, and the zone's flows in the flow list pass |
 | 5 | The egress proxy's configuration. Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy | Not started | The proxy's allowlist is generated from one source in the repo |
 | 6 | Rebuild the production gateway (VM 201) from the seed and apply the play, after [`tofu-migration.md`](tofu-migration.md)'s cutover of the Ubuntu hosts. Retire the hand-maintained state and decommission the old VM | Not started | The topic doc describes the repo as the owner of the gateway's configuration, the old VM is decommissioned, and canary probes still pass |
 
@@ -40,7 +40,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Acceptance criteria
 
 - [ ] A scratch gateway builds from the seed, and the play's `--check --diff` reports no change once it has converged.
-- [ ] The policy, NAT, Unbound forwards and Kea scratch network for the existing zones are expressed in the play, and canary probes confirm every allowed flow works and every other fails.
+- [ ] The policy, NAT, Unbound forwards and Kea scratch network for the existing zones are expressed in the play, and the flow list's probes confirm every allowed flow works and every other fails.
 - [ ] The coding-agent zone's interface, rules and proxy configuration are expressed in the play, and the canary probes from [`coding-agent-egress.md`](coding-agent-egress.md) still pass after the cutover.
 - [ ] The proxy's allowlist is generated from one source in the repo.
 - [ ] The production gateway is rebuilt from the seed, the old VM is decommissioned, and the topic doc names the repo as the owner of its configuration.
@@ -60,6 +60,8 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - How the console read of the gateway's certificate is wired into the play, and how a renewal (every 397 days) is noticed: the play's failed verification. The operator host must also resolve the management name.
 - Install and remove a package that is not installed, against a gateway with a route out, before the play declares packages: the scratch bridge could not run it.
 - Update a gateway built from the `nano` image to the pinned release and check that the seed survives it; the Tofu module's change for the image import and the serial port.
+- Which credential takes the snapshot [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md) requires before each apply. The Proxmox token in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#proxmox-api-token) holds no snapshot privilege. The leading option is a token of its own, scoped to the gateway VM, that can create and delete snapshots but not roll back, kept with the play's other credentials in the file ADR 0048 decides because the play runs when OpenBao may be unreachable behind the gateway it changes. A rollback stays a person's act, and a CD agent job could hold the token later.
+- How a clean `--check --diff` is judged. The exit conditions of Stages 2 to 4 say a converged gateway reports no change, but ADR 0089's Context lists objects whose report is never clean: package locks, anything set through the generic call, a user password set to `always`, extra lines in alias and user diffs, and a forward reported changed with no diff. The settings only the seed sets are never reported at all. Options are an allow-list of the known noise, a comparison of the downloaded configuration against the seed for the seed-only settings, or leaving those objects out of the check. Settle it before Stage 3, and keep each module's raw output from a clean run, a run after a GUI change and a second converge as test fixtures in Stage 2, so the choice rests on real output.
 
 ## Closing checklist
 

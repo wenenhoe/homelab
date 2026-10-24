@@ -6,6 +6,8 @@ status: not-started
 blocked: false
 summary: The Proxmox node reinstalled from an ISO with an embedded answer file and brought to the state OpenTofu needs by an idempotent Ansible role, tested on a nested Proxmox VM.
 decision: ADR-0093/0
+super_project: tofu-vm-provisioning
+track: proxmox
 allowed_paths:
   - tools/proxmox_install/**
   - tools/tests/proxmox_install/**
@@ -72,7 +74,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Open items
 
 - Whether the first run after a reinstall may use the maintainer's hardware-backed key, which the ADR's first assumption leaves to the maintainer and ADRs 0056 and 0058.
-- Whether the node joins the Tofu VM provisioning super-project, since this project and the rebuild in [`tofu-migration.md`](tofu-migration.md) share an outage.
+- When the node reinstall is scheduled relative to the cutover in [`tofu-migration.md`](tofu-migration.md), since both need an outage.
 
 ## Closing checklist
 

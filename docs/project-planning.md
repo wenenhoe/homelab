@@ -96,6 +96,7 @@ calls for a project, while a working one still has to be settled.
 | `tofu-vm-provisioning` | `dns` | — | [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | De-risking |
 | | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Not started — waiting on [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
+| | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
 | | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
 | | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building — waiting on [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) |
 
@@ -109,7 +110,6 @@ calls for a project, while a working one still has to be settled.
 | [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | De-risking | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
-| [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) | The Proxmox node reinstalled from an ISO with an embedded answer file and brought to the state OpenTofu needs by an idempotent Ansible role, tested on a nested Proxmox VM. |
 | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | — | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
 

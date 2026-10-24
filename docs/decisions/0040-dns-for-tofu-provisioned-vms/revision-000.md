@@ -49,8 +49,23 @@ that already exist.
   drops dynamic DNS and the BIND plugin from the gateway. Its Unbound
   recurses directly and can forward a named zone to a given server and
   port.
+- On the scratch gateway, a forward to a server holding an unsigned zone
+  answered names with private and public addresses and NXDOMAIN for
+  missing names, without the authenticated-data flag, because Unbound's
+  templates write `domain-insecure` for a forwarded domain and, unless the
+  GUI's rebind check is off, `private-domain`. Names under no forward kept
+  validating in Unbound 1.24.2, though not on the gateway, which had no
+  route to the roots. The two zones are unsigned, so they are answered
+  but not validated.
 - `services` is rebuilt after every other host, because every host
-  resolves through its BIND9.
+  resolves through its BIND9. The deploy that precedes a restore brings
+  that BIND9 up from `host_vars` before any app is restored, so the
+  storage endpoint name the restore reads resolves again once the deploy
+  has run.
+- OPNsense can serve expired cache entries, a GUI setting. The
+  `oxlorg.opnsense` modules at the collection's current head have no field
+  for it or for any cache TTL, and a setting made through the generic call
+  never shows drift.
 
 The `bind9` role already merges `host_vars` and each app's routes in one
 run, and the generated inventory lands in the same hostvars, so the
@@ -80,8 +95,8 @@ and the gateway runs no authoritative DNS.
 A secondary for both zones on `storage` is intended as a later,
 separate piece of work, not part of this decision. It needs a
 zone-transfer credential, which is a decision of its own, and it matters
-only while `services` is being rebuilt or is down. Until then Unbound's
-cache covers short outages.
+only while `services` is being rebuilt or is down. Until then the lab's
+internal names have one server.
 
 The variables are renamed to say what they hold: `ddns_domain` becomes
 `host_domain`, `lab_domain` becomes `lan_domain`, and `dns_ddns_target`
@@ -114,21 +129,15 @@ is stored in OpenBao.
 
 ## Assumptions
 
-- **Claim:** Unbound forwarding the two zones to `services` resolves names
-  from every VLAN, while it keeps validating public names.
-  **Breaks if wrong:** the private zones are marked insecure in Unbound
-  or served another way.
-  **Checked by:** the resolution test in ADR 0089's spike, then a probe
-  from each VLAN.
-- **Claim:** every name the lab needs while `services` is being rebuilt
-  still resolves from the gateway's cache, or is not needed until it is
-  back. It is the only authoritative server for both zones.
-  **Breaks if wrong:** the secondary on `storage` is needed before that
-  rebuild, not after.
-  **Checked by:** reading the rebuild and restore order against the names
-  each step resolves, then a probe from a VLAN with the server stopped,
-  including whether the gateway's Unbound can answer from expired cache
-  entries.
+- **Claim:** the hosts already rebuilt can do without the lab's internal
+  names for the length of the `services` rebuild, which is the last one,
+  because the gateway's Unbound keeps only what a record's TTL allows and
+  nothing in the repo sets it to serve expired entries.
+  **Breaks if wrong:** a service that needs an internal name during the
+  rebuild fails, and the secondary on `storage` or a serve-expired setting
+  on the gateway is needed before that rebuild, not after.
+  **Checked by:** a probe from a VLAN with the `services` BIND9 stopped,
+  listing which names still resolve and which services notice.
 
 ## Consequences
 
@@ -138,6 +147,10 @@ is stored in OpenBao.
 - [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)'s OPNsense
   section describes static host overrides and dynamic DNS for the dynamic
   pool. It changes when the gateway is rebuilt under ADR 0089.
+- The gateway's play connects by the gateway's management name, whose
+  record is a static one in the host zone. A rebuilt gateway has no
+  forward until that play has run, so the operator host resolves the name
+  another way for the first run.
 - A rebuilt host's `ansible_host` is its address, so Ansible no longer
   resolves a host name that the DNS role it is about to run provides.
 - `ddns_domain`, `lab_domain` and `dns_ddns_target` are renamed across

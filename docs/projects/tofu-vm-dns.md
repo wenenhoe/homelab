@@ -52,6 +52,7 @@ tightens that check.
 ## Acceptance criteria
 
 - [ ] DNS for Tofu-provisioned VMs works as ADR 0040 decides.
+- [ ] A probe from each VLAN resolves a name in the host zone and one in a service zone through the gateway.
 - [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Open items

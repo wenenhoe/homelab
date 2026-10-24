@@ -330,6 +330,8 @@ def run_minecraft_world_restore() -> bool:
         *INVENTORY_ARGS,
         "--limit",
         "play,localhost",
+        "-e",
+        json.dumps({"restore_world_confirm": True}),
     ]
     print("\n=== Unpacking the restored backup into minecraft's live world ===")
     return subprocess.run(cmd, cwd=ANSIBLE_DIR, check=False).returncode == 0

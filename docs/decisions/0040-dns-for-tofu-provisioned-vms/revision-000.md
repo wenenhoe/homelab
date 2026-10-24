@@ -86,8 +86,8 @@ whose domain is `host_domain` (today `internal.<main_domain>`, a sibling
 of `lan_domain`, the parent of the service zones). The `bind9` role
 builds the host zone's records from the generated inventory (the host
 name and its `ansible_host`) and from static `extra_records` for hosts
-Tofu does not provision: the Proxmox node, the gateway, and `tailscale`
-while Tofu has not yet built it. Every service CNAME points at its host's
+Tofu does not provision: the Proxmox node and the gateway, and each
+current host until Tofu rebuilds it. Every service CNAME points at its host's
 `host_fqdn`, `<inventory host name>.<host_domain>.`, computed once for all
 hosts; no host carries a per-host variable for it.
 

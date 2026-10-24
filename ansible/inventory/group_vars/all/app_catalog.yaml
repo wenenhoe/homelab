@@ -146,6 +146,7 @@ app_catalog:
     configs:
       - src: config.yaml.j2
         dest: "data/config.yaml"
+        mode: "0600"
         no_log: true
     backup:
       volumes: [data]

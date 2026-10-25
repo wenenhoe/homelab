@@ -24,6 +24,7 @@ allowed_paths:
   - tools/tests/ci/provenance/**
   - tools/tests/ci/test_verification.py
   - docs/topics/engineering/ci/**
+  - docs/topics/README.md
   - docs/topics/engineering/branching.md
 ---
 

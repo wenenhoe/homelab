@@ -12,7 +12,7 @@ MD040: false
 
 # Compact `- description:` list items immediately followed by an indented
 # fenced example, with no blank line before/after, are the established style
-# for command references (README.md's Setup/Basic Commands sections) - not
+# for command references (docs/topics/deploy/ansible.md's Tag-based commands section) - not
 # an oversight to reformat away.
 MD031: false
 

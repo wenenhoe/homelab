@@ -8,7 +8,7 @@ The one-time setup of the machine that runs `ansible-playbook` and the repo's Py
 - Docker, running, for Molecule: each role's scenario spins up and tears down real containers.
 - An SSH key at `~/.ssh/proxmox_vm_servers` with access to every target host. Both inventories name that path.
 - A native `bao` CLI, for anything that talks to OpenBao from the controller. See [OpenBao CLI](#openbao-cli).
-- The `tofu` CLI, only to work under `tofu/`. `required_version` in [`tofu/versions.tf`](../../../tofu/versions.tf) is the range the root module accepts, and the `tofu-checks` job in [`pr-checks.yml`](../../../.github/workflows/pr-checks.yml) pins the release CI runs.
+- The `tofu` CLI, only to work under `tofu/`. [`vm-provisioning.md`](../infra/vm-provisioning.md#tofu-project) has the install, the credentials file and the environment it runs in. `required_version` in [`tofu/versions.tf`](../../../tofu/versions.tf) is the range the root module accepts, and the `tofu-checks` job in [`pr-checks.yml`](../../../.github/workflows/pr-checks.yml) pins the release CI runs.
 
 ## Python environment
 
@@ -67,4 +67,4 @@ Several tools resolve paths against the directory they start in.
 | `python3 -m <package>` for a package under `tools/`, such as `openbao_utils.bootstrap` | `tools/` |
 | `molecule` | the role's directory; see [`molecule-testing.md`](../engineering/molecule-testing.md) |
 | `uv run pytest ansible/tests/ tools/tests/` | the repo root; see [`conventions.md`](../engineering/conventions.md) |
-| `tofu` | `tofu/`, or `tofu -chdir=tofu` from the repo root |
+| `tofu` | the repo root, as `tofu -chdir=tofu`, with the environment [`vm-provisioning.md`](../infra/vm-provisioning.md#tofu-project) sets |

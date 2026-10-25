@@ -3,11 +3,10 @@
 `.github/workflows/pr-checks.yml` runs on every PR into `main`,
 `maintenance` or `develop`, the three long-lived branches of
 [ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md).
-Which jobs actually block a merge is configured in GitHub's branch
-protection / repository rulesets (Settings > Branches on GitHub, not
-anything in this repo) —
-see [Requiring checks before merge](#requiring-checks-before-merge)
-below for which check names to select. This pipeline isn't a substitute
+Which jobs block a merge is set by the repository rulesets on those branches
+([`branching.md`](../branching.md#the-rulesets)), not by anything in this
+repo; see [Requiring checks before merge](#requiring-checks-before-merge)
+below for the check names. This pipeline isn't a substitute
 for [Molecule](../molecule-testing.md): Molecule tests one role in
 isolation, this pipeline tests the parts Molecule can't (linting the
 whole tree, a real compose stack booting, and the actual
@@ -297,25 +296,27 @@ The rules are a table in [`ci/promotion/rules.py`](../../../../tools/ci/promotio
 
 Only the OpenBao **server** container seals. The compose file's image pin and the seeded `openbao.hcl` are what recreate or restart it, so they are the only OpenBao paths that fire. The role's one-shot containers (`openbao-read-uid`, `openbao-chown-data`, the `step_ca_cert` chown) and the native `bao` client package on `security` run from the same release and are never sealed, and a certificate renewal reloads the server with `SIGHUP` and leaves it unsealed, so none of those ask for an unseal.
 
+Two kinds of change are applied by hand and have no rule: a new or changed Vault policy (`docker/openbao/policies/`, written with `bao policy write <name>`) and the R2 read watcher's files (`docker/openbao/watcher/`, copied to `security`). Both depend on the file's name or on where it is installed, which the table's fixed commands cannot express, so the pull request description's own text is where to note them.
+
 To add a rule, add a `Rule` to the table with a test in `tools/tests/ci/promotion/test_rules.py` for a path it asks for and one it does not.
 
 The workflow triggers on `pull_request_target`, so the workflow and the code it runs are `main`'s and a branch cannot edit them to use the `pull-requests: write` token. It checks nothing out of the pull request: the changed paths come from the pull request files API and are only matched against the globs, and a path is printed back only when it is made of plain characters. It takes effect once it is on `main`. From 2 December 2026 GitHub disables `pull_request_target` on public repositories unless an Actions policy allows it, so the repository needs a policy (Settings > Actions > Policies) that allows `pull_request_target` and targets `.github/workflows/promotion-checklist.yml` alone; a policy that restricts events is an allowlist, so it must not cover other workflows. Without it the run fails and the description keeps its last content. Keep the repository setting that lets Actions approve pull requests off, because this job's token could otherwise approve a promotion.
 
 ## Requiring checks before merge
 
-Not configured in this repo — GitHub only blocks merges via branch
-protection rules or repository rulesets (Settings > Rules), which
-reference jobs by their check-run name: the job's name alone
+The rulesets on `main`, `maintenance` and `develop` require the same 15
+checks ([`branching.md`](../branching.md#the-rulesets)). GitHub's rulesets
+(Settings > Rules) reference jobs by their check-run name: the job's name alone
 (`pre-commit-checks`, with no workflow name before it), or, for a job that
 calls a reusable workflow, the calling job and the called one
 (`trivy-scan / secret-scan`).
 
-`warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
-`pre-commit-checks`, `project-checks`,
+`warm-pre-commit-cache`, `pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
 `deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`
-and `trivy-scan / ansible-misconfig-scan` are all safe to
-mark required directly: each
+and `trivy-scan / ansible-misconfig-scan` are required directly, with
+`matrix-jobs-gate` below as the fifteenth; all are safe to
+require: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required
 check accepts a `skipped` conclusion, so an unrelated PR (e.g.
@@ -326,7 +327,8 @@ leaves the check permanently "Pending" instead of reporting `skipped`.
 
 A job whose `needs` failed also reports `skipped`, which a required check
 accepts. `matrix-jobs-gate` closes that for `detect-changes`,
-`warm-uv-cache` and `warm-galaxy-cache`, which it requires to succeed.
+`warm-uv-cache` and `warm-galaxy-cache`, which it requires to succeed, so
+those two are not required on their own.
 `warm-pre-commit-cache` is the one warm job it does not cover, so it is
 required directly: without that, a failed warm leaves `pre-commit-checks`
 and `ansible-lint` skipped, and the merge passes.

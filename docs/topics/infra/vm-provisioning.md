@@ -163,8 +163,10 @@ rejected by Proxmox before 8.4.
 `tofu -chdir=tofu test` checks the VMID-derived values and the input
 rules against a mocked provider, so it needs no node or credentials. A new
 `run` block with its own `module` source needs `tofu init` again before it
-is found. The `tofu-checks` CI job runs `tofu fmt -check -recursive`, `tofu validate` and
-this test on every change under `tofu/`; run `tofu fmt -recursive` before pushing.
+is found. The `tofu-checks` CI job runs this test, with the format check, `init`
+and `validate`, on every change under `tofu/`
+([`pipeline.md`](../engineering/ci/pipeline.md#jobs)); run `tofu fmt -recursive`
+before pushing.
 
 ## OPNsense
 

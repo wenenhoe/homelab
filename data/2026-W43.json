@@ -1058,6 +1058,125 @@
      "opened (building)"
     ]
    ]
+  },
+  {
+   "cat": "scope",
+   "sha": "2c388980e549074a6c8e8a4369e26f50c1193b17",
+   "date": "2026-10-25T15:37:03+08:00",
+   "kind": "pr",
+   "pr": 537,
+   "title": "widen the branch separation project's scope to image publishing",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "30b75f2cad55f8ba4bc5944477f631cbfcfc6f27",
+   "date": "2026-10-25T15:42:20+08:00",
+   "kind": "pr",
+   "pr": 538,
+   "title": "Implement prod and wip branches",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4f063d6e396a069b0bd89da0d78324208987b87c",
+   "date": "2026-10-25T16:43:17+08:00",
+   "kind": "pr",
+   "pr": 541,
+   "title": "Continue prod and wip branches",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e897c0f60f1b1eac33ce1289179adecd28e9118a",
+   "date": "2026-10-25T17:37:05+08:00",
+   "kind": "pr",
+   "pr": 546,
+   "title": "Add promotion checklist",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5b97ee7d4bacf09404b2aee4d1bdf6d79df54959",
+   "date": "2026-10-25T17:58:44+08:00",
+   "kind": "pr",
+   "pr": 547,
+   "title": "Maintenance",
+   "type": "other",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b3c09e80afb6879fcdc4b495c72df19ec4b1129c",
+   "date": "2026-10-25T18:45:25+08:00",
+   "kind": "pr",
+   "pr": 551,
+   "title": "Maintenance",
+   "type": "other",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "aa8554e7c8b46e70471de286f1401047d20df476",
+   "date": "2026-10-25T19:49:31+08:00",
+   "kind": "pr",
+   "pr": 553,
+   "title": "Update project doc and scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d9568f3af1b92e350c2c0b25db0f42e85b6a4bfa",
+   "date": "2026-10-25T19:57:11+08:00",
+   "kind": "pr",
+   "pr": 554,
+   "title": "run Renovate as its own GitHub App",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "a9dd2da08ea202ecf63b436c597ccd4f621eb60f",
+   "date": "2026-10-25T23:03:34+08:00",
+   "kind": "pr",
+   "pr": 562,
+   "title": "Update and finalise project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": [
+    [
+     "adr",
+     "ADR 0076 r000 \u00b7 keeping what production runs apart from work in progress",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "production-and-work-in-progress-branches",
+     "closed"
+    ]
+   ]
   }
  ]
 }

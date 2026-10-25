@@ -7,7 +7,7 @@ short: Branch separation
 solution: Three long-lived branches, where only main is deployed, Renovate and development each collect on their own branch, and each reaches main by a pull request that lists what to run
 summary: How dependency updates and long-running development can wait on branches of their own while main stays the exact state the CD agent deploys.
 topic: deployment-platform
-status: approved
+status: accepted
 related: [ADR-0037, ADR-0044, ADR-0050, ADR-0064]
 ---
 
@@ -24,8 +24,6 @@ What has to be true: `main` moves only when the maintainer decides it should; a 
 [ADR 0044 revision 0-c (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)'s deploy job fetches `origin/main` every few minutes and runs when the commit differs from the last one it deployed. `tools/cd_agent/run_job.py` names the branch once, as `BRANCH = "main"`. Merging to `main` is therefore a deploy within the poll interval, and nothing else in the repository is deployed from any other ref.
 
 Renovate runs daily and opens pull requests against the default branch, in the Monday and Thursday window of `renovate.json5`'s `schedule`. A review of several is several merges.
-
-Where `main` is named in CI: `pr-checks.yml` runs for pull requests into `main`; `warm-caches.yml` and the `build-*-image.yml` workflows run on pushes to `main`. The Python behind the checks takes the pull request's base and head commits from the event (`check_project_scope` and `check_project_close` are called with `--base` and `--head`), so it does not name a branch. [`docs/projects/README.md`](../../projects/README.md) states that topic docs describe `main` at every commit.
 
 The repository merges pull requests with merge commits. A promotion by merge commit leaves every promoted commit an ancestor of `main`; a squash merge leaves the content in `main` and the commits off it.
 
@@ -87,7 +85,6 @@ flowchart LR
 - A pull request into `develop` needs no rebase after a realignment, since the branch is never rewritten.
 - A dependency update reaches production only when the maintainer promotes `maintenance`, so a security update waits for a promotion, or goes straight to `main`.
 - The checklist stays only until the CD agent applies every kind of change itself.
-- [`cd-agent-runner.md`](../../topics/deploy/cd-agent-runner.md) still describes the deploy job accurately; [`pipeline.md`](../../topics/engineering/ci/pipeline.md) and [`gates.md`](../../topics/engineering/ci/gates.md) change with the triggers.
 
 ## Invariants
 

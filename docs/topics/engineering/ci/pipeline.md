@@ -1,8 +1,11 @@
 # CI: PR Checks
 
-`.github/workflows/pr-checks.yml` runs on every PR. Which jobs actually
-block a merge is configured in GitHub's branch protection / repository
-rulesets (Settings > Branches on GitHub, not anything in this repo) —
+`.github/workflows/pr-checks.yml` runs on every PR into `main`,
+`maintenance` or `develop`, the three long-lived branches of
+[ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md).
+Which jobs actually block a merge is configured in GitHub's branch
+protection / repository rulesets (Settings > Branches on GitHub, not
+anything in this repo) —
 see [Requiring checks before merge](#requiring-checks-before-merge)
 below for which check names to select. This pipeline isn't a substitute
 for [Molecule](../molecule-testing.md): Molecule tests one role in

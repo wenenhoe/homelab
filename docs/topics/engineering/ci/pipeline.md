@@ -3,11 +3,10 @@
 `.github/workflows/pr-checks.yml` runs on every PR into `main`,
 `maintenance` or `develop`, the three long-lived branches of
 [ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md).
-Which jobs actually block a merge is configured in GitHub's branch
-protection / repository rulesets (Settings > Branches on GitHub, not
-anything in this repo) —
-see [Requiring checks before merge](#requiring-checks-before-merge)
-below for which check names to select. This pipeline isn't a substitute
+Which jobs block a merge is set by the repository rulesets on those branches
+([`branching.md`](../branching.md#the-rulesets)), not by anything in this
+repo; see [Requiring checks before merge](#requiring-checks-before-merge)
+below for the check names. This pipeline isn't a substitute
 for [Molecule](../molecule-testing.md): Molecule tests one role in
 isolation, this pipeline tests the parts Molecule can't (linting the
 whole tree, a real compose stack booting, and the actual
@@ -303,19 +302,19 @@ The workflow triggers on `pull_request_target`, so the workflow and the code it 
 
 ## Requiring checks before merge
 
-Not configured in this repo — GitHub only blocks merges via branch
-protection rules or repository rulesets (Settings > Rules), which
-reference jobs by their check-run name: the job's name alone
+The rulesets on `main`, `maintenance` and `develop` require the same 15
+checks ([`branching.md`](../branching.md#the-rulesets)). GitHub's rulesets
+(Settings > Rules) reference jobs by their check-run name: the job's name alone
 (`pre-commit-checks`, with no workflow name before it), or, for a job that
 calls a reusable workflow, the calling job and the called one
 (`trivy-scan / secret-scan`).
 
-`warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
-`pre-commit-checks`, `project-checks`,
+`warm-pre-commit-cache`, `pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
 `deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`
-and `trivy-scan / ansible-misconfig-scan` are all safe to
-mark required directly: each
+and `trivy-scan / ansible-misconfig-scan` are required directly, with
+`matrix-jobs-gate` below as the fifteenth; all are safe to
+require: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required
 check accepts a `skipped` conclusion, so an unrelated PR (e.g.
@@ -326,7 +325,8 @@ leaves the check permanently "Pending" instead of reporting `skipped`.
 
 A job whose `needs` failed also reports `skipped`, which a required check
 accepts. `matrix-jobs-gate` closes that for `detect-changes`,
-`warm-uv-cache` and `warm-galaxy-cache`, which it requires to succeed.
+`warm-uv-cache` and `warm-galaxy-cache`, which it requires to succeed, so
+those two are not required on their own.
 `warm-pre-commit-cache` is the one warm job it does not cover, so it is
 required directly: without that, a failed warm leaves `pre-commit-checks`
 and `ansible-lint` skipped, and the merge passes.

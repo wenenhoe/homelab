@@ -2,7 +2,7 @@ name: minecraft
 
 services:
   test-upgrade:
-    image: ghcr.io/itzg/minecraft-server:java25@sha256:3168dfa30c35fa1f99b8edde120f934a03ee780fcf905f450a1dbd9551d719f5
+    image: ghcr.io/itzg/minecraft-server:java25@sha256:6fd6f9bb6998b7cd06948ec6ab03fabfdf98ba3f2ec030c44069bec9a6bdf09d
     volumes:
       - extras:/extras:ro
     environment:

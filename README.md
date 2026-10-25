@@ -3,7 +3,7 @@
 [![Renovate enabled](https://img.shields.io/badge/renovate-enabled-brightgreen.svg)](https://renovatebot.com)
 [![Trivy scheduled scan](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml/badge.svg)](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml)
 
-A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. Apart from the few secrets listed below that stay manual, there is no manual step on a target host beyond running `ansible-playbook`.
+A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. Apart from the few secrets that stay manual ([`secrets.md`](docs/topics/secrets/secrets.md#bootstrapping-manual-secrets)), there is no manual step on a target host beyond running `ansible-playbook`.
 
 | Concern | Stack |
 | :--- | :--- |
@@ -11,244 +11,71 @@ A small fleet of Ubuntu hosts running Dockerized services, fully converged by An
 | Identity & secrets | OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth |
 | Data & ops | SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate |
 
-OpenTofu/Proxmox provisioning is in progress — see [`docs/projects/`](docs/projects/README.md).
+OpenTofu provisioning of the Proxmox VMs is partly built: [`tofu/`](tofu) holds the root module, its modules and their tests. [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) says what exists and what doesn't, and [`project-planning.md`](docs/project-planning.md) lists what remains.
 
-## Reviewing this repo
-
-Short on time? Each row is a claim this repo makes, the document that explains it, and the test or check that holds it up. [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md) has the fleet on one page first.
-
-| Claim | Read | Held up by |
-| :--- | :--- | :--- |
-| A compromised app host has a bounded blast radius | [`backup-threat-model.md`](docs/topics/disaster-recovery/backup-threat-model.md) · [ADR 0010](docs/decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) | Molecule scenario [`identity_scoping`](ansible/roles/seaweedfs_bucket/molecule/identity_scoping) asserts that a cross-prefix write is denied |
-| Secrets are generated and rotated with no standing root token | [`openbao.md`](docs/topics/secrets/openbao.md) · [ADR 0025](docs/decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md) | Scenarios [`vault_backed`](ansible/roles/secrets/molecule/vault_backed) and [`rotate_secret`](ansible/roles/secrets/molecule/rotate_secret) run against a real OpenBao and check the stored version, not just that a task exited zero |
-| Roles converge idempotently | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) | Each Molecule scenario converges twice and expects no change the second time; the exceptions, and roles that cannot be containerized, are documented there |
-| Backups can be restored | [`fire-drill.md`](docs/topics/disaster-recovery/fire-drill.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) | Automated scenarios against a throwaway SeaweedFS and GPG key; the end-to-end drill is a documented manual procedure |
-| CI runs what a change needs, and no more | [`change-scoping.md`](docs/topics/engineering/ci/change-scoping.md) · [`pipeline.md`](docs/topics/engineering/ci/pipeline.md) | The scoping and gate logic is Python under [`tools/ci/`](tools/ci), unit-tested in [`tools/tests/ci/`](tools/tests/ci) |
-| A pinned download is the publisher's, not just a hash someone copied | [`release-checksum-check.md`](docs/topics/engineering/ci/release-checksum-check.md) · [ADR 0077](docs/decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md) | The `release-checksums` job in [`pr-checks.yml`](.github/workflows/pr-checks.yml) and a weekly run |
-| A pinned image digest is its publisher's, not whatever the registry served | [`image-provenance-check.md`](docs/topics/engineering/ci/image-provenance-check.md) · [ADR 0084](docs/decisions/0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md) | The `provenance` job in [`pr-checks.yml`](.github/workflows/pr-checks.yml) and a weekly run |
-| Docs cannot drift silently from the code | [`doc-checks.md`](docs/topics/engineering/ci/doc-checks.md) | [`check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py) runs in pre-commit and CI |
-| Design choices have recorded reasoning | [`docs/decisions/`](docs/decisions/README.md) | A decision follows a [template](docs/decisions/TEMPLATE.md) with problem, alternatives considered, assumptions and reconsideration triggers; an accepted decision's reasoning stays fixed, and a changed decision is a new revision |
-| Controls are described without overclaiming | [`SECURITY.md`](SECURITY.md) · [`nist-800-53-alignment.md`](docs/topics/engineering/nist-800-53-alignment.md) | Each states what is not covered, including a control that was checked and left unmapped |
-
-What is not here yet is stated rather than implied: the OpenTofu/Proxmox work above, and the intrusion-detection and security-event decisions, are open (see [`project-planning.md`](docs/project-planning.md)).
+Reviewing this repo? [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) maps each claim it makes to the doc that explains it and the check that holds it up.
 
 ## Architecture
 
-The lab is organized as a small group of hosts, each owning a subdomain of `lan.{{ main_domain }}` and running its own Caddy instance:
+Four app hosts, `services`, `play`, `security` and `storage`, each run Docker Compose stacks behind their own Caddy instance, which terminates TLS for the host's own subdomain of `lan.{{ main_domain }}`. `tailscale` (a subnet router) and `cd-agent` (the pull-based CD jobs) sit outside the app group. Routes sit behind Tinyauth forward-auth with LLDAP as the directory unless a route opts out. Every image is pinned by digest and Renovate proposes each change as a pull request ([ADR 0083](docs/decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)). Each app host's named volumes are backed up nightly as encrypted archives to SeaweedFS on `storage` and relayed offsite ([`backup.md`](docs/topics/disaster-recovery/backup.md)), and nearly every secret is generated, cached and rotated through OpenBao on `security` ([`openbao.md`](docs/topics/secrets/openbao.md)).
 
-| Host | Role | Caddy domain |
-| :--- | :--- | :--- |
-| `services` | Core infra: DNS (BIND9), utility apps | `svc.lan.{{ main_domain }}` |
-| `play` | Game server hosting (Minecraft) | `play.lan.{{ main_domain }}` |
-| `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub, OpenBao secrets store | `sec.lan.{{ main_domain }}` |
-| `storage` | Backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host, `cloud_sync` relay to R2/B2/OCI | `store.lan.{{ main_domain }}` |
-
-Every `app_hosts` member runs its own Caddy instance and terminates TLS
-for its own `*.{{ caddy_domain }}` wildcard via DNS-01 (DigitalOcean).
-`services` additionally runs the lab's single authoritative BIND9
-instance, scraping every app host's declared DNS zones and serving
-CNAMEs back to each host's dynamic DNS target. Routes sit behind
-**Tinyauth** forward-auth, backed by **LLDAP** as the directory, unless
-a route sets `auth: false`. **Beszel** monitors host and container
-health lab-wide. Every image is pinned by digest and **Renovate**
-proposes each change as a pull request ([ADR 0083](docs/decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)). Every host runs a `backup_agent` pushing
-GPG-encrypted archives of its own apps' named volumes to **SeaweedFS** on
-`storage` nightly, relayed further offsite by `cloud_sync` to R2/B2/OCI
-— see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md).
-Nearly every secret in this repo is generated, cached, and rotated
-through **OpenBao** on `security` — see
-[`docs/topics/secrets/openbao.md`](docs/topics/secrets/openbao.md). A few
-stay outside it by design: the Shamir unseal shares and the read-only
-snapshot credentials
-([ADR 0017](docs/decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)),
-the controller's `main-domain` and AppRole pair
-([`secret_catalog.yaml`](ansible/inventory/group_vars/all/secret_catalog.yaml)),
-and Beszel's key and token, typed into its web UI
-([ADR 0047](docs/decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
-
-The rest of `docker/` is independently deployable Compose stacks
-(dashboards, media-download tools, Minecraft, a link shortener, a
-pastebin, PDF tools, a speed test and more), each just an `app_catalog`
-entry plus a `docker/<app>/` directory — see
-[`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) to add one.
-[`docs/architecture/system-overview.md`](docs/architecture/system-overview.md)
-has a 10,000-ft diagram of the fleet.
+[`system-overview.md`](docs/architecture/system-overview.md) shows which host runs what; the other diagrams under [`docs/architecture/`](docs/architecture/README.md) follow DNS, auth, secrets and backups.
 
 ## Hardware
 
-Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM disk (1TB) plus a secondary 1TB HDD for backups.
-
-## Where to go next
-
-| I want to… | Read |
-| :--- | :--- |
-| Add an app | [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) |
-| Follow what a `deploy.yaml` run does | [`deployment-flow.md`](docs/topics/deploy/deployment-flow.md) |
-| Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
-| Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
-| Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
-| See the security model and its limits | [`SECURITY.md`](SECURITY.md) |
-| Find any other topic | [`docs/topics/README.md`](docs/topics/README.md) |
-| Know why a design was chosen | [decisions](docs/decisions/README.md) |
-| See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |
-| Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
-| Start as an agent | [`AGENTS.md`](AGENTS.md) |
-
-CI keeps the docs in step with the code — see
-[`ci/doc-checks.md`](docs/topics/engineering/ci/doc-checks.md).
+Everything runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM disk (1TB) plus a secondary 1TB HDD for backups.
 
 ## Repository Layout
 
 ```
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
+├── .githooks/               # Hooks that run the checks on patches applied with git am
 ├── .github/                 # CI workflows, PR-check scripts, Renovate config
 ├── ansible/                 # All automation: playbooks, inventory, roles
 ├── docker/                  # One directory per application
 ├── docs/                    # Topic docs, decisions, projects, diagrams
 ├── tofu/                    # OpenTofu root module: the Proxmox provider and the modules built on it
-├── tools/                   # Python run from the repo: cloud-credential minting, OpenBao/Vault utilities, the CD agent's job runner
+├── tools/                   # Python tooling, one package per domain
 ├── AGENTS.md                # Where an agent starts: the doc workflow's rules and stop conditions
+├── SECURITY.md              # The security model and what it does not claim
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
 
-Each app under `docker/<app>/` holds its `compose.yaml` (or
-`compose.yaml.j2` — see [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md))
-plus a `configs/` directory of Jinja2 templates that Ansible renders
-onto the target host — nothing is hand-authored on the servers
-themselves. `docker/molecule-dind/` is the one exception: it's Molecule
-test scaffolding, not a deployed app.
+Each app under `docker/<app>/` holds its `compose.yaml` (or `compose.yaml.j2` — see [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md)) plus a `configs/` directory of Jinja2 templates that Ansible renders onto the target host — nothing is hand-authored on the servers themselves. `docker/molecule-dind/` is the one exception: it's Molecule test scaffolding, not a deployed app.
 
-## Setup
-
-Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
-as a project dependency manager (`pyproject.toml` + `uv.lock`).
-`ansible-core`, the `docker` Python SDK, `molecule`, `molecule-plugins`,
-and `pre-commit` all live in one shared `.venv/`.
-
-`ansible-core` is used instead of the full `ansible` metapackage — the
-two collections this repo needs (`community.docker`, `ansible.posix`)
-are declared explicitly in `ansible/requirements.yml` for an exact,
-reproducible dependency set.
-
-- Install `uv`: see the [uv docs](https://docs.astral.sh/uv/getting-started/installation/)
-- Install everything (creates `.venv/` from `pyproject.toml`/`uv.lock`):
-   ```sh
-  uv sync
-   ```
-- Activate the environment (do this once per shell session):
-   ```sh
-  source .venv/bin/activate
-   ```
-  Alternatively, prefix any individual command with `uv run` instead of activating (e.g. `uv run molecule test`).
-- Install the collections this repo needs:
-   ```sh
-  ansible-galaxy collection install -r ansible/requirements.yml
-   ```
-- Install pre-commit's git hooks:
-   ```sh
-   pre-commit install
-   ```
-   This installs both the commit-time and push-time hooks; what runs when
-   is in [`pre-commit.md`](docs/topics/engineering/pre-commit.md).
-- To run those hooks on patches applied with `git am` too, link the `pre-applypatch` and `post-applypatch` hooks:
-   ```sh
-   for hook in pre-applypatch post-applypatch; do
-     ln -sf "$PWD/.githooks/$hook" "$(git rev-parse --git-path hooks)/$hook"
-   done
-   ```
-- Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
-- Install a native `bao` CLI (needed for `tools/openbao_utils/shell.py` and anything else that talks to OpenBao from here) - a personal, one-time step, not Ansible-managed, since this machine's own OS can't be assumed the way a `managed_hosts` member's can:
-   ```sh
-   version=$(python3 -c "import yaml; print(yaml.safe_load(open('ansible/roles/openbao_cli/defaults/main.yaml'))['openbao_cli_version'])")
-   sha256=$(python3 -c "import yaml; print(yaml.safe_load(open('ansible/roles/openbao_cli/defaults/main.yaml'))['openbao_cli_deb_sha256'])")
-   curl -LO "https://github.com/openbao/openbao/releases/download/v${version}/openbao_${version}_linux_amd64.deb"
-   echo "${sha256}  openbao_${version}_linux_amd64.deb" | sha256sum -c
-   sudo dpkg -i "openbao_${version}_linux_amd64.deb"
-   sudo systemctl disable --now openbao.service
-   sudo systemctl mask openbao.service
-   sudo rm -rf /opt/openbao /etc/openbao
-   ```
-  Reads the version and checksum straight out of `ansible/roles/openbao_cli`'s own defaults - the same values that role installs on `security` - so there's no second, hand-copied pin here to drift out of sync when that role's own gets bumped. The last four commands undo the standalone-server scaffolding the `.deb`'s installer sets up unconditionally, which this machine has no use for (see that role's `tasks/main.yaml`'s own comment on why the removal runs on every install, not just the first).
-- Before your first `deploy.yaml` run, fill in every value Ansible can't
-  generate itself (DigitalOcean API key, Let's Encrypt email, the
-  Telegram token/chat ID, and a few others):
-   ```sh
-  cd tools && python3 -m openbao_utils.bootstrap
-   ```
-  Safe to re-run — only fills in what's missing. See
-  [`docs/topics/secrets/secrets.md`](docs/topics/secrets/secrets.md).
-
-Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
-
-## Basic Commands
-
-### `ansible` commands
-
-- Test connectivity:
-  ```sh
-  ansible all -m ping
-  ```
-- Select hosts to run (single/multiple):
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --limit services
-  ansible-playbook playbooks/deploy.yaml --limit services,play
-  ```
-- Dry run:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --check --diff
-  ```
-- Check what a host resolves to (`resolved_apps` is `compose_apps` merged over `app_catalog`):
-  ```sh
-  ansible localhost -i inventory/inventory.yaml -m ansible.builtin.debug -a "var=hostvars['services'].resolved_apps"
-  ```
-
-Tag-based runs (skip provisioning, pull only images, re-render
-infra-only) are in [`docs/topics/deploy/ansible.md`](docs/topics/deploy/ansible.md#tag-based-commands).
-
-### `docker` commands
-
-- Stop and remove all containers on a host:
-  ```sh
-  docker stop $(docker ps -q) && docker rm $(docker ps -aq)
-  ```
-
-## Testing
-
-Roles are tested individually with
-[Molecule](https://ansible.readthedocs.io/projects/molecule/), co-located
-at `ansible/roles/<role>/molecule/<scenario>/`:
+## Getting Started
 
 ```sh
-cd ansible/roles/apt
-molecule test              # default scenario
-molecule test -s volumes   # named scenario (cd ansible/roles/compose first)
+uv sync
+source .venv/bin/activate
+ansible-galaxy collection install -r ansible/requirements.yml
+pre-commit install
 ```
 
-The scenario matrix and how to add one are in
-[`molecule-testing.md`](docs/topics/engineering/molecule-testing.md).
+That sets up the Python environment, the Ansible collections and the git hooks. SSH access, the OpenBao CLI, `tofu`, the manual secrets and the directory each command runs from are in [`controller-setup.md`](docs/topics/deploy/controller-setup.md).
 
-Plain controller-side Python (`tools/cloud_credentials/`,
-`tools/openbao_utils/`, `tools/cd_agent/`, `ansible/molecule-coverage/molecule_cov/`, the R2
-read-watcher) is tested separately with [pytest](https://docs.pytest.org/),
-from the repo root. Every provider HTTP call and `rclone` invocation is
-mocked, so no network access or real cloud credentials are needed:
+## Where to go next
 
-```sh
-pytest ansible/tests/ tools/tests/ -v
-```
-
-On every PR CI also boot-tests each changed compose app and checks deploy
-ordering, and Trivy scans run on a schedule — see
-[`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md).
-
-## Linting & Pre-commit
-
-Most hooks run at commit time; `ansible-lint` runs at push time.
-`pre-commit run --all-files` runs the commit-time hooks by hand, and CI
-enforces the same checks on every PR whether or not hooks are installed
-locally. The hook list, what runs when, and where each tool's config
-lives are in [`pre-commit.md`](docs/topics/engineering/pre-commit.md).
+| Theme | I want to… | Read |
+| :--- | :--- | :--- |
+| Operate | Set up the machine that runs Ansible | [`controller-setup.md`](docs/topics/deploy/controller-setup.md) |
+| | Add an app | [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) |
+| | Follow what a `deploy.yaml` run does | [`deployment-flow.md`](docs/topics/deploy/deployment-flow.md) |
+| | Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
+| | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
+| Develop | Run or write tests | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
+| | Know what the pre-commit hooks check | [`pre-commit.md`](docs/topics/engineering/pre-commit.md) |
+| | Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
+| Understand | See the fleet on one page | [`system-overview.md`](docs/architecture/system-overview.md) |
+| | Check a claim this repo makes against the check behind it | [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) |
+| | See the security model and its limits | [`SECURITY.md`](SECURITY.md) |
+| | Know why a design was chosen | [decisions](docs/decisions/README.md) |
+| Contribute | See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |
+| | Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
+| | Start as an agent | [`AGENTS.md`](AGENTS.md) |
+| Browse | Topic docs ([all](docs/topics/README.md)), by area | [deploy](docs/topics/README.md#deploy) · [infra](docs/topics/README.md#infra) · [services](docs/topics/README.md#services) · [secrets](docs/topics/README.md#secrets) · [disaster recovery](docs/topics/README.md#disaster-recovery) · [monitoring](docs/topics/README.md#monitoring) · [engineering](docs/topics/README.md#engineering) |
+| | Decisions ([all](docs/decisions/README.md)), by area | [Deployment & platform](docs/decisions/README.md#deployment--platform) · [Ingress, TLS & PKI](docs/decisions/README.md#ingress-tls--pki) · [Secrets store](docs/decisions/README.md#secrets-store) · [Cloud credentials](docs/decisions/README.md#cloud-credentials) · [Backup & recovery](docs/decisions/README.md#backup--recovery) · [Monitoring & alerting](docs/decisions/README.md#monitoring--alerting) · [Repository & tooling](docs/decisions/README.md#repository--tooling) · [Security & hardening](docs/decisions/README.md#security--hardening) · [Documentation & process](docs/decisions/README.md#documentation--process) |
 
 ## License
 

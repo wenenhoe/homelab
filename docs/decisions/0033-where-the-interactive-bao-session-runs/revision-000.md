@@ -87,7 +87,8 @@ Every doc claiming `bao_session.py` (or its retired predecessors)
 "runs from either `controller` or `security`" is corrected to
 `controller` only.
 
-`controller`'s native `bao` install (`README.md`'s Setup section)
+`controller`'s native `bao` install (`README.md`'s Setup section, moved:
+[`controller-setup.md`](../../topics/deploy/controller-setup.md#openbao-cli))
 stays exactly as it is today - it's load-bearing for
 `snapshot-push.sh` independent of this decision.
 

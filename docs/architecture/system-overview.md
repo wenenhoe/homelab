@@ -50,6 +50,6 @@ diagram illustrating that one doc.
 - The credential-scoping detail behind each arrow into SeaweedFS/cloud —
   see [`backup-threat-model.md`](../topics/disaster-recovery/backup-threat-model.md) and
   [`cloud-credentials/scoping.md`](../topics/secrets/cloud-credentials/scoping.md).
-- Anything from the planned OpenTofu/Proxmox work — that's
-  [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), and nothing in it is
-  running yet.
+- The VMs OpenTofu provisions on Proxmox —
+  [`vm-provisioning.md`](../topics/infra/vm-provisioning.md) says what is
+  built and what is not.

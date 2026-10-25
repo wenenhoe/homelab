@@ -10,6 +10,7 @@ Deploying apps: how the Ansible and Compose pipeline works and how to extend it.
 
 | Doc | Covers |
 | :--- | :--- |
+| [`controller-setup.md`](deploy/controller-setup.md) | One-time setup of the machine that runs Ansible and the repo's Python tooling, and the directory each command runs from. |
 | [`ansible.md`](deploy/ansible.md) | Playbook, role, and inventory reference tables. |
 | [`deployment-flow.md`](deploy/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_catalog`. |
 | [`docker-daemon.md`](deploy/docker-daemon.md) | `/etc/docker/daemon.json`: the defaults the `docker` role merges in, how it shares the file with `bind9`, and why `live-restore` is off. |
@@ -94,6 +95,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 
 | Doc | Covers |
 | :--- | :--- |
+| [`reviewing-this-repo.md`](engineering/reviewing-this-repo.md) | A reader's map from each claim the repo makes to the doc that explains it and the test or check that holds it up. |
 | [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style, shell test style. |
 | [`pre-commit.md`](engineering/pre-commit.md) | The pre-commit hooks and what each checks, which stage runs when, and where each tool's config lives. |
 | [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |

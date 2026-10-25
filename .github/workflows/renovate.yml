@@ -45,11 +45,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The merge in the next step needs main's and maintenance's history.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Record the workflow start time
         id: started
         run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      # Renovate opens its pull requests into maintenance (ADR 0076), so
+      # maintenance has to contain main first: a fast-forward, or a merge commit
+      # when the two have diverged, never a rewrite or a force push. A conflict
+      # fails this step and leaves maintenance as it was. It has no
+      # `continue-on-error` and the Renovate step has no `if:`, so a failure
+      # here stops the run before Renovate sees a maintenance that is behind.
+      # The default GITHUB_TOKEN is refused on maintenance, so the push uses
+      # RENOVATE_TOKEN, handed to git as a header for this one command rather
+      # than stored in the checkout's config.
+      - name: Realign maintenance with main
+        env:
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          GIT_NAME: ${{ github.repository_owner }}
+          GIT_EMAIL: ${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com
+        run: |
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$RENOVATE_TOKEN" | base64 --wrap=0)"
+          echo "::add-mask::${header#AUTHORIZATION: basic }"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
+          export GIT_CONFIG_VALUE_0="$header"
+          python3 -m ci.branches.realign --name "$GIT_NAME" --email "$GIT_EMAIL"
+        working-directory: tools
 
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@a63d9a7bc606f7336fd20b47f2f32259a35e6213 # v46.3.9

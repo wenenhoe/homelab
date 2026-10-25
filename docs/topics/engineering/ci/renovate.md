@@ -7,7 +7,24 @@ Self-hosted [Renovate](https://docs.renovatebot.com) opens the dependency update
 - The workflow runs daily at 17:37 UTC and on `workflow_dispatch`. Running daily rebases open branches and lets vulnerability alerts land the same day.
 - `renovate.json5`'s `schedule` separately limits when it may open **new** branches and pull requests: Monday and Thursday, 00:00 to 05:59 `Asia/Singapore`. Branch updates and vulnerability-alert pull requests are not held to it.
 - The job's own `GITHUB_TOKEN` is `contents: read`, enough to check the repository out. Renovate authenticates to GitHub with a separate token, the `RENOVATE_TOKEN` Actions secret, and the same token is passed as a host rule for `api.github.com` so the custom datasources that read release metadata do not share GitHub's unauthenticated limit.
+- Renovate's branches and pull requests are based on `maintenance`, not `main` (`baseBranchPatterns`). `rebaseWhen: behind-base-branch` rebases one only when `maintenance` has moved, which keeps a branch from being rewritten for no reason.
+- The first step after checkout merges `main` into `maintenance` ([realignment](#realigning-maintenance)), so the run never starts from a branch that is behind production.
 - One run at a time: the `renovate` concurrency group queues a second run behind the first and never cancels it.
+
+## Realigning maintenance
+
+[`ci.branches.realign`](../../../../tools/ci/branches/realign.py) makes `maintenance` contain `main` before Renovate runs, and does only what the two branches need:
+
+| State of the branches | What happens |
+| :--- | :--- |
+| `maintenance` already contains `main` | Nothing is pushed. |
+| `maintenance` is an ancestor of `main` (after a promotion, say) | `maintenance` is fast-forwarded to `main`. |
+| They have diverged | `main` is merged into `maintenance` with a merge commit. |
+| The merge conflicts | The merge is aborted, `maintenance` is left as it was and the run fails. |
+
+It never rewrites and never forces: every push is a plain push of a commit that has the old tip as an ancestor, so the remote refuses it if `maintenance` moved during the run. History is only added to because Renovate treats a pull request branch as edited when other authors' commits sit under it. `main` is only read.
+
+A failed realignment fails the job before the Renovate step, which has no condition that would let it run anyway. To clear a conflict, merge `main` into `maintenance` locally, resolve it and push that merge; the next run finds the branch current. The push uses `RENOVATE_TOKEN`, passed to git as a header for that one command, because the job's own `GITHUB_TOKEN` is refused on `maintenance`. `tools/tests/ci/branches/test_realign.py` runs each case on temporary repositories, and `test_renovate_workflow.py` asserts the step order and that nothing can skip the check.
 
 ## Image digests
 

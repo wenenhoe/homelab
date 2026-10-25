@@ -46,10 +46,10 @@ class TestFullBuild:
 
 
 class TestResume:
-    def test_resuming_gives_the_same_files_as_rebuilding_from_scratch(self, repo, out, tmp_path_factory):
-        heads = grow(repo, upto=1)
-        generate.generate(repo.path, out, head_rev=heads[0])
-        heads = grow_more(repo)
+    @pytest.mark.parametrize("stopped_after", [0, 1, 2], ids=["first-commit", "first-pr", "second-pr"])
+    def test_resuming_from_any_earlier_commit_gives_the_same_files_as_rebuilding_from_scratch(self, repo, out, tmp_path_factory, stopped_after):
+        heads = [repo.root, *grow(repo, upto=3)]
+        generate.generate(repo.path, out, head_rev=heads[stopped_after])
         resumed = generate.generate(repo.path, out)
         rebuilt_out = tmp_path_factory.mktemp("rebuilt")
         generate.generate(repo.path, rebuilt_out, full=True)
@@ -129,13 +129,6 @@ class TestCommandLine:
     def test_a_missing_repository_is_an_error(self, out, tmp_path_factory):
         with pytest.raises(Exception, match="rev-parse"):
             generate.generate(tmp_path_factory.mktemp("nothing"), out)
-
-
-def grow_more(repo) -> list[str]:
-    return [
-        repo.pr(2, "docs-build", "docs: build it", {project_path("gatus"): project_doc("building")}, W42),
-        repo.pr(3, "fix-gatus", "fix(gatus): repair it", {"docker/gatus/compose.yaml": "y"}, W43),
-    ]
 
 
 def test_the_notes_marker_is_what_a_week_file_ends_with(repo, out):

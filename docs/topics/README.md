@@ -10,6 +10,7 @@ Deploying apps: how the Ansible and Compose pipeline works and how to extend it.
 
 | Doc | Covers |
 | :--- | :--- |
+| [`controller-setup.md`](deploy/controller-setup.md) | One-time setup of the machine that runs Ansible and the repo's Python tooling, and the directory each command runs from. |
 | [`ansible.md`](deploy/ansible.md) | Playbook, role, and inventory reference tables. |
 | [`deployment-flow.md`](deploy/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_catalog`. |
 | [`docker-daemon.md`](deploy/docker-daemon.md) | `/etc/docker/daemon.json`: the defaults the `docker` role merges in, how it shares the file with `bind9`, and why `live-restore` is off. |

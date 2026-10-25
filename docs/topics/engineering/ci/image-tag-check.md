@@ -98,3 +98,5 @@ depends on a tested shape instead of the text output.
 - `version` changes when a key is removed or changes meaning. Adding a key
   doesn't change it: `digests` was added without a bump, and `ref` kept its
   meaning.
+
+Throwaway line to try the checks on develop. Not for merging.

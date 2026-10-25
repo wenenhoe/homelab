@@ -47,15 +47,67 @@ class TestRealignFirst:
         with subtests.test("Renovate runs only after every earlier step succeeded"):
             assert "if" not in renovate
 
-    def test_the_push_uses_the_renovate_token_not_the_default_one(self, steps, subtests):
+    def test_the_push_uses_the_app_token_not_the_default_one(self, steps, subtests):
         realign = steps[_index(steps, "ci.branches.realign")]
-        with subtests.test("the token is the Renovate one"):
-            assert realign["env"]["RENOVATE_TOKEN"] == "${{ secrets.RENOVATE_TOKEN }}"
+        with subtests.test("the token is the app's"):
+            assert realign["env"]["APP_TOKEN"] == "${{ steps.app-token.outputs.token }}"
         with subtests.test("it is not put on the command line or written to config"):
             assert "git config" not in realign["run"]
             assert "--token" not in realign["run"]
         with subtests.test("the checkout does not keep a credential"):
             assert steps[_index(steps, "actions/checkout")]["with"]["persist-credentials"] is False
+
+
+class TestAppToken:
+    @pytest.fixture
+    def mint(self, steps) -> dict:
+        return steps[_index(steps, "actions/create-github-app-token")]
+
+    def test_it_is_minted_before_it_is_used(self, steps):
+        assert _index(steps, "actions/create-github-app-token") < _index(steps, "ci.branches.realign") < _index(steps, "renovatebot/github-action")
+
+    def test_the_action_is_pinned_to_a_commit(self, mint):
+        assert re.fullmatch(r"actions/create-github-app-token@[0-9a-f]{40}", mint["uses"])
+
+    def test_it_names_the_app_by_its_client_id_and_key(self, mint, subtests):
+        with subtests.test("client id"):
+            assert mint["with"]["client-id"] == "${{ vars.RENOVATE_APP_CLIENT_ID }}"
+        with subtests.test("key"):
+            assert mint["with"]["private-key"] == "${{ secrets.RENOVATE_APP_PRIVATE_KEY }}"
+        with subtests.test("the deprecated app id input is not used"):
+            assert "app-id" not in mint["with"]
+
+    def test_the_token_asks_for_no_more_than_the_documented_permissions(self, mint):
+        asked = {key.removeprefix("permission-"): value for key, value in mint["with"].items() if key.startswith("permission-")}
+        assert asked == {
+            "contents": "write",
+            "pull-requests": "write",
+            "workflows": "write",
+            "issues": "write",
+            "statuses": "write",
+            "vulnerability-alerts": "read",
+        }
+
+    def test_the_token_is_scoped_to_this_repository(self, mint, subtests):
+        for key in ("owner", "repositories"):
+            with subtests.test(key):
+                assert key not in mint["with"]
+
+    def test_renovate_and_its_host_rule_use_it(self, steps, subtests):
+        renovate = steps[_index(steps, "renovatebot/github-action")]
+        with subtests.test("platform token"):
+            assert renovate["with"]["token"] == "${{ steps.app-token.outputs.token }}"
+        with subtests.test("host rule"):
+            assert "steps.app-token.outputs.token" in renovate["env"]["RENOVATE_HOST_RULES"]
+
+    def test_no_personal_token_is_left(self):
+        text = WORKFLOW.read_text()
+        assert "RENOVATE_TOKEN" not in text
+        assert "secrets.RENOVATE_TOKEN" not in text
+
+    def test_the_commit_author_stays_the_maintainer(self, config):
+        # Renovate treats a branch as edited when a commit has another author, so changing who pushes must not change who authors.
+        assert config["gitAuthor"] == "wenenhoe <33289235+wenenhoe@users.noreply.github.com>"
 
     def test_the_workflow_never_forces_a_push(self):
         assert not re.search(r"--force|--mirror|push\s+\S+\s+\+", WORKFLOW.read_text())

@@ -6,7 +6,7 @@ Self-hosted [Renovate](https://docs.renovatebot.com) opens the dependency update
 
 - The workflow runs daily at 17:37 UTC and on `workflow_dispatch`. Running daily rebases open branches and lets vulnerability alerts land the same day.
 - `renovate.json5`'s `schedule` separately limits when it may open **new** branches and pull requests: Monday and Thursday, 00:00 to 05:59 `Asia/Singapore`. Branch updates and vulnerability-alert pull requests are not held to it.
-- The job's own `GITHUB_TOKEN` is `contents: read`, enough to check the repository out. Renovate authenticates to GitHub with a separate token, the `RENOVATE_TOKEN` Actions secret, and the same token is passed as a host rule for `api.github.com` so the custom datasources that read release metadata do not share GitHub's unauthenticated limit.
+- The job's own `GITHUB_TOKEN` is `contents: read`, enough to check the repository out. Renovate authenticates to GitHub as [its own GitHub App](#the-github-app), and the app's installation token is passed as a host rule for `api.github.com` so the custom datasources that read release metadata do not share GitHub's unauthenticated limit.
 - Renovate's branches and pull requests are based on `maintenance`, not `main` (`baseBranchPatterns`). `rebaseWhen: behind-base-branch` rebases one only when `maintenance` has moved, which keeps a branch from being rewritten for no reason.
 - The first step after checkout merges `main` into `maintenance` ([realignment](#realigning-maintenance)), so the run never starts from a branch that is behind production.
 - One run at a time: the `renovate` concurrency group queues a second run behind the first and never cancels it.
@@ -24,7 +24,7 @@ Self-hosted [Renovate](https://docs.renovatebot.com) opens the dependency update
 
 It never rewrites and never forces: every push is a plain push of a commit that has the old tip as an ancestor, so the remote refuses it if `maintenance` moved during the run. History is only added to because Renovate treats a pull request branch as edited when other authors' commits sit under it. `main` is only read.
 
-A failed realignment fails the job before the Renovate step, which has no condition that would let it run anyway. To clear a conflict, merge `main` into `maintenance` locally, resolve it and push that merge; the next run finds the branch current. The push uses `RENOVATE_TOKEN`, passed to git as a header for that one command, because the job's own `GITHUB_TOKEN` is refused on `maintenance`. `tools/tests/ci/branches/test_realign.py` runs each case on temporary repositories, and `test_renovate_workflow.py` asserts the step order and that nothing can skip the check.
+A failed realignment fails the job before the Renovate step, which has no condition that would let it run anyway. To clear a conflict, merge `main` into `maintenance` locally, resolve it and push that merge; the next run finds the branch current. The push uses the app's token, passed to git as a header for that one command, because the job's own `GITHUB_TOKEN` is refused on `maintenance`. `tools/tests/ci/branches/test_realign.py` runs each case on temporary repositories, and `test_renovate_workflow.py` asserts the step order and that nothing can skip the check.
 
 ## Image digests
 
@@ -36,25 +36,34 @@ Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0083 (I
 - Pin and digest-refresh pull requests are two groups, `docker image digest pins` and `docker image digest refreshes (same tag, rebuilt)`. Neither automerges.
 - `tools/tests/ci/images/test_remote.py` runs every docker manager over the real tree and fails one that lacks the group or the template, or whose template would change anything but the pin.
 
-## The token
+## The GitHub App
 
-`RENOVATE_TOKEN` is a **fine-grained personal access token**, limited to this repository. Its repository permissions, and what each is for:
+Renovate authenticates as its own **GitHub App**, installed on this repository alone and used for nothing else ([ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). Each run mints an installation token from the app's private key with `actions/create-github-app-token`; the token lasts an hour and is revoked when the job ends. The same token is the platform token, the `api.github.com` host rule and the credential for [realigning `maintenance`](#realigning-maintenance). `renovate.json5`'s `gitAuthor` stays the maintainer's no-reply address: Renovate treats a branch as edited when a commit has another author, so who pushes can change without who authors.
+
+| Setting | Holds |
+| :--- | :--- |
+| `RENOVATE_APP_CLIENT_ID` (Actions variable) | The app's Client ID, from its settings page. It is not a secret. |
+| `RENOVATE_APP_PRIVATE_KEY` (Actions secret) | The whole `.pem` of a private key generated for the app. |
+
+The app's repository permissions, and what each is for. The workflow asks for exactly these, so a token holds nothing the app was not installed with:
 
 | Permission | Access | Used for |
 | :--- | :--- | :--- |
-| Metadata | Read | Required by every fine-grained token. |
-| Contents | Read and write | Reading the repository and pushing Renovate's branches. |
+| Metadata | Read | Required by every app. |
+| Contents | Read and write | Reading the repository and pushing Renovate's branches and the realigned `maintenance`. |
 | Pull requests | Read and write | Opening, updating and labelling pull requests. |
 | Workflows | Read and write | Updating the pinned action digests in `.github/workflows/`. GitHub refuses a push that changes a workflow file without it. |
 | Issues | Read and write | The Dependency Dashboard issue. |
 | Commit statuses | Read and write | The `renovate/*` statuses on its branches. |
 | Dependabot alerts | Read | `vulnerabilityAlerts` in `renovate.json5`. Not "Dependabot version updates" or "security updates", which would compete with Renovate for the same changes. |
 
-Create it under the account that owns the repository, with the repository as its only resource and an expiry. To rotate it, create a new token with the same permissions, replace the secret, run the workflow once with `workflow_dispatch`, and delete the old token.
+What the app may do on each branch is the rulesets' business, not the token's: it is on the bypass list of the ruleset for `maintenance` and `develop`, so it can push there without a pull request, and on no ruleset for `main`, where it can open a pull request and nothing more. `main`'s ruleset requires a pull request, the checks and an approving review, with no bypass for the app, so the app cannot merge there. Keep the repository setting that lets Actions approve pull requests off.
+
+To rotate the key, generate a second private key in the app's settings, replace the secret, run the workflow once with `workflow_dispatch`, and delete the old key. To change a permission, change it in the app's settings and accept the new permissions on the installation, in the same change as the workflow's `permission-*` inputs and the table above; `tools/tests/ci/branches/test_renovate_workflow.py` fails when the workflow asks for something else.
 
 ## Checking a run
 
 - A run that opens nothing on a Monday or Thursday is usually the window check's job to explain; its failure names the time the run started.
-- A `403` or `Resource not accessible by personal access token` in the log names the permission above that the token lacks.
+- A `403` or `Resource not accessible by integration` in the log names the permission above that the app's token lacks. `Could not create token` or a `401` from the token step means the Client ID or key is wrong, or the app is not installed on this repository.
 - The Dependency Dashboard issue lists every update Renovate knows of, including those held back by the schedule or by approval.
 - To run it outside the window, dispatch the workflow, then read the log. Pull request creation still waits for the window unless the update is a vulnerability alert.

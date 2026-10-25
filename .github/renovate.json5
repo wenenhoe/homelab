@@ -26,7 +26,7 @@
   rebaseWhen: "behind-base-branch",
 
   // Reads GitHub's native Dependabot alerts (needs the "Dependabot
-  // alerts" permission on RENOVATE_TOKEN — NOT "Dependabot version
+  // alerts" permission of the Renovate GitHub App — NOT "Dependabot version
   // updates", which would directly compete with Renovate for the same
   // job, or "Dependabot security updates", which would race Renovate's
   // own fix PR for the same CVE) plus OSV.dev for broader coverage.
@@ -96,7 +96,7 @@
 
   // Tracks the renovate-version pin in .github/workflows/renovate.yml —
   // that string controls which ghcr.io/renovatebot/renovate image tag
-  // actually gets pulled and run with RENOVATE_TOKEN's write access.
+  // actually gets pulled and run with the Renovate app's write access.
   // Deliberately NOT in the automerge packageRule below: this is Renovate
   // updating its own execution engine, the one component with a real
   // write credential — give every bump at least a glance rather than
@@ -411,7 +411,7 @@
     // Deliberately NOT extending this to ordinary version bumps: once an
     // action is SHA-pinned, the *next* update Renovate proposes is moving
     // that pin to a different commit when the upstream tag moves — and
-    // automerging that PR would hand code execution (with RENOVATE_TOKEN's
+    // automerging that PR would hand code execution (with the Renovate app's
     // write access) to whatever that new commit contains, without a human
     // ever looking at it. SHA-pinning only protects you if the PR that moves
     // the pin gets reviewed; automerging it defeats the point of having pinned

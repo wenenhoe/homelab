@@ -24,10 +24,11 @@ on:  # yamllint disable-line rule:truthy
     # stops being true.
     - cron: "37 17 * * *"
 
-# Least privilege: Renovate authenticates to GitHub separately via
-# RENOVATE_TOKEN (a PAT — see docs/topics/engineering/ci/renovate.md for its
-# permissions), so the ambient GITHUB_TOKEN this run gets only needs to check
-# the repo out. It never opens PRs, writes branches, or touches anything itself.
+# Least privilege: Renovate authenticates to GitHub as its own GitHub App
+# (ADR 0076; see docs/topics/engineering/ci/renovate.md for its permissions),
+# minting a one-hour installation token on each run, so the ambient
+# GITHUB_TOKEN this run gets only needs to check the repo out. It never opens
+# PRs, writes branches, or touches anything itself.
 permissions:
   contents: read
 
@@ -53,6 +54,24 @@ jobs:
         id: started
         run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
 
+      # The token of the Renovate GitHub App, installed on this repository
+      # alone. It lasts an hour and is revoked when the job ends. Its
+      # permissions are the ones renovate.md lists, so a token minted here
+      # holds nothing the app was not installed with. The app is a bypass
+      # actor of the maintenance and develop rulesets and of nothing on main.
+      - name: Create the Renovate app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+          permission-issues: write
+          permission-statuses: write
+          permission-vulnerability-alerts: read
+
       # Renovate opens its pull requests into maintenance (ADR 0076), so
       # maintenance has to contain main first: a fast-forward, or a merge commit
       # when the two have diverged, never a rewrite or a force push. A conflict
@@ -60,15 +79,15 @@ jobs:
       # `continue-on-error` and the Renovate step has no `if:`, so a failure
       # here stops the run before Renovate sees a maintenance that is behind.
       # The default GITHUB_TOKEN is refused on maintenance, so the push uses
-      # RENOVATE_TOKEN, handed to git as a header for this one command rather
+      # the app token, handed to git as a header for this one command rather
       # than stored in the checkout's config.
       - name: Realign maintenance with main
         env:
-          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
           GIT_NAME: ${{ github.repository_owner }}
           GIT_EMAIL: ${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com
         run: |
-          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$RENOVATE_TOKEN" | base64 --wrap=0)"
+          header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$APP_TOKEN" | base64 --wrap=0)"
           echo "::add-mask::${header#AUTHORIZATION: basic }"
           export GIT_CONFIG_COUNT=1
           export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
@@ -84,10 +103,10 @@ jobs:
           # The custom datasources in renovate.json5 that read GitHub's release
           # API are not given the platform token, and unauthenticated calls
           # share GitHub's 60-an-hour limit with every other runner on the IP.
-          RENOVATE_HOST_RULES: ${{ format('[{{"matchHost":"api.github.com","token":"{0}"}}]', secrets.RENOVATE_TOKEN) }}
+          RENOVATE_HOST_RULES: ${{ format('[{{"matchHost":"api.github.com","token":"{0}"}}]', steps.app-token.outputs.token) }}
         with:
           renovate-version: "44.181.5@sha256:611eac05a6ee11c06d23157ae2ca11364f5b4a096c12d7f82a65aec2b6ec8a48"
-          token: ${{ secrets.RENOVATE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       # renovate.json5's schedule only allows new branch/PR creation Mon/Thu
       # 00:00-05:59 Asia/Singapore. GitHub's scheduled-run start lags the

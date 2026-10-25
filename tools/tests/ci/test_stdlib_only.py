@@ -40,6 +40,8 @@ BARE_PYTHON = (
     "provenance/registry.py",
     "provenance/pins.py",
     "provenance/verify.py",
+    "branches/__init__.py",
+    "branches/realign.py",
     "gates/__init__.py",
     "gates/compose_health.py",
     "gates/renovate_window.py",
@@ -85,6 +87,7 @@ class TestStdlibOnly:
         [
             pytest.param("_compose-boot-test.yml", "ci.gates.compose_health", id="compose_health"),
             pytest.param("renovate.yml", "ci.gates.renovate_window", id="renovate_window"),
+            pytest.param("renovate.yml", "ci.branches.realign", id="realign"),
             pytest.param("build-caddy-image.yml", "ci.images.registry", id="registry"),
             pytest.param("check-image-tags.yml", "ci.images.remote", id="remote"),
             pytest.param("pr-checks.yml", "ci.gates.matrix_gate", id="matrix_gate"),

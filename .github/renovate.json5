@@ -17,6 +17,14 @@
   ],
   gitAuthor: "wenenhoe <33289235+wenenhoe@users.noreply.github.com>",
 
+  // Renovate's branches and pull requests are based on maintenance, not main
+  // (ADR 0076); promoting maintenance to main is the maintainer's pull request.
+  // The workflow merges main into maintenance before each run, and
+  // behind-base-branch rebases a Renovate branch only when maintenance has
+  // moved on, so that merge reaches open pull requests.
+  baseBranchPatterns: ["maintenance"],
+  rebaseWhen: "behind-base-branch",
+
   // Reads GitHub's native Dependabot alerts (needs the "Dependabot
   // alerts" permission on RENOVATE_TOKEN — NOT "Dependabot version
   // updates", which would directly compete with Renovate for the same

@@ -47,6 +47,14 @@ RULES: tuple[Rule, ...] = (
         where="`ansible/` on the operator host; the CD agent never provisions itself",
     ),
     Rule(
+        command="python3 -m openbao_utils.unseal",
+        patterns=("docker/openbao/compose.yaml.j2", "docker/openbao/configs/**"),
+        where=(
+            "`tools/` on the operator host, twice, and only if `bao status` on `security` reports `Sealed true`: "
+            "a new image or a changed config recreates or restarts the server, which comes back sealed"
+        ),
+    ),
+    Rule(
         command="tofu -chdir=tofu plan",
         patterns=("tofu/**",),
         exclude=("tofu/**/tests/**",),

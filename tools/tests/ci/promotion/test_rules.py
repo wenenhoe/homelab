@@ -46,6 +46,8 @@ class TestRules:
             pytest.param(["ansible/playbooks/cd-agent.yaml"], ["ansible-playbook playbooks/cd-agent.yaml"], id="cd-agent-playbook"),
             pytest.param(["ansible/inventory/group_vars/cd_agent.yaml"], ["ansible-playbook playbooks/cd-agent.yaml"], id="cd-agent-vars"),
             pytest.param(["tools/cd_agent/run_job.py"], ["ansible-playbook playbooks/cd-agent.yaml"], id="cd-agent-runner"),
+            pytest.param(["docker/openbao/compose.yaml.j2"], ["python3 -m openbao_utils.unseal"], id="openbao-server-image"),
+            pytest.param(["docker/openbao/configs/openbao.hcl.j2"], ["python3 -m openbao_utils.unseal"], id="openbao-server-config"),
             pytest.param(["tofu/main.tf"], ["tofu -chdir=tofu plan"], id="tofu"),
             pytest.param(["tofu/modules/vm/main.tf"], ["tofu -chdir=tofu plan"], id="tofu-module"),
         ],
@@ -58,7 +60,12 @@ class TestRules:
         [
             pytest.param("docker/caddy/Dockerfile", id="image"),
             pytest.param("ansible/roles/caddy/tasks/main.yaml", id="role-the-agent-deploys"),
-            pytest.param("ansible/playbooks/deploy.yaml", id="deploy-playbook"),
+            # The server is the only OpenBao that can be sealed: these hold a client or a one-shot container.
+            pytest.param("ansible/roles/openbao_cli/defaults/main.yaml", id="openbao-client-package"),
+            pytest.param("ansible/roles/openbao/defaults/main.yaml", id="openbao-one-shot-image"),
+            pytest.param("ansible/playbooks/deploy.yaml", id="openbao-chown-image-in-deploy"),
+            pytest.param("docker/openbao/policies/controller.hcl", id="openbao-policy"),
+            pytest.param("docker/openbao/watcher/r2_read_watcher.py", id="openbao-watcher"),
             pytest.param("ansible/inventory/group_vars/all.yaml", id="other-group-vars"),
             pytest.param("tofu/tests/vm.tftest.hcl", id="tofu-tests"),
             pytest.param("tofu/modules/vm/tests/vm.tftest.hcl", id="tofu-module-tests"),
@@ -70,9 +77,10 @@ class TestRules:
         assert commands(path) == []
 
     def test_several_changes_keep_the_rule_order(self):
-        assert commands("tofu/main.tf", "uv.lock", "ansible/roles/cd_agent/x.yaml") == [
+        assert commands("tofu/main.tf", "docker/openbao/compose.yaml.j2", "uv.lock", "ansible/roles/cd_agent/x.yaml") == [
             "uv sync",
             "ansible-playbook playbooks/cd-agent.yaml",
+            "python3 -m openbao_utils.unseal",
             "tofu -chdir=tofu plan",
         ]
 

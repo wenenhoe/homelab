@@ -284,14 +284,17 @@ is visible to that PR alone until the merge re-warms it on `main`.
 ## Requiring checks before merge
 
 Not configured in this repo — GitHub only blocks merges via branch
-protection rules or repository rulesets (Settings > Branches), which
-reference jobs by their check-run name (`<workflow name> / <job name>`,
-e.g. `PR checks / pre-commit-checks`).
+protection rules or repository rulesets (Settings > Rules), which
+reference jobs by their check-run name: the job's name alone
+(`pre-commit-checks`, with no workflow name before it), or, for a job that
+calls a reusable workflow, the calling job and the called one
+(`trivy-scan / secret-scan`).
 
 `warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
 `pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
-`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests`, `tofu-checks` and `compose-syntax-check` are all safe to
+`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`,
+`trivy-scan / secret-scan` and `trivy-scan / ansible-misconfig-scan` are all safe to
 mark required directly: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required
@@ -300,6 +303,13 @@ docs-only) won't get stuck waiting on a `deploy-ordering-check` run that
 never needed to happen. The unsafe pattern (never used here) would be
 `paths-ignore`/`paths:` on the workflow's own `on:` trigger, which
 leaves the check permanently "Pending" instead of reporting `skipped`.
+
+A job whose `needs` failed also reports `skipped`, which a required check
+accepts. `matrix-jobs-gate` closes that for `detect-changes`,
+`warm-uv-cache` and `warm-galaxy-cache`, which it requires to succeed.
+`warm-pre-commit-cache` is the one warm job it does not cover, so it is
+required directly: without that, a failed warm leaves `pre-commit-checks`
+and `ansible-lint` skipped, and the merge passes.
 
 **`molecule`, `compose-boot-test` and `dockerfile-build-check` are the
 exception** — don't require them directly. All three use a matrix (one

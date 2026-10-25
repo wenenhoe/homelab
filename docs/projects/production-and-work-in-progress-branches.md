@@ -16,7 +16,13 @@ allowed_paths:
   - .github/workflows/promotion-checklist.yml
   - .github/workflows/renovate.yml
   - .github/workflows/warm-caches.yml
+  - .github/workflows/build-*-image.yml
+  - .github/detect-changes-filters.yml
   - .github/renovate.json5
+  - tools/ci/provenance/**
+  - tools/ci/verification.py
+  - tools/tests/ci/provenance/**
+  - tools/tests/ci/test_verification.py
   - docs/topics/engineering/ci/**
   - docs/topics/engineering/branching.md
 ---
@@ -48,10 +54,11 @@ Update at the start and end of each PR that works a stage.
 | 5 | The Renovate workflow realigns `maintenance` before it runs, and Renovate targets it | Not started | The realignment's tests pass on temporary repositories (fast-forward, merge, conflict left unchanged and failing), and a Renovate run opens its pull requests into `maintenance` |
 | 6 | The Renovate workflow authenticates as its own GitHub App, minting an installation token on each run | Not started | A Renovate run opens its pull requests and pushes the realigned `maintenance` as the app, and `docs/topics/engineering/ci/renovate.md` describes the app in place of the personal token |
 | 7 | The maintainer's flow is documented, and the CI topic docs describe the new triggers | Not started | A topic doc covers promotion, realignment of `develop` and a fix straight to `main`, and `pipeline.md` and `gates.md` match the workflows |
+| 8 | Images are published from `main` only: each build job runs for `main` alone, a change to a workflow runs the unit tests that read the workflows, and the provenance check accepts an attestation of an image built here only when its source ref is `refs/heads/main` | Not started | A test over every workflow that holds `packages: write` asserts the guard and the triggers, and the provenance tests fail for an attestation from any other ref |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-Stage 1 is the only stage that runs while the revision is `working`. Stages 3 to 7 start after stage 2, and the project then moves to `building`. The maintainer creates `maintenance`, `develop` and their rulesets before stage 3's exit check, and sets the ruleset on `main` before the first promotion.
+Stage 1 is the only stage that runs while the revision is `working`. Stages 3 to 8 start after stage 2, and the project then moves to `building`. The maintainer creates `maintenance`, `develop` and their rulesets before stage 3's exit check, and sets the ruleset on `main` before the first promotion.
 
 ## Acceptance criteria
 
@@ -60,6 +67,7 @@ Stage 1 is the only stage that runs while the revision is `working`. Stages 3 to
 - [ ] The app can neither merge a pull request into `main` nor push to it, and the maintainer cannot push to it directly but can merge their own promotion, verified by attempting each.
 - [ ] A pull request into any of the three branches runs the same required checks, verified by a test over the workflow triggers.
 - [ ] No workflow publishes an image from a branch other than `main`, verified by a test over the build workflows' triggers.
+- [ ] An image built here whose attestation names a source ref other than `refs/heads/main` fails the provenance check, verified by its unit tests.
 - [ ] The checklist names the command for each rule's path pattern and never fails a merge, verified by unit tests and one real pull request.
 - [ ] Realignment fast-forwards or merges and never rewrites or force-pushes, and a conflicting merge leaves `maintenance` unchanged and fails the run, verified by the realignment's tests.
 - [ ] Renovate does not run against a `maintenance` that failed to realign, verified in the workflow.

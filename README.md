@@ -36,7 +36,7 @@ Everything runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM d
 ├── docker/                  # One directory per application
 ├── docs/                    # Topic docs, decisions, projects, diagrams
 ├── tofu/                    # OpenTofu root module: the Proxmox provider and the modules built on it
-├── tools/                   # Python tooling, one package per domain: credentials and OpenBao, CI and doc checks, the CD agent, the Tofu inventory handoff
+├── tools/                   # Python tooling, one package per domain
 ├── AGENTS.md                # Where an agent starts: the doc workflow's rules and stop conditions
 ├── SECURITY.md              # The security model and what it does not claim
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)
@@ -57,24 +57,25 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 
 ## Where to go next
 
-| I want to… | Read |
-| :--- | :--- |
-| Set up the machine that runs Ansible | [`controller-setup.md`](docs/topics/deploy/controller-setup.md) |
-| Add an app | [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) |
-| Follow what a `deploy.yaml` run does | [`deployment-flow.md`](docs/topics/deploy/deployment-flow.md) |
-| Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
-| Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
-| Run or write tests | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
-| Know what the pre-commit hooks check | [`pre-commit.md`](docs/topics/engineering/pre-commit.md) |
-| Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
-| See the fleet on one page | [`system-overview.md`](docs/architecture/system-overview.md) |
-| Check a claim this repo makes against the check behind it | [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) |
-| See the security model and its limits | [`SECURITY.md`](SECURITY.md) |
-| Know why a design was chosen | [decisions](docs/decisions/README.md) |
-| See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |
-| Find any other topic | [`docs/topics/README.md`](docs/topics/README.md) |
-| Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
-| Start as an agent | [`AGENTS.md`](AGENTS.md) |
+| Theme | I want to… | Read |
+| :--- | :--- | :--- |
+| Operate | Set up the machine that runs Ansible | [`controller-setup.md`](docs/topics/deploy/controller-setup.md) |
+| | Add an app | [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) |
+| | Follow what a `deploy.yaml` run does | [`deployment-flow.md`](docs/topics/deploy/deployment-flow.md) |
+| | Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
+| | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
+| Develop | Run or write tests | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
+| | Know what the pre-commit hooks check | [`pre-commit.md`](docs/topics/engineering/pre-commit.md) |
+| | Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
+| Understand | See the fleet on one page | [`system-overview.md`](docs/architecture/system-overview.md) |
+| | Check a claim this repo makes against the check behind it | [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) |
+| | See the security model and its limits | [`SECURITY.md`](SECURITY.md) |
+| | Know why a design was chosen | [decisions](docs/decisions/README.md) |
+| Contribute | See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |
+| | Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
+| | Start as an agent | [`AGENTS.md`](AGENTS.md) |
+| Browse | Topic docs ([all](docs/topics/README.md)), by area | [deploy](docs/topics/README.md#deploy) · [infra](docs/topics/README.md#infra) · [services](docs/topics/README.md#services) · [secrets](docs/topics/README.md#secrets) · [disaster recovery](docs/topics/README.md#disaster-recovery) · [monitoring](docs/topics/README.md#monitoring) · [engineering](docs/topics/README.md#engineering) |
+| | Decisions ([all](docs/decisions/README.md)), by area | [Deployment & platform](docs/decisions/README.md#deployment--platform) · [Ingress, TLS & PKI](docs/decisions/README.md#ingress-tls--pki) · [Secrets store](docs/decisions/README.md#secrets-store) · [Cloud credentials](docs/decisions/README.md#cloud-credentials) · [Backup & recovery](docs/decisions/README.md#backup--recovery) · [Monitoring & alerting](docs/decisions/README.md#monitoring--alerting) · [Repository & tooling](docs/decisions/README.md#repository--tooling) · [Security & hardening](docs/decisions/README.md#security--hardening) · [Documentation & process](docs/decisions/README.md#documentation--process) |
 
 ## License
 

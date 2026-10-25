@@ -2,7 +2,7 @@ name: PR checks
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    branches: [main]
+    branches: [main, maintenance, develop]
 
 permissions:
   contents: read
@@ -212,8 +212,8 @@ jobs:
         working-directory: tools
 
   # Both checks diff from the merge-base of the PR's base and head (not the
-  # base tip itself), so a branch that is behind doesn't see main's newer
-  # commits as its own.
+  # base tip itself), so a branch that is behind doesn't see the base's
+  # newer commits as its own.
   project-checks:
     needs: warm-uv-cache
     runs-on: ubuntu-26.04

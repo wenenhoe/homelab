@@ -41,7 +41,14 @@ def verified(command: str, argv: list[str], cwd: Path, run: proc.Runner, sleep: 
     return f"{command} exited {code} after {attempts} attempts"
 
 
-def attestation(subject: str, repository: str, cwd: Path, run: proc.Runner, sleep: Sleep = time.sleep, attempts: int = ATTEMPTS) -> str | None:
-    """None when `gh attestation verify` accepts `subject` as built by `repository`, else why not. A subject is a file path or `oci://` reference."""
+def attestation(
+    subject: str, repository: str, cwd: Path, run: proc.Runner, sleep: Sleep = time.sleep, attempts: int = ATTEMPTS, source_ref: str | None = None
+) -> str | None:
+    """None when `gh attestation verify` accepts `subject` as built by `repository`, else why not. A subject is a file path or `oci://` reference.
+
+    With `source_ref`, the attestation must also name that git ref as the one the build ran from.
+    """
     argv = ["gh", "attestation", "verify", subject, "--repo", repository]
+    if source_ref:
+        argv += ["--source-ref", source_ref]
     return verified("gh attestation verify", argv, cwd, run, sleep, attempts)

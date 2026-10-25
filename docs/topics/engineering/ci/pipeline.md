@@ -293,8 +293,8 @@ calls a reusable workflow, the calling job and the called one
 `warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
 `pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
-`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`,
-`trivy-scan / secret-scan` and `trivy-scan / ansible-misconfig-scan` are all safe to
+`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`
+and `trivy-scan / ansible-misconfig-scan` are all safe to
 mark required directly: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required
@@ -310,6 +310,11 @@ accepts. `matrix-jobs-gate` closes that for `detect-changes`,
 `warm-pre-commit-cache` is the one warm job it does not cover, so it is
 required directly: without that, a failed warm leaves `pre-commit-checks`
 and `ansible-lint` skipped, and the merge passes.
+
+`trivy-scan / secret-scan` is not required: a pull request never enables it
+(`run-secrets` is off outside the weekly run), so it reports `skipped` every
+time. The secret scan that blocks a pull request is gitleaks, inside
+`pre-commit-checks`.
 
 **`molecule`, `compose-boot-test` and `dockerfile-build-check` are the
 exception** — don't require them directly. All three use a matrix (one

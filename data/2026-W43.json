@@ -1177,6 +1177,29 @@
      "closed"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "9ac243136407faa1e0c05dde30a06a6822e1fc62",
+   "date": "2026-10-25T23:22:36+08:00",
+   "kind": "pr",
+   "pr": 563,
+   "title": "Update and close progress log project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: progress-log",
+   "events": [
+    [
+     "adr",
+     "ADR 0095 r000 \u00b7 recording what was worked on each week and month",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "progress-log",
+     "closed"
+    ]
+   ]
   }
  ]
 }

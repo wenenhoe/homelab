@@ -1,0 +1,17 @@
+{
+ "week": "2026-W44",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "f65952038c3283646f24de807ff59ad295a83bbd",
+   "date": "2026-10-26T00:32:34+08:00",
+   "kind": "pr",
+   "pr": 564,
+   "title": "Cleanup repo root readme",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  }
+ ]
+}

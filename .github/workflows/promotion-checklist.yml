@@ -1,0 +1,49 @@
+name: Promotion checklist
+
+# On a pull request into main, writes what has to be run by hand once it merges
+# into the description, between two markers (ADR 0076). The rules and the
+# splice are tools/ci/promotion/; docs/topics/engineering/ci/pipeline.md#promotion-checklist
+# describes them. It is advice: no ruleset requires this job, so it never gates
+# a merge, and a failure here leaves the description as it was.
+#
+# pull_request_target, so the workflow and the code it runs are main's, not
+# the pull request's: a branch cannot rewrite them to get this write token.
+# Nothing from the pull request is checked out or run. Its changed paths are
+# read from the API and handled as data, and the job holds no secret.
+on:  # yamllint disable-line rule:truthy
+  pull_request_target:  # zizmor: ignore[dangerous-triggers] -- runs only main's code, checks nothing out of the pull request
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+concurrency:
+  group: promotion-checklist-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checklist:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Write the checklist into the description
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[] | .filename, (.previous_filename // empty)' > "$RUNNER_TEMP/paths.txt"
+          gh api "repos/$REPO/pulls/$PR" --jq '.body // ""' > "$RUNNER_TEMP/body.md"
+          python3 -m ci.promotion.checklist --paths "$RUNNER_TEMP/paths.txt" --body "$RUNNER_TEMP/body.md" --out "$RUNNER_TEMP/new.md"
+          if ! cmp -s "$RUNNER_TEMP/body.md" "$RUNNER_TEMP/new.md"; then
+            gh api --method PATCH "repos/$REPO/pulls/$PR" --field body=@"$RUNNER_TEMP/new.md" > /dev/null
+          fi
+        working-directory: tools

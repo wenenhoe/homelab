@@ -281,6 +281,26 @@ The PR-side warm jobs stay: a PR that changes a key is still the first
 writer of that entry and its own jobs need it before merge. The entry
 is visible to that PR alone until the merge re-warms it on `main`.
 
+## Promotion checklist
+
+A pull request into `main` gets the commands it asks you to run by hand written into its description, between `<!-- promotion-checklist:start -->` and `<!-- promotion-checklist:end -->`. The CD agent deploys `main` by itself ([`cd-agent-host.md`](../../deploy/cd-agent-host.md#applying-it)), so the list holds only what it does not apply, or says there is nothing to run. It is advice: [`promotion-checklist.yml`](../../../../.github/workflows/promotion-checklist.yml) is no required check, and a failure there changes nothing on the pull request. The maintainer's text outside the markers is never touched, a box already ticked stays ticked while its command is still on the list, and a description with a start marker but no end (or the reverse, or two blocks) is left as it was and fails the job.
+
+The rules are a table in [`ci/promotion/rules.py`](../../../../tools/ci/promotion/rules.py), in the order to run them. A rule fires when a changed path matches one of its globs and none of its exclusions:
+
+| Changed path | Command |
+| :--- | :--- |
+| `pyproject.toml`, `uv.lock` | `uv sync` |
+| `ansible/requirements.yml` | `ansible-galaxy collection install -r requirements.yml` |
+| the `cd_agent` role, `playbooks/cd-agent.yaml`, `group_vars/cd_agent.yaml`, `tools/cd_agent/` | `ansible-playbook playbooks/cd-agent.yaml` |
+| `docker/openbao/compose.yaml.j2`, `docker/openbao/configs/` | `python3 -m openbao_utils.unseal`, twice, from `tools/`: only if `bao status` on `security` reports `Sealed true` |
+| `tofu/`, other than its tests | `tofu -chdir=tofu plan`, then `apply` once the plan is read |
+
+Only the OpenBao **server** container seals. The compose file's image pin and the seeded `openbao.hcl` are what recreate or restart it, so they are the only OpenBao paths that fire. The role's one-shot containers (`openbao-read-uid`, `openbao-chown-data`, the `step_ca_cert` chown) and the native `bao` client package on `security` run from the same release and are never sealed, and a certificate renewal reloads the server with `SIGHUP` and leaves it unsealed, so none of those ask for an unseal.
+
+To add a rule, add a `Rule` to the table with a test in `tools/tests/ci/promotion/test_rules.py` for a path it asks for and one it does not.
+
+The workflow triggers on `pull_request_target`, so the workflow and the code it runs are `main`'s and a branch cannot edit them to use the `pull-requests: write` token. It checks nothing out of the pull request: the changed paths come from the pull request files API and are only matched against the globs, and a path is printed back only when it is made of plain characters. It takes effect once it is on `main`. Keep the repository setting that lets Actions approve pull requests off, because this job's token could otherwise approve a promotion.
+
 ## Requiring checks before merge
 
 Not configured in this repo — GitHub only blocks merges via branch

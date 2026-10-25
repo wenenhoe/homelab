@@ -7,7 +7,7 @@ short: Progress log
 solution: "A scheduled job generates markdown from main's first-parent history and writes it to a separate progress-log branch, resuming from the last commit it read"
 summary: "Where the weekly and monthly record of work comes from, where it is stored, and how it is kept current without adding to main's history."
 topic: repository-tooling
-status: approved
+status: accepted
 related: [ADR-0031, ADR-0064, ADR-0076]
 ---
 
@@ -25,16 +25,16 @@ current without adding to the history it summarises.
 
 Neither git history nor the working tree answers the question directly.
 
-- Raw history is noisy. Of the 217 pull requests merged in October 2026
-  up to the 25th, 65 were dependency updates. History also holds merge
-  commits, direct commits from before pull requests were used, and
-  changes of very different size.
+- Raw history is noisy. A large share of merged pull requests are
+  dependency updates. History also holds merge commits, direct commits
+  from before pull requests were used, and changes of very different
+  size.
 - The working tree shows only the present. A finished project's doc is
   deleted when it closes
   ([closing checklist](../../projects/README.md#closing-checklist)), and an
   earlier state of a decision revision exists only in history.
 - What the record needs is all in `main`'s first-parent history: one merge
-  commit per pull request, whose body is the pull request title (15 of 527
+  commit per pull request, whose body is the pull request title (a few
   have an empty body, where the branch name is the only title); the files
   each change touched; and the frontmatter `status:` of project docs and
   decision revisions before and after it.
@@ -44,8 +44,7 @@ permission read-only and `contents: write` declared on one job, that job's
 token can push to a branch whose rules only block deletion and force-push,
 and is refused a push to a branch that requires a pull request, and a
 force-push or deletion where a rule blocks them. A push made with it starts
-no workflow run. This was checked on a scratch repository with rulesets of
-the shape ADR 0076 describes.
+no workflow run.
 
 Four constraints shape the design.
 
@@ -148,7 +147,8 @@ Four constraints shape the design.
   branch, because the rules on the protected branches refuse it.
 - A rebuild adds a commit instead of rewriting the branch, so the branch
   only grows.
-- The behaviour is described in a topic doc added with the implementation.
+- The behaviour is described in
+  [Progress Log](../../topics/engineering/progress-log.md).
 
 ## Invariants
 

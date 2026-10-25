@@ -230,7 +230,11 @@ mirrors.
 
 Only `main` publishes an image. A manual run builds from the branch it was
 started on, so the build job carries `if: github.ref == 'refs/heads/main'` and a
-run from `maintenance`, `develop` or any other branch skips it. A pull request
+run from `maintenance`, `develop` or any other branch skips it. A branch cannot
+be trusted to keep that line, since whoever pushes there can edit the workflow;
+the part it cannot change is the source ref in the attestation each build makes,
+which the [provenance check](image-provenance-check.md#tiers) requires to be
+`refs/heads/main` for an image built here. A pull request
 tests a changed Dockerfile without publishing it: the boot test and
 `dockerfile-build-check` build it on the runner.
 `tools/tests/ci/branches/test_image_publishing.py` fails for any workflow whose

@@ -64,6 +64,13 @@ class TestAttestation:
         assert verification.attestation("oci://ghcr.io/owner/tool@sha256:abc", "owner/tool", root, run) is None
         run.assert_called_once_with(["gh", "attestation", "verify", "oci://ghcr.io/owner/tool@sha256:abc", "--repo", "owner/tool"], root, True)
 
+    def test_gh_is_asked_for_the_source_ref_when_one_is_given(self, root):
+        run = create_autospec(proc.run, return_value=completed(0))
+        assert verification.attestation("oci://ghcr.io/owner/tool@sha256:abc", "owner/tool", root, run, source_ref="refs/heads/main") is None
+        run.assert_called_once_with(
+            ["gh", "attestation", "verify", "oci://ghcr.io/owner/tool@sha256:abc", "--repo", "owner/tool", "--source-ref", "refs/heads/main"], root, True
+        )
+
     def test_a_subject_gh_does_not_accept_fails_after_every_attempt(self, root, sleeps):
         def run(args: list[str], cwd: Path, capture: bool = False) -> subprocess.CompletedProcess[str]:
             return completed(0 if args[args.index("--repo") + 1] == "owner/tool" else 1)

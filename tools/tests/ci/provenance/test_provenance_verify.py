@@ -59,6 +59,16 @@ def gh_that_attests_only(repository: str):
     return create_autospec(proc.run, side_effect=run)
 
 
+def gh_that_attests_a_build_from(repository: str, source_ref: str):
+    """Exits 0 only for the repository and the ref the build ran from, as `gh attestation verify --repo --source-ref` does."""
+
+    def run(args: list[str], cwd: Path, capture: bool = False) -> subprocess.CompletedProcess[str]:
+        asked = option(args, "--source-ref") if "--source-ref" in args else source_ref
+        return completed(0 if option(args, "--repo") == repository and asked == source_ref else 1)
+
+    return create_autospec(proc.run, side_effect=run)
+
+
 def cosign_that_accepts(identity: str, issuer: str):
     """Exits 0 only for the identity and issuer the image was signed with, as `cosign verify` does."""
 
@@ -81,8 +91,8 @@ def check(root, sleeps):
     return run_entry
 
 
-def attested(repository: str = "owner/tool", image: str = "ghcr.io/owner/tool") -> Attested:
-    return Attested(image=image, repository=repository)
+def attested(repository: str = "owner/tool", image: str = "ghcr.io/owner/tool", source_ref: str | None = None) -> Attested:
+    return Attested(image=image, repository=repository, source_ref=source_ref)
 
 
 class TestAttested:
@@ -90,6 +100,20 @@ class TestAttested:
         run = tool()
         assert check(attested(), [pin()], run).errors == []
         run.assert_called_once_with(["gh", "attestation", "verify", f"oci://ghcr.io/owner/tool@{D1}", "--repo", "owner/tool"], root, True)
+
+    def test_an_entry_that_fixes_a_ref_has_gh_enforce_it(self, root, check):
+        run = tool()
+        assert check(attested(source_ref="refs/heads/main"), [pin()], run).errors == []
+        run.assert_called_once_with(
+            ["gh", "attestation", "verify", f"oci://ghcr.io/owner/tool@{D1}", "--repo", "owner/tool", "--source-ref", "refs/heads/main"], root, True
+        )
+
+    def test_an_image_built_from_another_ref_fails_when_the_entry_fixes_main_and_passes_when_it_fixes_nothing(self, check):
+        from_develop = gh_that_attests_a_build_from("owner/tool", "refs/heads/develop")
+        failed = check(attested(source_ref="refs/heads/main"), [pin()], from_develop)
+        assert failed.errors == [f"ghcr.io/owner/tool@{D1} ({SOURCE}): gh attestation verify exited 1 after 3 attempts"]
+        assert check(attested(), [pin()], from_develop).errors == []
+        assert check(attested(source_ref="refs/heads/main"), [pin()], gh_that_attests_a_build_from("owner/tool", "refs/heads/main")).errors == []
 
     def test_a_failing_exit_fails_the_digest_after_every_attempt(self, check, sleeps):
         run = tool(returncode=1)

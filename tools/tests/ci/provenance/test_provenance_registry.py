@@ -55,6 +55,25 @@ class TestAttested:
     def test_a_complete_entry_is_attested(self):
         assert Attested(image="ghcr.io/owner/tool", repository="owner/tool").tier is Tier.ATTESTED
 
+    def test_an_entry_fixes_no_ref_unless_it_names_one(self):
+        assert Attested(image="ghcr.io/owner/tool", repository="owner/tool").source_ref is None
+        assert Attested(image="ghcr.io/owner/tool", repository="owner/tool", source_ref="refs/heads/main").source_ref == "refs/heads/main"
+
+    @pytest.mark.parametrize(
+        "source_ref",
+        [
+            pytest.param("main", id="bare-branch"),
+            pytest.param("heads/main", id="no-refs-prefix"),
+            pytest.param("refs/heads/", id="no-name"),
+            pytest.param("refs/pull/1/merge", id="pull-request-ref"),
+            pytest.param("refs/heads/a b", id="space"),
+            pytest.param("", id="empty"),
+        ],
+    )
+    def test_a_source_ref_that_is_not_a_full_branch_or_tag_ref_is_refused(self, source_ref):
+        with pytest.raises(ValueError, match="source_ref must be a full ref"):
+            Attested(image="ghcr.io/owner/tool", repository="owner/tool", source_ref=source_ref)
+
     def test_an_entry_with_no_repository_cannot_be_built(self):
         with pytest.raises(TypeError, match="repository"):
             Attested(image="ghcr.io/owner/tool")  # type: ignore[call-arg]
@@ -235,4 +254,4 @@ class TestRealRegistry:
         assert len(own) == 5
         for entry in own:
             with subtests.test(image=entry.image):
-                assert (entry.tier, entry.repository) == (Tier.ATTESTED, "wenenhoe/homelab")
+                assert (entry.tier, entry.repository, entry.source_ref) == (Tier.ATTESTED, "wenenhoe/homelab", "refs/heads/main")

@@ -54,7 +54,7 @@ entry.
 
 | Tier | What the check does |
 | :--- | :--- |
-| Attested | Runs `gh attestation verify` on each pinned digest for the GitHub repository the entry names. |
+| Attested | Runs `gh attestation verify` on each pinned digest for the GitHub repository the entry names, and with `--source-ref` when the entry fixes a `source_ref`. The images built here fix `refs/heads/main`, so a digest from a build that ran on any other branch fails, whatever that branch's workflow says. |
 | Signed | Runs `cosign verify` in the container on each pinned digest, with the certificate identity and OIDC issuer the entry fixes, or with the public key committed for it under [`tools/ci/provenance/keys/`](../../../../tools/ci/provenance/keys/). |
 | Unsigned | Runs nothing and passes. The entry says why the publisher gives nothing to verify. |
 

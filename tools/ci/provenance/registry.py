@@ -6,7 +6,8 @@ the image being checked
 (docs/decisions/0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md):
 
 - Attested: the publisher's workflow attests the digests it pushes. Each pinned
-  digest must pass `gh attestation verify` for the repository the entry names.
+  digest must pass `gh attestation verify` for the repository the entry names,
+  and for the git ref it fixes, when it fixes one.
 - Signed: the publisher signs the digests it pushes. Each pinned digest must
   pass `cosign verify` with the certificate identity and OIDC issuer the entry
   fixes, or, for a publisher that signs with a key, with the public key
@@ -36,6 +37,7 @@ class Tier(Enum):
 KEYS = "tools/ci/provenance/keys"
 
 _REPOSITORY = re.compile(r"[A-Za-z0-9_.][A-Za-z0-9_.-]*/[A-Za-z0-9_.][A-Za-z0-9_.-]*")
+_REF = re.compile(r"refs/(?:heads|tags)/[A-Za-z0-9_.][A-Za-z0-9_./-]*")
 _KEY = re.compile(rf"{re.escape(KEYS)}/[a-z0-9][a-z0-9-]*\.pub")
 # Both `cosign verify` and the library under it match a pattern anywhere in the certificate's identity unless it is anchored.
 # It must also open on a literal host, so `^https://.*$` can't stand for an identity.
@@ -71,11 +73,16 @@ class Attested(_Entry):
     tier: ClassVar[Tier] = Tier.ATTESTED
     # `owner/name` of the repository whose workflow must have attested the image.
     repository: str
+    # The git ref the build must have run from, as the attestation records it (`refs/heads/main`).
+    # A branch can edit its own workflow file, so only the recorded ref says where a build ran.
+    source_ref: str | None = None
 
     def __post_init__(self) -> None:
         _image(self.image)
         if not _REPOSITORY.fullmatch(self.repository):
             raise ValueError(f"{self.image}: repository must be owner/name")
+        if self.source_ref is not None and not _REF.fullmatch(self.source_ref):
+            raise ValueError(f"{self.image}: source_ref must be a full ref like refs/heads/main")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -131,6 +138,8 @@ class Unsigned(_Entry):
 Entry = Attested | Signed | Unsigned
 
 _ACTIONS = "https://token.actions.githubusercontent.com"
+# The only ref an image built here is published from.
+_MAIN = "refs/heads/main"
 _NO_STATEMENT = "no signature or attestation from the publisher was found that ties the image to an identity this repository can fix"
 ENTRIES: tuple[Entry, ...] = (
     Attested(image="ghcr.io/lissy93/dashy", repository="Lissy93/dashy"),
@@ -162,11 +171,11 @@ ENTRIES: tuple[Entry, ...] = (
     Unsigned(image="ubuntu/bind9", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
     Unsigned(image="quxfoo/wastebin", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
     Unsigned(image="twinproduction/gatus", reason="its release workflow has no signing or attestation step"),
-    Attested(image="ghcr.io/wenenhoe/caddy-digitalocean", repository="wenenhoe/homelab"),
-    Attested(image="ghcr.io/wenenhoe/coderabbit-review", repository="wenenhoe/homelab"),
-    Attested(image="ghcr.io/wenenhoe/gatus", repository="wenenhoe/homelab"),
-    Attested(image="ghcr.io/wenenhoe/molecule-dind", repository="wenenhoe/homelab"),
-    Attested(image="ghcr.io/wenenhoe/wastebin", repository="wenenhoe/homelab"),
+    Attested(image="ghcr.io/wenenhoe/caddy-digitalocean", repository="wenenhoe/homelab", source_ref=_MAIN),
+    Attested(image="ghcr.io/wenenhoe/coderabbit-review", repository="wenenhoe/homelab", source_ref=_MAIN),
+    Attested(image="ghcr.io/wenenhoe/gatus", repository="wenenhoe/homelab", source_ref=_MAIN),
+    Attested(image="ghcr.io/wenenhoe/molecule-dind", repository="wenenhoe/homelab", source_ref=_MAIN),
+    Attested(image="ghcr.io/wenenhoe/wastebin", repository="wenenhoe/homelab", source_ref=_MAIN),
     Unsigned(image="alpine", reason=_NO_STATEMENT),
     Unsigned(image="amazon/aws-cli", reason=_NO_STATEMENT),
     Unsigned(image="busybox", reason=_NO_STATEMENT),

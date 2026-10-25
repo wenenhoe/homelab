@@ -56,7 +56,7 @@ class Outcome:
 
 
 def _attested(entry: Attested, pin: Pin, root: Path, run: proc.Runner, sleep: Sleep, attempts: int) -> str | None:
-    return attestation(f"oci://{pin.reference}", entry.repository, root, run, sleep, attempts)
+    return attestation(f"oci://{pin.reference}", entry.repository, root, run, sleep, attempts, entry.source_ref)
 
 
 def _cosign(root: Path, key: str | None) -> list[str]:

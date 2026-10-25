@@ -228,6 +228,15 @@ though no compose file pins it. Each of these workflows runs on a push to
 `molecule-dind`'s also lists the `docker` role's tasks file its Dockerfile
 mirrors.
 
+Only `main` publishes an image. A manual run builds from the branch it was
+started on, so the build job carries `if: github.ref == 'refs/heads/main'` and a
+run from `maintenance`, `develop` or any other branch skips it. A pull request
+tests a changed Dockerfile without publishing it: the boot test and
+`dockerfile-build-check` build it on the runner.
+`tools/tests/ci/branches/test_image_publishing.py` fails for any workflow whose
+job pushes an image without that condition, or that a pull request or a branch
+other than `main` can start.
+
 Three pieces cover this. All of them are stdlib-only Python that
 runs on the runner's own `python3` (a test enforces that), so the jobs
 that use them install nothing — notably the `build-*-image.yml` jobs,

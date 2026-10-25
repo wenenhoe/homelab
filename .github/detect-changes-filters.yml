@@ -65,6 +65,8 @@ python_unit_tests:
   # CI logic that detect-changes and the other workflows run (see
   # docs/topics/engineering/ci/change-scoping.md#molecule-watch-sets), so a change to it is tested here.
   - 'tools/ci/**'
+  # The workflows tools/tests/ci/ reads (job timeouts, triggers, who may publish an image), so an edit to one is tested here.
+  - '.github/workflows/**'
   # The table test_molecule_shards.py checks against the scenarios on disk.
   - '.github/molecule-shards.yml'
   - 'ansible/molecule-coverage/molecule_cov/**'

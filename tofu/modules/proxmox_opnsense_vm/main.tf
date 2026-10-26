@@ -1,19 +1,22 @@
 locals {
   # Proxmox accepts import content only under a .raw, .qcow2 or .vmdk name,
   # and the nano image is a raw disk.
-  image_file_name = "${trimsuffix(trimsuffix(basename(var.image_url), ".bz2"), ".img")}.raw"
+  image_file_name = "${trimsuffix(basename(var.image_path), ".img")}.raw"
   mac_prefix      = format("BC:24:11:%02X:%02X", floor(var.vm_id / 256), var.vm_id % 256)
 }
 
-resource "proxmox_download_file" "image" {
-  node_name               = var.node_name
-  datastore_id            = var.image_datastore_id
-  content_type            = "import"
-  url                     = var.image_url
-  file_name               = local.image_file_name
-  checksum                = var.image_checksum
-  checksum_algorithm      = "sha256"
-  decompression_algorithm = "bz2"
+# Proxmox refuses to decompress a download of import content, and OPNsense
+# publishes the image only as .img.bz2, so the caller unpacks it first.
+resource "proxmox_virtual_environment_file" "image" {
+  node_name    = var.node_name
+  datastore_id = var.image_datastore_id
+  content_type = "import"
+
+  source_file {
+    path      = var.image_path
+    file_name = local.image_file_name
+    checksum  = filesha256(var.image_path)
+  }
 }
 
 resource "proxmox_virtual_environment_file" "seed" {
@@ -58,7 +61,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   disk {
     datastore_id = var.datastore_id
-    import_from  = proxmox_download_file.image.id
+    import_from  = proxmox_virtual_environment_file.image.id
     interface    = "scsi0"
     iothread     = true
     discard      = "on"

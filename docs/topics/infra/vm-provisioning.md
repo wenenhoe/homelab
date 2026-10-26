@@ -177,10 +177,12 @@ phases:
   with OPNsense's pre-installed `nano` image as its system disk, and the
   first configuration comes from a seed disk the importer reads at the
   first boot ([ADR 0089 (OPNsense configuration)](../../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
-  The image is the `.img.bz2` of one release, which Proxmox downloads,
-  checks against the SHA-256 the caller supplies, unpacks and stores as
-  import content. OPNsense publishes no stable "latest" URL, so a newer
-  release is a new URL and checksum.
+  OPNsense publishes the image only as the `.img.bz2` of one release, and
+  Proxmox refuses to decompress a download of import content. The caller
+  therefore checks the file against the release's published checksum file,
+  unpacks it, and passes the `.img` as `image_path`; the module uploads it
+  as import content. OPNsense publishes no stable "latest" URL, so a newer
+  release is a new file.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.

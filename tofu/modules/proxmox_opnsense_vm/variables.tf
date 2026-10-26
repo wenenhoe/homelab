@@ -20,14 +20,30 @@ variable "name" {
   default     = "OPNsense"
 }
 
-variable "image_path" {
-  description = "Local path of the unpacked OPNsense nano image of one release, an amd64 .img file. The caller checks the published .img.bz2 against its checksum file and unpacks it."
+variable "image_url" {
+  description = "https URL of the OPNsense pre-installed nano image, the amd64 .img.bz2 of one release."
   type        = string
 
   validation {
-    condition     = endswith(var.image_path, ".img") && strcontains(basename(var.image_path), "-nano-")
-    error_message = "image_path must be the unpacked OPNsense nano .img file."
+    condition     = startswith(var.image_url, "https://") && endswith(var.image_url, ".img.bz2") && strcontains(basename(var.image_url), "-nano-")
+    error_message = "image_url must be an https:// URL of an OPNsense nano .img.bz2 file."
   }
+}
+
+variable "image_checksum" {
+  description = "SHA-256 of the file at image_url, as OPNsense publishes it. The host running Tofu needs curl, sha256sum or shasum, and bunzip2."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9a-f]{64}$", var.image_checksum))
+    error_message = "image_checksum must be 64 lowercase hexadecimal characters."
+  }
+}
+
+variable "image_cache_dir" {
+  description = "Directory on the host running Tofu where the image is downloaded and unpacked. About 3.5 GB is needed."
+  type        = string
+  default     = ".image-cache"
 }
 
 variable "image_datastore_id" {

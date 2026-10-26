@@ -10,6 +10,7 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 | `snapshot_push.bats` | [`tools/openbao_utils/scripts/snapshot-push.sh`](../../../../tools/openbao_utils/scripts/snapshot-push.sh) |
 | `molecule_test_all.bats` | [`ansible/scripts/molecule-test-all.sh`](../../../../ansible/scripts/molecule-test-all.sh) |
 | `run_upgrade.bats` | [`docker/minecraft/scripts/run_upgrade.sh`](../../../../docker/minecraft/scripts/run_upgrade.sh) |
+| `fetch_image.bats` | [`tofu/modules/proxmox_opnsense_vm/fetch_image.sh`](../../../../tofu/modules/proxmox_opnsense_vm/fetch_image.sh) |
 | `check_freshness.bats` | the template [`check-freshness.sh.j2`](../../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) |
 | `caddy_cert_expiry.bats` | the template [`check.sh.j2`](../../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) of the `caddy_cert_expiry` role |
 | `harness.bats` | the harness itself |
@@ -61,6 +62,7 @@ The commands a script runs that are not stubbed (`date`, `stat`, `tar`, `ls`, `f
 - **`molecule_test_all.bats`**: that `-s` is refused unless exactly one role is named; that each scenario runs on its own in name order against the base config; that a role stops at its first failed scenario without stopping the other roles; and that the timings table is printed and appended to the job summary only when there is one.
 
 - **`run_upgrade.bats`**: that the version argument, or the default without one, reaches the compose run in the script's own directory; and that the compose run's exit status is reported and is the script's own.
+- **`fetch_image.bats`**: that a download matching the published checksum is unpacked next to itself in a cache directory that did not exist; that the download is one `curl` of the URL into that directory; that a mismatch removes the download and leaves no unpacked image, naming the URL and both checksums; and that a failed download stops with curl's status before anything is unpacked.
 - **`check_freshness.bats`**: that one push is made when every app is fresh, none when one is stale (and the unit still succeeds), and none when `rclone` fails (and the unit fails, naming the app and the error); that with no push URL the apps are still checked; and that the credentials reach each container in a mode 0600 env file that is removed afterwards and never appear in an argument.
 - **`caddy_cert_expiry.bats`**: that a certificate passes with more than and with exactly the threshold of days left and fails with fewer, expired, or none on the wire; and that the connection goes to loopback with the real hostname as the SNI.
 

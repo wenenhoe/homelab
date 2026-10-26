@@ -15,8 +15,9 @@ override_resource {
 }
 
 variables {
-  node_name  = "pve"
-  image_path = "./tests/fixtures/OPNsense-26.1-nano-amd64.img"
+  node_name      = "pve"
+  image_url      = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+  image_checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 }
 
 run "uploads_the_unpacked_image_as_import_content" {
@@ -35,10 +36,23 @@ run "uploads_the_unpacked_image_as_import_content" {
     condition     = proxmox_virtual_environment_file.image.source_file[0].file_name == "OPNsense-26.1-nano-amd64.raw"
     error_message = "the image must be stored under a .raw name, which is what Proxmox accepts for import content"
   }
+}
+
+run "fetches_the_image_again_when_its_url_or_checksum_changes" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
 
   assert {
-    condition     = proxmox_virtual_environment_file.image.source_file[0].checksum == filesha256("./tests/fixtures/OPNsense-26.1-nano-amd64.img")
-    error_message = "the upload must carry the image's SHA-256, so a different image is uploaded again"
+    condition     = terraform_data.image.triggers_replace[0] == var.image_url && terraform_data.image.triggers_replace[1] == var.image_checksum
+    error_message = "a new URL or checksum must fetch and unpack the image again"
+  }
+
+  assert {
+    condition     = terraform_data.image.input == ".image-cache/OPNsense-26.1-nano-amd64.img"
+    error_message = "the unpacked image must land in the cache directory under the release's file name"
   }
 }
 
@@ -276,7 +290,7 @@ run "rejects_a_vmid_that_is_not_a_gateway_vmid" {
   expect_failures = [var.vm_id]
 }
 
-run "rejects_an_image_that_is_not_an_unpacked_img" {
+run "rejects_an_image_that_is_not_a_bzip2_img" {
   command = plan
 
   module {
@@ -284,10 +298,10 @@ run "rejects_an_image_that_is_not_an_unpacked_img" {
   }
 
   variables {
-    image_path = "./tests/fixtures/OPNsense-26.1-nano-amd64.img.bz2"
+    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img"
   }
 
-  expect_failures = [var.image_path]
+  expect_failures = [var.image_url]
 }
 
 run "rejects_an_image_that_is_not_the_nano_one" {
@@ -298,8 +312,36 @@ run "rejects_an_image_that_is_not_the_nano_one" {
   }
 
   variables {
-    image_path = "./tests/fixtures/OPNsense-26.1-vga-amd64.img"
+    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1-vga-amd64.img.bz2"
   }
 
-  expect_failures = [var.image_path]
+  expect_failures = [var.image_url]
+}
+
+run "rejects_an_image_url_that_is_not_https" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_url = "http://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+  }
+
+  expect_failures = [var.image_url]
+}
+
+run "rejects_a_checksum_that_is_not_sha256_hex" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_checksum = "not-a-checksum"
+  }
+
+  expect_failures = [var.image_checksum]
 }

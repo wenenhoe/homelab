@@ -178,11 +178,14 @@ phases:
   first configuration comes from a seed disk the importer reads at the
   first boot ([ADR 0089 (OPNsense configuration)](../../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
   OPNsense publishes the image only as the `.img.bz2` of one release, and
-  Proxmox refuses to decompress a download of import content. The caller
-  therefore checks the file against the release's published checksum file,
-  unpacks it, and passes the `.img` as `image_path`; the module uploads it
-  as import content. OPNsense publishes no stable "latest" URL, so a newer
-  release is a new file.
+  Proxmox refuses to decompress a download of import content. The host
+  running Tofu therefore downloads it with `fetch_image.sh`, checks it
+  against the SHA-256 the caller supplies, unpacks it into `image_cache_dir`
+  (about 3.5 GB; `.image-cache/` is ignored by git) and uploads the unpacked
+  image as import content. A checksum mismatch removes the download and fails
+  the apply before anything is uploaded. The host needs `curl`, `bunzip2` and
+  `sha256sum` or `shasum`. OPNsense publishes no stable "latest" URL, so a
+  newer release is a new URL and checksum.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.

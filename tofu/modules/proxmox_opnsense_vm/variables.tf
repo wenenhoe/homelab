@@ -20,28 +20,28 @@ variable "name" {
   default     = "OPNsense"
 }
 
-variable "iso_url" {
-  description = "https URL of the OPNsense installer image, the dvd amd64 .iso.bz2 of one release."
+variable "image_url" {
+  description = "https URL of the OPNsense pre-installed nano image, the amd64 .img.bz2 of one release."
   type        = string
 
   validation {
-    condition     = startswith(var.iso_url, "https://") && endswith(var.iso_url, ".iso.bz2")
-    error_message = "iso_url must be an https:// URL of an OPNsense .iso.bz2 file."
+    condition     = startswith(var.image_url, "https://") && endswith(var.image_url, ".img.bz2") && strcontains(basename(var.image_url), "-nano-")
+    error_message = "image_url must be an https:// URL of an OPNsense nano .img.bz2 file."
   }
 }
 
-variable "iso_checksum" {
-  description = "SHA-256 of the file at iso_url, as OPNsense publishes it."
+variable "image_checksum" {
+  description = "SHA-256 of the file at image_url, as OPNsense publishes it."
   type        = string
 
   validation {
-    condition     = can(regex("^[0-9a-f]{64}$", var.iso_checksum))
-    error_message = "iso_checksum must be 64 lowercase hexadecimal characters."
+    condition     = can(regex("^[0-9a-f]{64}$", var.image_checksum))
+    error_message = "image_checksum must be 64 lowercase hexadecimal characters."
   }
 }
 
-variable "iso_datastore_id" {
-  description = "Datastore the installer image is stored in."
+variable "image_datastore_id" {
+  description = "Datastore the image and the seed are stored in. It must allow import content."
   type        = string
   default     = "tofu-images"
 }
@@ -88,7 +88,19 @@ variable "memory_mb" {
 }
 
 variable "disk_gb" {
-  description = "Size of the system disk in GiB."
+  description = "Size of the system disk in GiB. The image is smaller, and the gateway grows its root file system into the disk at the first boot."
   type        = number
   default     = 32
+}
+
+variable "seed_image_path" {
+  description = "Local path of a raw disk image holding conf/config.xml, attached as a second disk (scsi1) for the importer to read at the first boot. Null attaches none."
+  type        = string
+  default     = null
+}
+
+variable "started" {
+  description = "Whether the VM is started when created. The script that answers the importer must be connected to the serial socket before the first boot passes the importer's prompt, so a caller that runs it sets this to false and starts the VM from the script."
+  type        = bool
+  default     = true
 }

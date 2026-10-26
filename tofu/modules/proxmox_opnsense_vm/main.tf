@@ -1,29 +1,47 @@
 locals {
-  iso_file_name = trimsuffix(basename(var.iso_url), ".bz2")
-  mac_prefix    = format("BC:24:11:%02X:%02X", floor(var.vm_id / 256), var.vm_id % 256)
+  # Proxmox accepts import content only under a .raw, .qcow2 or .vmdk name,
+  # and the nano image is a raw disk.
+  image_file_name = "${trimsuffix(trimsuffix(basename(var.image_url), ".bz2"), ".img")}.raw"
+  mac_prefix      = format("BC:24:11:%02X:%02X", floor(var.vm_id / 256), var.vm_id % 256)
 }
 
-resource "proxmox_download_file" "iso" {
+resource "proxmox_download_file" "image" {
   node_name               = var.node_name
-  datastore_id            = var.iso_datastore_id
-  content_type            = "iso"
-  url                     = var.iso_url
-  file_name               = local.iso_file_name
-  checksum                = var.iso_checksum
+  datastore_id            = var.image_datastore_id
+  content_type            = "import"
+  url                     = var.image_url
+  file_name               = local.image_file_name
+  checksum                = var.image_checksum
   checksum_algorithm      = "sha256"
   decompression_algorithm = "bz2"
+}
+
+resource "proxmox_virtual_environment_file" "seed" {
+  count = var.seed_image_path == null ? 0 : 1
+
+  node_name    = var.node_name
+  datastore_id = var.image_datastore_id
+  content_type = "import"
+
+  source_file {
+    path      = var.seed_image_path
+    file_name = "${lower(var.name)}-seed.raw"
+    checksum  = filesha256(var.seed_image_path)
+  }
 }
 
 resource "proxmox_virtual_environment_vm" "this" {
   node_name   = var.node_name
   vm_id       = var.vm_id
   name        = var.name
-  description = "Managed by OpenTofu. Install and initial configuration are manual."
+  description = "Managed by OpenTofu. The seed disk carries the first configuration; the rest is applied by the Ansible play."
   tags        = ["opnsense", "tofu"]
 
   machine       = "q35"
   scsi_hardware = "virtio-scsi-single"
-  boot_order    = ["scsi0", "ide2"]
+  boot_order    = ["scsi0"]
+
+  started = var.started
 
   # Without the agent, shutdown relies on ACPI, which the provider documents
   # as unreliable, so destroy powers the VM off.
@@ -40,6 +58,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   disk {
     datastore_id = var.datastore_id
+    import_from  = proxmox_download_file.image.id
     interface    = "scsi0"
     iothread     = true
     discard      = "on"
@@ -47,9 +66,16 @@ resource "proxmox_virtual_environment_vm" "this" {
     size         = var.disk_gb
   }
 
-  cdrom {
-    file_id   = proxmox_download_file.iso.id
-    interface = "ide2"
+  dynamic "disk" {
+    for_each = proxmox_virtual_environment_file.seed
+
+    content {
+      datastore_id = var.datastore_id
+      import_from  = disk.value.id
+      interface    = "scsi1"
+      file_format  = "raw"
+      size         = 1
+    }
   }
 
   network_device {
@@ -67,5 +93,11 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   operating_system {
     type = "other"
+  }
+
+  # The image's console is the serial port, and the script that answers the
+  # importer and reads the gateway's certificate talks to this socket.
+  serial_device {
+    device = "socket"
   }
 }

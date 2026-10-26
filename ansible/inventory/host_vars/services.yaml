@@ -1,5 +1,5 @@
 ---
-caddy_domain: "svc.{{ lab_domain }}"
+caddy_domain: "svc.{{ lan_domain }}"
 
 # Scoped in docker/seaweedfs/configs/s3-identity.json.j2 to this host's
 # own `services-*` objects only — see docs/topics/disaster-recovery/backup.md.
@@ -73,9 +73,6 @@ compose_apps:
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config
 # ---------------------------------------------------------------------------
-
-# OPNsense DDNS record this host resolves to.
-dns_ddns_target: "services.{{ ddns_domain }}."
 
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.

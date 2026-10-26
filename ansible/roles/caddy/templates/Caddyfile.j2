@@ -11,7 +11,7 @@
 {% endif %}
 
 (tinyauth_forwarder) {
-    forward_auth https://{{ tinyauth_host }}.{{ lab_domain }} {
+    forward_auth https://{{ tinyauth_host }}.{{ lan_domain }} {
         uri /api/auth/caddy
         header_up X-Forwarded-Host {host}
         header_up X-Forwarded-Proto {scheme}
@@ -22,7 +22,7 @@
 
 {% set tinyauth_apps = resolved_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
 {% if tinyauth_apps %}
-{{ tinyauth_host }}.{{ lab_domain }} {
+{{ tinyauth_host }}.{{ lan_domain }} {
     reverse_proxy {{ tinyauth_apps[0].upstream }} {
         trusted_proxies 192.168.20.0/24
     }

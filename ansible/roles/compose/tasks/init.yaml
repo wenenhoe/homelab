@@ -59,7 +59,7 @@
   # identical output either way, so this is transparent everywhere it
   # isn't used. What it buys: an app whose only variable content is
   # non-secret and domain-free (a timezone, a hardcoded port — never a
-  # real secret or anything derived from main_domain/lab_domain/
+  # real secret or anything derived from main_domain/lan_domain/
   # caddy_domain, those stay in configs/*.j2 per docs/topics/deploy/adding-an-app.md)
   # can reference an Ansible var directly in its compose.yaml.j2 instead
   # of carrying a separate one-line .env just to get it into the

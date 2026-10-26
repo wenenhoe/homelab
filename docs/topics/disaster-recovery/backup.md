@@ -70,12 +70,12 @@ to end is [`fire-drill.md`](fire-drill.md).
 SeaweedFS runs single-node (`weed server -filer -s3`) — sufficient for "a
 copy exists off-host," not HA for the backup target itself.
 
-- **Filer web UI** (`https://filer.store.{{ lab_domain }}`) — human-facing,
+- **Filer web UI** (`https://filer.store.{{ lan_domain }}`) — human-facing,
   Caddy + Tinyauth + TLS like every other app, and read-only: the route
   registers `read_only: true`, so Caddy answers anything but `GET` and
   `HEAD` with 405. Writes and deletes go through the S3 API's scoped
   identities only.
-- **S3 API** (`https://s3.store.{{ lab_domain }}`) — machine-facing only.
+- **S3 API** (`https://s3.store.{{ lan_domain }}`) — machine-facing only.
   Registered `auth: false` (Tinyauth's forward-auth needs an interactive
   redirect a non-interactive S3 client can't complete). Auth is instead
   the per-identity S3 SigV4 keypairs in
@@ -257,7 +257,7 @@ describes.
 ## S3 endpoint format
 
 `seaweedfs_s3_endpoint` (`group_vars/all/main.yaml`) must be a
-**bare hostname** (e.g. `s3.store.{{ lab_domain }}`), not a URL —
+**bare hostname** (e.g. `s3.store.{{ lan_domain }}`), not a URL —
 `docker-volume-backup` passes it straight into minio-go's
 `AWS_ENDPOINT`, which rejects a scheme prefix (`Endpoint url cannot
 have fully qualified paths`). Scheme is the separate

@@ -29,7 +29,7 @@ docker/<app>/
   | :--- | :--- | :--- |
   | Non-secret, domain-free (timezone, a port) | `compose.yaml.j2` | Safe in a world-readable file. |
   | A real secret (API key, password, token) | `configs/*.j2` with `no_log: true` | `configs` supports `no_log:` and a `mode`. |
-  | Anything built from `main_domain`, `lab_domain` or `caddy_domain` (a routed URL, an LDAP base DN, a DNS name list) | `configs/*.j2` with `no_log: true` | The domain is not a credential, but it is identifying and should not sit in a world-readable file. `secret_catalog.yaml` routes `main-domain` through the same cached, gitignored mechanism as every other secret ([`secrets.md`](../secrets/secrets.md)). See `cobalt`, `shlink`, `lldap` and `step-ca`'s `env.j2`. |
+  | Anything built from `main_domain`, `lan_domain` or `caddy_domain` (a routed URL, an LDAP base DN, a DNS name list) | `configs/*.j2` with `no_log: true` | The domain is not a credential, but it is identifying and should not sit in a world-readable file. `secret_catalog.yaml` routes `main-domain` through the same cached, gitignored mechanism as every other secret ([`secrets.md`](../secrets/secrets.md)). See `cobalt`, `shlink`, `lldap` and `step-ca`'s `env.j2`. |
 
   Before inlining a value, trace what it is built from: if any of it comes
   from `main_domain`, it goes in `configs/*.j2`.

@@ -10,7 +10,7 @@
 # runs, well before Play 3 would otherwise get to it.
 #
 # Variable ownership: host_vars/<app-host>.yaml — dns_zones,
-# dns_ddns_target, caddy_domain, compose_apps.
+# host_fqdn, caddy_domain, compose_apps.
 
 - name: Set BIND9 directory facts
   ansible.builtin.set_fact:
@@ -71,7 +71,7 @@
     - infra
 
 # Scrapes every app host's dns_zones via hostvars and flattens into a list
-# of dicts (key/value/dns_ddns_target/caddy_domain/resolved_apps) so the
+# of dicts (key/value/host_fqdn/caddy_domain/resolved_apps) so the
 # templates don't need to reach into hostvars again. Done as a single
 # Jinja2 expression in set_fact to do the double iteration in one task.
 - name: Collect and flatten zones from all app hosts
@@ -84,7 +84,7 @@
           {%- set _ = result.append({
             'key':             zone_data.zone,
             'value':           zone_data | combine({'serial': bind9_dns_serial}),
-            'dns_ddns_target': hv.dns_ddns_target,
+            'host_fqdn': hv.host_fqdn,
             'caddy_domain':    hv.caddy_domain,
             'resolved_apps':   hv.resolved_apps
           }) -%}
@@ -126,7 +126,7 @@
       {{ lookup('ansible.builtin.template', 'zone.db.j2', template_vars={
         'zone_name': item.key,
         'zone_data': item.value,
-        'dns_ddns_target': item.dns_ddns_target,
+        'host_fqdn': item.host_fqdn,
         'caddy_domain': item.caddy_domain,
         'zone_resolved_apps': item.resolved_apps }) }}
   no_log: true

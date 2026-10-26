@@ -25,7 +25,7 @@
     project_root: "{{ playbook_dir }}"
     caddy_local_certs: true
     tinyauth_host: sso
-    lab_domain: lan.localhost
+    lan_domain: lan.localhost
     caddy_domain: apps.localhost
     # The resolver reads the catalog, and this scenario has no entries to put
     # in it.

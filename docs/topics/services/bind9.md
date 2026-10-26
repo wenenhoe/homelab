@@ -8,7 +8,9 @@ BIND9 itself carries no zone configuration — each app host declares its
 own `dns_zones` in `host_vars/*.yaml` (SOA/TTL, `soa_email`, static
 `extra_records`). The role loops over `app_hosts`, flattens every declared
 zone into one list (`bind9_all_zones`), tagging each with that host's
-`dns_ddns_target` and `caddy_domain`. See [`host-vars.md`](../deploy/host-vars.md).
+`host_fqdn` and `caddy_domain`. `host_fqdn` is the same expression for every
+host, `<inventory host name>.<host_domain>.`, set once in
+`group_vars/all/main.yaml`. See [`host-vars.md`](../deploy/host-vars.md).
 
 ## Two template outputs per run
 
@@ -17,7 +19,7 @@ zone into one list (`bind9_all_zones`), tagging each with that host's
 - **`zone.db.j2`** — each zone's SOA header, static `extra_records`, and
   **auto-generated CNAMEs**: for every app with a `routes` entry whose
   hostname falls inside the zone, it emits a CNAME pointing at that
-  host's `dns_ddns_target`. Adding `routes: { default: { host: foo } }` to
+  host's `host_fqdn`. Adding `routes: { default: { host: foo } }` to
   an app in `host_vars` gets it both a routing rule and a DNS record, no
   manual zone editing.
 

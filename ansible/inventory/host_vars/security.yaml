@@ -1,5 +1,5 @@
 ---
-caddy_domain: "sec.{{ lab_domain }}"
+caddy_domain: "sec.{{ lan_domain }}"
 
 # maintenance.yaml upgrades this host but leaves its reboot to the operator:
 # a reboot seals OpenBao until someone supplies the unseal shares, which
@@ -75,22 +75,19 @@ compose_apps:
 # BIND9 — per-host zone config
 # ---------------------------------------------------------------------------
 
-# OPNsense DDNS record this host resolves to.
-dns_ddns_target: "security.{{ ddns_domain }}."
-
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.
 # ---------------------------------------------------------------------------
 
 dns_zones:
-  - zone: "{{ lab_domain }}"
+  - zone: "{{ lan_domain }}"
     ttl: 3600
     soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101   # overwritten at render time by the role
     extra_records:
-      - { name: "@", type: NS, value: "ns1.{{ lab_domain }}." }
+      - { name: "@", type: NS, value: "ns1.{{ lan_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
-      - { name: "sso", type: CNAME, value: "{{ dns_ddns_target }}" }
+      - { name: "sso", type: CNAME, value: "{{ host_fqdn }}" }
   - zone: "{{ caddy_domain }}"
     ttl: 3600
     soa_email: "hostmaster.{{ main_domain }}."
@@ -104,4 +101,4 @@ dns_zones:
       # docs/architecture/reverse-proxy-and-dns.md) never fires for
       # it, even though its cert (step_ca_cert) carries this exact
       # SAN. Same pattern as sso above.
-      - { name: "openbao", type: CNAME, value: "{{ dns_ddns_target }}" }
+      - { name: "openbao", type: CNAME, value: "{{ host_fqdn }}" }

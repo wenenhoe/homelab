@@ -6,12 +6,12 @@
 # group_vars files), not a play's vars: block, even for a host looking up
 # its own data.
 main_domain: example.test
-lab_domain: "lan.{{ main_domain }}"
-ddns_domain: "internal.{{ main_domain }}"
-caddy_domain: "svc.{{ lab_domain }}"
+lan_domain: "lan.{{ main_domain }}"
+host_domain: "internal.{{ main_domain }}"
+caddy_domain: "svc.{{ lan_domain }}"
 server_timezone: Asia/Singapore
 
-dns_ddns_target: "services.{{ ddns_domain }}."
+host_fqdn: "services.{{ host_domain }}."
 dns_zones:
   - zone: "{{ caddy_domain }}"
     ttl: 3600
@@ -24,7 +24,7 @@ dns_zones:
   # with more than one item (see verify.yml for what this proves - the
   # coverage report's loop count won't reflect it, since these tasks are
   # no_log: true).
-  - zone: "iot.{{ lab_domain }}"
+  - zone: "iot.{{ lan_domain }}"
     ttl: 3600
     soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101

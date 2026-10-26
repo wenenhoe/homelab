@@ -2,8 +2,8 @@
 # Must live here, not in converge.yml's play `vars:` — same reasoning as
 # default's own host_vars.
 main_domain: molecule.test
-lab_domain: "lan.{{ main_domain }}"
-caddy_domain: "sec.{{ lab_domain }}"
+lan_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lan_domain }}"
 server_timezone: Asia/Singapore
 
 # The throwaway step-ca-test instance's own bootstrap password

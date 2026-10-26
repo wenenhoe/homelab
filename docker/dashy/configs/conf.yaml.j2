@@ -9,7 +9,7 @@ pageInfo:
   description: Service Dashboard
   navLinks:
     - title: Dashy
-      path: 'https://dashy.svc.{{ lab_domain }}'
+      path: 'https://dashy.svc.{{ lan_domain }}'
 sections:
   - name: Infrastructure Management
     icon: fas fa-network-wired
@@ -17,7 +17,7 @@ sections:
       - title: Proxmox
         description: Hypervisor
         icon: si-proxmox
-        url: 'https://pve.{{ ddns_domain }}:8006'
+        url: 'https://pve.{{ host_domain }}:8006'
         statusCheck: true
         id: 0_2558_proxmox
       - title: Tailscale
@@ -33,7 +33,7 @@ sections:
       - title: KMS Server
         description: Windows & Office activation
         icon: fab fa-microsoft
-        url: 'https://kms.svc.{{ lab_domain }}'
+        url: 'https://kms.svc.{{ lan_domain }}'
         statusCheck: true
         statusCheckAcceptCodes: '401'
         id: 3_2558_kmsserver
@@ -43,7 +43,7 @@ sections:
       - title: OPNsense
         description: Firewall & router management
         icon: si-opnsense
-        url: 'https://opnsense.{{ ddns_domain }}'
+        url: 'https://opnsense.{{ host_domain }}'
         statusCheck: true
         id: 0_1774_opnsense
       - title: Beszel
@@ -55,19 +55,19 @@ sections:
       - title: LLDAP
         description: LDAP directory management
         icon: hl-lldap
-        url: 'https://lldap.sec.{{ lab_domain }}'
+        url: 'https://lldap.sec.{{ lan_domain }}'
         statusCheck: true
         id: 3_1774_lldap
       - title: Tinyauth
         description: Forward-auth / SSO provider
         icon: hl-tinyauth
-        url: 'https://sso.{{ lab_domain }}'
+        url: 'https://sso.{{ lan_domain }}'
         statusCheck: true
         id: 4_1774_tinyauth
       - title: SeaweedFS Filer
         description: Backup file browser
         icon: https://seaweedfs.com/favicon.ico
-        url: 'https://filer.store.{{ lab_domain }}'
+        url: 'https://filer.store.{{ lan_domain }}'
         statusCheck: true
         statusCheckAcceptCodes: '401'
         id: 5_1774_seaweedfsfiler
@@ -83,7 +83,7 @@ sections:
     items:
       - title: Bluemap
         description: Minecraft mapping tool
-        url: 'https://bluemap.play.{{ lab_domain }}'
+        url: 'https://bluemap.play.{{ lan_domain }}'
         icon: hl-bluemap
         statusCheck: true
         statusCheckAcceptCodes: '401'
@@ -98,20 +98,20 @@ sections:
     items:
       - title: Speedtest
         description: Local network speed test
-        url: 'https://speedtest.svc.{{ lab_domain }}'
+        url: 'https://speedtest.svc.{{ lan_domain }}'
         icon: fas fa-tachometer-alt
         statusCheck: true
         statusCheckAcceptCodes: '401'
         id: 0_1587_speedtest
       - title: Cobalt
         description: Media downloader API
-        url: 'https://cobalt.svc.{{ lab_domain }}'
+        url: 'https://cobalt.svc.{{ lan_domain }}'
         icon: fas fa-download
         statusCheck: true
         id: 1_1587_cobalt
       - title: BentoPDF
         description: PDF tools & utilities
-        url: 'https://bentopdf.svc.{{ lab_domain }}'
+        url: 'https://bentopdf.svc.{{ lan_domain }}'
         icon: fas fa-file-pdf
         statusCheck: true
         statusCheckAcceptCodes: '401'
@@ -121,21 +121,21 @@ sections:
     items:
       - title: Shlink
         description: URL shortener management UI
-        url: 'https://shlink.svc.{{ lab_domain }}'
+        url: 'https://shlink.svc.{{ lan_domain }}'
         icon: fas fa-cut
         statusCheck: true
         statusCheckAcceptCodes: '401'
         id: 0_2375_shlink
       - title: Short URL
         description: Public short link endpoint
-        url: 'https://short.svc.{{ lab_domain }}'
+        url: 'https://short.svc.{{ lan_domain }}'
         icon: fas fa-external-link-alt
         statusCheck: true
         statusCheckAcceptCodes: '401'
         id: 1_2375_shorturl
       - title: Wastebin
         description: Pastebin / snippet sharing
-        url: 'https://wastebin.svc.{{ lab_domain }}'
+        url: 'https://wastebin.svc.{{ lan_domain }}'
         icon: fas fa-paste
         statusCheck: true
         statusCheckAcceptCodes: '401'

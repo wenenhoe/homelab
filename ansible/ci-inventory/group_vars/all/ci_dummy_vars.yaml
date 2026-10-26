@@ -23,12 +23,12 @@
 
 # Normally a `source: manual` secret_catalog.yaml entry
 # (main.yaml: main_domain: "{{ secrets_generated['main-domain'] }}").
-# lab_domain/ddns_domain (main.yaml) derive from this, so defining it
+# lan_domain/host_domain (main.yaml) derive from this, so defining it
 # flatly here is enough to make those resolve too.
 main_domain: "ci.invalid"
 
 # Normally per-host (ansible/inventory/host_vars/*.yaml — e.g. play.yaml's
-# "play.{{ lab_domain }}"). One flat value is fine here: CI never resolves
+# "play.{{ lan_domain }}"). One flat value is fine here: CI never resolves
 # DNS against it, it only needs to render into a config file.
 caddy_domain: "svc.ci.invalid"
 

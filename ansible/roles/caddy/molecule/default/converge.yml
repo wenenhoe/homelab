@@ -13,7 +13,7 @@
     # global ACME issuer is skipped via caddy_local_certs.
     caddy_local_certs: true
     tinyauth_host: sso
-    lab_domain: lan.localhost
+    lan_domain: lan.localhost
     caddy_domain: apps.localhost
     digitalocean_api_key: test-token-not-real
     app_catalog: >-

@@ -151,7 +151,7 @@ account. It stays root, which reads the `0600` config because it owns it.
 
 `docker/lldap/configs/env.j2` sets `LLDAP_LDAP_BASE_DN` and
 `LLDAP_LDAP_USER_PASS` (the initial admin password) from
-`lab_domain`/`lldap_ldap_user_pass`, and `LLDAP_JWT_SECRET`/`LLDAP_KEY_SEED`
+`lan_domain`/`lldap_ldap_user_pass`, and `LLDAP_JWT_SECRET`/`LLDAP_KEY_SEED`
 for its own token signing — all three generated once by the `secrets`
 role. See [`secrets.md`](../secrets/secrets.md) for the generation mechanism and
 [`volumes.md`](../deploy/volumes.md) for why `data`/`certs` are named volumes

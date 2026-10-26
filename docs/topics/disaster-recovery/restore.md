@@ -55,7 +55,7 @@ The private key never touches a homelab host:
 
 1. Pull the object from the `homelab-backups` bucket — normally
    SeaweedFS (filer UI, or an S3 client against
-   `https://s3.store.{{ lab_domain }}`). If `storage` itself is what's
+   `https://s3.store.{{ lan_domain }}`). If `storage` itself is what's
    lost — the actual scenario `cloud_sync` exists for — pull the same
    object from whichever of R2/B2/OCI has it instead (each provider's
    own console/CLI; `cloud_sync_targets` in `host_vars/storage.yaml`

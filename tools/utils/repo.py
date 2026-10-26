@@ -98,7 +98,7 @@ def security_ssh_target() -> tuple[str, str, str]:
         inv = yaml.safe_load(f)
     user = inv["all"]["children"]["managed_hosts"]["hosts"]["security"]["ansible_user"]
     key_path = Path(inv["all"]["vars"]["ansible_ssh_private_key_file"]).expanduser()
-    host = f"security.internal.{main_domain()}"  # ddns_domain, see inventory.yaml
+    host = f"security.internal.{main_domain()}"  # host_domain, see inventory.yaml
     return user, host, str(key_path)
 
 

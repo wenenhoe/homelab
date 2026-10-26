@@ -81,9 +81,9 @@
           - "'sensor1' in (bind9_second_zone_file_raw.content | b64decode)"
           - "'10.20.0.5' in (bind9_second_zone_file_raw.content | b64decode)"
 
-    # Substring checks on 'CNAME' or dns_ddns_target's value don't work here:
-    # zone.db.j2's comment header interpolates dns_ddns_target into its own
-    # text ("; All CNAMEs point at: {{ dns_ddns_target }}") unconditionally,
+    # Substring checks on 'CNAME' or host_fqdn's value don't work here:
+    # zone.db.j2's comment header interpolates host_fqdn into its own
+    # text ("; All CNAMEs point at: {{ host_fqdn }}") unconditionally,
     # so both strings are present whether or not the loop below actually
     # renders a record - confirmed against a real second-zone file, which
     # contains only the comment header and still matched both. Every real

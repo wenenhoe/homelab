@@ -13,7 +13,7 @@
     # short-but-not-expiring-soon live cert to check against.
     caddy_local_certs: true
     tinyauth_host: sso
-    lab_domain: lan.localhost
+    lan_domain: lan.localhost
     caddy_domain: apps.localhost
     digitalocean_api_key: test-token-not-real
     # Caddy's internal issuer defaults leaf certs to a 12h lifetime

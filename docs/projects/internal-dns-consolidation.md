@@ -41,7 +41,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Settle the failover assumption in ADR 0040 | Done | A scratch gateway with two forward addresses for a zone answers a host name, a service name and a CNAME that crosses the zones with the first server stopped, and the revision can be `approved` |
-| 2 | Host zone on `services` | Not started | `services` serves the host zone with a static record for every current host, the node and the gateway; every service CNAME points at `host_fqdn`; the renames are done and no old name remains in the tree |
+| 2 | Host zone on `services` | In progress | `services` serves the host zone with a static record for every current host, the node and the gateway; every service CNAME points at `host_fqdn`; the renames are done and no old name remains in the tree |
 | 3 | Retire the gateway's names | Not started | The live gateway runs no BIND9 zone and no dynamic DNS registration, and every host still resolves from each VLAN |
 | 4 | Secondary on `storage` | Not started | `storage` serves both zones from `services` by TSIG-authenticated transfer, picks up a change to the host zone, and the gateway forwards both zones to both servers |
 

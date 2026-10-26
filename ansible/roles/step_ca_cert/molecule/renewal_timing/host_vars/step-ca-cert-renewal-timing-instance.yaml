@@ -10,8 +10,8 @@
 # openbao's RENEW_ACTION=signal shape's own ExecStartPost behavior
 # directly, without needing a second, five-times-slower timing run.
 main_domain: molecule.test
-lab_domain: "lan.{{ main_domain }}"
-caddy_domain: "sec.{{ lab_domain }}"
+lan_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lan_domain }}"
 lldap_host: lldap
 server_timezone: Asia/Singapore
 

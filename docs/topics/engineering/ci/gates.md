@@ -12,7 +12,7 @@ touches the real one.
 
 Runs the **real** `deploy.yaml` (not a copy) against
 `inventory/ci-deploy-ordering-inventory.yaml`, a purpose-built inventory
-that mirrors `inventory.yaml`'s `ansible_host` → `ddns_domain` →
+that mirrors `inventory.yaml`'s `ansible_host` → `host_domain` →
 `main_domain` → `secrets_generated` chain and its
 `managed_hosts`/`controller` group split, while staying CI-safe:
 `ansible_connection: local` everywhere, and `--tags` matching nothing

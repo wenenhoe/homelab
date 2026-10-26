@@ -10,8 +10,8 @@
 # once step-ca and tinyauth_ca_trust are both real, not to route around
 # the question.
 main_domain: molecule.test
-lab_domain: "lan.{{ main_domain }}"
-caddy_domain: "sec.{{ lab_domain }}"
+lan_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lan_domain }}"
 lldap_host: lldap-test
 tinyauth_host: sso
 server_timezone: Asia/Singapore

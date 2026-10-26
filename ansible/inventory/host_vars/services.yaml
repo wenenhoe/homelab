@@ -84,3 +84,21 @@ dns_zones:
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
+
+  # Each address repeats the host's reservation on the gateway (`pve`: its
+  # WAN reservation); a reservation changed there needs the same change
+  # here, or the name points at the old address until the host is rebuilt.
+  - zone: "{{ host_domain }}"
+    ttl: 3600
+    soa_email: "hostmaster.{{ main_domain }}."
+    serial: 2024010101   # overwritten at render time by the role
+    extra_records:
+      - { name: "@", type: NS, value: "ns1.{{ host_domain }}." }
+      - { name: "ns1", type: A, value: "192.168.20.3" }
+      - { name: "opnsense", type: A, value: "192.168.20.1" }
+      - { name: "pve", type: A, value: "10.0.0.254" }
+      - { name: "tailscale", type: A, value: "192.168.20.2" }
+      - { name: "services", type: A, value: "192.168.20.3" }
+      - { name: "play", type: A, value: "192.168.20.4" }
+      - { name: "security", type: A, value: "192.168.20.5" }
+      - { name: "storage", type: A, value: "192.168.20.6" }

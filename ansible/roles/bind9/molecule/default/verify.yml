@@ -100,6 +100,28 @@
         that:
           - "'sensor1' not in (bind9_zone_file_raw.content | b64decode)"
 
+    # --- Host zone: static records, and nothing generated into it -------------
+    - name: Confirm the host zone's stanza was generated
+      ansible.builtin.assert:
+        that:
+          - "'zone \"internal.example.test\"' in (bind9_named_conf_local_raw.content | b64decode)"
+
+    - name: Read back the host zone file
+      ansible.builtin.slurp:
+        path: "{{ bind9_config_dir }}/zones/db.internal.example.test"
+      register: bind9_host_zone_file_raw
+
+    - name: Confirm the host zone's static records rendered
+      ansible.builtin.assert:
+        that:
+          - (bind9_host_zone_file_raw.content | b64decode | regex_search('(?m)^pve\s+IN\s+A\s+192\.0\.2\.20$')) is not none
+          - (bind9_host_zone_file_raw.content | b64decode | regex_search('(?m)^ns1\s+IN\s+A\s+192\.0\.2\.10$')) is not none
+
+    - name: Confirm the host zone holds no generated CNAME
+      ansible.builtin.assert:
+        that:
+          - (bind9_host_zone_file_raw.content | b64decode | regex_search('(?m)^[^;\n].*CNAME')) is none
+
     # --- Volume seeded from staging -------------------------------------------
     - name: Confirm the config volume was actually seeded
       # slurp reads via the remote host's filesystem, but this content lives
@@ -152,3 +174,12 @@
       retries: 10
       delay: 3
       failed_when: bind9_dig_result.stdout | trim != 'services.internal.example.test.'
+
+    - name: Query the running bind9 server directly for a host zone record
+      ansible.builtin.command: dig @127.0.0.1 -p 53 +short pve.internal.example.test A  # noqa: command-instead-of-module
+      register: bind9_dig_host_result
+      changed_when: false
+      until: bind9_dig_host_result.stdout | trim == '192.0.2.20'
+      retries: 10
+      delay: 3
+      failed_when: bind9_dig_host_result.stdout | trim != '192.0.2.20'

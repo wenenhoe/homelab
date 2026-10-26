@@ -12,6 +12,18 @@ zone into one list (`bind9_all_zones`), tagging each with that host's
 host, `<inventory host name>.<host_domain>.`, set once in
 `group_vars/all/main.yaml`. See [`host-vars.md`](../deploy/host-vars.md).
 
+## The host zone
+
+`services` also serves `host_domain` (`internal.<main_domain>`), a sibling
+of `lan_domain`. It holds one static `A` record for each host the lab
+runs: the four app hosts, `tailscale`, the Proxmox node `pve` and the
+gateway `opnsense`. They are the `extra_records` of a zone declared in
+`host_vars/services.yaml`, like any other zone. Each address repeats the
+host's reservation on the gateway, so a reservation that changes there
+needs the same change in that file. The role generates no CNAME into this
+zone, since none of its names is a Caddy route; every CNAME it generates
+elsewhere points at a name in it, the host's `host_fqdn`.
+
 ## Two template outputs per run
 
 - **`named.conf.local.j2`** — one `zone { type master; ... }` block per

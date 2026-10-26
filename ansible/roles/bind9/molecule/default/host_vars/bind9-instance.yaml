@@ -20,6 +20,15 @@ dns_zones:
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
+  # Host zone: static records only, so no CNAME is generated into it.
+  - zone: "{{ host_domain }}"
+    ttl: 3600
+    soa_email: "hostmaster.{{ main_domain }}."
+    serial: 2024010101
+    extra_records:
+      - { name: "@", type: NS, value: "ns1.{{ host_domain }}." }
+      - { name: "ns1", type: A, value: "192.0.2.10" }
+      - { name: "pve", type: A, value: "192.0.2.20" }
   # Second, non-Caddy zone: exercises bind9_all_zones/bind9_zone_candidates
   # with more than one item (see verify.yml for what this proves - the
   # coverage report's loop count won't reflect it, since these tasks are

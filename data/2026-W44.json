@@ -12,6 +12,65 @@
    "bot": false,
    "group": ".github/ and repo config",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "fb4d6a435fb1ab737727fb818286afaaad5bc8b2",
+   "date": "2026-10-27T00:06:39+08:00",
+   "kind": "pr",
+   "pr": 567,
+   "title": "Update internal dns consolidation spike findings",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: internal-dns-consolidation",
+   "events": [
+    [
+     "adr",
+     "ADR 0040 r000 \u00b7 dns for tofu provisioned vms",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "internal-dns-consolidation",
+     "de-risking \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "e4d21acb23a4153e9e71c66e9aa6b13a882e151d",
+   "date": "2026-10-27T03:36:05+08:00",
+   "kind": "pr",
+   "pr": 568,
+   "title": "let the internal DNS project edit one decision revision",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: internal-dns-consolidation",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "796bf6e9902ef2fb6fedcda9bf06478c8fd62278",
+   "date": "2026-10-27T03:47:17+08:00",
+   "kind": "pr",
+   "pr": 569,
+   "title": "Add host zone on services",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "94104b66341496a3de510a41e5ae6076c04e0f2c",
+   "date": "2026-10-27T04:03:07+08:00",
+   "kind": "pr",
+   "pr": 570,
+   "title": "Build opnsense vm from nano image with seed disk",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
   }
  ]
 }

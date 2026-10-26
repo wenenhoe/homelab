@@ -2,7 +2,7 @@
 id: PROJ-internal-dns-consolidation
 title: Internal DNS on services, with a secondary
 type: project
-status: de-risking
+status: building
 blocked: false
 summary: Serve the host zone from services with a static record for every host, retire the gateway's BIND9 zone and dynamic DNS, and add a secondary on storage that the gateway's Unbound forwards to.
 decision: ADR-0040/0
@@ -31,7 +31,7 @@ The renames `ddns_domain` to `host_domain`, `lab_domain` to `lan_domain` and `dn
 
 ## Decision
 
-Implements [ADR 0040 (Tofu VM DNS)](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md), still `working`, so this project is `de-risking` until its open assumption is resolved. [`tofu-vm-dns.md`](tofu-vm-dns.md) names the same revision and is the last to close, so it accepts it.
+Implements [ADR 0040 (Tofu VM DNS)](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md), `approved` once its assumption was resolved. [`tofu-vm-dns.md`](tofu-vm-dns.md) names the same revision and is the last to close, so it accepts it.
 
 ## Execution plan
 
@@ -39,7 +39,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Settle the failover assumption in ADR 0040 | Not started | A scratch gateway with two forward addresses for a zone answers a host name, a service name and a CNAME that crosses the zones with the first server stopped, and the revision can be `approved` |
+| 1 | Settle the failover assumption in ADR 0040 | Done | A scratch gateway with two forward addresses for a zone answers a host name, a service name and a CNAME that crosses the zones with the first server stopped, and the revision can be `approved` |
 | 2 | Host zone on `services` | Not started | `services` serves the host zone with a static record for every current host, the node and the gateway; every service CNAME points at `host_fqdn`; the renames are done and no old name remains in the tree |
 | 3 | Retire the gateway's names | Not started | The live gateway runs no BIND9 zone and no dynamic DNS registration, and every host still resolves from each VLAN |
 | 4 | Secondary on `storage` | Not started | `storage` serves both zones from `services` by TSIG-authenticated transfer, picks up a change to the host zone, and the gateway forwards both zones to both servers |
@@ -60,7 +60,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Open items
 
-None beyond the assumption recorded in the decision.
+None.
 
 ## Closing checklist
 

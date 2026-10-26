@@ -7,7 +7,7 @@ short: Tofu VM DNS
 solution: BIND9 on services serves the host records beside the service zones, with a secondary on storage, and the gateway forwards both zones to both servers
 summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0089]
 ---
 
@@ -66,6 +66,16 @@ that already exist.
   `forward-addr` line for each forward entry of that domain. Unbound sends
   a forwarded query to those addresses as a recursive query and chases a
   CNAME itself, asking the forwarder for every name in the chain.
+- Unbound 1.24.2 on the gateway queries any address of a `forward-zone`,
+  not the first one listed: with both servers up it used both. In one run
+  each, with one server stopped and with it reachable but never
+  answering, a host name, a service name and a CNAME from one forwarded
+  zone to the other were all answered from the remaining address. A query
+  that went first to the dead server waited about 0.4 s, from a state in
+  which Unbound held no record of its servers' response times; the CNAME
+  across the two zones took 1.2 s when the server never answered, and
+  every later query took milliseconds. A server that answered again
+  received no query from Unbound for the next three minutes.
 - The `bind9` role's zone files carry an epoch serial that is written
   only when the content changes, so a secondary sees a new serial for a
   real change alone.
@@ -138,24 +148,16 @@ is stored in OpenBao.
   it reserves a label in the namespace the per-host service zones share and
   renames every host.
 
-## Assumptions
-
-- **Claim:** with the `services` server stopped, Unbound answers a
-  forwarded zone from the second address of its `forward-zone`, within a
-  time the lab's clients tolerate, and does the same for a CNAME chain
-  that crosses the two zones.
-  **Breaks if wrong:** a second server does not keep the names up, and
-  the design needs another way to present both, such as one address that
-  moves between them.
-  **Checked by:** a scratch gateway in the isolated block with the two
-  forwards, a stopped primary and a probe for a host name, a service
-  name and a CNAME that crosses the zones.
-
 ## Consequences
 
 - `bind9.md` describes the host zone, its generated and static records,
   and the computed `host_fqdn`. The README's "single authoritative BIND9
   instance" framing stays true.
+- The gateway spreads queries over both servers, so `storage` answers a
+  share of them while `services` is up. A change to a zone reaches
+  `storage` by notify and transfer, and until it arrives some clients are
+  answered from the old data. A server that returns is not used again at
+  once.
 - [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)'s OPNsense
   section describes static host overrides and dynamic DNS for the dynamic
   pool. It changes when the gateway is rebuilt under ADR 0089.

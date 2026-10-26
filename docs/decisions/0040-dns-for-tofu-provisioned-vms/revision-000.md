@@ -7,7 +7,7 @@ short: Tofu VM DNS
 solution: BIND9 on services serves the host records beside the service zones, with a secondary on storage, and the gateway forwards both zones to both servers
 summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0089]
 ---
 

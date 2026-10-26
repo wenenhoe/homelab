@@ -52,12 +52,12 @@ calls for a project, while a working one still has to be settled.
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
+| [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | Building | Serve the host zone from services with a static record for every host, retire the gateway's BIND9 zone and dynamic DNS, and add a secondary on storage that the gateway's Unbound forwards to. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
 | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the coding-agent zone and its proxy. |
 | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
-| [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | De-risking | Serve the host zone from services with a static record for every host, retire the gateway's BIND9 zone and dynamic DNS, and add a secondary on storage that the gateway's Unbound forwards to. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
 | [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | De-risking | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
@@ -94,7 +94,7 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `dns` | — | [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | De-risking |
+| `tofu-vm-provisioning` | `dns` | — | [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | Building |
 | | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Not started — waiting on [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
 | | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |

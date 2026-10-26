@@ -38,7 +38,7 @@ Read directly off the host, not assumed:
 | OS | Ubuntu LTS (`resolute`) |
 | Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
-| DDNS name | `tailscale.{{ ddns_domain }}` — same `<host>.{{ ddns_domain }}` structure as every `managed_hosts` member; this is what `inventory.yaml`'s `ansible_host` actually uses |
+| DDNS name | `tailscale.{{ host_domain }}` — same `<host>.{{ host_domain }}` structure as every `managed_hosts` member; this is what `inventory.yaml`'s `ansible_host` actually uses |
 | LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained from a reservation on the gateway (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
 | `qemu-guest-agent` | Already installed and active (pre-dates this being under management) |
 | SSH admin user | `tsadmin` |
@@ -95,7 +95,7 @@ secrets):
    `ansible_python_interpreter: /usr/bin/python3.14` is a global
    `all.vars` default; confirm it exists on the host (or override it
    per-host) before the first run.
-4. **DDNS name** — confirm one actually exists (`<host>.{{ ddns_domain }}`)
+4. **DDNS name** — confirm one actually exists (`<host>.{{ host_domain }}`)
    before assuming a new `network_infra` host needs the static-IP
    fallback pattern instead; `tailscale` has one and uses it.
 

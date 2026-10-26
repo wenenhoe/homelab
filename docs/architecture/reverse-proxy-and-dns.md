@@ -22,7 +22,7 @@ flowchart LR
     do[("DigitalOcean DNS<br/>(DNS-01 challenge)")]
 
     client -- "1 . query app.&lt;caddy_domain&gt;" --> bind9
-    bind9 -- "2 . CNAME to this host's<br/>dns_ddns_target" --> ddns
+    bind9 -- "2 . CNAME to this host's<br/>host_fqdn" --> ddns
     ddns -- "3 . resolves to<br/>the host's real IP" --> client
     client -- "4 . connects directly" --> caddy
     caddy -- "5 . matched handle block" --> app

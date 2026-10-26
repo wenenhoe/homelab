@@ -99,7 +99,7 @@ half and a contained half instead:
        reference_hosts:
          hosts:
            security:
-             ansible_host: "security.{{ ddns_domain }}"
+             ansible_host: "security.{{ host_domain }}"
              ansible_user: secadmin
        controller:
          hosts:

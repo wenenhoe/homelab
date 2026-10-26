@@ -3,7 +3,7 @@
 invocations to pass via `-e @<o>`: only the entries with `store: controller_file`, the
 controller-side file cache.
 
-That job exercises the real ansible_host -> ddns_domain -> main_domain ->
+That job exercises the real ansible_host -> host_domain -> main_domain ->
 secrets_generated chain against the real secret_catalog.yaml (see
 ci-deploy-ordering-inventory.yaml's own header comment for why it can't use a
 separate, stubbed-out catalog the normal way group_vars overrides work). It

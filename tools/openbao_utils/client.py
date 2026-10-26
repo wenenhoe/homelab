@@ -29,7 +29,7 @@ VAULT_KV_MOUNT = "secret"
 
 
 def openbao_hostname() -> str:
-    # security's caddy_domain = "sec.{{ lab_domain }}", lab_domain =
+    # security's caddy_domain = "sec.{{ lan_domain }}", lan_domain =
     # "lan.{{ main_domain }}" (host_vars/security.yaml, group_vars/all/
     # main.yaml) - update this if either naming convention ever changes.
     # Also the leaf cert's real SAN (ansible/roles/openbao_cli's own

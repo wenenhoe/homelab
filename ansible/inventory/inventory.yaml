@@ -26,19 +26,19 @@ all:
     managed_hosts:
       hosts:
         services:
-          ansible_host: "services.{{ ddns_domain }}"
+          ansible_host: "services.{{ host_domain }}"
           ansible_user: svcadmin
         play:
-          ansible_host: "play.{{ ddns_domain }}"
+          ansible_host: "play.{{ host_domain }}"
           ansible_user: playadmin
         security:
-          ansible_host: "security.{{ ddns_domain }}"
+          ansible_host: "security.{{ host_domain }}"
           ansible_user: secadmin
         storage:
-          ansible_host: "storage.{{ ddns_domain }}"
+          ansible_host: "storage.{{ host_domain }}"
           ansible_user: storeadmin
 
-    # Hosts whose dns_zones, compose_apps, caddy_domain, and dns_ddns_target
+    # Hosts whose dns_zones, compose_apps, caddy_domain, and host_fqdn
     # are scraped by the bind9 role. Add any new app host here. Currently
     # an exact alias of managed_hosts — kept as its own name because it's
     # a different concept (hosts that own DNS/app data, vs. every host
@@ -52,7 +52,7 @@ all:
     # from deploy.yaml entirely (see managed_hosts above) — only
     # patched_hosts below (maintenance.yaml) and whatever infra-specific
     # plays that file adds apply here. Addressed the same way as
-    # managed_hosts ("<host>.{{ ddns_domain }}"), not the static-LAN-IP
+    # managed_hosts ("<host>.{{ host_domain }}"), not the static-LAN-IP
     # fallback. See docs/topics/infra/network-infra.md.
     network_infra:
       hosts:
@@ -60,7 +60,7 @@ all:
           # See docs/topics/infra/network-infra.md for why this entry is interim
           # (see that doc's "Future: superseded by Tofu" note) rather
           # than permanent.
-          ansible_host: "tailscale.{{ ddns_domain }}"
+          ansible_host: "tailscale.{{ host_domain }}"
           ansible_user: tsadmin
 
     # Every real host that gets OS-level patching (apt/fwupd) via

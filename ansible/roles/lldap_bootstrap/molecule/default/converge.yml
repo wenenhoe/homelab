@@ -4,7 +4,7 @@
   become: true
   vars:
     ansible_user: root
-    # lab_domain, caddy_domain, lldap_host, lldap_ldap_user_pass,
+    # lan_domain, caddy_domain, lldap_host, lldap_ldap_user_pass,
     # tinyauth_ldap_observer_password live in
     # host_vars/lldap-bootstrap-instance.yaml instead — see the comment
     # there.
@@ -25,7 +25,7 @@
         tasks_from: start_lldap_test_target.yaml
       vars:
         molecule_helpers_lldap_domain: "{{ lldap_host }}.{{ caddy_domain }}"
-        molecule_helpers_lldap_base_dn: "dc={{ lab_domain | replace('.', ',dc=') }}"
+        molecule_helpers_lldap_base_dn: "dc={{ lan_domain | replace('.', ',dc=') }}"
         molecule_helpers_lldap_admin_password: "{{ lldap_ldap_user_pass }}"
         molecule_helpers_lldap_network_name: caddy-proxy
 

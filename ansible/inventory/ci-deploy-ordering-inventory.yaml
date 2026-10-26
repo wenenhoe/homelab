@@ -23,7 +23,7 @@
 # exactly the class of regression deploy-ordering-check exists to catch.
 #
 # Mirrors the real inventory (inventory.yaml, this same directory)
-# closely enough to genuinely exercise its ansible_host -> ddns_domain
+# closely enough to genuinely exercise its ansible_host -> host_domain
 # -> main_domain -> secrets_generated chain and its managed_hosts/
 # controller group split — both had bugs that were invisible to every
 # other CI check that existed at the time. NOT a full structural mirror:
@@ -35,7 +35,7 @@
 #
 # ansible_connection: local on every host — no real SSH/network needed
 # or possible on a CI runner. ci-managed-host's ansible_host is still a
-# genuine Jinja template through ddns_domain, exactly like a real
+# genuine Jinja template through host_domain, exactly like a real
 # managed_hosts member, so Ansible still has to resolve it the same way
 # it would against a real host — connection: local just means "resolve
 # it, then use the local connection plugin instead of actually dialing
@@ -45,7 +45,7 @@ all:
     managed_hosts:
       hosts:
         ci-managed-host:
-          ansible_host: "ci-managed-host.{{ ddns_domain }}"
+          ansible_host: "ci-managed-host.{{ host_domain }}"
           ansible_connection: local
           # resolved_apps (group_vars/all/main.yaml) reads compose_apps
           # with no | default([]) — needs to exist, empty is fine, this

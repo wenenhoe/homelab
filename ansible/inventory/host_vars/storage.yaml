@@ -1,5 +1,5 @@
 ---
-caddy_domain: "store.{{ lab_domain }}"
+caddy_domain: "store.{{ lan_domain }}"
 
 # Bucket-admin identity only — ansible/roles/seaweedfs_bucket,
 # docker/seaweedfs/configs/s3-identity.json.j2, both storage-only. See
@@ -81,9 +81,6 @@ compose_apps:
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config
 # ---------------------------------------------------------------------------
-
-# OPNsense DDNS record this host resolves to.
-dns_ddns_target: "storage.{{ ddns_domain }}."
 
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.

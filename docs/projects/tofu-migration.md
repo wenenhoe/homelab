@@ -89,7 +89,7 @@ throughout every stage — it is the DR restore target.
 **Order.** DNS records for Tofu-provisioned VMs
 ([`tofu-vm-dns.md`](tofu-vm-dns.md)) come first: a rebuilt host has a
 static address and no DDNS name, and every generated CNAME points at
-`dns_ddns_target`. The first rebuild waits for that project to close.
+`host_fqdn`. The first rebuild waits for that project to close.
 
 **Host order.** `play`, `tailscale`, `storage`, `security`, then
 `services`. `play` is a leaf and proves the cycle. `storage` comes before

@@ -10,7 +10,7 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
-    # main_domain, lab_domain, caddy_domain, lldap_host, tinyauth_host,
+    # main_domain, lan_domain, caddy_domain, lldap_host, tinyauth_host,
     # server_timezone, tinyauth_ldap_insecure, step_ca_*, app_catalog,
     # compose_apps live in host_vars/tinyauth-ca-trust-instance.yaml
     # instead — see the comment there.
@@ -126,7 +126,7 @@
         name: lldap-test
         image: "{{ molecule_helpers_lldap_image }}"
         env:
-          LLDAP_LDAP_BASE_DN: "dc={{ lab_domain | replace('.', ',dc=') }}"
+          LLDAP_LDAP_BASE_DN: "dc={{ lan_domain | replace('.', ',dc=') }}"
           LLDAP_LDAP_USER_PASS: "{{ lldap_ldap_user_pass }}"
           LLDAP_JWT_SECRET: molecule-test-jwt-secret
           LLDAP_KEY_SEED: molecule-test-key-seed

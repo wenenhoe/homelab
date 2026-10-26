@@ -7,7 +7,7 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
-    # main_domain, lab_domain, caddy_domain, lldap_host, server_timezone,
+    # main_domain, lan_domain, caddy_domain, lldap_host, server_timezone,
     # lldap_*, step_ca_*, app_catalog, compose_apps live in
     # host_vars/step-ca-cert-renewal-timing-instance.yaml instead — see
     # the comment there. Same fixture as default's own, copied

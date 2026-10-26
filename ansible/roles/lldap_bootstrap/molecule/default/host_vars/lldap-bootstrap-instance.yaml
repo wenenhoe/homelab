@@ -3,8 +3,8 @@
 # rather than in converge.yml's play vars for resolution consistency
 # with real inventory data.
 main_domain: molecule.test
-lab_domain: "lan.{{ main_domain }}"
-caddy_domain: "sec.{{ lab_domain }}"
+lan_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lan_domain }}"
 lldap_host: lldap-test
 
 # lldap-test's initial "admin" account password — same throwaway-value

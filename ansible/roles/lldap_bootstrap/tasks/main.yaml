@@ -9,7 +9,7 @@
 # The DN bootstrap.sh's "observer" user ends up with (uid=observer,
 # ou=people,<base_dn>) is fixed by lldap itself, not something this role
 # constructs — it already matches config.yaml.j2's bindDn because both
-# sides read the same LLDAP_LDAP_BASE_DN (derived from lab_domain in
+# sides read the same LLDAP_LDAP_BASE_DN (derived from lan_domain in
 # lldap's own env.j2).
 #
 # bootstrap.sh's own `until curl ... "$LLDAP_URL"` loop already retries
@@ -70,7 +70,7 @@
         content: >-
           {{ {
             "id": "observer",
-            "email": "observer@" ~ lab_domain,
+            "email": "observer@" ~ lan_domain,
             "password": tinyauth_ldap_observer_password,
             "groups": ["lldap_strict_readonly"]
           } | to_json }}

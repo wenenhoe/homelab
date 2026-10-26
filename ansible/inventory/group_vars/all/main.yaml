@@ -5,8 +5,11 @@ server_timezone: Asia/Singapore
 # just routed through the same mechanism) — see docs/topics/secrets/secrets.md.
 main_domain: "{{ secrets_generated['main-domain'] }}"
 
-lab_domain: "lan.{{ main_domain }}"
-ddns_domain: "internal.{{ main_domain }}"
+lan_domain: "lan.{{ main_domain }}"
+host_domain: "internal.{{ main_domain }}"
+
+# The name every CNAME generated for a host's apps points at.
+host_fqdn: "{{ inventory_hostname }}.{{ host_domain }}."
 
 docker_users:
   - "{{ ansible_user }}"

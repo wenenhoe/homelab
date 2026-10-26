@@ -24,7 +24,7 @@ value doesn't block the first deploy. `beszel-agent`'s `.env` uses
 Sequence:
 
 1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty Vault values `openbao_utils/bootstrap.py` created for these two).
-2. Visit `https://beszel.sec.{{ lab_domain }}`, create the hub admin account.
+2. Visit `https://beszel.sec.{{ lan_domain }}`, create the hub admin account.
 3. **Settings → Keys**: run `cd tools && python3 -m openbao_utils.bootstrap` and paste the hub's public key in when prompted for `beszel-hub-key` (already-set entries are skipped, so re-running is safe — see [`secrets.md`](../secrets/secrets.md)).
 4. **Settings → Tokens**: create a universal token, set it as `beszel-agent-token` the same way.
 5. Re-run `ansible-playbook deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.

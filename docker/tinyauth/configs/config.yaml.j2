@@ -1,5 +1,5 @@
 ---
-appUrl: "https://{{ tinyauth_host }}.{{ lab_domain }}"
+appUrl: "https://{{ tinyauth_host }}.{{ lan_domain }}"
 
 labelProvider: "auto"
 
@@ -44,9 +44,9 @@ ui:
 
 ldap:
   address: "ldaps://{{ lldap_host }}.{{ caddy_domain }}:6360"
-  bindDn: "uid=observer,ou=people,dc={{ lab_domain | replace('.', ',dc=') }}"
+  bindDn: "uid=observer,ou=people,dc={{ lan_domain | replace('.', ',dc=') }}"
   bindPassword: "{{ tinyauth_ldap_observer_password }}"
-  baseDn: "dc={{ lab_domain | replace('.', ',dc=') }}"
+  baseDn: "dc={{ lan_domain | replace('.', ',dc=') }}"
   insecure: {{ tinyauth_ldap_insecure }}
   searchFilter: "(uid=%s)"
   authCert: ""  # Certificate for mTLS authentication

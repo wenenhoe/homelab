@@ -1,7 +1,7 @@
 # step-ca: Internal PKI
 
 `step-ca` is a private X.509 certificate authority for internal,
-service-to-service TLS — signing certs for the lab's own `.{{ lab_domain
+service-to-service TLS — signing certs for the lab's own `.{{ lan_domain
 }}`-style names, not proving control to a public CA. `step_ca_cert` and
 `tinyauth_ca_trust` (see [`lldap.md`](lldap.md) and
 [`openbao.md`](../secrets/openbao.md)) are its real consumers: lldap's LDAPS cert
@@ -82,7 +82,7 @@ step ca bootstrap --ca-url https://step-ca:9000 --fingerprint <fingerprint>
 # Vault-backed at secret/data/hosts/all/step-ca/step-ca-provisioner-password
 # — docs/topics/secrets/openbao-auth.md shows the shell.py kv get pattern for
 # reading a value like this back out).
-step ca certificate test-client.{{ lab_domain }} test.crt test.key \
+step ca certificate test-client.{{ lan_domain }} test.crt test.key \
   --provisioner internal-services
 ```
 

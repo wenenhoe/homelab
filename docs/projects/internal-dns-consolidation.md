@@ -19,6 +19,7 @@ allowed_paths:
   - tools/openbao_utils/client.py
   - docs/topics/**
   - docs/architecture/reverse-proxy-and-dns.md
+  - docs/decisions/0003-certificate-issuance-for-proxied-apps/revision-001.md
 ---
 
 # Internal DNS on services, with a secondary

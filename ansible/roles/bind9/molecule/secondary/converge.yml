@@ -8,6 +8,23 @@
     - name: Gather facts
       ansible.builtin.setup:
 
+# The primary reads every app host's resolved_apps to gather the zones, so
+# it has to exist on both before the first of them runs the role. In the
+# deploy it is a group variable; here it is set per host.
+- name: Resolve compose_apps on both instances
+  hosts: dns:dns_secondary
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+  tasks:
+    - name: Resolve compose_apps against the app catalog
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
 # One host at a time, primary first, so the secondary's first transfer finds
 # the primary serving. A transfer that fails is not retried before the SOA
 # retry interval, 1H, unless the primary sends a NOTIFY.
@@ -25,11 +42,6 @@
     # converge.yml.
     bind9_manage_resolv_conf: false
   tasks:
-    - name: Resolve compose_apps against the app catalog
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: resolve_compose_apps.yaml
-
     - name: Run the bind9 role
       ansible.builtin.include_role:
         name: bind9

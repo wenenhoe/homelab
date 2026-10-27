@@ -52,7 +52,6 @@ calls for a project, while a working one still has to be settled.
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
-| [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | Building | Serve the host zone from services with a static record for every host, retire the gateway's BIND9 zone and dynamic DNS, and add a secondary on storage that the gateway's Unbound forwards to. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
 | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
@@ -64,6 +63,7 @@ calls for a project, while a working one still has to be settled.
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | 1 | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
+| [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Not started — ready | Internal DNS records for Tofu-provisioned VMs, as ADR 0040 decides. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
 | [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it. |
@@ -94,8 +94,7 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `dns` | — | [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) | 2 | Building |
-| | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Not started — waiting on [`internal-dns-consolidation.md`](projects/internal-dns-consolidation.md) |
+| `tofu-vm-provisioning` | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Not started — ready |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
 | | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
 | | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |

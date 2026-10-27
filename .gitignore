@@ -14,6 +14,7 @@ crash.*.log
 .ruff_cache/
 .venv/
 .terraform/
+.image-cache/
 ansible/molecule-coverage/.data/
 ansible/files/secrets/
 ansible/files/restore/

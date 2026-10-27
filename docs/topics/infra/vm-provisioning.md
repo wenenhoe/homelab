@@ -177,10 +177,15 @@ phases:
   with OPNsense's pre-installed `nano` image as its system disk, and the
   first configuration comes from a seed disk the importer reads at the
   first boot ([ADR 0089 (OPNsense configuration)](../../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
-  The image is the `.img.bz2` of one release, which Proxmox downloads,
-  checks against the SHA-256 the caller supplies, unpacks and stores as
-  import content. OPNsense publishes no stable "latest" URL, so a newer
-  release is a new URL and checksum.
+  OPNsense publishes the image only as the `.img.bz2` of one release, and
+  Proxmox refuses to decompress a download of import content. The host
+  running Tofu therefore downloads it with `fetch_image.sh`, checks it
+  against the SHA-256 the caller supplies, unpacks it into `image_cache_dir`
+  (about 3.5 GB; `.image-cache/` is ignored by git) and uploads the unpacked
+  image as import content. A checksum mismatch removes the download and fails
+  the apply before anything is uploaded. The host needs `curl`, `bunzip2` and
+  `sha256sum` or `shasum`. OPNsense publishes no stable "latest" URL, so a
+  newer release is a new URL and checksum.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
@@ -215,7 +220,9 @@ raw disk image holding `conf/config.xml`, the module uploads it as import
 content under the VM's lowercased name and attaches it as `scsi1`. The
 caller sets `started = false` when a script on the node answers the
 importer, because that script must be connected to the serial socket
-before the first boot passes the importer's prompt. Setting `wan_bridge` to the
+before the first boot passes the importer's prompt. `started` applies only
+when the VM is created: a later apply neither starts nor stops it, so a
+change of `started` never powers a running gateway off. Setting `wan_bridge` to the
 LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a
 WAN that is an ordinary client of another OPNsense's LAN; NIC 1 stays
 untagged. Its `vm_id` is the gateway

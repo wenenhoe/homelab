@@ -31,13 +31,19 @@ variable "image_url" {
 }
 
 variable "image_checksum" {
-  description = "SHA-256 of the file at image_url, as OPNsense publishes it."
+  description = "SHA-256 of the file at image_url, as OPNsense publishes it. The host running Tofu needs curl, sha256sum or shasum, and bunzip2."
   type        = string
 
   validation {
     condition     = can(regex("^[0-9a-f]{64}$", var.image_checksum))
     error_message = "image_checksum must be 64 lowercase hexadecimal characters."
   }
+}
+
+variable "image_cache_dir" {
+  description = "Directory on the host running Tofu where the image is downloaded and unpacked. About 3.5 GB is needed."
+  type        = string
+  default     = ".image-cache"
 }
 
 variable "image_datastore_id" {
@@ -100,7 +106,7 @@ variable "seed_image_path" {
 }
 
 variable "started" {
-  description = "Whether the VM is started when created. The script that answers the importer must be connected to the serial socket before the first boot passes the importer's prompt, so a caller that runs it sets this to false and starts the VM from the script."
+  description = "Whether the VM is started when it is created; a later apply never starts or stops it. The script that answers the importer must be connected to the serial socket before the first boot passes the importer's prompt, so a caller that runs it sets this to false and starts the VM from the script."
   type        = bool
   default     = true
 }

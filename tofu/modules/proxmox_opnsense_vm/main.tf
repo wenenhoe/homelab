@@ -1,19 +1,43 @@
 locals {
+  image_bz2 = "${var.image_cache_dir}/${basename(var.image_url)}"
+  image_img = trimsuffix(local.image_bz2, ".bz2")
   # Proxmox accepts import content only under a .raw, .qcow2 or .vmdk name,
   # and the nano image is a raw disk.
-  image_file_name = "${trimsuffix(trimsuffix(basename(var.image_url), ".bz2"), ".img")}.raw"
+  image_file_name = "${trimsuffix(basename(local.image_img), ".img")}.raw"
   mac_prefix      = format("BC:24:11:%02X:%02X", floor(var.vm_id / 256), var.vm_id % 256)
 }
 
-resource "proxmox_download_file" "image" {
-  node_name               = var.node_name
-  datastore_id            = var.image_datastore_id
-  content_type            = "import"
-  url                     = var.image_url
-  file_name               = local.image_file_name
-  checksum                = var.image_checksum
-  checksum_algorithm      = "sha256"
-  decompression_algorithm = "bz2"
+# Proxmox refuses to decompress a download of import content, and OPNsense
+# publishes the image only as .img.bz2, so the host running Tofu downloads it,
+# checks the published checksum and unpacks it before it is uploaded.
+resource "terraform_data" "image" {
+  triggers_replace = [var.image_url, var.image_checksum]
+  input            = local.image_img
+
+  provisioner "local-exec" {
+    interpreter = ["bash", "-euo", "pipefail", "-c"]
+    environment = {
+      URL = var.image_url
+      SUM = var.image_checksum
+      BZ2 = local.image_bz2
+    }
+    command = "bash \"${path.module}/fetch_image.sh\""
+  }
+}
+
+resource "proxmox_virtual_environment_file" "image" {
+  node_name    = var.node_name
+  datastore_id = var.image_datastore_id
+  content_type = "import"
+
+  source_file {
+    path      = terraform_data.image.output
+    file_name = local.image_file_name
+  }
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.image]
+  }
 }
 
 resource "proxmox_virtual_environment_file" "seed" {
@@ -58,7 +82,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   disk {
     datastore_id = var.datastore_id
-    import_from  = proxmox_download_file.image.id
+    import_from  = proxmox_virtual_environment_file.image.id
     interface    = "scsi0"
     iothread     = true
     discard      = "on"
@@ -99,5 +123,11 @@ resource "proxmox_virtual_environment_vm" "this" {
   # importer and reads the gateway's certificate talks to this socket.
   serial_device {
     device = "socket"
+  }
+
+  # started decides only whether the VM boots when it is created. A later apply
+  # would otherwise stop a running gateway to match started = false.
+  lifecycle {
+    ignore_changes = [started]
   }
 }

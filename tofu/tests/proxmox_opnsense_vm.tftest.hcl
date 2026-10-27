@@ -1,24 +1,26 @@
-mock_provider "proxmox" {
-  mock_resource "proxmox_download_file" {
-    defaults = {
-      id = "tofu-images:import/OPNsense-26.1-nano-amd64.raw"
-    }
-  }
+mock_provider "proxmox" {}
 
-  mock_resource "proxmox_virtual_environment_file" {
-    defaults = {
-      id = "tofu-images:import/opnsense-seed.raw"
-    }
+override_resource {
+  target = proxmox_virtual_environment_file.image
+  values = {
+    id = "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw"
+  }
+}
+
+override_resource {
+  target = proxmox_virtual_environment_file.seed
+  values = {
+    id = "tofu-images:import/opnsense-seed.raw"
   }
 }
 
 variables {
   node_name      = "pve"
-  image_url      = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+  image_url      = "https://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2"
   image_checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 }
 
-run "fetches_the_image_and_unpacks_it_as_import_content" {
+run "uploads_the_unpacked_image_as_import_content" {
   command = plan
 
   module {
@@ -26,23 +28,31 @@ run "fetches_the_image_and_unpacks_it_as_import_content" {
   }
 
   assert {
-    condition     = proxmox_download_file.image.content_type == "import" && proxmox_download_file.image.decompression_algorithm == "bz2"
-    error_message = "the .img.bz2 must be downloaded as import content and decompressed"
+    condition     = proxmox_virtual_environment_file.image.content_type == "import" && proxmox_virtual_environment_file.image.datastore_id == "tofu-images"
+    error_message = "the image must be uploaded as import content to the images storage the token can delete from"
   }
 
   assert {
-    condition     = proxmox_download_file.image.file_name == "OPNsense-26.1-nano-amd64.raw"
-    error_message = "the unpacked file must be stored under a .raw name, which is what Proxmox accepts for import content"
+    condition     = proxmox_virtual_environment_file.image.source_file[0].file_name == "OPNsense-26.1.6-nano-amd64.raw"
+    error_message = "the image must be stored under a .raw name, which is what Proxmox accepts for import content"
+  }
+}
+
+run "fetches_the_image_again_when_its_url_or_checksum_changes" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
   }
 
   assert {
-    condition     = proxmox_download_file.image.datastore_id == "tofu-images"
-    error_message = "the image must be stored on the images storage the token can delete from"
+    condition     = terraform_data.image.triggers_replace[0] == var.image_url && terraform_data.image.triggers_replace[1] == var.image_checksum
+    error_message = "a new URL or checksum must fetch and unpack the image again"
   }
 
   assert {
-    condition     = proxmox_download_file.image.checksum_algorithm == "sha256" && proxmox_download_file.image.checksum == var.image_checksum
-    error_message = "the download must be verified against the given SHA-256"
+    condition     = terraform_data.image.input == ".image-cache/OPNsense-26.1.6-nano-amd64.img"
+    error_message = "the unpacked image must land in the cache directory under the release's file name"
   }
 }
 
@@ -54,7 +64,7 @@ run "imports_the_image_as_the_system_disk_and_boots_it" {
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.disk[0].interface == "scsi0" && proxmox_virtual_environment_vm.this.disk[0].import_from == "tofu-images:import/OPNsense-26.1-nano-amd64.raw" && proxmox_virtual_environment_vm.this.disk[0].size == 32
+    condition     = proxmox_virtual_environment_vm.this.disk[0].interface == "scsi0" && proxmox_virtual_environment_vm.this.disk[0].import_from == "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw" && proxmox_virtual_environment_vm.this.disk[0].size == 32
     error_message = "the image must be the first disk, on scsi0, imported from the download and sized to disk_gb"
   }
 
@@ -288,7 +298,7 @@ run "rejects_an_image_that_is_not_a_bzip2_img" {
   }
 
   variables {
-    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img"
+    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img"
   }
 
   expect_failures = [var.image_url]
@@ -316,7 +326,7 @@ run "rejects_an_image_url_that_is_not_https" {
   }
 
   variables {
-    image_url = "http://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+    image_url = "http://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2"
   }
 
   expect_failures = [var.image_url]

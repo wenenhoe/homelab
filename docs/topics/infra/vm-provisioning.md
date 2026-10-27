@@ -220,7 +220,9 @@ raw disk image holding `conf/config.xml`, the module uploads it as import
 content under the VM's lowercased name and attaches it as `scsi1`. The
 caller sets `started = false` when a script on the node answers the
 importer, because that script must be connected to the serial socket
-before the first boot passes the importer's prompt. Setting `wan_bridge` to the
+before the first boot passes the importer's prompt. `started` applies only
+when the VM is created: a later apply neither starts nor stops it, so a
+change of `started` never powers a running gateway off. Setting `wan_bridge` to the
 LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a
 WAN that is an ordinary client of another OPNsense's LAN; NIC 1 stays
 untagged. Its `vm_id` is the gateway

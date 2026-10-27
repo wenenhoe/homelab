@@ -3,7 +3,7 @@ mock_provider "proxmox" {}
 override_resource {
   target = proxmox_virtual_environment_file.image
   values = {
-    id = "tofu-images:import/OPNsense-26.1-nano-amd64.raw"
+    id = "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw"
   }
 }
 
@@ -16,7 +16,7 @@ override_resource {
 
 variables {
   node_name      = "pve"
-  image_url      = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+  image_url      = "https://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2"
   image_checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 }
 
@@ -33,7 +33,7 @@ run "uploads_the_unpacked_image_as_import_content" {
   }
 
   assert {
-    condition     = proxmox_virtual_environment_file.image.source_file[0].file_name == "OPNsense-26.1-nano-amd64.raw"
+    condition     = proxmox_virtual_environment_file.image.source_file[0].file_name == "OPNsense-26.1.6-nano-amd64.raw"
     error_message = "the image must be stored under a .raw name, which is what Proxmox accepts for import content"
   }
 }
@@ -51,7 +51,7 @@ run "fetches_the_image_again_when_its_url_or_checksum_changes" {
   }
 
   assert {
-    condition     = terraform_data.image.input == ".image-cache/OPNsense-26.1-nano-amd64.img"
+    condition     = terraform_data.image.input == ".image-cache/OPNsense-26.1.6-nano-amd64.img"
     error_message = "the unpacked image must land in the cache directory under the release's file name"
   }
 }
@@ -64,7 +64,7 @@ run "imports_the_image_as_the_system_disk_and_boots_it" {
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.disk[0].interface == "scsi0" && proxmox_virtual_environment_vm.this.disk[0].import_from == "tofu-images:import/OPNsense-26.1-nano-amd64.raw" && proxmox_virtual_environment_vm.this.disk[0].size == 32
+    condition     = proxmox_virtual_environment_vm.this.disk[0].interface == "scsi0" && proxmox_virtual_environment_vm.this.disk[0].import_from == "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw" && proxmox_virtual_environment_vm.this.disk[0].size == 32
     error_message = "the image must be the first disk, on scsi0, imported from the download and sized to disk_gb"
   }
 
@@ -298,7 +298,7 @@ run "rejects_an_image_that_is_not_a_bzip2_img" {
   }
 
   variables {
-    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img"
+    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img"
   }
 
   expect_failures = [var.image_url]
@@ -326,7 +326,7 @@ run "rejects_an_image_url_that_is_not_https" {
   }
 
   variables {
-    image_url = "http://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+    image_url = "http://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2"
   }
 
   expect_failures = [var.image_url]

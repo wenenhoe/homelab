@@ -106,7 +106,7 @@ variable "seed_image_path" {
 }
 
 variable "started" {
-  description = "Whether the VM is started when created. The script that answers the importer must be connected to the serial socket before the first boot passes the importer's prompt, so a caller that runs it sets this to false and starts the VM from the script."
+  description = "Whether the VM is started when it is created; a later apply never starts or stops it. The script that answers the importer must be connected to the serial socket before the first boot passes the importer's prompt, so a caller that runs it sets this to false and starts the VM from the script."
   type        = bool
   default     = true
 }

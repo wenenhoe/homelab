@@ -124,4 +124,10 @@ resource "proxmox_virtual_environment_vm" "this" {
   serial_device {
     device = "socket"
   }
+
+  # started decides only whether the VM boots when it is created. A later apply
+  # would otherwise stop a running gateway to match started = false.
+  lifecycle {
+    ignore_changes = [started]
+  }
 }

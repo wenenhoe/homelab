@@ -58,6 +58,8 @@ python_unit_tests:
   - 'tools/openbao_utils/**'
   - 'tools/cd_agent/**'
   - 'tools/tofu_inventory/**'
+  # The OPNsense module's seed builder; its tests are under tools/tests/opnsense_seed/.
+  - 'tofu/modules/proxmox_opnsense_vm/seed/*.py'
   # The progress log generator (ADR 0095); its tests are under tools/tests/.
   - 'tools/progress_log/**'
   - 'tools/container_hardening/**'

@@ -81,5 +81,6 @@ pythonpath = [
     "ansible/molecule-coverage/callback_plugins",
     "ansible/scripts",
     "docker/openbao/watcher",
+    "tofu/modules/proxmox_opnsense_vm/seed",
 ]
 strict = true

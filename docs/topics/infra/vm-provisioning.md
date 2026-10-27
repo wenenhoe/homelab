@@ -222,6 +222,24 @@ phases:
   master connection opened by hand (`ssh -fN -M -S /tmp/opn-ssh.sock root@pve`)
   and named in `SSH_CONTROL_PATH`. A first boot that did not take the seed
   cannot be repeated on the same VM: destroy it and apply the module again.
+
+  The play is `playbooks/opnsense.yaml` with the `opnsense_gateway` role, run
+  from the operator host: `ansible-playbook playbooks/opnsense.yaml --check
+  --diff -e opnsense_gateway_ca_file=PATH`, where PATH is the
+  `gateway-cert.pem` the first-boot script wrote. The gateway is not an
+  Ansible host; every call is to its API at `OPNsense.internal`, so the
+  operator host must resolve that name, and the certificate file is the only
+  CA the play trusts. Before anything else the role checks the credentials
+  file (mode `0600`, holding `opnsense_api_key` and `opnsense_api_secret`),
+  that the installed `oxlorg.opnsense` collection is the pinned release, that
+  the name resolves, that the seeded key authenticates over the pinned
+  certificate, and that the gateway runs the pinned release. A renewed GUI
+  certificate fails the authentication check until the console is read again.
+  The release and the collection's commit are the role's defaults;
+  `ansible/requirements.yml` installs the collection from git at the same
+  commit, and a test fails when the two differ. The gateway's release check
+  asks the gateway for its firmware status, which probes the OPNsense mirror,
+  so the gateway needs its route out.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.

@@ -22,6 +22,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`volume-maintenance.md`](volume-maintenance.md). |
 | `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Writes a fresh value for one generated secret into OpenBao, in place (the controller's policy has no delete), and refuses an entry not stored there. Doesn't redeploy anything itself, so the new value reaches a host with the next `deploy.yaml` run. See [`secrets-rotation.md`](../secrets/secrets-rotation.md). |
 | `playbooks/bootstrap-secrets.yaml` | none — `hosts: localhost` | Leading play imported by `deploy.yaml`/`restore.yaml` to resolve `secret_catalog.yaml`. See [`secrets.md`](../secrets/secrets.md). |
+| `playbooks/opnsense.yaml` | none — `hosts: localhost` | Applies the OPNsense gateway's configuration through its API from the operator host: the `opnsense_gateway` role. Needs `-e opnsense_gateway_ca_file=<gateway-cert.pem>`. See [`vm-provisioning.md`](../infra/vm-provisioning.md#opnsense). |
 | `playbooks/pin-telegram-topics.yaml` | none — `hosts: localhost` | Pins a static header message in each Telegram forum topic. See [`telegram-notifications.md`](../monitoring/telegram-notifications.md). |
 | `playbooks/ci_boot_test.yaml` | `ci-inventory/` | CI-only: seeds one app for the compose boot-test job. See [`ci/gates.md`](../engineering/ci/gates.md#compose-boot-test). |
 
@@ -42,6 +43,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `cd_agent` | The CD agent host: one sandboxed unit, timer and user per job, and `sshd` limited to the operator host. See [`cd-agent-host.md`](cd-agent-host.md). |
 | `openbao` | Chowns openbao's data volume to its own non-root user before it first starts, deploys. |
 | `openbao_cli` | Installs/verifies a native `bao` CLI on `security`, version-matched to the running server. |
+| `opnsense_gateway` | Controller-only: checks the gateway's API over the certificate read off its console, then holds the connection the collection's modules take. See [`vm-provisioning.md`](../infra/vm-provisioning.md#opnsense). |
 | `seaweedfs_bucket` | Ensures the SeaweedFS backup bucket exists on `storage`. |
 | `lldap_bootstrap` | Automates lldap's `observer` account for tinyauth's LDAP bind. |
 | `step_ca_client` | Shared prerequisite: caches step-ca's root cert on the host. |

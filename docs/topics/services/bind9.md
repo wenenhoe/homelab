@@ -1,6 +1,6 @@
 # BIND9: Internal DNS
 
-The `bind9` role runs an authoritative, non-recursive nameserver on the `services` host (`hosts: dns` in `deploy.yaml`) that serves every app host's internal zones. A host in the inventory's `dns_secondary` group runs the same role as a [secondary](#a-secondary) for all of them.
+The `bind9` role runs an authoritative, non-recursive nameserver on the `services` host (`hosts: dns` in `deploy.yaml`) that serves every app host's internal zones. `storage`, the inventory's `dns_secondary` group, runs the same role as a [secondary](#a-secondary) for all of them, one host after the other in the same play.
 
 ## How zone data is gathered
 

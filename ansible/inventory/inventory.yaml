@@ -76,10 +76,16 @@ all:
         managed_hosts:
         network_infra:
 
-    # The single authoritative DNS host.  bind9 role runs here only.
+    # The single authoritative DNS host.  bind9 runs here as the primary.
     dns:
       hosts:
         services:
+
+    # The secondary: bind9 here takes every zone from `dns` by signed
+    # transfer.  An empty group leaves the primary refusing all transfers.
+    dns_secondary:
+      hosts:
+        storage:
 
     # The CD agent (docs/projects/cd-agent.md, docs/topics/deploy/cd-agent-host.md):
     # VM 303 in VLAN 30. In none of managed_hosts, app_hosts or patched_hosts, so

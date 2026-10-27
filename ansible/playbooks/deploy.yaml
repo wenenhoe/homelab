@@ -61,8 +61,11 @@
 
 # Play 3 — DNS config written and bind9 deployed/restarted before any
 # other container starts or this host's Docker daemon points at it.
-- name: Configure BIND9 on the DNS host
-  hosts: dns
+# The secondary follows the primary, one host at a time, so its first
+# transfer finds the primary serving.
+- name: Configure BIND9 on the DNS hosts
+  hosts: dns:dns_secondary
+  serial: 1
   gather_facts: false
   become: true
   tasks:

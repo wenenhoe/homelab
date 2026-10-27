@@ -1,0 +1,288 @@
+---
+- name: Gather both instances' facts
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Gather facts
+      ansible.builtin.setup:
+
+# --- The primary ------------------------------------------------------------
+- name: Verify the primary
+  hosts: dns
+  become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
+  vars:
+    compose_deploy_dir: /opt/stacks
+    bind9_config_dir: "{{ compose_deploy_dir }}/bind9/_staging/config"
+  tasks:
+    - name: Wait for the bind9 container to report healthy
+      community.docker.docker_container_info:
+        name: bind9
+      register: bind9_container_info
+      until: (bind9_container_info.container.State.Health.Status | default('')) == 'healthy'
+      retries: 15
+      delay: 10
+
+    - name: Read back named.conf
+      ansible.builtin.slurp:
+        path: "{{ bind9_config_dir }}/named.conf"
+      register: bind9_named_conf_raw
+
+    - name: Confirm transfers are allowed to the key alone and the secondary is notified
+      ansible.builtin.assert:
+        that:
+          - "'allow-transfer { key \"dns-transfer\"; };' in (bind9_named_conf_raw.content | b64decode)"
+          - "'allow-transfer { none; };' not in (bind9_named_conf_raw.content | b64decode)"
+          - "'notify explicit;' in (bind9_named_conf_raw.content | b64decode)"
+          - "('also-notify { ' ~ dns_secondary_address ~ '; };') in (bind9_named_conf_raw.content | b64decode)"
+
+    - name: Look at the key file in staging
+      ansible.builtin.stat:
+        path: "{{ bind9_config_dir }}/named.conf.key"
+      register: bind9_key_stat
+
+    - name: Confirm only the bind user and group can read it
+      ansible.builtin.assert:
+        that:
+          - bind9_key_stat.stat.exists
+          - bind9_key_stat.stat.mode == '0640'
+          - bind9_key_stat.stat.pw_name == 'bind'
+          - bind9_key_stat.stat.gr_name == 'bind'
+
+    - name: Read the key file's mode and owner as seeded into the config volume
+      # The container's bind user is uid/gid 9970, and alpine has no such name.
+      ansible.builtin.command: >-
+        docker run --rm -v bind9_config:/mnt {{ molecule_helpers_alpine_image }} stat -c '%a %u:%g' /mnt/named.conf.key  # noqa: command-instead-of-module
+      register: bind9_seeded_key
+      changed_when: false
+      failed_when: bind9_seeded_key.stdout | trim != '640 9970:9970'
+
+    - name: Ask the primary for the host zone without the key
+      ansible.builtin.command: dig @127.0.0.1 AXFR internal.example.test +noall +answer +comments  # noqa: command-instead-of-module
+      register: bind9_axfr_unsigned
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm the transfer without the key was refused
+      ansible.builtin.assert:
+        that:
+          - "'status: REFUSED' in bind9_axfr_unsigned.stdout"
+          - "'pve.internal.example.test' not in bind9_axfr_unsigned.stdout"
+
+    - name: Ask the primary for the host zone under a key with the wrong secret
+      ansible.builtin.command: >-
+        dig @127.0.0.1 AXFR internal.example.test
+        -y hmac-sha256:dns-transfer:{{ 'not-the-transfer-key' | hash('sha256') }} +noall +answer  # noqa: command-instead-of-module
+      register: bind9_axfr_wrong_key
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Confirm the transfer under the wrong secret was refused
+      ansible.builtin.assert:
+        that:
+          - "'pve.internal.example.test' not in bind9_axfr_wrong_key.stdout"
+          - "'Transfer failed' in (bind9_axfr_wrong_key.stdout + bind9_axfr_wrong_key.stderr)"
+
+    - name: Ask the primary for the host zone with the key
+      ansible.builtin.command: >-
+        dig @127.0.0.1 AXFR internal.example.test
+        -y hmac-sha256:dns-transfer:{{ dns_transfer_key }} +noall +answer  # noqa: command-instead-of-module
+      register: bind9_axfr_signed
+      changed_when: false
+      no_log: true
+
+    - name: Confirm the transfer with the key returned the zone
+      ansible.builtin.assert:
+        that:
+          - (bind9_axfr_signed.stdout | regex_search('(?m)^pve\.internal\.example\.test\.\s+\d+\s+IN\s+A\s+192\.0\.2\.20$')) is not none
+
+# --- The secondary ----------------------------------------------------------
+- name: Verify the secondary
+  hosts: dns_secondary
+  become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
+  vars:
+    compose_deploy_dir: /opt/stacks
+    bind9_config_dir: "{{ compose_deploy_dir }}/bind9/_staging/config"
+    bind9_verify_zones:
+      - svc.lan.example.test
+      - iot.lan.example.test
+      - internal.example.test
+      - store.lan.example.test
+  tasks:
+    - name: Wait for the bind9 container to report healthy
+      community.docker.docker_container_info:
+        name: bind9
+      register: bind9_container_info
+      until: (bind9_container_info.container.State.Health.Status | default('')) == 'healthy'
+      retries: 15
+      delay: 10
+
+    - name: Record when the secondary's container started
+      ansible.builtin.set_fact:
+        bind9_secondary_started_at: "{{ bind9_container_info.container.State.StartedAt }}"
+
+    - name: Read back named.conf
+      ansible.builtin.slurp:
+        path: "{{ bind9_config_dir }}/named.conf"
+      register: bind9_named_conf_raw
+
+    - name: Confirm the secondary hands zones to no one and notifies no one
+      ansible.builtin.assert:
+        that:
+          - "'allow-transfer { none; };' in (bind9_named_conf_raw.content | b64decode)"
+          - "'notify no;' in (bind9_named_conf_raw.content | b64decode)"
+          - "'also-notify' not in (bind9_named_conf_raw.content | b64decode)"
+
+    - name: Read back named.conf.local
+      ansible.builtin.slurp:
+        path: "{{ bind9_config_dir }}/named.conf.local"
+      register: bind9_named_conf_local_raw
+
+    - name: Confirm the primary is reached at its address over the key, and only secondary zones are declared
+      ansible.builtin.assert:
+        that:
+          - >-
+            (bind9_named_conf_local_raw.content | b64decode
+            | regex_search('primaries "primary" \{\s+' ~ (dns_primary_address | regex_escape) ~ ' key "dns-transfer";')) is not none
+          - (bind9_named_conf_local_raw.content | b64decode | regex_findall('type secondary;') | length) == (bind9_verify_zones | length)
+          - "'type master' not in (bind9_named_conf_local_raw.content | b64decode)"
+
+    - name: Confirm every zone from every host is declared
+      ansible.builtin.assert:
+        that:
+          - "('zone \"' ~ item ~ '\" {') in (bind9_named_conf_local_raw.content | b64decode)"
+      loop: "{{ bind9_verify_zones }}"
+
+    - name: Look for zone files the secondary should not render
+      ansible.builtin.find:
+        paths: "{{ bind9_config_dir }}/zones"
+        patterns: "db.*"
+      register: bind9_secondary_zone_files
+
+    - name: Confirm it rendered none
+      ansible.builtin.assert:
+        that:
+          - bind9_secondary_zone_files.matched == 0
+
+    - name: Read the key file's mode and owner as seeded into the config volume
+      ansible.builtin.command: >-
+        docker run --rm -v bind9_config:/mnt {{ molecule_helpers_alpine_image }} stat -c '%a %u:%g' /mnt/named.conf.key  # noqa: command-instead-of-module
+      register: bind9_seeded_key
+      changed_when: false
+      failed_when: bind9_seeded_key.stdout | trim != '640 9970:9970'
+
+    - name: Wait for the secondary to serve a host zone record it took from the primary
+      ansible.builtin.command: dig @127.0.0.1 +short pve.internal.example.test A  # noqa: command-instead-of-module
+      register: bind9_secondary_host_record
+      changed_when: false
+      until: bind9_secondary_host_record.stdout | trim == '192.0.2.20'
+      retries: 20
+      delay: 3
+
+    - name: Query the secondary for the primary's generated CNAME
+      ansible.builtin.command: dig @127.0.0.1 +short testapp.svc.lan.example.test CNAME  # noqa: command-instead-of-module
+      register: bind9_secondary_cname
+      changed_when: false
+      failed_when: bind9_secondary_cname.stdout | trim != 'services.internal.example.test.'
+
+    - name: Query the secondary for a zone declared by its own host
+      ansible.builtin.command: dig @127.0.0.1 +short ns1.store.lan.example.test A  # noqa: command-instead-of-module
+      register: bind9_secondary_own_zone
+      changed_when: false
+      failed_when: bind9_secondary_own_zone.stdout | trim != '127.0.0.1'
+
+    # BIND takes a few zones at a time from one primary, so the later ones can
+    # arrive after the first has been served.
+    - name: Wait for each zone's serial on the secondary to equal the primary's
+      ansible.builtin.shell: |
+        set -o pipefail
+        primary=$(dig @{{ dns_primary_address }} +short {{ item }} SOA | cut -d' ' -f3)
+        secondary=$(dig @127.0.0.1 +short {{ item }} SOA | cut -d' ' -f3)
+        test -n "$primary" && test "$primary" = "$secondary"
+      args:
+        executable: /bin/bash
+      register: bind9_serial_match
+      changed_when: false
+      until: bind9_serial_match.rc == 0
+      retries: 20
+      delay: 3
+      loop: "{{ bind9_verify_zones }}"
+
+    - name: List the zone files the secondary wrote to its records volume
+      # A zone file the secondary cannot write would leave it re-transferring on every start.
+      ansible.builtin.command: docker run --rm -v bind9_records:/mnt {{ molecule_helpers_alpine_image }} ls /mnt  # noqa: command-instead-of-module
+      register: bind9_records_listing
+      changed_when: false
+      until: >-
+        bind9_verify_zones | map('regex_replace', '^', 'db.')
+        | difference(bind9_records_listing.stdout_lines | default([])) | length == 0
+      retries: 10
+      delay: 3
+
+    - name: Confirm every zone was written
+      ansible.builtin.assert:
+        that:
+          - ('db.' ~ item) in bind9_records_listing.stdout_lines
+        fail_msg: "{{ item }} is not in the records volume, which holds: {{ bind9_records_listing.stdout_lines }}"
+      loop: "{{ bind9_verify_zones }}"
+
+    - name: Ask the primary for the host zone from here, without the key
+      ansible.builtin.command: dig @{{ dns_primary_address }} AXFR internal.example.test +noall +answer +comments  # noqa: command-instead-of-module
+      register: bind9_axfr_unsigned
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm the transfer without the key was refused over the network too
+      ansible.builtin.assert:
+        that:
+          - "'status: REFUSED' in bind9_axfr_unsigned.stdout"
+          - "'pve.internal.example.test' not in bind9_axfr_unsigned.stdout"
+
+# --- A change to the host zone reaches the secondary ---------------------------
+- name: Add a record to the host zone on the primary
+  hosts: dns
+  gather_facts: false
+  tasks:
+    - name: Add a host zone record
+      ansible.builtin.set_fact:  # noqa: var-naming[no-role-prefix]
+        dns_zones: >-
+          {%- set zones = [] -%}
+          {%- for zone in dns_zones -%}
+          {%-   if zone.zone == host_domain -%}
+          {%-     set _ = zones.append(zone | combine({'extra_records': zone.extra_records + [{'name': 'late', 'type': 'A', 'value': '192.0.2.77'}]})) -%}
+          {%-   else -%}
+          {%-     set _ = zones.append(zone) -%}
+          {%-   endif -%}
+          {%- endfor -%}
+          {{ zones }}
+
+# The same converge as before: the primary re-renders the host zone and
+# restarts, and the secondary's own configuration is unchanged.
+- name: Converge again with the changed zone
+  ansible.builtin.import_playbook: converge.yml
+
+- name: Verify the secondary picked the change up
+  hosts: dns_secondary
+  become: true
+  tasks:
+    - name: Wait for the new record to reach the secondary
+      ansible.builtin.command: dig @127.0.0.1 +short late.internal.example.test A  # noqa: command-instead-of-module
+      register: bind9_secondary_late_record
+      changed_when: false
+      until: bind9_secondary_late_record.stdout | trim == '192.0.2.77'
+      retries: 20
+      delay: 3
+
+    - name: Read the secondary container's start time again
+      community.docker.docker_container_info:
+        name: bind9
+      register: bind9_container_info
+
+    - name: Confirm it was a transfer, not a restart of the secondary
+      ansible.builtin.assert:
+        that:
+          - bind9_container_info.container.State.StartedAt == bind9_secondary_started_at

@@ -1,9 +1,23 @@
 // Managed by Ansible
 
+{% if bind9_secondary %}
+primaries "primary" {
+    {{ dns_primary_address }} key "{{ bind9_transfer_key_name }}";
+};
+
+{% endif %}
 {% for zone in bind9_all_zones %}
+{% if bind9_secondary %}
+zone "{{ zone.key }}" {
+    type secondary;
+    primaries { "primary"; };
+    file "/var/lib/bind/db.{{ zone.key }}";
+};
+{% else %}
 zone "{{ zone.key }}" {
     type master;
     file "/etc/bind/zones/db.{{ zone.key }}";
     allow-update { none; };
 };
+{% endif %}
 {% endfor %}

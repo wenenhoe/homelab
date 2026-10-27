@@ -1,7 +1,9 @@
 ---
-# Runs on the dedicated DNS host. Zone data is scraped from every host in
-# the `app_hosts` group via hostvars — no zone config lives on the DNS
-# host itself.
+# Runs on the dedicated DNS host and, when the inventory has a
+# `dns_secondary` group, on that host too. Zone data is scraped from every
+# host in the `app_hosts` group via hostvars — no zone config lives on the
+# DNS host itself. The primary renders the zone files; a secondary renders
+# only which zones to take from it and over which key (`bind9_secondary`).
 #
 # bind9 deploys/restarts its own compose app at the end of this role
 # instead of generically in Play 3: the "Disable DNS Stub Listener and set
@@ -108,6 +110,22 @@
   tags:
     - infra
 
+# A separate task from the two above so that no_log covers the secret, and
+# mode 0640 keeps it from other users on the host: the named process runs
+# as `bind`.
+- name: Render the zone transfer key
+  ansible.builtin.template:
+    src: named.conf.key.j2
+    dest: "{{ bind9_config_dir }}/named.conf.key"
+    owner: bind
+    group: bind
+    mode: '0640'
+  when: bind9_transfers_enabled | bool
+  register: bind9_key_file
+  no_log: true
+  tags:
+    - infra
+
 # Smart zone-file deployment: render each zone in-memory, slurp back
 # whatever's live, strip the serial line from both and compare, and only
 # write (and report changed) when the non-serial content actually
@@ -120,6 +138,7 @@
   loop: "{{ bind9_all_zones }}"
   loop_control:
     label: "{{ item.key }}"
+  when: not bind9_secondary | bool
   vars:
     current_list: "{{ bind9_zone_candidates | default([]) }}"
     rendered: >-
@@ -136,7 +155,7 @@
 - name: Read back whatever zone file is currently live, if any
   ansible.builtin.slurp:
     path: "{{ bind9_config_dir }}/zones/db.{{ item.key }}"
-  loop: "{{ bind9_zone_candidates }}"
+  loop: "{{ bind9_zone_candidates | default([]) }}"
   loop_control:
     label: "{{ item.key }}"
   register: bind9_zone_live
@@ -152,7 +171,7 @@
     owner: bind
     group: bind
     mode: '0644'
-  loop: "{{ bind9_zone_candidates | zip(bind9_zone_live.results) | list }}"
+  loop: "{{ bind9_zone_candidates | default([]) | zip(bind9_zone_live.results) | list }}"
   loop_control:
     label: "{{ item.0.key }}"
   vars:
@@ -174,6 +193,7 @@
     bind9_dns_changed: >-
       {{
         bind9_config_files.changed or
+        bind9_key_file.changed | default(false) or
         (bind9_zone_written.results
          | default([])
          | selectattr('changed', 'equalto', true)
@@ -206,6 +226,64 @@
 # deploy below has already tried and failed to bind port 53.
 - name: Flush handlers so systemd-resolved actually stops holding port 53 before we deploy
   ansible.builtin.meta: flush_handlers
+
+# A secondary writes every zone it receives to the records volume as the
+# bind user, and a new volume belongs to root: the zones would be served
+# from memory only, and fetched again on every start.
+- name: Create the records volume for the secondary
+  community.docker.docker_volume:
+    name: bind9_records
+    labels:
+      homelab.app: bind9
+      homelab.volume: records
+  when: bind9_secondary | bool
+  tags:
+    - infra
+    - images
+
+- name: Look up the records volume's host path
+  community.docker.docker_volume_info:
+    name: bind9_records
+  register: bind9_records_volume
+  when: bind9_secondary | bool
+  tags:
+    - infra
+    - images
+
+- name: Check who owns the records volume
+  ansible.builtin.stat:
+    path: "{{ bind9_records_volume.volume.Mountpoint }}"
+  register: bind9_records_owner
+  when: bind9_secondary | bool
+  tags:
+    - infra
+    - images
+
+- name: Give the records volume to the bind user
+  community.docker.docker_container:
+    name: bind9-records-chown
+    image: "{{ bind9_volume_helper_image }}"
+    command: [chown, "9970:9970", /records]
+    volumes:
+      - bind9_records:/records
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    capabilities:
+      - CHOWN
+    security_opts:
+      - no-new-privileges:true
+    detach: false
+    cleanup: true
+    state: started
+  when:
+    - bind9_secondary | bool
+    - bind9_records_owner.stat.uid != 9970 or bind9_records_owner.stat.gid != 9970
+  changed_when: true
+  tags:
+    - infra
+    - images
 
 # Tagged for both images (recreate on a fresh pull) and infra (restart on
 # zone/config changes). bind9_dns_changed is only set by the infra-tagged

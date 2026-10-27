@@ -68,6 +68,8 @@ cloud_sync_on_calendar: "*-*-* 06:00:00"
 compose_apps:
   - name: caddy
 
+  - name: bind9
+
   - name: beszel-agent
 
   - name: seaweedfs

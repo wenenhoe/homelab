@@ -1,0 +1,27 @@
+---
+- name: "Check the host records with {{ bind9_case.name }}"
+  block:
+    - name: Run the role's host record checks
+      ansible.builtin.include_role:
+        name: bind9
+        tasks_from: host_records
+      vars:
+        host_domain: internal.example.test  # noqa: var-naming[no-role-prefix]
+        bind9_all_zones: "{{ bind9_case.zones | default(bind9_valid_zones) }}"
+        bind9_host_addresses: "{{ bind9_case.addresses }}"
+
+    - name: Fail, since the checks accepted a case that must be refused
+      ansible.builtin.fail:
+        msg: "ACCEPTED: the checks passed with {{ bind9_case.name }}"
+      when: bind9_case.expect is defined
+  rescue:
+    - name: Confirm it was refused, and for the reason this case is about
+      ansible.builtin.assert:
+        that:
+          - bind9_case.expect is defined
+          - bind9_case.expect in bind9_failure_text
+        fail_msg: >-
+          With {{ bind9_case.name }} the checks failed, but not as the case
+          expects. Wanted {{ bind9_case.expect | default('no failure') }}, got: {{ bind9_failure_text }}
+      vars:
+        bind9_failure_text: "{{ ansible_failed_result.msg | default('') }}"

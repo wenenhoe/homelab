@@ -96,6 +96,13 @@
   tags:
     - infra
 
+- name: Check the host zone's generated records
+  ansible.builtin.import_tasks:
+    file: host_records.yaml
+  when: not bind9_secondary | bool
+  tags:
+    - infra
+
 - name: Generate BIND9 configuration files
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -147,7 +154,8 @@
         'zone_data': item.value,
         'host_fqdn': item.host_fqdn,
         'caddy_domain': item.caddy_domain,
-        'zone_resolved_apps': item.resolved_apps }) }}
+        'zone_resolved_apps': item.resolved_apps,
+        'host_records': bind9_host_addresses if item.key == host_domain else {} }) }}
   no_log: true
   tags:
     - infra

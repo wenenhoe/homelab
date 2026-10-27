@@ -1,0 +1,26 @@
+---
+# Every case is refused by the host record checks, which read two variables
+# and touch nothing on the host: no systemd, no privileged mode, no Docker.
+driver:
+  name: docker
+platforms:
+  - name: bind9-invalid-host-records-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    command: sleep infinity
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - destroy

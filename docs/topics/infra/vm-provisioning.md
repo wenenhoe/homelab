@@ -262,6 +262,14 @@ that passes `-i`). A new VM is a module call, an `ansible_hosts` entry and
 a name in its groups. Each tool keeps one job, as `host_vars` and `app_catalog`
 already split concerns in this repo.
 
+The VM's name needs no further step. The `bind9` role gives every host the
+inventory addresses by an IPv4 address an `A` record of its inventory host
+name and its `ansible_host` in the host zone
+([`bind9.md`](../services/bind9.md#the-host-zone)), so the record follows the
+address Tofu assigned. A host that had a hand-written record in
+`host_vars/services.yaml` loses it when it is rebuilt: the role refuses a host
+named both ways.
+
 ## Tofu project
 
 The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu

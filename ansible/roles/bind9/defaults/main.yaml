@@ -20,6 +20,26 @@ bind9_transfers_enabled: "{{ groups.get('dns_secondary', []) | length > 0 }}"
 # `dns_transfer_key`.
 bind9_transfer_key_name: dns-transfer
 
+# A dotted-quad IPv4 address with no leading zeros, and one DNS label: a
+# letter first, no trailing hyphen, at most 63 characters, the same rule
+# tools/tofu_inventory applies to a host name.
+bind9_ipv4_re: '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$'
+bind9_label_re: '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$'
+
+# Host name -> address, for every inventory host whose `ansible_host` is an
+# IPv4 address, which is how the generated inventory addresses a host Tofu
+# provisioned. The primary renders each as an A record in the host zone. A
+# host addressed by name has its record in its `dns_zones`, so is not here.
+bind9_host_addresses: >-
+  {%- set result = {} -%}
+  {%- for host in groups['all'] | sort -%}
+  {%-   set address = hostvars[host].ansible_host | default('') | string -%}
+  {%-   if address is regex(bind9_ipv4_re) -%}
+  {%-     set _ = result.update({host: address}) -%}
+  {%-   endif -%}
+  {%- endfor -%}
+  {{ result }}
+
 # Upstream DNS Docker's own daemon should use for container name
 # resolution, merged into /etc/docker/daemon.json's "dns" key by
 # network_conf.yaml rather than overwriting the whole file.

@@ -98,6 +98,19 @@
         that:
           - (bind9_axfr_signed.stdout | regex_search('(?m)^pve\.internal\.example\.test\.\s+\d+\s+IN\s+A\s+192\.0\.2\.20$')) is not none
 
+    - name: Read back the host zone file
+      ansible.builtin.slurp:
+        path: "{{ bind9_config_dir }}/zones/db.internal.example.test"
+      register: bind9_host_zone_file_raw
+
+    # The two instances have no ansible_host, so a record for either would
+    # show a host being named that the inventory does not address by IPv4.
+    - name: Confirm only the host addressed by an IPv4 address got a generated record
+      ansible.builtin.assert:
+        that:
+          - (bind9_host_zone_file_raw.content | b64decode | regex_search('(?m)^tofu-vm\s+IN\s+A\s+192\.0\.2\.50$')) is not none
+          - (bind9_host_zone_file_raw.content | b64decode | regex_search('(?m)^(tofu-named|bind9-primary|bind9-secondary)\s')) is none
+
 # --- The secondary ----------------------------------------------------------
 - name: Verify the secondary
   hosts: dns_secondary
@@ -182,6 +195,20 @@
       until: bind9_secondary_host_record.stdout | trim == '192.0.2.20'
       retries: 20
       delay: 3
+
+    - name: Wait for the secondary to serve the record generated for the host addressed by an IPv4 address
+      ansible.builtin.command: dig @127.0.0.1 +short tofu-vm.internal.example.test A  # noqa: command-instead-of-module
+      register: bind9_secondary_generated_record
+      changed_when: false
+      until: bind9_secondary_generated_record.stdout | trim == '192.0.2.50'
+      retries: 20
+      delay: 3
+
+    - name: Query the secondary for the host addressed by name
+      ansible.builtin.command: dig @127.0.0.1 +short tofu-named.internal.example.test A  # noqa: command-instead-of-module
+      register: bind9_secondary_named_host
+      changed_when: false
+      failed_when: bind9_secondary_named_host.stdout | trim != ''
 
     - name: Query the secondary for the primary's generated CNAME
       ansible.builtin.command: dig @127.0.0.1 +short testapp.svc.lan.example.test CNAME  # noqa: command-instead-of-module

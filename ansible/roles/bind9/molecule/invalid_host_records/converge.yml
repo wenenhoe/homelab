@@ -1,0 +1,83 @@
+---
+# Each case runs the host record checks with one thing wrong; it must fail on
+# the check that names it. A bare `rescue:` could not tell the expected
+# failure from an unrelated one (see restore/molecule/validation_failure). A
+# case with no `expect` is valid and must pass, so a check that refused
+# everything would fail here too.
+- name: Converge
+  hosts: all
+  vars:
+    bind9_valid_zones:
+      - key: internal.example.test
+        value:
+          extra_records:
+            - {name: "@", type: NS, value: "ns1.internal.example.test."}
+            - {name: pve, type: A, value: 192.0.2.20}
+    bind9_cases:
+      - name: one generated host
+        addresses: {tofu-vm: 192.0.2.50}
+      - name: no generated host and no host zone
+        addresses: {}
+        zones: []
+      - name: a host zone with no static records
+        addresses: {tofu-vm: 192.0.2.50}
+        zones:
+          - key: internal.example.test
+            value: {}
+      - name: a host name of 63 characters
+        addresses: {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: 192.0.2.50}
+      - name: a host name ending in a hyphen
+        addresses: {"tofu-vm-": 192.0.2.50}
+        expect: not a single DNS label
+      - name: a host name of 64 characters
+        addresses: {aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: 192.0.2.50}
+        expect: not a single DNS label
+      - name: a host name starting with a digit
+        addresses: {"2tofu-vm": 192.0.2.50}
+        expect: not a single DNS label
+      - name: a host name with an underscore
+        addresses: {tofu_vm: 192.0.2.50}
+        expect: not a single DNS label
+      - name: a host name in upper case
+        addresses: {Tofu-VM: 192.0.2.50}
+        expect: not a single DNS label
+      - name: a good host beside a bad one
+        addresses: {tofu-vm: 192.0.2.50, tofu_vm: 192.0.2.51}
+        expect: "not a single DNS label: tofu_vm"
+      - name: a host the host zone already names
+        addresses: {pve: 192.0.2.20}
+        expect: has a generated record and a static record
+      - name: a host the host zone names in other case
+        addresses: {pve: 192.0.2.20}
+        zones:
+          - key: internal.example.test
+            value:
+              extra_records:
+                - {name: PVE, type: A, value: 192.0.2.20}
+        expect: has a generated record and a static record
+      - name: a name another zone holds by hand
+        addresses: {pve: 192.0.2.20}
+        zones:
+          - key: internal.example.test
+            value: {}
+          - key: svc.example.test
+            value:
+              extra_records:
+                - {name: pve, type: A, value: 192.0.2.30}
+      - name: a generated host and no host zone
+        addresses: {tofu-vm: 192.0.2.50}
+        zones: []
+        expect: no host declares a zone with that name
+      - name: a generated host and only another zone
+        addresses: {tofu-vm: 192.0.2.50}
+        zones:
+          - key: svc.example.test
+            value: {}
+        expect: no host declares a zone with that name
+  tasks:
+    - name: Run the checks once per case
+      ansible.builtin.include_tasks: tasks/case.yml
+      loop: "{{ bind9_cases }}"
+      loop_control:
+        loop_var: bind9_case
+        label: "{{ bind9_case.name }}"

@@ -25,6 +25,26 @@
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml
 
+# Two hosts no play here targets, addressed as the generated inventory
+# addresses hosts: one by an IPv4 address, which gets a record in the host
+# zone, and one by name, which does not. Added to the run rather than to the
+# inventory, so no play that targets `all` tries to connect to them.
+- name: Add hosts addressed as the generated inventory addresses them
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Add a host addressed by an IPv4 address
+      ansible.builtin.add_host:
+        name: tofu-vm
+        ansible_host: 192.0.2.50
+      changed_when: false
+
+    - name: Add a host addressed by name
+      ansible.builtin.add_host:
+        name: tofu-named
+        ansible_host: tofu-named.internal.example.test
+      changed_when: false
+
 # One host at a time, primary first, so the secondary's first transfer finds
 # the primary serving. A transfer that fails is not retried before the SOA
 # retry interval, 1H, unless the primary sends a NOTIFY.

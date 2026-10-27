@@ -1,0 +1,43 @@
+---
+# Checks on the host zone's generated A records. They run before any zone
+# file is written, so a bad entry stops the deploy instead of reaching the
+# live zone. Read from bind9_host_addresses and bind9_all_zones.
+
+- name: Refuse a host name that is not one DNS label
+  ansible.builtin.assert:
+    that:
+      - bind9_invalid_host_names | length == 0
+    quiet: true
+    fail_msg: >-
+      A host zone record is named after its host, which must be one DNS label.
+      These are not a single DNS label: {{ bind9_invalid_host_names | join(', ') }}
+  vars:
+    bind9_invalid_host_names: "{{ bind9_host_addresses | list | reject('match', bind9_label_re) | list }}"
+
+# Without this a host would get two records under one name, and a resolver
+# would hand out either address.
+- name: Refuse a host the host zone already names by hand
+  ansible.builtin.assert:
+    that:
+      - bind9_named_twice | length == 0
+    quiet: true
+    fail_msg: >-
+      {{ bind9_named_twice | join(', ') }} has a generated record and a static
+      record in {{ host_domain }}. Remove the static one from `dns_zones`.
+  vars:
+    bind9_static_names: >-
+      {{ bind9_all_zones | selectattr('key', 'equalto', host_domain)
+         | map(attribute='value.extra_records', default=[]) | flatten
+         | map(attribute='name') | map('lower') | list }}
+    bind9_named_twice: "{{ bind9_host_addresses | list | intersect(bind9_static_names) }}"
+
+# Without this the generated records would be dropped and the deploy would
+# report nothing wrong.
+- name: Refuse generated records when no zone is declared to hold them
+  ansible.builtin.assert:
+    that:
+      - bind9_host_addresses | length == 0 or host_domain in (bind9_all_zones | map(attribute='key'))
+    quiet: true
+    fail_msg: >-
+      {{ bind9_host_addresses | list | join(', ') }} need records in {{ host_domain }},
+      but no host declares a zone with that name.

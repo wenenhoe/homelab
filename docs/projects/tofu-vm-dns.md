@@ -28,7 +28,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Records for Tofu-provisioned VMs | In progress | The `bind9` role builds a record for each generated host in the host zone, and the zone on both servers holds them |
+| 1 | Records for Tofu-provisioned VMs | Done | The `bind9` role builds a record for each generated host in the host zone, and the zone on both servers holds them |
 | 2 | Lose each server live | Not started | With the `services` server stopped, a host name and a service name resolve from each VLAN through the secondary, and resolve from `services` again once it is back; the same with `storage` stopped, through `services` |
 
 Stage status is `Not started`, `In progress`, or `Done`.

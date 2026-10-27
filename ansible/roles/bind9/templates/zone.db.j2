@@ -14,6 +14,15 @@ $TTL {{ zone_data.ttl }}
 {% for record in zone_data.extra_records | default([]) %}
 {{ "%-12s" | format(record.name) }}  IN  {{ "%-5s" | format(record.type) }}  {{ record.value }}
 {% endfor %}
+{% if host_records %}
+
+; ---------------------------------------------------------------------------
+; A records for the hosts the inventory addresses by IPv4 address
+; ---------------------------------------------------------------------------
+{% for name, address in host_records.items() | sort %}
+{{ "%-12s" | format(name) }}  IN  {{ "%-5s" | format("A") }}  {{ address }}
+{% endfor %}
+{% endif %}
 
 ; ---------------------------------------------------------------------------
 ; Auto-generated CNAME records for Caddy-fronted services

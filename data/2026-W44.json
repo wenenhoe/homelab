@@ -71,6 +71,60 @@
    "bot": false,
    "group": "Project: opnsense-config",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "965d425f868213ce98684a0dccd2877e129018d1",
+   "date": "2026-10-27T16:36:41+08:00",
+   "kind": "pr",
+   "pr": 571,
+   "title": "describe names served from the host zone, not registered by the\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: internal-dns-consolidation",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1bf103bc4a203ecff49023d899602ab20e7641ec",
+   "date": "2026-10-27T18:09:52+08:00",
+   "kind": "pr",
+   "pr": 572,
+   "title": "Fix opnsense upload and verify unpacked image",
+   "type": "fix",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "7ababe158951f0a367b71ab6b72f0294a1f27fa1",
+   "date": "2026-10-28T01:32:11+08:00",
+   "kind": "pr",
+   "pr": 573,
+   "title": "Implement secondary bind9 on storage",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "ae3c6a0cb39a764579906e680a907c54d6722769",
+   "date": "2026-10-28T01:53:49+08:00",
+   "kind": "pr",
+   "pr": 574,
+   "title": "Finish final stage and close project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: internal-dns-consolidation",
+   "events": [
+    [
+     "project",
+     "internal-dns-consolidation",
+     "closed"
+    ]
+   ]
   }
  ]
 }

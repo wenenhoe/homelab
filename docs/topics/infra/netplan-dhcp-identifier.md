@@ -22,10 +22,6 @@ OPNsense's Kea DHCP server treats the two identifiers as different
 clients, so it can't correlate the OS-phase request as a renewal of
 the initramfs lease — it issues a second, different IP instead of
 renewing the first. The first lease is never explicitly released.
-Kea's DDNS-push then fails outright: it tries to replace the A record
-it wrote for the first IP with the second, but by the time it attempts
-that, the record no longer matches what it expects (`RCODE: 8`,
-NXRRSET).
 
 ## The fix
 
@@ -43,6 +39,6 @@ network:
       dhcp-identifier: mac
 ```
 
-Same IP both times; the DDNS update succeeds. Placed by hand at
+Same IP both times. Placed by hand at
 `/etc/netplan/01-netcfg.yaml` on each of `services`/`play`/`security`/
 `storage`.

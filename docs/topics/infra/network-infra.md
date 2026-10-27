@@ -38,7 +38,7 @@ Read directly off the host, not assumed:
 | OS | Ubuntu LTS (`resolute`) |
 | Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
-| DDNS name | `tailscale.{{ host_domain }}` — same `<host>.{{ host_domain }}` structure as every `managed_hosts` member; this is what `inventory.yaml`'s `ansible_host` actually uses |
+| Host zone name | `tailscale.{{ host_domain }}` — same `<host>.{{ host_domain }}` structure as every `managed_hosts` member, a static record in `host_vars/services.yaml`; this is what `inventory.yaml`'s `ansible_host` actually uses |
 | LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained from a reservation on the gateway (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
 | `qemu-guest-agent` | Already installed and active (pre-dates this being under management) |
 | SSH admin user | `tsadmin` |
@@ -50,7 +50,7 @@ predates Tofu, and the interface shows a DHCP-obtained lease rather
 than a static netplan config. The gateway's DHCP server holds a
 reservation for it, as it does for every host, so the address is
 effectively permanent. That is not relevant to `ansible_host` now that
-it resolves through DDNS the same as every other host, but it is
+it resolves through the host zone the same as every other host, but it is
 relevant to whether this host would ever
 belong in `sos-inventory.yaml` (static-IP-only, DNS-independent
 recovery path). Not added there yet: `reset-network.yaml`'s whole
@@ -95,9 +95,10 @@ secrets):
    `ansible_python_interpreter: /usr/bin/python3.14` is a global
    `all.vars` default; confirm it exists on the host (or override it
    per-host) before the first run.
-4. **DDNS name** — confirm one actually exists (`<host>.{{ host_domain }}`)
-   before assuming a new `network_infra` host needs the static-IP
-   fallback pattern instead; `tailscale` has one and uses it.
+4. **Host zone name** — confirm `host_vars/services.yaml`'s host zone holds a
+   record for it (`<host>.{{ host_domain }}`) before assuming a new
+   `network_infra` host needs the static-IP fallback pattern instead;
+   `tailscale` has one and uses it.
 
 `tailscale` needed the first three — `tsadmin`'s sudo currently
 prompts for a password (`sudo -n true` fails with

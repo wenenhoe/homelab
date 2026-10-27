@@ -11,6 +11,7 @@ flowchart LR
 
     subgraph services["services"]
         bind9["BIND9<br/>(authoritative, non-recursive,<br/>one zone per app host)"]
+        hostzone["Host zone<br/>(one static A record<br/>per host)"]
     end
 
     subgraph anyhost["Any app host<br/>(services / play / security / storage)"]
@@ -18,12 +19,11 @@ flowchart LR
         app[("Routed app")]
     end
 
-    ddns["OPNsense DDNS"]
     do[("DigitalOcean DNS<br/>(DNS-01 challenge)")]
 
     client -- "1 . query app.&lt;caddy_domain&gt;" --> bind9
-    bind9 -- "2 . CNAME to this host's<br/>host_fqdn" --> ddns
-    ddns -- "3 . resolves to<br/>the host's real IP" --> client
+    bind9 -- "2 . CNAME to this host's<br/>host_fqdn" --> hostzone
+    hostzone -- "3 . resolves to<br/>the host's real IP" --> client
     client -- "4 . connects directly" --> caddy
     caddy -- "5 . matched handle block" --> app
     do -. "DNS-01 challenge,<br/>once per host's wildcard cert" .-> caddy
@@ -36,4 +36,5 @@ each host already declared — see
 2 is auto-generated for every app with a `caddy` route, from the same
 `host_vars` entry that gives it its Caddy routing rule — one place
 to add an app gets it both. See
-[`host-vars.md`](../topics/deploy/host-vars.md#caddy_domain).
+[`host-vars.md`](../topics/deploy/host-vars.md#caddy_domain). Step 3 is a
+static record in the host zone, [`bind9.md`](../topics/services/bind9.md#the-host-zone).

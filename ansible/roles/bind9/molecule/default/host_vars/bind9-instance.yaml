@@ -38,6 +38,9 @@ dns_zones:  # noqa: var-naming[no-role-prefix]
     soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101
     extra_records:
+      # BIND does not load a zone without an NS record, and so cannot hand it to a secondary.
+      - { name: "@", type: NS, value: "ns1.iot.{{ lan_domain }}." }
+      - { name: "ns1", type: A, value: "10.20.0.1" }
       - { name: "sensor1", type: A, value: "10.20.0.5" }
 
 app_catalog: >-  # noqa: var-naming[no-role-prefix]

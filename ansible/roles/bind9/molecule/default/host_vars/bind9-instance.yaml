@@ -5,14 +5,14 @@
 # reliably exposes variables from real inventory sources (host_vars/
 # group_vars files), not a play's vars: block, even for a host looking up
 # its own data.
-main_domain: example.test
-lan_domain: "lan.{{ main_domain }}"
-host_domain: "internal.{{ main_domain }}"
-caddy_domain: "svc.{{ lan_domain }}"
-server_timezone: Asia/Singapore
+main_domain: example.test  # noqa: var-naming[no-role-prefix]
+lan_domain: "lan.{{ main_domain }}"  # noqa: var-naming[no-role-prefix]
+host_domain: "internal.{{ main_domain }}"  # noqa: var-naming[no-role-prefix]
+caddy_domain: "svc.{{ lan_domain }}"  # noqa: var-naming[no-role-prefix]
+server_timezone: Asia/Singapore  # noqa: var-naming[no-role-prefix]
 
-host_fqdn: "services.{{ host_domain }}."
-dns_zones:
+host_fqdn: "services.{{ host_domain }}."  # noqa: var-naming[no-role-prefix]
+dns_zones:  # noqa: var-naming[no-role-prefix]
   - zone: "{{ caddy_domain }}"
     ttl: 3600
     soa_email: "hostmaster.{{ main_domain }}."
@@ -40,7 +40,7 @@ dns_zones:
     extra_records:
       - { name: "sensor1", type: A, value: "10.20.0.5" }
 
-app_catalog: >-
+app_catalog: >-  # noqa: var-naming[no-role-prefix]
   {{
     (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')
      | from_yaml).app_catalog
@@ -59,7 +59,7 @@ app_catalog: >-
 # testapp carries its own `routes` entry directly (matching how real
 # host_vars declare per-host route labels), so zone.db.j2 has something to
 # generate an auto-CNAME for.
-compose_apps:
+compose_apps:  # noqa: var-naming[no-role-prefix]
   - name: bind9
   - name: testapp
     routes:

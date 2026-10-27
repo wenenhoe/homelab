@@ -2,10 +2,10 @@
 # Both instances read the same three values. A key derived from a label, not a
 # literal, so no secret-shaped string sits in the repository and the value is
 # the same on every run.
-dns_transfer_key: "{{ 'bind9-molecule-dns-transfer-key' | hash('sha256') }}"
+dns_transfer_key: "{{ 'bind9-molecule-dns-transfer-key' | hash('sha256') }}"  # noqa: var-naming[no-role-prefix]
 
 # Each instance's address is the other's peer, and Docker assigns them at
 # create time, so they are read from the facts converge.yml and verify.yml
 # gather first.
-dns_primary_address: "{{ hostvars['bind9-primary'].ansible_facts.default_ipv4.address }}"
-dns_secondary_address: "{{ hostvars['bind9-secondary'].ansible_facts.default_ipv4.address }}"
+dns_primary_address: "{{ hostvars['bind9-primary'].ansible_facts.default_ipv4.address }}"  # noqa: var-naming[no-role-prefix]
+dns_secondary_address: "{{ hostvars['bind9-secondary'].ansible_facts.default_ipv4.address }}"  # noqa: var-naming[no-role-prefix]

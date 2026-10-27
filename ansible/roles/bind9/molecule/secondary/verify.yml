@@ -205,6 +205,7 @@
       ansible.builtin.assert:
         that:
           - ('db.' ~ item) in bind9_records_listing.stdout_lines
+        fail_msg: "{{ item }} is not in the records volume, which holds: {{ bind9_records_listing.stdout_lines }}"
       loop: "{{ bind9_verify_zones }}"
 
     - name: Wait for each zone's serial on the secondary to equal the primary's

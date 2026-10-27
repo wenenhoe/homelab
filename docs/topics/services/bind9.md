@@ -39,7 +39,8 @@ on both once that group has a member.
 The secondary renders no zone file. It declares each zone in
 `bind9_all_zones` (the list the primary renders from) as `type secondary`,
 taken from `dns_primary_address` over the transfer key, and keeps what it
-receives in `/var/lib/bind`, the `records` volume. A restart therefore
+receives in `/var/lib/bind`, the `records` volume, which the role hands to the `bind` user
+before the container starts, since a new volume belongs to root. A restart therefore
 serves the zones it already holds without reaching the primary, while a
 secondary that has never completed a transfer answers `SERVFAIL` for them.
 

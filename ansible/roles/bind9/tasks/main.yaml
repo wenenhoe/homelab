@@ -227,6 +227,64 @@
 - name: Flush handlers so systemd-resolved actually stops holding port 53 before we deploy
   ansible.builtin.meta: flush_handlers
 
+# A secondary writes every zone it receives to the records volume as the
+# bind user, and a new volume belongs to root: the zones would be served
+# from memory only, and fetched again on every start.
+- name: Create the records volume for the secondary
+  community.docker.docker_volume:
+    name: bind9_records
+    labels:
+      homelab.app: bind9
+      homelab.volume: records
+  when: bind9_secondary | bool
+  tags:
+    - infra
+    - images
+
+- name: Look up the records volume's host path
+  community.docker.docker_volume_info:
+    name: bind9_records
+  register: bind9_records_volume
+  when: bind9_secondary | bool
+  tags:
+    - infra
+    - images
+
+- name: Check who owns the records volume
+  ansible.builtin.stat:
+    path: "{{ bind9_records_volume.volume.Mountpoint }}"
+  register: bind9_records_owner
+  when: bind9_secondary | bool
+  tags:
+    - infra
+    - images
+
+- name: Give the records volume to the bind user
+  community.docker.docker_container:
+    name: bind9-records-chown
+    image: "{{ bind9_volume_helper_image }}"
+    command: [chown, "9970:9970", /records]
+    volumes:
+      - bind9_records:/records
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    capabilities:
+      - CHOWN
+    security_opts:
+      - no-new-privileges:true
+    detach: false
+    cleanup: true
+    state: started
+  when:
+    - bind9_secondary | bool
+    - bind9_records_owner.stat.uid != 9970 or bind9_records_owner.stat.gid != 9970
+  changed_when: true
+  tags:
+    - infra
+    - images
+
 # Tagged for both images (recreate on a fresh pull) and infra (restart on
 # zone/config changes). bind9_dns_changed is only set by the infra-tagged
 # tasks above, so it's defaulted here — under `--tags images` alone it

@@ -7,7 +7,13 @@ services:
     volumes:
       - config:/etc/bind
       - cache:/var/cache/bind
-      - records:/var/lib/bind
+      # nocopy: the first start of an empty volume would otherwise give it the
+      # image directory's owner, undoing the role's chown to bind for a secondary.
+      - type: volume
+        source: records
+        target: /var/lib/bind
+        volume:
+          nocopy: true
       - run:/run/named
     environment:
       - TZ={{ server_timezone }}

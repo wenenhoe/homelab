@@ -195,19 +195,8 @@
       changed_when: false
       failed_when: bind9_secondary_own_zone.stdout | trim != '127.0.0.1'
 
-    - name: List the zone files the secondary wrote to its records volume
-      # A zone file the secondary cannot write would leave it re-transferring on every start.
-      ansible.builtin.command: docker run --rm -v bind9_records:/mnt {{ molecule_helpers_alpine_image }} ls /mnt  # noqa: command-instead-of-module
-      register: bind9_records_listing
-      changed_when: false
-
-    - name: Confirm every zone was written
-      ansible.builtin.assert:
-        that:
-          - ('db.' ~ item) in bind9_records_listing.stdout_lines
-        fail_msg: "{{ item }} is not in the records volume, which holds: {{ bind9_records_listing.stdout_lines }}"
-      loop: "{{ bind9_verify_zones }}"
-
+    # BIND takes a few zones at a time from one primary, so the later ones can
+    # arrive after the first has been served.
     - name: Wait for each zone's serial on the secondary to equal the primary's
       ansible.builtin.shell: |
         set -o pipefail
@@ -221,6 +210,24 @@
       until: bind9_serial_match.rc == 0
       retries: 20
       delay: 3
+      loop: "{{ bind9_verify_zones }}"
+
+    - name: List the zone files the secondary wrote to its records volume
+      # A zone file the secondary cannot write would leave it re-transferring on every start.
+      ansible.builtin.command: docker run --rm -v bind9_records:/mnt {{ molecule_helpers_alpine_image }} ls /mnt  # noqa: command-instead-of-module
+      register: bind9_records_listing
+      changed_when: false
+      until: >-
+        bind9_verify_zones | map('regex_replace', '^', 'db.')
+        | difference(bind9_records_listing.stdout_lines | default([])) | length == 0
+      retries: 10
+      delay: 3
+
+    - name: Confirm every zone was written
+      ansible.builtin.assert:
+        that:
+          - ('db.' ~ item) in bind9_records_listing.stdout_lines
+        fail_msg: "{{ item }} is not in the records volume, which holds: {{ bind9_records_listing.stdout_lines }}"
       loop: "{{ bind9_verify_zones }}"
 
     - name: Ask the primary for the host zone from here, without the key

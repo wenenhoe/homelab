@@ -1,0 +1,35 @@
+---
+# Each instance's address comes from the other's facts (host_vars/*/dns.yaml),
+# so both are gathered before either runs the role.
+- name: Gather both instances' facts
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Gather facts
+      ansible.builtin.setup:
+
+# One host at a time, primary first, so the secondary's first transfer finds
+# the primary serving. A transfer that fails is not retried before the SOA
+# retry interval, 1H, unless the primary sends a NOTIFY.
+- name: Converge the primary, then the secondary
+  hosts: dns:dns_secondary
+  serial: 1
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    # Docker bind-mounts /etc/resolv.conf into the instance, so the symlink
+    # that task makes cannot be created here; see the default scenario's
+    # converge.yml.
+    bind9_manage_resolv_conf: false
+  tasks:
+    - name: Resolve compose_apps against the app catalog
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Run the bind9 role
+      ansible.builtin.include_role:
+        name: bind9

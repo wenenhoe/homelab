@@ -1,5 +1,9 @@
 // Managed by Ansible
 
+{% if bind9_transfers_enabled %}
+include "/etc/bind/named.conf.key";
+
+{% endif %}
 options {
     directory "/var/cache/bind";
 
@@ -11,9 +15,26 @@ options {
     recursion no;
     allow-query { any; };
 
+{% if bind9_secondary %}
+    // BIND's default allows transfers to anyone, and a secondary holds every
+    // zone in full
+    allow-transfer { none; };
+    notify no;
+{% elif bind9_transfers_enabled %}
+    // Zone transfers go to the secondary's TSIG key alone: BIND's default
+    // allows anyone, and a transfer hands over every record in the zone
+    allow-transfer { key "{{ bind9_transfer_key_name }}"; };
+
+    // The zones' NS records name only this server, so the secondary is
+    // notified explicitly; without a NOTIFY it picks a change up at the SOA
+    // refresh interval, 3H
+    notify explicit;
+    also-notify { {{ dns_secondary_address }}; };
+{% else %}
     // Zone transfers: no secondaries are configured, so refuse AXFR/IXFR
     // to everyone rather than hand the full zone to any client
     allow-transfer { none; };
+{% endif %}
 
     // Not using dynamic DNS update
     // Set to "/var/cache/bind/session.key" if using

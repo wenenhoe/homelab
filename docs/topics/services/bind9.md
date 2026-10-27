@@ -1,6 +1,6 @@
 # BIND9: Internal DNS
 
-The `bind9` role runs a single authoritative, non-recursive nameserver on the `services` host (`hosts: dns` in `deploy.yaml`) that serves every app host's internal zones.
+The `bind9` role runs an authoritative, non-recursive nameserver on the `services` host (`hosts: dns` in `deploy.yaml`) that serves every app host's internal zones. A host in the inventory's `dns_secondary` group runs the same role as a [secondary](#a-secondary) for all of them.
 
 ## How zone data is gathered
 
@@ -29,12 +29,45 @@ to `services`. It holds no zone and registers no record, so a host has a
 name only when it has a record here, and a DHCP client in the gateway's
 dynamic pool has none.
 
-## Two template outputs per run
+## A secondary
 
-- **`named.conf.local.j2`** — one `zone { type master; ... }` block per
-  entry in `bind9_all_zones`.
-- **`zone.db.j2`** — each zone's SOA header, static `extra_records`, and
-  **auto-generated CNAMEs**: for every app with a `routes` entry whose
+The role takes its mode from the inventory, not from a variable on the
+host: `bind9_secondary` is true on a host in `dns_secondary` and false on
+every other host that runs the role, and `bind9_transfers_enabled` is true
+on both once that group has a member.
+
+The secondary renders no zone file. It declares each zone in
+`bind9_all_zones` (the list the primary renders from) as `type secondary`,
+taken from `dns_primary_address` over the transfer key, and keeps what it
+receives in `/var/lib/bind`, the `records` volume. A restart therefore
+serves the zones it already holds without reaching the primary, while a
+secondary that has never completed a transfer answers `SERVFAIL` for them.
+
+The key is the `dns-transfer-key` catalog entry (`hosts/all/dns`). It is 64
+hex characters, which BIND reads as the base64 secret of an `hmac-sha256`
+key, and the role renders it to `named.conf.key` on both hosts at mode
+`0640` for `bind:bind`, in its own task with `no_log`. With a secondary
+declared, the primary's `allow-transfer` names that key alone and it
+notifies `dns_secondary_address`, so a transfer without the key or under
+another secret is refused. With none declared it keeps
+`allow-transfer { none; }` and renders no key.
+
+A change to a zone reaches the secondary within seconds: the primary
+restarts on a real change, sends a NOTIFY, and the secondary pulls the zone
+over a signed transfer. The NOTIFY is unsigned; the transfer that follows is
+not. The zone serial changes only with a zone's content
+([below](#serial-handling-without-spurious-reloads)), so the secondary
+transfers only a zone that really changed.
+
+## Template outputs per run
+
+- **`named.conf.j2`** — the options, which differ by mode (see above).
+- **`named.conf.key.j2`** — the transfer key, rendered only once a secondary
+  is declared.
+- **`named.conf.local.j2`** — one zone block per entry in `bind9_all_zones`:
+  `type master` on the primary, `type secondary` on a secondary.
+- **`zone.db.j2`** — on the primary only, each zone's SOA header, static
+  `extra_records`, and **auto-generated CNAMEs**: for every app with a `routes` entry whose
   hostname falls inside the zone, it emits a CNAME pointing at that
   host's `host_fqdn`. Adding `routes: { default: { host: foo } }` to
   an app in `host_vars` gets it both a routing rule and a DNS record, no
@@ -83,5 +116,6 @@ image; `--tags images` redeploys without touching DNS data. See
 all interfaces, and mounts four volumes: `config` (seeded when
 `bind9_dns_changed`, see [`volumes.md`](../deploy/volumes.md)) plus
 `cache`/`records`/`run` for BIND's own state. Recursion is disabled — it
-only answers authoritatively for its own zones, and `allow-transfer { none; }`
-refuses zone transfers, as no secondary server exists.
+only answers authoritatively for its own zones. While no secondary is
+declared `allow-transfer { none; }` refuses zone transfers; once one is, only
+the transfer key may transfer ([above](#a-secondary)).

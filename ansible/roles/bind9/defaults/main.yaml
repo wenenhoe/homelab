@@ -7,6 +7,19 @@
 # ever hits. See network_conf.yaml.
 bind9_manage_resolv_conf: true
 
+# A host in the `dns_secondary` group serves the zones the primary transfers
+# to it; any other host running this role is the primary and renders the zone
+# files itself.
+bind9_secondary: "{{ inventory_hostname in groups.get('dns_secondary', []) }}"
+
+# Zone transfers exist only once a secondary does: until then the primary
+# refuses them all, and neither host holds the key.
+bind9_transfers_enabled: "{{ groups.get('dns_secondary', []) | length > 0 }}"
+
+# The TSIG key's name in named.conf on both servers; its secret is
+# `dns_transfer_key`.
+bind9_transfer_key_name: dns-transfer
+
 # Upstream DNS Docker's own daemon should use for container name
 # resolution, merged into /etc/docker/daemon.json's "dns" key by
 # network_conf.yaml rather than overwriting the whole file.

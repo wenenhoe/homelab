@@ -252,8 +252,9 @@ cd tools && uv run python -m tofu_inventory
 ```
 
 The generator rejects an entry with extra or missing keys, a name that is
-not a lowercase inventory name, or an address that is not IPv4, and a failed
-run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
+not a DNS label (lowercase letters, digits and hyphens, starting with a
+letter, not ending in a hyphen, at most 63 characters) or an address that is
+not IPv4, and a failed run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
 cannot know — group membership — and `ansible.cfg` loads the two files in
 that order, so Ansible merges them by host name and the generated address
 and user win ([`ansible.md`](../deploy/ansible.md#inventory) covers a run

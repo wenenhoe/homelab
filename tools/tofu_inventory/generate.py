@@ -24,7 +24,8 @@ from utils.repo import PROJECT_ROOT
 DEFAULT_TOFU_DIR = PROJECT_ROOT / "tofu"
 DEFAULT_OUT = PROJECT_ROOT / "ansible" / "inventory" / "tofu-hosts.yaml"
 
-HOST_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+# The host name is also the owner name of the host's DNS record, so it has to be one label: at most 63 characters, none of them a trailing hyphen.
+HOST_NAME_RE = re.compile(r"^[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 USER_NAME_RE = re.compile(r"^[a-z_][a-z0-9_-]*$")
 ENTRY_KEYS = {"ip_address", "admin_username"}
 

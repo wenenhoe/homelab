@@ -7,7 +7,7 @@
 # real tool. Add a tool to HARNESS_EXTERNAL_TOOLS when a script under test
 # starts to call it; the tools a script runs on the runner's own userland
 # (date, stat, tar, ls, find, du) are not listed.
-HARNESS_EXTERNAL_TOOLS=(bao curl docker git gpg mcopy mdir mformat mmd molecule openssl python3 sfdisk ssh stty xmllint)
+HARNESS_EXTERNAL_TOOLS=(bao curl docker git gpg mcopy mdir mformat mmd molecule openssl python3 scp sfdisk ssh stty xmllint)
 
 harness_setup() {
   # `run` flags and `run !` need 1.5.0.

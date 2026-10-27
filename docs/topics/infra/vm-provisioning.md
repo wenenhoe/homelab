@@ -204,6 +204,24 @@ phases:
   others can read, or that holds only some of the three, stops the build.
   Tofu warns that these variables are undeclared when it reads the file,
   which does no harm.
+
+  The importer is offered only at the first boot, so the module is applied
+  with `started = false` and `first_boot/first_boot.sh VMID OUTPUT_DIR` starts
+  the VM and answers the importer. It runs on the operator host with `NODE`
+  set to the Proxmox node's ssh target. It refuses a VM that is not stopped,
+  copies `import_seed.py` to the node, runs `qm start`, and runs the driver
+  beside the VM's serial socket with the seed's root password on stdin, read
+  from the credentials file, so the password reaches neither a command line
+  nor the node's disk. The driver names the seed disk (`da1`) to the importer,
+  logs in at the console with the seed's root password and reads the web GUI's
+  certificate off the console. `OUTPUT_DIR` then holds `console.log`,
+  `result.json` and `gateway-cert.pem`, the CA file the play pins; the driver
+  refuses a certificate that does not match the fingerprint the console banner
+  prints, and the script removes the output if it finds the password in it.
+  The node needs `python3`. A node that takes a password is reached through a
+  master connection opened by hand (`ssh -fN -M -S /tmp/opn-ssh.sock root@pve`)
+  and named in `SSH_CONTROL_PATH`. A first boot that did not take the seed
+  cannot be repeated on the same VM: destroy it and apply the module again.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.

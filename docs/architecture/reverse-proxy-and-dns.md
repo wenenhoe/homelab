@@ -38,3 +38,10 @@ each host already declared — see
 to add an app gets it both. See
 [`host-vars.md`](../topics/deploy/host-vars.md#caddy_domain). Step 3 is a
 static record in the host zone, [`bind9.md`](../topics/services/bind9.md#the-host-zone).
+
+`services` is the only server that holds the zones. `storage` runs a second
+BIND9 as a secondary for all of them, taking each by a transfer signed with
+a shared key, and the gateway's resolver forwards the host zone and the
+service zones to both servers. Either can answer, and the secondary serves
+what it last received. See
+[`bind9.md`](../topics/services/bind9.md#a-secondary).

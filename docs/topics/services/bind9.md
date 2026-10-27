@@ -25,9 +25,9 @@ zone, since none of its names is a Caddy route; every CNAME it generates
 elsewhere points at a name in it, the host's `host_fqdn`.
 
 The gateway's resolver forwards the host zone and the `lan_domain` zones
-to `services`. It holds no zone and registers no record, so a host has a
-name only when it has a record here, and a DHCP client in the gateway's
-dynamic pool has none.
+to `services` and to `storage`, the [secondary](#a-secondary). It holds no
+zone and registers no record, so a host has a name only when it has a record
+here, and a DHCP client in the gateway's dynamic pool has none.
 
 ## A secondary
 

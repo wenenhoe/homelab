@@ -190,25 +190,12 @@ phases:
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
 
-**DNS.** OPNsense's BIND plugin manages zones through its own model —
-adding ordinary A-record host overrides via its config API is normal,
-supported usage; hand-editing raw zone files or adding custom
-`named.conf` directives isn't, and isn't needed here. Kea's DDNS-push
-against BIND (RFC 2136 dynamic updates) is a known source of
-zone-journal corruption in this class of setup — a documented class of
-BIND behavior, not specific to this lab. Since Tofu assigns every
-managed VM's IP deterministically at provision time, those VMs don't
-need DDNS at all: Phase 2 pushes static host overrides through
-OPNsense's API instead, sidestepping the corruption risk entirely for
-anything Tofu manages. Non-Tofu-managed DHCP clients (the
-`.50`–`.254` pool) have no fixed IP to override statically and keep
-using DDNS — the one place this class of risk still applies, since
-that pool is for devices Tofu doesn't know about.
-
-Whether Phase 2 stays OPNsense-API-driven, or Tofu-sourced A records
-move to a dedicated internal nameserver instead, is an open decision —
-see the
-[working decision](../../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
+**DNS.** The gateway runs no authoritative DNS and registers no name.
+Every Tofu-provisioned VM has a static address, so its name is an `A` record
+that BIND9 on `services` renders from the generated inventory, and the gateway
+forwards the zone to `services` and `storage`
+([`bind9.md`](../services/bind9.md#the-host-zone)). A client in the
+`.50`–`.254` DHCP pool has no name.
 
 The module gives the VM two virtio NICs with MACs from the scheme above,
 NIC 0 on the physical WAN bridge and NIC 1 on the VLAN-aware LAN bridge,
@@ -252,14 +239,23 @@ cd tools && uv run python -m tofu_inventory
 ```
 
 The generator rejects an entry with extra or missing keys, a name that is
-not a lowercase inventory name, or an address that is not IPv4, and a failed
-run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
+not a DNS label (lowercase letters, digits and hyphens, starting with a
+letter, not ending in a hyphen, at most 63 characters) or an address that is
+not IPv4, and a failed run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
 cannot know — group membership — and `ansible.cfg` loads the two files in
 that order, so Ansible merges them by host name and the generated address
 and user win ([`ansible.md`](../deploy/ansible.md#inventory) covers a run
 that passes `-i`). A new VM is a module call, an `ansible_hosts` entry and
 a name in its groups. Each tool keeps one job, as `host_vars` and `app_catalog`
 already split concerns in this repo.
+
+The VM's name needs no further step. The `bind9` role gives every host the
+inventory addresses by an IPv4 address an `A` record of its inventory host
+name and its `ansible_host` in the host zone
+([`bind9.md`](../services/bind9.md#the-host-zone)), so the record follows the
+address Tofu assigned. A host that had a hand-written record in
+`host_vars/services.yaml` loses it when it is rebuilt: the role refuses a host
+named both ways.
 
 ## Tofu project
 

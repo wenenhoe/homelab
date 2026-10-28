@@ -15,14 +15,37 @@ host, `<inventory host name>.<host_domain>.`, set once in
 ## The host zone
 
 `services` also serves `host_domain` (`internal.<main_domain>`), a sibling
-of `lan_domain`. It holds one static `A` record for each host the lab
-runs: the four app hosts, `tailscale`, the Proxmox node `pve` and the
-gateway `opnsense`. They are the `extra_records` of a zone declared in
+of `lan_domain`. It holds one `A` record for each host the lab runs, from
+two sources.
+
+A host the inventory addresses by name has a static record: the four app
+hosts and `tailscale` until Tofu rebuilds them, the Proxmox node `pve` and
+the gateway `opnsense`. They are the `extra_records` of a zone declared in
 `host_vars/services.yaml`, like any other zone. Each address repeats the
 host's reservation on the gateway, so a reservation that changes there
-needs the same change in that file. The role generates no CNAME into this
-zone, since none of its names is a Caddy route; every CNAME it generates
-elsewhere points at a name in it, the host's `host_fqdn`.
+needs the same change in that file.
+
+A host the inventory addresses by an IPv4 address gets its record from the
+role, as the generated inventory addresses a Tofu-provisioned VM
+([`vm-provisioning.md`](../infra/vm-provisioning.md#tofu--ansible-handoff)):
+an `A` record of its inventory host name and its `ansible_host`, which the
+primary renders into the same zone after the static ones, sorted by name
+(`bind9_host_addresses`). Nobody writes it, so it follows the address Tofu
+gave the VM, and a host's static record is deleted in the change that
+rebuilds it. The role makes no distinction by who wrote the address, so
+`cd-agent`, which `inventory.yaml` addresses by IP, is named the same way.
+A host with no `ansible_host`, or one that names a host, gets none.
+
+The primary checks these records before it writes a zone file, and a failed
+check stops the deploy with the live zones untouched: a host name that is not
+one DNS label, a host that a static record in the zone also names (a
+resolver would hand out either address), and generated records with no zone
+named `host_domain` to hold them. The secondary renders no zone file, so it
+takes these records by transfer like the rest.
+
+The role generates no CNAME into this zone, since none of its names is a
+Caddy route; every CNAME it generates elsewhere points at a name in it, the
+host's `host_fqdn`.
 
 The gateway's resolver forwards the host zone and the `lan_domain` zones
 to `services` and to `storage`, the [secondary](#a-secondary). It holds no
@@ -62,6 +85,32 @@ not. The zone serial changes only with a zone's content
 ([below](#serial-handling-without-spurious-reloads)), so the secondary
 transfers only a zone that really changed.
 
+## Losing a server
+
+The gateway's resolver forwards the host zone and the `lan_domain` zones to
+`services` and to `storage` alike and queries either address, so neither is a
+single point of failure for a name.
+
+Stopping the `bind9` container on `services`, and then on `storage`, leaves
+every name resolving from the gateway interface of VLANs 20, 30 and 40: a
+host name, a service name in each service zone (a CNAME into the host zone,
+which the resolver follows by asking the surviving server again), and a name
+that does not exist, which answers `NXDOMAIN` rather than `SERVFAIL`. The
+survivor answers the same records when asked directly, and the stopped server
+answers again as soon as its container starts.
+
+What a lost server changes:
+
+- While `services` is down, no change to a zone reaches anyone: only it
+  renders zone files, and `storage` serves the zones it already holds. A
+  secondary that cannot refresh a zone stops answering for it after the
+  zone's expire time, one week.
+- While `storage` is down, `services` answers every query itself. A change
+  made meanwhile reaches `storage` by transfer once it is back, and it
+  serves the older zones until then.
+- The gateway does not go back to a returned server at once, and a query that
+  goes first to a dead server waits for it before the other is tried.
+
 ## Template outputs per run
 
 - **`named.conf.j2`** — the options, which differ by mode (see above).
@@ -70,7 +119,7 @@ transfers only a zone that really changed.
 - **`named.conf.local.j2`** — one zone block per entry in `bind9_all_zones`:
   `type master` on the primary, `type secondary` on a secondary.
 - **`zone.db.j2`** — on the primary only, each zone's SOA header, static
-  `extra_records`, and **auto-generated CNAMEs**: for every app with a `routes` entry whose
+  `extra_records`, the host zone's generated `A` records, and **auto-generated CNAMEs**: for every app with a `routes` entry whose
   hostname falls inside the zone, it emits a CNAME pointing at that
   host's `host_fqdn`. Adding `routes: { default: { host: foo } }` to
   an app in `host_vars` gets it both a routing rule and a DNS record, no

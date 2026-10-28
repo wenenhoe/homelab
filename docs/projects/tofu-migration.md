@@ -7,9 +7,6 @@ blocked: false
 summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild the Ubuntu VMs on the real VMID ranges, cut over, and decommission the old ones.
 super_project: tofu-vm-provisioning
 track: migration
-depends_on:
-  - project: PROJ-tofu-vm-dns
-    reason: a rebuilt host has a static address and no DDNS name, so its records must exist before the first rebuild
 ---
 
 # Tofu Migration
@@ -86,10 +83,12 @@ Once the first restore is proven, rebuild on the real VMID ranges
 (1XX/2XX/...), cut over, decommission the old Ubuntu VMs. `storage` stays up
 throughout every stage — it is the DR restore target.
 
-**Order.** DNS records for Tofu-provisioned VMs
-([`tofu-vm-dns.md`](tofu-vm-dns.md)) come first: a rebuilt host has a
-static address and no DDNS name, and every generated CNAME points at
-`host_fqdn`. The first rebuild waits for that project to close.
+**Names.** A rebuilt host has a static address and no DDNS name. The
+`bind9` role gives it an `A` record from the generated inventory, and every
+generated CNAME points at `host_fqdn`
+([`bind9.md`](../topics/services/bind9.md#the-host-zone)). The hand-written
+record for a host in `host_vars/services.yaml` is deleted in the rebuild's
+pull request, since the role refuses a host named both ways.
 
 **Host order.** `play`, `tailscale`, `storage`, `security`, then
 `services`. `play` is a leaf and proves the cycle. `storage` comes before

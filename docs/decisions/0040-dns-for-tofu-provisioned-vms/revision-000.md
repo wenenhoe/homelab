@@ -7,7 +7,7 @@ short: Tofu VM DNS
 solution: BIND9 on services serves the host records beside the service zones, with a secondary on storage, and the gateway forwards both zones to both servers
 summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
 topic: deployment-platform
-status: approved
+status: accepted
 related: [ADR-0089]
 ---
 
@@ -150,19 +150,11 @@ is stored in OpenBao.
 
 ## Consequences
 
-- `bind9.md` describes the host zone, its generated and static records,
-  and the computed `host_fqdn`. The README's "single authoritative BIND9
-  instance" framing stays true.
 - The gateway spreads queries over both servers, so `storage` answers a
   share of them while `services` is up. A change to a zone reaches
   `storage` by notify and transfer, and until it arrives some clients are
   answered from the old data. A server that returns is not used again at
   once.
-- [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)'s OPNsense
-  section describes static host overrides and dynamic DNS for the dynamic
-  pool. It changes when the gateway is rebuilt under ADR 0089.
-- The `bind9` role gains transfer and notify settings and a secondary
-  mode. The TSIG key is a new entry in the secret catalog.
 - Retiring dynamic DNS ends the names the `.50`–`.254` DHCP clients get
   from leases, until a later decision gives them another source.
 - The gateway's play connects by the gateway's management name, whose
@@ -171,10 +163,7 @@ is stored in OpenBao.
   another way for the first run.
 - A rebuilt host's `ansible_host` is its address, so Ansible no longer
   resolves a host name that the DNS role it is about to run provides.
-- `ddns_domain`, `lab_domain` and `dns_ddns_target` are renamed across
-  the inventory, `host_vars`, roles, tests and docs, and the VM module's
-  `dns_domain` is `host_domain`. The names of the `.50`–`.254` DHCP
-  clients are not settled here.
+- The names of the `.50`–`.254` DHCP clients are not settled here.
 
 ## Invariants
 

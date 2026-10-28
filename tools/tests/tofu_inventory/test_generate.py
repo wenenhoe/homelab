@@ -27,12 +27,28 @@ class TestParseHosts:
         assert generate.parse_hosts("{}") == {}
 
     @pytest.mark.parametrize(
+        "name",
+        [
+            pytest.param("s", id="single-letter"),
+            pytest.param("cd-agent", id="inner-hyphen"),
+            pytest.param("play2", id="trailing-digit"),
+            pytest.param("a" * 63, id="longest-label"),
+        ],
+    )
+    def test_accepts_a_dns_label(self, name):
+        assert generate.parse_hosts(hosts_json(**{name: SERVICES})) == {name: SERVICES}
+
+    @pytest.mark.parametrize(
         ("raw", "match"),
         [
             pytest.param("not json", "not JSON", id="not-json"),
             pytest.param("[]", "keyed by host name", id="list-instead-of-object"),
             pytest.param(hosts_json(**{"Services": SERVICES}), "valid inventory host name", id="uppercase-name"),
             pytest.param(hosts_json(**{"a b": SERVICES}), "valid inventory host name", id="name-with-space"),
+            pytest.param(hosts_json(**{"services-": SERVICES}), "valid inventory host name", id="trailing-hyphen"),
+            pytest.param(hosts_json(**{"a" * 64: SERVICES}), "valid inventory host name", id="over-63-characters"),
+            pytest.param(hosts_json(**{"-services": SERVICES}), "valid inventory host name", id="leading-hyphen"),
+            pytest.param(hosts_json(**{"2services": SERVICES}), "valid inventory host name", id="leading-digit"),
             pytest.param(hosts_json(services={"ip_address": "192.168.20.3"}), "exactly", id="missing-user"),
             pytest.param(hosts_json(services={**SERVICES, "mac_address": "x"}), "exactly", id="extra-key"),
             pytest.param(hosts_json(services="192.168.20.3"), "exactly", id="entry-not-an-object"),

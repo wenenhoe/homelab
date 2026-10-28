@@ -125,6 +125,47 @@
      "closed"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "0fa62983c57fd937fda6c1e3198a96b533f01a1d",
+   "date": "2026-10-28T15:07:15+08:00",
+   "kind": "pr",
+   "pr": 575,
+   "title": "Improve ci configs",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0096 r000 \u00b7 knowing the pre commit hooks that run are the reviewed ones",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "82293d034493ea46857e79fb8fe4bb720da8ced5",
+   "date": "2026-10-29T00:34:06+08:00",
+   "kind": "pr",
+   "pr": 576,
+   "title": "Implement tofu vm dns project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-vm-dns",
+   "events": [
+    [
+     "adr",
+     "ADR 0040 r000 \u00b7 dns for tofu provisioned vms",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "tofu-vm-dns",
+     "closed"
+    ]
+   ]
   }
  ]
 }

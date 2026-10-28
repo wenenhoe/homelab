@@ -28,7 +28,7 @@ deploy_ordering:
 # Gates whether the job runs at all — the hook itself always
 # scans the full ansible/ tree regardless of which files in
 # it changed. Not pyproject.toml/uv.lock: the hook's own
-# additional_dependencies: [ansible] runs in an isolated
+# pinned additional_dependencies ansible runs in an isolated
 # venv, unrelated to this repo's uv-managed ansible-core pin.
 ansible_lint:
   - 'ansible/**'

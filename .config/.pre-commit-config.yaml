@@ -42,8 +42,11 @@ repos:
         # default — no locale-gen needed on a fresh machine or CI runner.
         entry: env LC_ALL=C.UTF-8 LANG=C.UTF-8 python3 -m ansiblelint -v --force-color
         args: [-c, .config/.ansible-lint, --project-dir, ansible]
+        # Renovate reads additional_dependencies only on a hook that states
+        # its language.
+        language: python
         additional_dependencies:
-          - ansible
+          - ansible==14.5.0
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.2
     hooks:
@@ -109,7 +112,7 @@ repos:
           caught the same way a bad hand-edit already is.
         entry: bash -c 'cd tools && python3 -m doc_scripts.generate_doc_indexes' --
         language: python
-        additional_dependencies: [pyyaml]
+        additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true
   - repo: https://github.com/DavidAnson/markdownlint-cli2
@@ -127,7 +130,7 @@ repos:
           describe — see tools/doc_scripts/check_doc_drift.py.
         entry: bash -c 'cd tools && python3 -m doc_scripts.check_doc_drift' --
         language: python
-        additional_dependencies: [pyyaml]
+        additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true
       - id: check-secret-catalog
@@ -138,7 +141,7 @@ repos:
           tools/ci/gates/secret_catalog_rules.py. Needs only PyYAML.
         entry: bash -c 'cd tools && python3 -m ci.gates.secret_catalog_rules' --
         language: python
-        additional_dependencies: [pyyaml]
+        additional_dependencies: [pyyaml==6.0.3]
         files: ^(ansible/inventory/group_vars/all/secret_catalog\.yaml|tools/(utils/secret_catalog|ci/gates/secret_catalog_rules)\.py)$
         pass_filenames: false
       - id: check-app-catalog
@@ -152,7 +155,7 @@ repos:
           PyYAML.
         entry: bash -c 'cd tools && python3 -m ci.gates.app_catalog_rules' --
         language: python
-        additional_dependencies: [pyyaml]
+        additional_dependencies: [pyyaml==6.0.3]
         files: "^(ansible/inventory/(inventory\\.yaml|group_vars/all/(app_catalog|main|secret_catalog)\\.yaml\
           |host_vars/[^/]+\\.yaml)|tools/(utils/(app_catalog|unique_key_yaml)|ci/gates/app_catalog_rules)\\.py)$"
         pass_filenames: false
@@ -202,7 +205,7 @@ repos:
           the project-checks job checks the whole PR instead.
         entry: bash -c 'cd tools && python3 -m doc_scripts.check_project_scope --staged' --
         language: python
-        additional_dependencies: [pyyaml]
+        additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true
       - id: check-moved-files
@@ -226,6 +229,6 @@ repos:
           the project-checks job checks the whole PR instead.
         entry: bash -c 'cd tools && python3 -m doc_scripts.check_project_close --staged' --
         language: python
-        additional_dependencies: [pyyaml]
+        additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true

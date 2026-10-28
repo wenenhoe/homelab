@@ -53,10 +53,10 @@ calls for a project, while a working one still has to be settled.
 | :--- | ---: | :--- | :--- |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
-| [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Building | Internal DNS records for Tofu-provisioned VMs, as ADR 0040 decides. |
 | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the coding-agent zone and its proxy. |
+| [`tofu-migration.md`](projects/tofu-migration.md) | — | Building | Build the isolated 5XX block and run the first restore.yaml against it, then rebuild the Ubuntu VMs on the real VMID ranges, cut over, and decommission the old ones. |
 | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
@@ -94,11 +94,10 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | Building |
+| `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
 | | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
 | | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
-| | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building — waiting on [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) |
 
 ## Projects
 

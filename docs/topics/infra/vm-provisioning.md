@@ -190,25 +190,12 @@ phases:
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
 
-**DNS.** OPNsense's BIND plugin manages zones through its own model —
-adding ordinary A-record host overrides via its config API is normal,
-supported usage; hand-editing raw zone files or adding custom
-`named.conf` directives isn't, and isn't needed here. Kea's DDNS-push
-against BIND (RFC 2136 dynamic updates) is a known source of
-zone-journal corruption in this class of setup — a documented class of
-BIND behavior, not specific to this lab. Since Tofu assigns every
-managed VM's IP deterministically at provision time, those VMs don't
-need DDNS at all: Phase 2 pushes static host overrides through
-OPNsense's API instead, sidestepping the corruption risk entirely for
-anything Tofu manages. Non-Tofu-managed DHCP clients (the
-`.50`–`.254` pool) have no fixed IP to override statically and keep
-using DDNS — the one place this class of risk still applies, since
-that pool is for devices Tofu doesn't know about.
-
-Whether Phase 2 stays OPNsense-API-driven, or Tofu-sourced A records
-move to a dedicated internal nameserver instead, is an open decision —
-see the
-[working decision](../../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
+**DNS.** The gateway runs no authoritative DNS and registers no name.
+Every Tofu-provisioned VM has a static address, so its name is an `A` record
+that BIND9 on `services` renders from the generated inventory, and the gateway
+forwards the zone to `services` and `storage`
+([`bind9.md`](../services/bind9.md#the-host-zone)). A client in the
+`.50`–`.254` DHCP pool has no name.
 
 The module gives the VM two virtio NICs with MACs from the scheme above,
 NIC 0 on the physical WAN bridge and NIC 1 on the VLAN-aware LAN bridge,

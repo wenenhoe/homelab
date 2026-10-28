@@ -85,6 +85,32 @@ not. The zone serial changes only with a zone's content
 ([below](#serial-handling-without-spurious-reloads)), so the secondary
 transfers only a zone that really changed.
 
+## Losing a server
+
+The gateway's resolver forwards the host zone and the `lan_domain` zones to
+`services` and to `storage` alike and queries either address, so neither is a
+single point of failure for a name.
+
+Stopping the `bind9` container on `services`, and then on `storage`, leaves
+every name resolving from the gateway interface of VLANs 20, 30 and 40: a
+host name, a service name in each service zone (a CNAME into the host zone,
+which the resolver follows by asking the surviving server again), and a name
+that does not exist, which answers `NXDOMAIN` rather than `SERVFAIL`. The
+survivor answers the same records when asked directly, and the stopped server
+answers again as soon as its container starts.
+
+What a lost server changes:
+
+- While `services` is down, no change to a zone reaches anyone: only it
+  renders zone files, and `storage` serves the zones it already holds. A
+  secondary that cannot refresh a zone stops answering for it after the
+  zone's expire time, one week.
+- While `storage` is down, `services` answers every query itself. A change
+  made meanwhile reaches `storage` by transfer once it is back, and it
+  serves the older zones until then.
+- The gateway does not go back to a returned server at once, and a query that
+  goes first to a dead server waits for it before the other is tried.
+
 ## Template outputs per run
 
 - **`named.conf.j2`** — the options, which differ by mode (see above).

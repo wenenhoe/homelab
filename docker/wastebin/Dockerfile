@@ -1,4 +1,4 @@
-FROM busybox:1.38.0-musl@sha256:ea2b9914a16a4ac1981994af97b318f7c7d4db76b580c56177f08bf76f4a0be8 AS data-dir
+FROM busybox:1.38.0-musl@sha256:119bdf19f884fb540a02b02534632c16525266957572e85996e377d5d41d3168 AS data-dir
 RUN mkdir -p /data
 
 FROM quxfoo/wastebin:3.9.0@sha256:d441b009827b896b67d7df5d7bf849cc5cff970c505cb50d72c946c3d3fd0a5e
@@ -6,7 +6,7 @@ FROM quxfoo/wastebin:3.9.0@sha256:d441b009827b896b67d7df5d7bf849cc5cff970c505cb5
 # quxfoo/wastebin is FROM scratch — no shell, no libc, nothing a
 # HEALTHCHECK can exec. busybox:musl's wget is a single statically
 # linked binary, so it copies in without pulling in a shell or libc.
-COPY --chmod=755 --from=busybox:1.38.0-musl@sha256:ea2b9914a16a4ac1981994af97b318f7c7d4db76b580c56177f08bf76f4a0be8 /bin/wget /wget
+COPY --chmod=755 --from=busybox:1.38.0-musl@sha256:119bdf19f884fb540a02b02534632c16525266957572e85996e377d5d41d3168 /bin/wget /wget
 
 # The image's own USER is app:app (UID/GID 10001, see its Dockerfile
 # and README — "Make sure the ./data folder is writable by the user

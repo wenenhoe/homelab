@@ -2,7 +2,7 @@ name: gatus
 
 services:
   gatus:
-    image: ghcr.io/wenenhoe/gatus:5.37.0@sha256:11be5bdc0c5dc2825e0035f417e81b16d3e1bb794f0984561910dd1c5cf3e181
+    image: ghcr.io/wenenhoe/gatus:5.37.0@sha256:66fbfd3c7bfa1c1102810674f2569635aec876a472ea4949adce0b0264c1a60b
     container_name: gatus
     volumes:
       - data:/data

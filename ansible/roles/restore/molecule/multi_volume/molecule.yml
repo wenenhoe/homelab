@@ -12,7 +12,7 @@ driver:
   name: docker
 platforms:
   - name: restore-multi-volume-instance
-    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:ab086aa21d8b76b8f1e3e0160036291182f3df9c2569044250ac50ad119083c4
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:919ee3092f78df3207611fc2ef4f08fffaf058ec119044e45927043891c14364
     privileged: true
     cgroupns_mode: host
     volumes:

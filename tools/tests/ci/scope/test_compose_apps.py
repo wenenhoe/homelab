@@ -129,6 +129,38 @@ class TestChangedApps:
     def test_a_change_that_belongs_to_no_app_queues_nothing(self, tree, changed):
         assert apps(tree, *changed) == []
 
+    @pytest.mark.parametrize(
+        "changed",
+        [
+            pytest.param(ca.SEED_SCRIPT, id="cert-seeding"),
+            pytest.param(".github/workflows/_compose-boot-test.yml", id="reusable-workflow"),
+            pytest.param("ansible/playbooks/ci_boot_test.yaml", id="playbook"),
+            pytest.param("ansible/ci-inventory/inventory.yaml", id="inventory"),
+            pytest.param("ansible/ci-inventory/group_vars/all.yaml", id="inventory-group-vars"),
+        ],
+    )
+    def test_a_change_to_the_boot_test_scaffolding_queues_lldap(self, tree, changed):
+        assert apps(tree, changed) == ["lldap"]
+
+    @pytest.mark.parametrize(
+        "changed",
+        [
+            pytest.param(f"{ca.SEED_SCRIPT}.bak", id="similarly-named-script"),
+            pytest.param(".github/workflows/pr-checks.yml", id="other-workflow"),
+            pytest.param("ansible/playbooks/deploy.yaml", id="other-playbook"),
+            pytest.param("ansible/ci-inventory", id="bare-inventory-directory-name"),
+        ],
+    )
+    def test_a_change_beside_the_scaffolding_queues_nothing(self, tree, changed):
+        assert apps(tree, changed) == []
+
+    def test_scaffolding_and_an_app_change_queue_both_once(self, tree):
+        assert apps(tree, "docker/dashy/configs/conf.yaml.j2", "ansible/playbooks/ci_boot_test.yaml", "docker/lldap/scripts/run.sh") == ["dashy", "lldap"]
+
+    def test_scaffolding_queues_nothing_when_lldap_is_excluded_or_gone(self, tree):
+        shutil.rmtree(tree.root / "docker/lldap")
+        assert apps(tree, "ansible/playbooks/ci_boot_test.yaml") == []
+
     def test_deleting_only_a_config_still_queues_the_app(self, tree):
         (tree.root / "docker/lldap/configs/env.j2").unlink()
         assert apps(tree, "docker/lldap/configs/env.j2") == ["lldap"]
@@ -151,6 +183,30 @@ class TestChangedDockerfiles:
 
     def test_only_the_dockerfile_itself_counts(self, tree):
         assert ca.changed_dockerfiles(tree.root, ["docker/caddy/compose.yaml", "docker/lldap/configs/env.j2", "docker/caddy/sub/Dockerfile"]) == []
+
+    def test_a_smoke_test_queues_its_images_build_check(self, tree):
+        assert ca.changed_dockerfiles(tree.root, [".github/image-smoke-tests/caddy.sh"]) == ["caddy"]
+
+    def test_a_tool_images_smoke_test_queues_it_by_its_registry_key(self, tree):
+        tree.write("tools/coderabbit-review/Dockerfile")
+        assert ca.changed_dockerfiles(tree.root, [".github/image-smoke-tests/coderabbit-review.sh"]) == ["coderabbit-review"]
+
+    def test_a_smoke_test_and_its_dockerfile_queue_the_image_once(self, tree):
+        assert ca.changed_dockerfiles(tree.root, ["docker/caddy/Dockerfile", ".github/image-smoke-tests/caddy.sh"]) == ["caddy"]
+
+    @pytest.mark.parametrize(
+        "changed",
+        [
+            pytest.param(".github/image-smoke-tests/nodockerfile.sh", id="no-dockerfile"),
+            pytest.param(".github/image-smoke-tests/caddy.txt", id="not-a-script"),
+            pytest.param(".github/image-smoke-tests/sub/caddy.sh", id="nested"),
+        ],
+    )
+    def test_a_smoke_test_with_nothing_to_build_queues_nothing(self, tree, changed):
+        assert ca.changed_dockerfiles(tree.root, [changed]) == []
+
+    def test_a_smoke_test_never_queues_a_boot_test(self, tree):
+        assert apps(tree, ".github/image-smoke-tests/wastebin.sh") == []
 
     def test_deleted_dockerfile_is_not_queued(self, tree):
         (tree.root / "docker/wastebin/Dockerfile").unlink()
@@ -317,3 +373,14 @@ class TestRealTree:
 
     def test_the_configs_change_that_motivated_the_rule_queues_lldap(self):
         assert ca.changed_apps(ca.REPO_ROOT, ["docker/lldap/configs/env.j2"]) == ["lldap"]
+
+    def test_the_boot_test_scaffolding_exists_and_queues_lldap(self, subtests):
+        for path in (*ca.SCAFFOLDING_FILES, f"{ca.SCAFFOLDING_DIR}inventory.yaml"):
+            with subtests.test(path=path):
+                assert (ca.REPO_ROOT / path).is_file()
+                assert ca.changed_apps(ca.REPO_ROOT, [path]) == ["lldap"]
+
+    def test_every_image_smoke_test_queues_a_build_check(self, subtests):
+        for script in sorted((ca.REPO_ROOT / ".github/image-smoke-tests").glob("*.sh")):
+            with subtests.test(script=script.name):
+                assert ca.changed_dockerfiles(ca.REPO_ROOT, [f".github/image-smoke-tests/{script.name}"]) == [script.stem]

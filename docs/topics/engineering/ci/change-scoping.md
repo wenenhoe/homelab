@@ -13,8 +13,8 @@ type in the repo. The scoped outputs:
 | Output | Set when these change |
 | :--- | :--- |
 | `roles` | A file in a Molecule role's *watch set*: its own directory plus everything its scenarios read from outside it ([below](#molecule-watch-sets)). Some paths queue every role; see the note under the table. |
-| `compose_apps` | `docker/<app>/compose.yaml` or `compose.yaml.j2`, its `Dockerfile`, or a file under `docker/<app>/configs/` or `scripts/`, minus the exclusion list. A directory with no compose file isn't an app. |
-| `dockerfiles` | `docker/<app>/Dockerfile`, excluded apps included. See [Dockerfile changes](gates.md#dockerfile-changes). |
+| `compose_apps` | `docker/<app>/compose.yaml` or `compose.yaml.j2`, its `Dockerfile`, or a file under `docker/<app>/configs/` or `scripts/`, minus the exclusion list. A directory with no compose file isn't an app. The boot test's own scaffolding (`.github/scripts/seed-lldap-ci-cert.sh`, `_compose-boot-test.yml`, `ansible/playbooks/ci_boot_test.yaml`, `ansible/ci-inventory/`) queues `lldap`, which runs all of it. |
+| `dockerfiles` | `docker/<app>/Dockerfile`, or the image's `.github/image-smoke-tests/<app>.sh`, excluded apps included. See [Dockerfile changes](gates.md#dockerfile-changes). |
 | `excluded_compose` | A `compose*.yaml` (not a `.j2` template) of an excluded app that still exists. Gates `compose-syntax-check`; see [Compose boot-test](gates.md#compose-boot-test). |
 | `deploy_ordering` | `ansible/inventory/**`, `ansible/playbooks/**`, `ansible/roles/secrets/**`, `ansible/roles/restore/**`, `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`, `pyproject.toml`/`uv.lock`. |
 | `uv_lock` | `pyproject.toml`/`uv.lock`. |

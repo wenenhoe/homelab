@@ -9,8 +9,13 @@ An app is queued for a boot test when its `compose.yaml`/`compose.yaml.j2`
 changes, its `Dockerfile` does (the boot test builds it in place of the
 published image — see docs/topics/engineering/ci/gates.md#dockerfile-changes), or anything under its
 `configs/` or `scripts/` does (the `compose` role renders and stages both
-before the stack boots). Excluded apps are never queued, and a directory
-with no compose file isn't an app.
+before the stack boots). A change to the boot test's own scaffolding (the
+reusable workflow, its playbook and CI inventory, the lldap cert seeding)
+queues `lldap`, the one app that runs all of it. Excluded apps are never
+queued, and a directory with no compose file isn't an app.
+
+A Dockerfile is queued for the build check when it changes, or when its
+smoke test under `.github/image-smoke-tests/` does.
 
 Subcommands (from tools/: python -m ci.scope.compose_apps ...):
   changed <base> <head>       writes apps=<json>, dockerfiles=<json> (which also
@@ -44,6 +49,14 @@ COMPOSE_FILES = ("compose.yaml", "compose.yaml.j2")
 
 _BOOT_TEST_INPUT = re.compile(r"^docker/([^/]+)/(?:compose\.yaml(?:\.j2)?|Dockerfile|(?:configs|scripts)/.+)$")
 _DOCKERFILE = re.compile(r"^docker/([^/]+)/Dockerfile$")
+_SMOKE_TEST = re.compile(r"^\.github/image-smoke-tests/([^/]+)\.sh$")
+
+# What the boot test runs besides an app's own files. lldap is the app that
+# runs the cert seeding as well as the workflow, playbook and inventory.
+SEED_SCRIPT = ".github/scripts/seed-lldap-ci-cert.sh"
+SCAFFOLDING_FILES = (SEED_SCRIPT, ".github/workflows/_compose-boot-test.yml", "ansible/playbooks/ci_boot_test.yaml")
+SCAFFOLDING_DIR = "ansible/ci-inventory/"
+_SCAFFOLDING_APP = "lldap"
 
 # Registry images built from outside docker/ (tool images no compose file
 # pins), keyed by Dockerfile path. They are built and smoke-tested like a
@@ -80,21 +93,27 @@ def all_apps(root: Path) -> list[str]:
     return sorted(d.name for d in (root / DOCKER_DIR).iterdir() if d.is_dir() and d.name not in excluded and has_compose(root, d.name))
 
 
+def _is_scaffolding(path: str) -> bool:
+    return path in SCAFFOLDING_FILES or (path.startswith(SCAFFOLDING_DIR) and len(path) > len(SCAFFOLDING_DIR))
+
+
 def changed_apps(root: Path, changed: list[str]) -> list[str]:
     """Non-excluded compose apps whose boot-test inputs changed, sorted."""
     excluded = load_exclusions(root)
     candidates = {m.group(1) for path in changed if (m := _BOOT_TEST_INPUT.match(path))}
+    if any(_is_scaffolding(path) for path in changed):
+        candidates.add(_SCAFFOLDING_APP)
     return sorted(app for app in candidates if app not in excluded and has_compose(root, app))
 
 
 def changed_dockerfiles(root: Path, changed: list[str]) -> list[str]:
-    """Image keys whose Dockerfile changed and still exists.
+    """Image keys whose Dockerfile or smoke test changed and whose Dockerfile still exists.
 
     Excluded and composeless apps are included, and so are the registry's
     tool images under tools/. A `docker/<app>/Dockerfile` with no registry
     entry is still listed, so the build check fails it instead of skipping it.
     """
-    candidates = {m.group(1) for path in changed if (m := _DOCKERFILE.match(path))}
+    candidates = {m.group(1) for path in changed if (m := _DOCKERFILE.match(path) or _SMOKE_TEST.match(path))}
     candidates |= {_TOOL_DOCKERFILES[path] for path in changed if path in _TOOL_DOCKERFILES}
     return sorted(key for key in candidates if _dockerfile(root, key).is_file())
 

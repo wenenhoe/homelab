@@ -194,7 +194,9 @@ also a self-managed app (`compose_self_managed_apps`).
 throwaway `smallstep/step-ca` container (stock `DOCKER_STEPCA_INIT_*`
 auto-init) using the same `step ca certificate` call `step_ca_cert` runs; see
 [`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh).
-The CA and its password exist only for the job.
+The CA and its password exist only for the job. A change to that script,
+`_compose-boot-test.yml`, `ci_boot_test.yaml` or `ansible/ci-inventory/` queues
+the `lldap` boot test, since `lldap` is the app that runs all four.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
@@ -293,7 +295,8 @@ which hold a package-write token.
   `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
   Dockerfile with `docker build`, without pushing, tagged
   `local/<app>:pr-check`, then runs
-  `.github/image-smoke-tests/<app>.sh <image>`. Every registry image needs
+  `.github/image-smoke-tests/<app>.sh <image>`; a change to that script queues
+  the build too. Every registry image needs
   a smoke test there — a new one without it fails the job — and
   `tools/tests/ci/images/` asserts the two sets match. The smoke test
   checks what the image exists to add: `caddy` the DigitalOcean DNS

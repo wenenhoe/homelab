@@ -179,7 +179,7 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
 | `seaweedfs` | Same. | `seaweedfs_bucket`'s and `backup_agent`'s scenarios (see [`#molecule-watch-sets`](change-scoping.md#molecule-watch-sets)). |
 | `tinyauth` | Needs an `lldap` host to resolve, which per-app isolation can't provide. | `tinyauth/molecule/default`: a throwaway lldap target, `lldap_bootstrap` against it (see [`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then tinyauth reaching a healthy, LDAP-bound state. |
 | `molecule-dind` | Not a deployed compose app: a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no `compose.yaml`/`.j2`. | Nothing to run. |
-| `openbao` | Can't boot in isolation (below). | Nothing: no Molecule scenario, and `compose-syntax-check` skips its `compose.yaml.j2`, so CI doesn't check its compose file. |
+| `openbao` | Can't boot in isolation (below). | `step_ca_cert/molecule/signal_chown`: it deploys the real `compose.yaml.j2` through `roles/openbao` on cold volumes. `compose-syntax-check` skips the `.j2`, so that scenario is the only check of the file. |
 
 `openbao` fails in isolation for three reasons, each enough alone. Its data
 volume is chowned to the image's non-root user by `roles/openbao` before the
@@ -194,7 +194,9 @@ also a self-managed app (`compose_self_managed_apps`).
 throwaway `smallstep/step-ca` container (stock `DOCKER_STEPCA_INIT_*`
 auto-init) using the same `step ca certificate` call `step_ca_cert` runs; see
 [`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh).
-The CA and its password exist only for the job.
+The CA and its password exist only for the job. A change to that script,
+`_compose-boot-test.yml`, `ci_boot_test.yaml` or `ansible/ci-inventory/` queues
+the `lldap` boot test, since `lldap` is the app that runs all four.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
@@ -293,7 +295,8 @@ which hold a package-write token.
   `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
   Dockerfile with `docker build`, without pushing, tagged
   `local/<app>:pr-check`, then runs
-  `.github/image-smoke-tests/<app>.sh <image>`. Every registry image needs
+  `.github/image-smoke-tests/<app>.sh <image>`; a change to that script queues
+  the build too. Every registry image needs
   a smoke test there — a new one without it fails the job — and
   `tools/tests/ci/images/` asserts the two sets match. The smoke test
   checks what the image exists to add: `caddy` the DigitalOcean DNS

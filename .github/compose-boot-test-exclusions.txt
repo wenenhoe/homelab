@@ -43,4 +43,5 @@ molecule-dind
 # fresh volume always is. It is also a self-managed app
 # (compose_self_managed_apps in roles/compose_app), deployed by its own role.
 # compose-syntax-check doesn't cover it either: its compose file is a .j2.
+# step_ca_cert's signal_chown scenario deploys that file instead.
 openbao

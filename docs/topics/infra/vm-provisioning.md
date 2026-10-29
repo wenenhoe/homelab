@@ -238,6 +238,16 @@ phases:
   the name resolves, that the seeded key authenticates over the pinned
   certificate, and that the gateway runs the pinned release. A renewed GUI
   certificate fails the authentication check until the console is read again.
+
+  The play then writes the policy: an alias for each zone's network, one for
+  the operator hosts, the CD agent and the gateway's management ports, a
+  floating quick pass rule at sequence 1 that admits the operator hosts to
+  the gateway's SSH and API ports, and one rule per zone for DNS, NTP and
+  ping to the gateway. The play needs `-e opnsense_gateway_operator_hosts=[...]`
+  (the IPv4 addresses the work runs from) and stops without it, since an
+  empty guard rule would admit nobody. The CD agent's rule is written only
+  when `opnsense_gateway_cd_agent_management` is true, and removed when it is
+  false.
   The release and the collection's commit are the role's defaults;
   `ansible/requirements.yml` installs the collection from git at the same
   commit, and a test fails when the two differ. The gateway's release check

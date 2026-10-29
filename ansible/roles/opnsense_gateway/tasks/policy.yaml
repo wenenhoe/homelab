@@ -1,0 +1,112 @@
+---
+# The aliases and the rules the gateway's policy is written from. Every object
+# is matched by its name or description, so a run changes only what differs.
+# Rules on a zone's interface are the only rules there, so whatever they do not
+# pass is denied; the guard rule is floating and quick and comes first.
+
+- name: Require the addresses the guard rule admits
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_operator_hosts is defined
+      - opnsense_gateway_operator_hosts is sequence
+      - opnsense_gateway_operator_hosts is not string
+      - opnsense_gateway_operator_hosts | length > 0
+      - opnsense_gateway_operator_hosts | select('match', '^(\d{1,3}\.){3}\d{1,3}$') | list | length == opnsense_gateway_operator_hosts | length
+    quiet: true
+    fail_msg: >-
+      Set opnsense_gateway_operator_hosts to the IPv4 addresses the operator's work runs from. The guard
+      rule admits them to the gateway's management ports, and an empty list would admit nobody.
+
+- name: Apply the policy with the gateway connection
+  module_defaults:
+    group/oxlorg.opnsense.all:
+      firewall: "{{ opnsense_gateway_connection.firewall }}"
+      api_port: "{{ opnsense_gateway_connection.api_port }}"
+      api_key: "{{ opnsense_gateway_connection.api_key }}"
+      api_secret: "{{ opnsense_gateway_connection.api_secret }}"
+      ssl_verify: true
+      ssl_ca_file: "{{ opnsense_gateway_connection.ssl_ca_file }}"
+  block:
+    - name: Name each zone's network
+      oxlorg.opnsense.alias:
+        name: "net_{{ opnsense_gateway_zone.name }}"
+        type: network
+        content: ["192.168.{{ opnsense_gateway_zone.vlan }}.0/24"]
+        description: "{{ opnsense_gateway_zone.name }} zone"
+        reload: true
+      loop: "{{ opnsense_gateway_zones }}"
+      loop_control:
+        loop_var: opnsense_gateway_zone
+        label: "{{ opnsense_gateway_zone.name }}"
+
+    - name: Name the management hosts and ports
+      oxlorg.opnsense.alias:
+        name: "{{ opnsense_gateway_alias.name }}"
+        type: "{{ opnsense_gateway_alias.type }}"
+        content: "{{ opnsense_gateway_alias.content }}"
+        description: "{{ opnsense_gateway_alias.description }}"
+        reload: true
+      loop:
+        - { name: operator_hosts, type: host, content: "{{ opnsense_gateway_operator_hosts }}", description: Hosts the operator's work runs from }
+        - { name: cd_agent_hosts, type: host, content: "{{ opnsense_gateway_cd_agent_hosts }}", description: Hosts the CD agent runs from }
+        - { name: gateway_management_ports, type: port, content: ["22", "443"], description: The gateway's SSH and API ports }
+      loop_control:
+        loop_var: opnsense_gateway_alias
+        label: "{{ opnsense_gateway_alias.name }}"
+
+    - name: Admit the operator hosts to the gateway's management ports before any other rule
+      oxlorg.opnsense.rule:
+        description: "guard: operator hosts to the gateway's management ports"
+        match_fields: [description]
+        sequence: 1
+        action: pass
+        quick: true
+        interface: "{{ opnsense_gateway_zones | map(attribute='interface') | list }}"
+        direction: in
+        ip_protocol: inet
+        protocol: TCP
+        source_net: operator_hosts
+        destination_net: (self)
+        destination_port: gateway_management_ports
+        log: false
+        reload: true
+
+    - name: Admit the CD agent to the gateway's API, or remove that rule
+      oxlorg.opnsense.rule:
+        description: "{{ opnsense_gateway_cd_agent_zone }}: CD agent to the gateway's API"
+        match_fields: [description]
+        sequence: 2
+        state: "{{ 'present' if opnsense_gateway_cd_agent_management | bool else 'absent' }}"
+        action: pass
+        quick: true
+        interface: "{{ opnsense_gateway_zones | selectattr('name', 'eq', opnsense_gateway_cd_agent_zone) | map(attribute='interface') | list }}"
+        direction: in
+        ip_protocol: inet
+        protocol: TCP
+        source_net: cd_agent_hosts
+        destination_net: (self)
+        destination_port: "443"
+        log: false
+        reload: true
+
+    - name: Let every zone ask the gateway for DNS, NTP and ping
+      oxlorg.opnsense.rule:
+        description: "{{ opnsense_gateway_pair.0.name }}: {{ opnsense_gateway_pair.1.name }} to the gateway"
+        match_fields: [description]
+        sequence: "{{ 100 + opnsense_gateway_zone_services.index(opnsense_gateway_pair.1) }}"
+        action: pass
+        quick: true
+        interface: ["{{ opnsense_gateway_pair.0.interface }}"]
+        direction: in
+        ip_protocol: inet
+        protocol: "{{ opnsense_gateway_pair.1.protocol }}"
+        source_net: "net_{{ opnsense_gateway_pair.0.name }}"
+        destination_net: (self)
+        destination_port: "{{ opnsense_gateway_pair.1.port | default('') }}"
+        icmp_type: "{{ opnsense_gateway_pair.1.icmp_type | default([]) }}"
+        log: false
+        reload: true
+      loop: "{{ opnsense_gateway_zones | product(opnsense_gateway_zone_services) | list }}"
+      loop_control:
+        loop_var: opnsense_gateway_pair
+        label: "{{ opnsense_gateway_pair.0.name }}: {{ opnsense_gateway_pair.1.name }}"

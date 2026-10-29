@@ -18,3 +18,34 @@ opnsense_gateway_credentials_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/
 
 # opnsense_gateway_ca_file has no default: it is the gateway's certificate as
 # first_boot.sh read it off the console, the only CA the play trusts.
+
+# The zones the seed creates, one per VLAN, in the order seed/patch_config.py
+# adds them (opt1 is the first). Each zone's network is 192.168.<vlan>.0/24 and
+# the gateway is its .1. ansible/tests/test_opnsense_policy.py fails when this
+# list and the seed's differ.
+opnsense_gateway_zones:
+  - { name: services, vlan: 20, interface: opt1 }
+  - { name: others, vlan: 30, interface: opt2 }
+  - { name: desktops, vlan: 40, interface: opt3 }
+  - { name: isolated, vlan: 50, interface: opt4 }
+  - { name: experimental, vlan: 60, interface: opt5 }
+
+# opnsense_gateway_operator_hosts has no default: it is the list of addresses
+# the operator's work runs from, which the guard rule admits to the gateway's
+# management ports. An empty list would admit nobody, so the play stops
+# instead of writing it.
+
+# The CD agent's admission to the gateway's API. Off until ADR 0089's
+# management invariant admits the CD agent; turned off again, the play removes
+# the rule.
+opnsense_gateway_cd_agent_management: false
+opnsense_gateway_cd_agent_hosts:
+  - 192.168.30.3
+opnsense_gateway_cd_agent_zone: others
+
+# What every zone may ask of the gateway itself.
+opnsense_gateway_zone_services:
+  - { name: DNS over TCP, protocol: TCP, port: "53" }
+  - { name: DNS over UDP, protocol: UDP, port: "53" }
+  - { name: NTP, protocol: UDP, port: "123" }
+  - { name: ping, protocol: ICMP, icmp_type: [echoreq] }

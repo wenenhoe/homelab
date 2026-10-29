@@ -148,3 +148,6 @@
       ssl_verify: true
       ssl_ca_file: "{{ opnsense_gateway_ca_file }}"
   no_log: true
+
+- name: Apply the policy
+  ansible.builtin.include_tasks: policy.yaml

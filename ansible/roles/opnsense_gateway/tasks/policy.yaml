@@ -51,6 +51,8 @@
         - { name: cd_agent_hosts, type: host, content: "{{ opnsense_gateway_cd_agent_hosts }}", description: Hosts the CD agent runs from }
         - { name: gateway_management_ports, type: port, content: ["22", "443"], description: The gateway's SSH and API ports }
         - { name: proxmox_node_ports, type: port, content: ["22", "8006"], description: The Proxmox node's SSH and API ports }
+        - { name: direct_dns_ports, type: port, content: ["53", "853"], description: Plain and TLS DNS }
+        - { name: private_networks, type: network, content: "{{ opnsense_gateway_private_networks }}", description: Private ranges }
       loop_control:
         loop_var: opnsense_gateway_alias
         label: "{{ opnsense_gateway_alias.name }}"
@@ -71,7 +73,7 @@
       oxlorg.opnsense.rule:
         description: "guard: operator hosts to the gateway's management ports"
         match_fields: [description]
-        sequence: 1
+        sequence: "{{ opnsense_gateway_sequences.guard }}"
         action: pass
         quick: true
         interface: "{{ opnsense_gateway_zones | map(attribute='interface') | list }}"
@@ -88,7 +90,7 @@
       oxlorg.opnsense.rule:
         description: "{{ opnsense_gateway_cd_agent_zone }}: CD agent to the gateway's API"
         match_fields: [description]
-        sequence: 2
+        sequence: "{{ opnsense_gateway_sequences.cd_agent }}"
         state: "{{ 'present' if opnsense_gateway_cd_agent_management | bool else 'absent' }}"
         action: pass
         quick: true
@@ -106,7 +108,7 @@
       oxlorg.opnsense.rule:
         description: "{{ opnsense_gateway_pair.0.name }}: {{ opnsense_gateway_pair.1.name }} to the gateway"
         match_fields: [description]
-        sequence: "{{ 100 + opnsense_gateway_zone_services.index(opnsense_gateway_pair.1) }}"
+        sequence: "{{ opnsense_gateway_sequences.zone_services + opnsense_gateway_zone_services.index(opnsense_gateway_pair.1) }}"
         action: pass
         quick: true
         interface: ["{{ opnsense_gateway_pair.0.interface }}"]
@@ -128,7 +130,7 @@
       oxlorg.opnsense.rule:
         description: "{{ opnsense_gateway_flow.name }}"
         match_fields: [description]
-        sequence: "{{ 200 + opnsense_gateway_flow_index }}"
+        sequence: "{{ opnsense_gateway_sequences.flows + opnsense_gateway_flow_index }}"
         enabled: "{{ opnsense_gateway_flow.enabled | default(true) }}"
         action: pass
         quick: true
@@ -146,3 +148,47 @@
         loop_var: opnsense_gateway_flow
         index_var: opnsense_gateway_flow_index
         label: "{{ opnsense_gateway_flow.name }}"
+
+    - name: Deny direct DNS to anywhere but the gateway, from each zone with Internet access
+      oxlorg.opnsense.rule:
+        description: "{{ opnsense_gateway_zone.name }}: direct DNS to anywhere but the gateway"
+        match_fields: [description]
+        sequence: "{{ opnsense_gateway_sequences.direct_dns }}"
+        state: "{{ 'present' if opnsense_gateway_zone.internet | bool else 'absent' }}"
+        action: block
+        quick: true
+        interface: ["{{ opnsense_gateway_zone.interface }}"]
+        direction: in
+        ip_protocol: inet
+        protocol: TCP/UDP
+        source_net: "net_{{ opnsense_gateway_zone.name }}"
+        destination_net: any
+        destination_port: direct_dns_ports
+        log: false
+        reload: true
+      loop: "{{ opnsense_gateway_zones }}"
+      loop_control:
+        loop_var: opnsense_gateway_zone
+        label: "{{ opnsense_gateway_zone.name }}"
+
+    - name: Let each zone with Internet access reach everything but the private ranges
+      oxlorg.opnsense.rule:
+        description: "{{ opnsense_gateway_zone.name }}: Internet"
+        match_fields: [description]
+        sequence: "{{ opnsense_gateway_sequences.internet }}"
+        state: "{{ 'present' if opnsense_gateway_zone.internet | bool else 'absent' }}"
+        action: pass
+        quick: true
+        interface: ["{{ opnsense_gateway_zone.interface }}"]
+        direction: in
+        ip_protocol: inet
+        protocol: any
+        source_net: "net_{{ opnsense_gateway_zone.name }}"
+        destination_invert: true
+        destination_net: private_networks
+        log: false
+        reload: true
+      loop: "{{ opnsense_gateway_zones }}"
+      loop_control:
+        loop_var: opnsense_gateway_zone
+        label: "{{ opnsense_gateway_zone.name }}"

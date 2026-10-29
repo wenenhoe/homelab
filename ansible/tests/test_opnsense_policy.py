@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -159,8 +160,44 @@ def test_flow_names_are_distinct_because_the_play_matches_rules_by_name(defaults
     assert len(set(names)) == len(names)
 
 
-def test_the_flows_leave_the_sequences_below_them_to_the_guard_and_the_service_rules(defaults):
-    assert 200 + len(defaults["opnsense_gateway_flows"]) < 1000
+def test_each_family_of_rules_fits_before_the_next_one_starts(defaults):
+    sequences = defaults["opnsense_gateway_sequences"]
+    order = ["guard", "cd_agent", "zone_services", "direct_dns", "flows", "internet"]
+
+    assert [sequences[name] for name in order] == sorted(sequences[name] for name in order)
+    assert sequences["zone_services"] + len(defaults["opnsense_gateway_zone_services"]) <= sequences["direct_dns"]
+    assert sequences["flows"] + len(defaults["opnsense_gateway_flows"]) <= sequences["internet"]
+
+
+def test_the_private_ranges_are_the_rfc1918_ones(defaults):
+    assert sorted(defaults["opnsense_gateway_private_networks"]) == ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+
+def test_every_zone_is_inside_the_private_ranges_so_no_zone_can_be_reached_through_the_internet_rule(defaults):
+    private = [ipaddress.ip_network(n) for n in defaults["opnsense_gateway_private_networks"]]
+
+    for zone in defaults["opnsense_gateway_zones"]:
+        net = ipaddress.ip_network(f"192.168.{zone['vlan']}.0/24")
+        assert any(net.subnet_of(p) for p in private), zone["name"]
+
+
+def test_the_proxmox_node_is_inside_the_private_ranges_so_only_the_named_flow_reaches_it(defaults):
+    node = ipaddress.ip_address(defaults["opnsense_gateway_hosts"]["host_proxmox_node"])
+
+    assert any(node in ipaddress.ip_network(n) for n in defaults["opnsense_gateway_private_networks"])
+
+
+def test_the_isolated_zone_has_no_internet_and_the_experimental_zone_has_it(defaults):
+    internet = {zone["name"]: zone["internet"] for zone in defaults["opnsense_gateway_zones"]}
+
+    assert internet["isolated"] is False
+    assert internet["experimental"] is True
+
+
+def test_the_seed_leaves_outbound_nat_automatic_so_the_play_writes_no_nat_rules():
+    root = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
+
+    assert root.findtext("nat/outbound/mode") == "automatic"
 
 
 def test_a_flow_that_rests_on_an_unconfirmed_decision_is_written_but_not_in_force(defaults):

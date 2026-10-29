@@ -21,14 +21,15 @@ opnsense_gateway_credentials_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/
 
 # The zones the seed creates, one per VLAN, in the order seed/patch_config.py
 # adds them (opt1 is the first). Each zone's network is 192.168.<vlan>.0/24 and
-# the gateway is its .1. ansible/tests/test_opnsense_policy.py fails when this
+# the gateway is its .1. A zone with internet: true may reach the Internet; the
+# others (and every zone for the private ranges) may not. ansible/tests/test_opnsense_policy.py fails when this
 # list and the seed's differ.
 opnsense_gateway_zones:
-  - { name: services, vlan: 20, interface: opt1 }
-  - { name: others, vlan: 30, interface: opt2 }
-  - { name: desktops, vlan: 40, interface: opt3 }
-  - { name: isolated, vlan: 50, interface: opt4 }
-  - { name: experimental, vlan: 60, interface: opt5 }
+  - { name: services, vlan: 20, interface: opt1, internet: true }
+  - { name: others, vlan: 30, interface: opt2, internet: true }
+  - { name: desktops, vlan: 40, interface: opt3, internet: true }
+  - { name: isolated, vlan: 50, interface: opt4, internet: false }
+  - { name: experimental, vlan: 60, interface: opt5, internet: true }
 
 # opnsense_gateway_operator_hosts has no default: it is the list of addresses
 # the operator's work runs from, which the guard rule admits to the gateway's
@@ -136,3 +137,21 @@ opnsense_gateway_flows:
     destination: host_services
     protocol: TCP
     port: "1688"
+
+# What the Internet rules keep out: the private ranges, which hold the zones,
+# the Proxmox node and the rest of the WAN's own network.
+opnsense_gateway_private_networks:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+
+# Where each family of rules sits among a zone interface's rules, lowest first.
+# The service rules take the sequences from zone_services up and the flows
+# from flows up, so each family must fit before the next one starts.
+opnsense_gateway_sequences:
+  guard: 1
+  cd_agent: 2
+  zone_services: 100
+  direct_dns: 150
+  flows: 200
+  internet: 300

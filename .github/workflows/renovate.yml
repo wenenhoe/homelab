@@ -61,7 +61,7 @@ jobs:
       # actor of the maintenance and develop rulesets and of nothing on main.
       - name: Create the Renovate app token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
@@ -96,7 +96,7 @@ jobs:
         working-directory: tools
 
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@a63d9a7bc606f7336fd20b47f2f32259a35e6213 # v46.3.9
+        uses: renovatebot/github-action@2804199d260ad00c1fae0e9e842888369391c776 # v46.3.10
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_GIT_AUTHOR: "${{ github.repository_owner }} <${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com>"
@@ -105,7 +105,7 @@ jobs:
           # share GitHub's 60-an-hour limit with every other runner on the IP.
           RENOVATE_HOST_RULES: ${{ format('[{{"matchHost":"api.github.com","token":"{0}"}}]', steps.app-token.outputs.token) }}
         with:
-          renovate-version: "44.181.5@sha256:611eac05a6ee11c06d23157ae2ca11364f5b4a096c12d7f82a65aec2b6ec8a48"
+          renovate-version: "44.192.2@sha256:37960a62ba1faa9079a7c4eead9b3f4470748a64ecd207e06c09fd8858673e17"
           token: ${{ steps.app-token.outputs.token }}
 
       # renovate.json5's schedule only allows new branch/PR creation Mon/Thu

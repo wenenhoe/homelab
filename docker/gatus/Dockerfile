@@ -1,7 +1,7 @@
 FROM busybox:1.38.0-musl@sha256:119bdf19f884fb540a02b02534632c16525266957572e85996e377d5d41d3168 AS data-dir
 RUN mkdir -p /data
 
-FROM twinproduction/gatus:v5.37.0@sha256:094eb186e55235db367e90e9d56140e5897b7044c41de23cde4cc18e6da1242e
+FROM twinproduction/gatus:v5.38.0@sha256:085ed63da963728965d00a3c78aa6167e3bf135218485b893201758e079e8415
 
 # twinproduction/gatus is FROM scratch, like quxfoo/wastebin: a static
 # wget for a healthcheck to exec, and an owned /data for a fresh named

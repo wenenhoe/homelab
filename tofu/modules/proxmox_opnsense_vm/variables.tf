@@ -21,11 +21,12 @@ variable "name" {
 }
 
 variable "image_url" {
-  description = "https URL of the OPNsense pre-installed nano image, the amd64 .img.bz2 of one release."
+  description = "https URL of the OPNsense pre-installed nano image, the amd64 .img.bz2 of one release. Set it with image_checksum to have Tofu download, unpack and upload the image, or leave it unset and give image_volume_id."
   type        = string
+  default     = null
 
   validation {
-    condition     = startswith(var.image_url, "https://") && endswith(var.image_url, ".img.bz2") && strcontains(basename(var.image_url), "-nano-")
+    condition     = var.image_url == null || (startswith(var.image_url, "https://") && endswith(var.image_url, ".img.bz2") && strcontains(basename(var.image_url), "-nano-"))
     error_message = "image_url must be an https:// URL of an OPNsense nano .img.bz2 file."
   }
 }
@@ -33,10 +34,22 @@ variable "image_url" {
 variable "image_checksum" {
   description = "SHA-256 of the file at image_url, as OPNsense publishes it. The host running Tofu needs curl, sha256sum or shasum, and bunzip2."
   type        = string
+  default     = null
 
   validation {
-    condition     = can(regex("^[0-9a-f]{64}$", var.image_checksum))
+    condition     = var.image_checksum == null || can(regex("^[0-9a-f]{64}$", var.image_checksum))
     error_message = "image_checksum must be 64 lowercase hexadecimal characters."
+  }
+}
+
+variable "image_volume_id" {
+  description = "Import volume that already holds the unpacked image on the node, as <datastore>:import/<file>.raw. The VM's disk is imported from it and nothing is downloaded or uploaded. Leave image_url and image_checksum unset when it is given."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.image_volume_id == null || can(regex("^[^:/]+:import/[^/]+\\.(raw|qcow2|vmdk)$", var.image_volume_id))
+    error_message = "image_volume_id must look like tofu-images:import/OPNsense-26.1.6-nano-amd64.raw."
   }
 }
 

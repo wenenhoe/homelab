@@ -28,12 +28,12 @@ run "uploads_the_unpacked_image_as_import_content" {
   }
 
   assert {
-    condition     = proxmox_virtual_environment_file.image.content_type == "import" && proxmox_virtual_environment_file.image.datastore_id == "tofu-images"
+    condition     = proxmox_virtual_environment_file.image[0].content_type == "import" && proxmox_virtual_environment_file.image[0].datastore_id == "tofu-images"
     error_message = "the image must be uploaded as import content to the images storage the token can delete from"
   }
 
   assert {
-    condition     = proxmox_virtual_environment_file.image.source_file[0].file_name == "OPNsense-26.1.6-nano-amd64.raw"
+    condition     = proxmox_virtual_environment_file.image[0].source_file[0].file_name == "OPNsense-26.1.6-nano-amd64.raw"
     error_message = "the image must be stored under a .raw name, which is what Proxmox accepts for import content"
   }
 }
@@ -46,12 +46,12 @@ run "fetches_the_image_again_when_its_url_or_checksum_changes" {
   }
 
   assert {
-    condition     = terraform_data.image.triggers_replace[0] == var.image_url && terraform_data.image.triggers_replace[1] == var.image_checksum
+    condition     = terraform_data.image[0].triggers_replace[0] == var.image_url && terraform_data.image[0].triggers_replace[1] == var.image_checksum
     error_message = "a new URL or checksum must fetch and unpack the image again"
   }
 
   assert {
-    condition     = terraform_data.image.input == ".image-cache/OPNsense-26.1.6-nano-amd64.img"
+    condition     = terraform_data.image[0].input == ".image-cache/OPNsense-26.1.6-nano-amd64.img"
     error_message = "the unpacked image must land in the cache directory under the release's file name"
   }
 }
@@ -344,4 +344,107 @@ run "rejects_a_checksum_that_is_not_sha256_hex" {
   }
 
   expect_failures = [var.image_checksum]
+}
+
+run "uses_an_image_already_on_the_node_without_downloading_or_uploading_it" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_url       = null
+    image_checksum  = null
+    image_volume_id = "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw"
+  }
+
+  assert {
+    condition     = length(terraform_data.image) == 0 && length(proxmox_virtual_environment_file.image) == 0
+    error_message = "an image already on the node must not be fetched or uploaded"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.disk[0].import_from == "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw" && proxmox_virtual_environment_vm.this.disk[0].interface == "scsi0"
+    error_message = "the system disk must be imported from the volume that was given"
+  }
+}
+
+run "still_uploads_the_seed_when_the_image_is_already_on_the_node" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_url       = null
+    image_checksum  = null
+    image_volume_id = "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw"
+    seed_image_path = "./modules/proxmox_opnsense_vm/main.tf"
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_file.seed) == 1 && proxmox_virtual_environment_vm.this.disk[1].import_from == "tofu-images:import/opnsense-seed.raw"
+    error_message = "the seed is per gateway and is uploaded whichever way the image arrives"
+  }
+}
+
+run "rejects_both_ways_of_supplying_the_image" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_volume_id = "tofu-images:import/OPNsense-26.1.6-nano-amd64.raw"
+  }
+
+  expect_failures = [proxmox_virtual_environment_vm.this]
+}
+
+run "rejects_no_way_of_supplying_the_image" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_url      = null
+    image_checksum = null
+  }
+
+  expect_failures = [proxmox_virtual_environment_vm.this]
+}
+
+run "rejects_an_image_url_without_its_checksum" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_checksum = null
+  }
+
+  expect_failures = [proxmox_virtual_environment_vm.this]
+}
+
+run "rejects_an_image_volume_that_is_not_import_content" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_url       = null
+    image_checksum  = null
+    image_volume_id = "tofu-images:iso/OPNsense-26.1.6-nano-amd64.iso"
+  }
+
+  expect_failures = [var.image_volume_id]
 }

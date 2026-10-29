@@ -622,8 +622,15 @@
       groupName: "curl image (lldap_bootstrap + its Molecule verify — must move together)",
       groupSlug: "curl-image",
     },
+
+    // lldap's tags are dates, like 2026-08-08-alpine. The docker versioning
+    // reads the leading 2026 as the version and everything after it as the
+    // variant, so a newer date counts as a different variant and is never
+    // proposed. This pattern reads the date as major-minor-patch and the
+    // suffix as the variant.
     {
       matchDepNames: ["ghcr.io/lldap/lldap"],
+      versioning: "regex:^(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})-(?<compatibility>alpine)$",
       groupName: "lldap (compose, Molecule targets — must move together)",
       groupSlug: "lldap",
     },

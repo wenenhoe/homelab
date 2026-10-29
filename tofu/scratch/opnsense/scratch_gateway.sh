@@ -130,7 +130,8 @@ up() {
   "$mod/seed/build_seed.sh" "$out/seed" --lan-ip "$lan_ip" --credentials "$creds" --wan-dhcp-hostname opn-scratch > "$out/build-seed.txt"
   local rd attempt
   rd=$(node "mktemp -d /tmp/opn-scratch.XXXXXX")
-  printf 'vmid=%q\nlan_bridge=%q\nnode_dir=%q\nlocal_port=%q\n' "$vmid" "$lan_bridge" "$rd" "$local_port" > "$state"
+  printf 'vmid=%q\nlan_bridge=%q\nnode_dir=%q\nlocal_port=%q\nimage_url=%q\nimage_checksum=%q\n' \
+    "$vmid" "$lan_bridge" "$rd" "$local_port" "$TF_VAR_image_url" "$TF_VAR_image_checksum" > "$state"
 
   tf init -backend=false -input=false -lockfile=readonly > "$out/init.txt"
   # A 3 GB upload to the node has failed now and then with a closed connection and succeeded on the
@@ -165,9 +166,11 @@ MSG
 
 down() {
   [ -f "$state" ] || die "$state does not exist: nothing is recorded as up in $out"
-  local vmid lan_bridge node_dir local_port own_master="" tunnel=""
+  local vmid lan_bridge node_dir local_port image_url image_checksum own_master="" tunnel=""
   # shellcheck disable=SC1090
   . "$state"
+  # The module validates the image inputs even when it only destroys.
+  export TF_VAR_image_url=$image_url TF_VAR_image_checksum=$image_checksum
   if [ -n "$tunnel" ]; then ssh "${ssh_opts[@]}" -O cancel -L "127.0.0.1:$local_port:$lan_ip:443" "$NODE" > /dev/null 2>&1 || true; fi
   if [ -n "$own_master" ]; then ssh -S "$out/tunnel.sock" -O exit "$NODE" > /dev/null 2>&1 || true; fi
   node "qm stop $vmid" > /dev/null 2>&1 || true

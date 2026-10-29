@@ -236,6 +236,15 @@ line_of() {
   [ ! -e "$OUT/scratch.env" ]
 }
 
+@test "down gives destroy the image inputs up was given, which the module validates" {
+  run -0 "$SCRIPT" up "$OUT" http://x/y.bz2 abc
+  : > "$BATS_TEST_TMPDIR/tf-env"
+  run -0 "$SCRIPT" down "$OUT"
+  run cat "$BATS_TEST_TMPDIR/tf-env"
+  assert_output --partial "TF_VAR_image_url=http://x/y.bz2"
+  assert_output --partial "TF_VAR_image_checksum=abc"
+}
+
 @test "down refuses an OUT_DIR with nothing recorded, and keeps the record when destroy fails" {
   run -1 "$SCRIPT" down "$OUT"
   assert_output --partial "nothing is recorded as up"

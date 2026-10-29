@@ -4,7 +4,7 @@
 # each other. Bump this and openbao_cli_deb_sha256 below together: Renovate
 # (.github/renovate.json5) moves both, taking the hash from the digest GitHub
 # lists for the .deb.
-openbao_cli_version: "2.7.1"
+openbao_cli_version: "2.7.2"
 
 # Renamed upstream from the "bao_*" naming its predecessor project
 # used. The release assets are "openbao_<version>_linux_amd64.deb";
@@ -16,4 +16,4 @@ openbao_cli_deb_url: "https://github.com/openbao/openbao/releases/download/v{{ o
 # checksums.txt.gpgsig. CI checks this pin against that signed file with the
 # key committed under tools/ci/checksums/keys/ — see
 # docs/topics/engineering/ci/release-checksum-check.md.
-openbao_cli_deb_sha256: "aa5dd78f590a89256dffae7c7f8664b11e4380478da86454d8030020f6af0add"
+openbao_cli_deb_sha256: "42bd0890a8e2060e5f29410ea828ee047aa2de21028045731a0516d5a532928c"

@@ -4,6 +4,7 @@ module "opnsense" {
   node_name          = var.node_name
   vm_id              = var.vm_id
   name               = "opn-scratch"
+  image_volume_id    = var.image_volume_id
   image_url          = var.image_url
   image_checksum     = var.image_checksum
   image_cache_dir    = var.image_cache_dir

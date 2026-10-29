@@ -6,17 +6,21 @@
 # applies the OPNsense module with the VM stopped, answers the importer at its first boot,
 # updates the gateway to WANT_VERSION and opens a tunnel from this machine's LOCAL_PORT to
 # the gateway's GUI port through the node. It prints the play command to run. down closes
-# the tunnel and destroys the VM and everything up left on the node.
+# the tunnel and destroys the VM and what up uploaded.
 # IMAGE_URL and IMAGE_CHECKSUM are the nano image of the pinned release and its published
-# SHA-256, from the release mirror.
+# SHA-256, from the release mirror. The node downloads the image, checks the checksum and
+# unpacks it into the images datastore once (stage_image.sh); a later run finds it there and
+# the VM's disk is imported from it. down leaves it, PURGE_IMAGE=1 removes it. UPLOAD_IMAGE=1
+# has this machine download the image and the module upload it instead, for a node with no
+# route to the mirror.
 # Environment: NODE (ssh target, e.g. root@pve), PROXMOX_ENDPOINT, PROXMOX_API_TOKEN
 #   (user@realm!id=secret); optional PROXMOX_INSECURE=true, NODE_NAME (default pve),
 #   VM_ID (default 501), LAN_BRIDGE (an isolated bridge with no ports, default vmbr9),
 #   WAN_BRIDGE (default vmbr1), WAN_VLAN_ID (tag of the WAN NIC when the route out is on a
 #   VLAN), TOFU (default tofu), SSH_CONTROL_PATH (socket of an ssh master connection opened
 #   by hand, for a node that takes a password), WANT_VERSION (default 26.1.11),
-#   ALLOW_LATEST=1, LOCAL_PORT (default 8443), MIN_FREE_KB (free space required where OUT_DIR is,
-#   default 8000000).
+#   ALLOW_LATEST=1, LOCAL_PORT (default 8443), UPLOAD_IMAGE=1, PURGE_IMAGE=1, MIN_FREE_KB (free
+#   space required where OUT_DIR is with UPLOAD_IMAGE=1, default 8000000).
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -56,8 +60,9 @@ export TF_VAR_proxmox_api_token=${PROXMOX_API_TOKEN:-}
 export TF_VAR_proxmox_insecure=${PROXMOX_INSECURE:-false}
 export TF_VAR_node_name=${NODE_NAME:-pve}
 export TF_VAR_vm_id=$vmid
-export TF_VAR_image_url=${3:-}
-export TF_VAR_image_checksum=${4:-}
+image_url=${3:-}
+image_checksum=${4:-}
+upload_image=${UPLOAD_IMAGE:-0}
 export TF_VAR_image_cache_dir=$out/image-cache
 export TF_VAR_seed_image_path=$out/seed/seed.img
 export TF_VAR_lan_bridge=$lan_bridge
@@ -68,16 +73,20 @@ export TMPDIR=$out/tmp
 store=${TF_VAR_image_datastore_id:-tofu-images}
 
 preflight() {
-  [ -n "$TF_VAR_image_url" ] && [ -n "$TF_VAR_image_checksum" ] || die "up needs IMAGE_URL and IMAGE_CHECKSUM"
+  [ -n "$image_url" ] && [ -n "$image_checksum" ] || die "up needs IMAGE_URL and IMAGE_CHECKSUM"
+  # The same rules as the module's, which this script applies itself when the node fetches the image.
+  [[ "$image_url" =~ ^https://[A-Za-z0-9._~:/%+-]+\.img\.bz2$ && "${image_url##*/}" == *-nano-* ]] || die "IMAGE_URL must be an https:// URL of an OPNsense nano .img.bz2 file"
+  [[ "$image_checksum" =~ ^[0-9a-f]{64}$ ]] || die "IMAGE_CHECKSUM must be 64 lowercase hexadecimal characters"
   : "${PROXMOX_ENDPOINT:?}" "${PROXMOX_API_TOKEN:?}"
-  local t
-  for t in curl bunzip2 openssl xmllint sfdisk mformat python3 "$tofu"; do
+  local t tools=(openssl xmllint sfdisk mformat python3 "$tofu") node_tools="python3 curl openssl pvesh bunzip2"
+  [ "$upload_image" != 1 ] || tools+=(curl bunzip2)
+  for t in "${tools[@]}"; do
     command -v "$t" > /dev/null || die "$t is not installed here"
   done
   [ ! -e "$state" ] || die "$state exists: a scratch gateway from an earlier run is still up. Run down first"
   [ ! -e "$creds" ] || die "$creds exists; use an empty OUT_DIR so the scratch gateway gets fresh credentials"
   node true || die "cannot ssh to $NODE without a prompt: open a master connection and set SSH_CONTROL_PATH"
-  node "command -v python3 curl openssl > /dev/null" || die "the node lacks python3, curl or openssl"
+  node "command -v $node_tools > /dev/null" || die "the node lacks one of: $node_tools"
   node "test -d /sys/class/net/$lan_bridge" || die "$lan_bridge does not exist on the node: create it as an empty Linux bridge with no ports and no address, and let the API token use it (SDN.Use on /sdn/zones/localnetwork/$lan_bridge)"
   # The seed's LAN serves DHCP, so it must never share a bridge with anything real.
   [ -z "$(node "ls /sys/class/net/$lan_bridge/brif 2> /dev/null")" ] || die "$lan_bridge has ports attached; use an isolated bridge"
@@ -85,13 +94,31 @@ preflight() {
   [ "$wan_bridge" != vmbr0 ] || die "WAN_BRIDGE=vmbr0 is the production WAN bridge; a scratch gateway must not be given it"
   node "test -d /sys/class/net/$wan_bridge" || die "$wan_bridge does not exist on the node"
   if node "qm status $vmid" > /dev/null 2>&1; then die "VM $vmid exists; destroy it first"; fi
-  local leftover
-  leftover=$(node "pvesm list $store --content import 2> /dev/null" | grep -E 'opn-scratch-seed\.raw|nano-amd64\.raw' || true)
+  # The staged image is meant to stay; the seed is uploaded per run and left behind only by a destroy that failed.
+  local leftover pattern='opn-scratch-seed\.raw'
+  [ "$upload_image" != 1 ] || pattern="$pattern|nano-amd64\\.raw"
+  leftover=$(node "pvesm list $store --content import 2> /dev/null" | grep -E "$pattern" || true)
   [ -z "$leftover" ] || die "files from an earlier run are still stored; remove them first (pvesm free <volid>): $leftover"
-  # Download, unpacked image and the provider's temporary copy of the upload: about 7 GB here.
-  local free_kb
-  free_kb=$(df -Pk "$out" | awk 'NR==2 {print $4}')
-  [ "$free_kb" -ge "${MIN_FREE_KB:-8000000}" ] || die "less than 8 GB free where $out is; the image needs about 7 GB"
+  if [ "$upload_image" = 1 ]; then
+    # Download, unpacked image and the provider's temporary copy of the upload: about 7 GB here.
+    local free_kb
+    free_kb=$(df -Pk "$out" | awk 'NR==2 {print $4}')
+    [ "$free_kb" -ge "${MIN_FREE_KB:-8000000}" ] || die "less than 8 GB free where $out is; the image needs about 7 GB"
+  fi
+}
+
+# The node downloads, checks and unpacks the image into the images datastore unless it is already there.
+stage_image() {
+  local dir
+  dir=$(node "python3 -c \"import json,subprocess; print(json.loads(subprocess.check_output(['pvesh','get','/storage/$store','--output-format','json']))['path'])\"") || die "cannot read the path of the $store datastore from the node"
+  [ -n "$dir" ] || die "the node reported no path for the $store datastore (is it a directory storage?)"
+  image_file=$dir/import/$image_name
+  if node "test -f $image_file && grep -qx $image_checksum $image_file.sha256"; then
+    echo "the image is already on the node: $store:import/$image_name"
+    return
+  fi
+  echo "the node is downloading the image; this takes a few minutes"
+  node "bash -s -- $image_url $image_checksum $image_file" < "$here/stage_image.sh" || die "the node could not stage the image; with no route from the node to the mirror, set UPLOAD_IMAGE=1"
 }
 
 credential() { sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\".*\$/\\1/p" "$creds"; }
@@ -127,14 +154,22 @@ open_tunnel() {
 up() {
   preflight
   mkdir -p "$out/tmp"
+  image_file=""
+  if [ "$upload_image" = 1 ]; then
+    export TF_VAR_image_url=$image_url TF_VAR_image_checksum=$image_checksum
+  else
+    image_name=$(basename "$image_url" .img.bz2).raw
+    stage_image
+    export TF_VAR_image_volume_id=$store:import/$image_name
+  fi
   "$mod/seed/build_seed.sh" "$out/seed" --lan-ip "$lan_ip" --credentials "$creds" --wan-dhcp-hostname opn-scratch > "$out/build-seed.txt"
   local rd attempt
   rd=$(node "mktemp -d /tmp/opn-scratch.XXXXXX")
-  printf 'vmid=%q\nlan_bridge=%q\nnode_dir=%q\nlocal_port=%q\nimage_url=%q\nimage_checksum=%q\n' \
-    "$vmid" "$lan_bridge" "$rd" "$local_port" "$TF_VAR_image_url" "$TF_VAR_image_checksum" > "$state"
+  printf 'vmid=%q\nlan_bridge=%q\nnode_dir=%q\nlocal_port=%q\nimage_volume=%q\nimage_file=%q\nimage_url=%q\nimage_checksum=%q\n' \
+    "$vmid" "$lan_bridge" "$rd" "$local_port" "${TF_VAR_image_volume_id:-}" "$image_file" "${TF_VAR_image_url:-}" "${TF_VAR_image_checksum:-}" > "$state"
 
   tf init -backend=false -input=false -lockfile=readonly > "$out/init.txt"
-  # A 3 GB upload to the node has failed now and then with a closed connection and succeeded on the
+  # An upload to the node has failed now and then with a closed connection and succeeded on the
   # next try, and resources already created are kept, so a failed apply is retried.
   for attempt in 1 2 3; do
     if tf apply -auto-approve -input=false -state="$out/terraform.tfstate" > "$out/apply.txt" 2>&1; then break; fi
@@ -166,11 +201,12 @@ MSG
 
 down() {
   [ -f "$state" ] || die "$state does not exist: nothing is recorded as up in $out"
-  local vmid lan_bridge node_dir local_port image_url image_checksum own_master="" tunnel=""
+  local vmid lan_bridge node_dir local_port image_volume="" image_file="" image_url="" image_checksum="" own_master="" tunnel=""
   # shellcheck disable=SC1090
   . "$state"
-  # The module validates the image inputs even when it only destroys.
-  export TF_VAR_image_url=$image_url TF_VAR_image_checksum=$image_checksum
+  # The module validates its image inputs even when it only destroys.
+  [ -z "$image_volume" ] || export TF_VAR_image_volume_id=$image_volume
+  [ -z "$image_url" ] || export TF_VAR_image_url=$image_url TF_VAR_image_checksum=$image_checksum
   if [ -n "$tunnel" ]; then ssh "${ssh_opts[@]}" -O cancel -L "127.0.0.1:$local_port:$lan_ip:443" "$NODE" > /dev/null 2>&1 || true; fi
   if [ -n "$own_master" ]; then ssh -S "$out/tunnel.sock" -O exit "$NODE" > /dev/null 2>&1 || true; fi
   node "qm stop $vmid" > /dev/null 2>&1 || true
@@ -180,6 +216,7 @@ down() {
   fi
   if node "qm status $vmid" > /dev/null 2>&1; then die "VM $vmid is still there after destroy"; fi
   node "ip addr del $node_ip/24 dev $lan_bridge 2> /dev/null; rm -rf $node_dir" || true
+  if [ "${PURGE_IMAGE:-0}" = 1 ] && [ -n "$image_file" ]; then node "rm -f $image_file $image_file.sha256" || true; fi
   rm -rf "$out/image-cache" "$out/tmp" "$state"
   echo "scratch gateway $vmid removed"
 }

@@ -27,19 +27,28 @@ variable "vm_id" {
   default     = 501
 }
 
-variable "image_url" {
-  description = "The nano image of the pinned release, from the release mirror."
+variable "image_volume_id" {
+  description = "Import volume that already holds the unpacked image on the node, which scratch_gateway.sh stages. Leave it unset to have Tofu download and upload the image."
   type        = string
+  default     = null
+}
+
+variable "image_url" {
+  description = "The nano image of the pinned release, from the release mirror. Only with image_checksum, when image_volume_id is not set."
+  type        = string
+  default     = null
 }
 
 variable "image_checksum" {
   description = "SHA-256 of image_url, from the release's published checksum file."
   type        = string
+  default     = null
 }
 
 variable "image_cache_dir" {
-  description = "Where the module downloads and unpacks the image."
+  description = "Where the module downloads and unpacks the image when it does."
   type        = string
+  default     = ".image-cache"
 }
 
 variable "image_datastore_id" {

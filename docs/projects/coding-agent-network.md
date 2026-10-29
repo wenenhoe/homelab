@@ -32,7 +32,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spikes: filtering proxy feasibility, bridge isolation, resolver design | Not started | The three assumptions in ADR 0053 are resolved and folded into its Context, and the revision can be `approved` |
-| 2 | VLAN 60, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route starts once [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) has replaced allow-all | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
+| 2 | VLAN 70, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route starts once [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) has replaced allow-all | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

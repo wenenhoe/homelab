@@ -67,25 +67,31 @@ Traffic between two hosts on the same VLAN is switched on the bridge and never r
 
 | # | From | To | Port | Why | Source |
 | :-: | :--- | :--- | :--- | :--- | :--- |
-| 1 | Every VLAN | The gateway's address on that VLAN | DNS 53 tcp and udp, NTP 123 udp, ICMP echo; DHCP where Kea serves the VLAN | The VLANs' one resolver and time source; Kea's own firewall rules cover DHCP | ADR 0040, ADR 0089 |
+| 1 | Every VLAN and the untagged `lan` | The gateway's address on that network | DNS 53 tcp and udp, NTP 123 udp, ICMP echo; DHCP where Kea serves the VLAN | The VLANs' one resolver and time source; Kea's own firewall rules cover DHCP | ADR 0040, ADR 0089 |
 | 2 | Operator host (VM 401 now, VM 302 later) | The gateway's address | 443 (API and GUI), 22 | The play, and the guard rule that comes first | ADR 0089 invariants |
 | 3 | CD agent (VM 303, `192.168.30.3`) | The gateway's address | 443 | CD workflows apply the gateway's play | Maintainer. *Confirm:* ADR 0089's management invariant admits only the operator host and VM 401, so it needs a revision to admit the CD agent |
 | 4 | Operator host | VLAN 20 hosts | 22 | Ansible plays | `inventory.yaml` |
 | 5 | Operator host | `security` | 8200 | AppRole login and secret fetch | `secrets` role, `secrets-and-credentials-flow.md` |
 | 6 | Operator host | `storage` | 443 | Tofu state and restore discovery | ADR 0058, `backup-and-restore-data-flow.md`. *Confirm* the state bucket's port |
 | 7 | Operator host | VM 303 | 22 | `playbooks/cd-agent.yaml` | `inventory.yaml` |
-| 8 | Operator host | VLAN 60 host | 22 | Provisioning the coding-agent host | ADR 0053 |
+| 8 | Operator host | VLAN 70 host | 22 | Provisioning the coding-agent host | ADR 0053 |
 | 9 | Operator host | The node's WAN-side address | 8006, 22 | Tofu's API calls, and the first-boot script's SSH. The node is not on any VLAN: it is reached through the gateway's outbound NAT | Maintainer |
 | 10 | CD agent | VLAN 20 hosts | 22 | Deploys | *Confirm* against ADR 0044 and the CD agent's approles |
 | 11 | CD agent | `security` | 8200 | AppRole login | *Confirm* |
 | 12 | CD agent | `storage` | 443 | Rotated write key for `redeploy-storage` | `cd-agent-host.md`. *Confirm* |
-| 13 | Tailscale subnet router (VLAN 20) | VLAN 60 host, VM 302 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |
-| 14 | VLANs 20, 40 and the experimental block with Internet | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
+| 13 | Tailscale subnet router (VLAN 20) | VLAN 70 host, VM 302 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |
+| 14 | VLANs 20, 40 and 60 (the experimental block with Internet) | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
 | 15 | VLAN 30 | WAN | Any, for now | ADR 0058 wants only the proxy's allowlist here, and the proxy does not exist yet | ADR 0058, [`coding-agent-egress.md`](coding-agent-egress.md) |
+| 16 | VLAN 40 desktops (the VM 4XX hosts) | `play` | 25565 | Minecraft clients | Maintainer |
+| 17 | VLAN 40 desktops | `services` | 1688 | KMS activation | Maintainer |
 
-Not on the list, so denied: any flow from VLAN 60 to another zone (ADR 0053), from the experimental block without Internet to anything but the gateway's rows in 1, and from any zone to the gateway's management ports other than rows 2 and 3.
+Not on the list, so denied: any flow from VLAN 70 to another zone (ADR 0053), from VLAN 50 (the experimental block without Internet) and VLAN 60 to another zone or, for VLAN 50, to the WAN, from the untagged `lan` to anything but the gateway's rows in 1, and from any zone to the gateway's management ports other than rows 2 and 3.
 
-Two things the docs leave open. Nothing declares who reaches the Minecraft port (25565 on `play`) or the KMS port (1688 on `services`) from outside their VLAN, and the live gateway has no inbound forward for either. The untagged `lan` network (`192.168.0.0/24`, with its own DHCP range) is not named in any decision.
+The VLAN scheme gives one VLAN per VMID hundred, so the experimental block with Internet is the 6XX range (VLAN 60, `192.168.60.0/24`) and the coding-agent zone is the 7XX range (VLAN 70, `192.168.70.0/24`). VLAN 50 keeps the isolated experimental hosts.
+
+Hosts that reach `services` through the Tailscale subnet router (VM 202, `192.168.20.2`) share VLAN 20 with it and need no rule, and neither do remote players reaching `play` the same way. Rows 16 and 17 are the only inbound flows across a VLAN.
+
+The untagged `lan` network (`192.168.0.0/24`, with its own DHCP range) is the old non-DDNS desktop network, also used for Windows template setup and other experiments. It gets the gateway's rows in 1 and nothing else, and no other zone lists it as a source or destination.
 
 ## Open items
 
@@ -97,8 +103,8 @@ Two things the docs leave open. Nothing declares who reaches the Minecraft port 
 - Connections from the workstation to the Proxmox API dropped now and then during spike runs (an upload closed mid-transfer, a VM create answered with an empty reply). A retried apply then succeeded. The cause is not found, and the module has no retry of its own.
 - Which credential takes the snapshot [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md) requires before each apply. The Proxmox token in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#proxmox-api-token) holds no snapshot privilege. The leading option is a token of its own, scoped to the gateway VM, that can create and delete snapshots but not roll back, kept with the play's other credentials in the file ADR 0048 decides because the play runs when OpenBao may be unreachable behind the gateway it changes. A rollback stays a person's act, and a CD agent job could hold the token later.
 - How a clean `--check --diff` is judged, for what a run on a scratch gateway has not shown. The run applied and then checked ten modules (user, alias, rule, nat_source, unbound_general, unbound_forward, dhcp_general, dhcp_subnet, interface_vlan, package) on a gateway built from the seed at 26.1.11. Every check after the module's own apply reported no change, including the two that name every setting, so a clean check is that no task reports changed, with no allow-list for these modules. After a change made behind the module's back, nine of the ten reported the changed value (the user module's diff is hidden by `no_log`, but its task reports changed), and a second apply converged each. Three things are left. Package locks, anything set through the generic call, and a user password set to `always` were not exercised, and the settings only the seed sets are never reported, so Stage 3 settles each by leaving the object out of the check unless it can be reported cleanly. A forward whose target is changed behind the module's back is not reported: the module has no argument to match on the domain alone, so the apply adds a second forward, the check after it is clean, and nothing removes the stale one. Stage 3 needs another way to catch an extra forward, such as comparing the gateway's forward list with the play's. The alias diff carries a `url_auth_type` line only when the alias changed. The raw outputs are not committed; the kit that captured them lives outside the repo.
-- Which VLAN number the second experimental block takes. The VLAN scheme gives one VLAN per hundred, so a block with Internet beside the isolated 5XX range would take another range, for example 7XX (VLAN 70), which the scheme leaves unassigned.
-- Who reaches `play`'s and `services`' published ports from outside their VLAN, and what the untagged `lan` network is for. Both are named in the draft policy above.
+- Whether the untagged `lan` is kept at all, and whether it needs Internet for Windows template setup, which the draft policy gives it no route for. Retiring it is a separate decision.
+- Nothing is built on VLAN 60 or VLAN 70 yet. VLAN 60 changes hands from the coding-agent zone to the experimental block with Internet, so the unbuilt zone's documents were moved to VLAN 70 and VMID 701 with it.
 
 ## Closing checklist
 

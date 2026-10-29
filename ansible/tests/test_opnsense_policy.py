@@ -225,3 +225,18 @@ def test_the_pool_leaves_the_low_and_high_addresses_to_reservations_and_the_gate
 
 def test_there_are_no_reservations_by_default(defaults):
     assert defaults["opnsense_gateway_dhcp_reservations"] == []
+
+
+def test_dnsmasq_is_turned_off_before_kea_is_turned_on_because_both_want_udp_port_67():
+    tasks = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/dhcp.yaml").read_text())
+    calls = [(key, task[key]) for task in tasks for key in task if key.startswith("oxlorg.opnsense.")]
+    names = [name for name, _ in calls]
+
+    assert names.index("oxlorg.opnsense.dnsmasq_general") < names.index("oxlorg.opnsense.dhcp_general")
+    assert dict(calls)["oxlorg.opnsense.dnsmasq_general"]["enabled"] is False
+
+
+def test_the_seed_s_sample_runs_dnsmasq_for_the_lan_which_is_what_the_play_turns_off():
+    root = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
+
+    assert root.findtext("dnsmasq/enable") == "1"

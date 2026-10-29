@@ -24,6 +24,16 @@
     loop_var: opnsense_gateway_reservation
     label: "{{ opnsense_gateway_reservation.name }}"
 
+# The sample configuration's dnsmasq holds UDP port 67 on every address for the
+# LAN's DHCP and router advertisements, and Kea cannot open its sockets on the
+# zone interfaces while it does. The LAN has no clients, so dnsmasq stays off.
+# The port is the one dnsmasq has while Unbound answers on 53.
+- name: Turn dnsmasq off so Kea can open port 67
+  oxlorg.opnsense.dnsmasq_general:
+    enabled: false
+    port: 53053
+    reload: true
+
 - name: Turn Kea on for the zones it serves
   oxlorg.opnsense.dhcp_general:
     enabled: true

@@ -1,0 +1,14 @@
+---
+# Applies the OPNsense gateway's configuration through its API, from the
+# operator host. The gateway is never an Ansible host: the role talks to it
+# over HTTPS, pinned to the certificate read off its console.
+# Usage: ansible-playbook playbooks/opnsense.yaml --check --diff \
+#          -e opnsense_gateway_ca_file=/path/to/gateway-cert.pem
+- name: Configure the OPNsense gateway
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Include opnsense_gateway role
+      ansible.builtin.include_role:
+        name: opnsense_gateway

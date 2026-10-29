@@ -14,3 +14,8 @@ collections:
     version: "0.4.0"
   - name: community.general
     version: "13.5.0"
+  # Pinned by commit: the git tag 26.1.11 carries an earlier version's metadata.
+  # The same commit is in the opnsense_gateway role's defaults.
+  - name: https://github.com/O-X-L/ansible-opnsense.git
+    type: git
+    version: 5cec92ea25c8280a9913dfb958109f78ce930d00

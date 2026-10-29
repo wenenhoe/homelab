@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Turn OPNsense's sample config.xml into the gateway's seed configuration.
+
+Assigns the WAN and LAN devices and the LAN address, sets the hostname and
+domain, keeps the serial port as the console, gives root a password and adds one
+API user whose key and secret are stored the way OPNsense stores them (the
+secret as a SHA-512 crypt hash, see ApiKeyField::add in opnsense/core).
+
+The root password, API key and API secret are read from the Tofu credentials
+file (ADR 0048) and generated into it when it holds none of them, so a rebuilt
+gateway keeps the credentials the play already holds. The seed carries only
+hashes.
+"""
+
+import argparse
+import base64
+import os
+import re
+import secrets
+import stat
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+CREDENTIAL_NAMES = ("opnsense_root_password", "opnsense_api_key", "opnsense_api_secret")
+DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
+BASE = Path(__file__).with_name("config.xml.sample")
+ASSIGNMENT = re.compile(r'^\s*(\w+)\s*=\s*"([^"\\]*)"\s*(?:#.*)?$')
+
+
+def crypt_sha512(clear: str) -> str:
+    # The password goes in on stdin so it never shows in the process list.
+    done = subprocess.run(["openssl", "passwd", "-6", "-stdin"], input=clear + "\n", capture_output=True, text=True, check=False)
+    if done.returncode != 0:
+        raise SystemExit(f"openssl passwd failed: {done.stderr.strip()}")
+    return done.stdout.strip()
+
+
+def read_credentials(path: Path) -> dict[str, str]:
+    """The seed's three credentials as the file holds them; empty when it has none or does not exist."""
+    if not path.exists():
+        return {}
+    if stat.S_IMODE(path.stat().st_mode) & 0o077:
+        raise SystemExit(f"{path} is readable by others; chmod 600 it")
+    found = {}
+    for line in path.read_text().splitlines():
+        m = ASSIGNMENT.match(line)
+        if m and m[1] in CREDENTIAL_NAMES:
+            found[m[1]] = m[2]
+    return found
+
+
+def ensure_credentials(path: Path) -> dict[str, str]:
+    """Return the three credentials, appending generated ones to the file when it holds none of them."""
+    found = read_credentials(path)
+    if len(found) == len(CREDENTIAL_NAMES):
+        return found
+    if found:
+        missing = ", ".join(n for n in CREDENTIAL_NAMES if n not in found)
+        raise SystemExit(f"{path} holds some of the OPNsense credentials but not {missing}; set all three or none")
+    generated = {
+        "opnsense_root_password": base64.urlsafe_b64encode(secrets.token_bytes(12)).decode(),
+        "opnsense_api_key": base64.b64encode(secrets.token_bytes(60)).decode(),
+        "opnsense_api_secret": base64.b64encode(secrets.token_bytes(60)).decode(),
+    }
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    existing = path.read_text() if path.exists() else ""
+    separator = "" if existing.endswith("\n") or not existing else "\n"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    with os.fdopen(fd, "a") as fh:
+        fh.write(separator + "".join(f'{name} = "{value}"\n' for name, value in generated.items()))
+    return generated
+
+
+def set_text(parent: ET.Element, tag: str, value: str) -> ET.Element:
+    el = parent.find(tag)
+    if el is None:
+        el = ET.SubElement(parent, tag)
+    el.text = value
+    return el
+
+
+def build_seed(
+    base: Path,
+    creds: dict[str, str],
+    *,
+    wan_if: str,
+    lan_if: str,
+    lan_ip: str,
+    lan_prefix: str,
+    hostname: str,
+    domain: str,
+    api_user: str,
+    wan_dhcp_hostname: str | None,
+) -> ET.ElementTree:
+    tree = ET.parse(base)  # noqa: S314 - the sample configuration shipped beside this script
+    root = tree.getroot()
+    system = root.find("system")
+
+    set_text(system, "hostname", hostname)
+    set_text(system, "domain", domain)
+
+    # Root keeps its group and uid; only the password changes.
+    for user in system.findall("user"):
+        if user.findtext("name") == "root":
+            set_text(user, "password", crypt_sha512(creds["opnsense_root_password"]))
+
+    api = ET.Element("user")
+    set_text(api, "name", api_user)
+    set_text(api, "descr", "API user of the configuration play")
+    set_text(api, "scope", "user")
+    # The account cannot log in: its password is a hash of random bytes.
+    set_text(api, "password", crypt_sha512(base64.b64encode(secrets.token_bytes(32)).decode()))
+    set_text(api, "uid", "2000")
+    set_text(api, "priv", "page-all")
+    item = ET.SubElement(ET.SubElement(api, "apikeys"), "item")
+    set_text(item, "key", creds["opnsense_api_key"])
+    set_text(item, "secret", crypt_sha512(creds["opnsense_api_secret"]))
+    # Users sit after the groups, before the remaining system settings.
+    users = system.findall("user")
+    system.insert(list(system).index(users[-1]) + 1, api)
+    set_text(system, "nextuid", "2001")
+
+    # The image keeps these in its own configuration, which the seed replaces, so
+    # without them the serial console goes silent.
+    set_text(system, "serialspeed", "115200")
+    set_text(system, "primaryconsole", "serial")
+    set_text(system, "secondaryconsole", "video")
+
+    interfaces = root.find("interfaces")
+    wan = interfaces.find("wan")
+    set_text(wan, "if", wan_if)
+    if wan_dhcp_hostname is not None:
+        set_text(wan, "dhcphostname", wan_dhcp_hostname)
+    lan = interfaces.find("lan")
+    set_text(lan, "if", lan_if)
+    set_text(lan, "ipaddr", lan_ip)
+    set_text(lan, "subnet", lan_prefix)
+
+    ET.indent(tree, space="  ")
+    return tree
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--out", required=True, help="where to write the seed config.xml")
+    ap.add_argument("--base", type=Path, default=BASE, help="the sample configuration to start from")
+    ap.add_argument("--credentials", default=DEFAULT_CREDENTIALS, help="the Tofu credentials file holding or receiving the three OPNsense credentials")
+    ap.add_argument("--lan-ip", required=True)
+    ap.add_argument("--lan-prefix", default="24")
+    ap.add_argument("--wan-if", default="vtnet0", help="the device of the module's first NIC")
+    ap.add_argument("--lan-if", default="vtnet1", help="the device of the module's second NIC")
+    ap.add_argument("--hostname", default="OPNsense")
+    ap.add_argument("--domain", default="internal", help="with the hostname, the management name the play verifies the GUI certificate for")
+    ap.add_argument("--api-user", default="ansible")
+    ap.add_argument("--wan-dhcp-hostname", help="the name the WAN's DHCP lease is registered under; the sample's empty value when omitted")
+    a = ap.parse_args(argv)
+
+    creds = ensure_credentials(Path(a.credentials).expanduser())
+    tree = build_seed(
+        a.base,
+        creds,
+        wan_if=a.wan_if,
+        lan_if=a.lan_if,
+        lan_ip=a.lan_ip,
+        lan_prefix=a.lan_prefix,
+        hostname=a.hostname,
+        domain=a.domain,
+        api_user=a.api_user,
+        wan_dhcp_hostname=a.wan_dhcp_hostname,
+    )
+    tree.write(a.out, encoding="UTF-8", xml_declaration=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

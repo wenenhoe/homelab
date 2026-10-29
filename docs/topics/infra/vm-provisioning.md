@@ -186,6 +186,60 @@ phases:
   the apply before anything is uploaded. The host needs `curl`, `bunzip2` and
   `sha256sum` or `shasum`. OPNsense publishes no stable "latest" URL, so a
   newer release is a new URL and checksum.
+
+  The seed disk comes from `seed/build_seed.sh` beside the module:
+  `build_seed.sh OUTPUT_DIR --lan-ip ADDRESS` writes `OUTPUT_DIR/seed.img`,
+  the file the module's `seed_image_path` takes. It starts from OPNsense's own
+  sample `config.xml` (`seed/SAMPLE_SOURCE.txt` names its release), assigns the
+  two NICs (`vtnet0` is the WAN, `vtnet1` the LAN), sets the LAN address, the
+  hostname and the domain (`OPNsense.internal` unless overridden, the name the
+  play verifies the GUI certificate for), keeps the serial port as the console,
+  sets root's password and adds one API user. It needs `python3`, `openssl`,
+  `sfdisk`, mtools and `xmllint`. The root password, API key and API secret
+  are the variables `opnsense_root_password`, `opnsense_api_key` and
+  `opnsense_api_secret` in the [credentials file](#state-backend--secrets).
+  The builder reads them and appends generated ones when the file holds none,
+  so a rebuilt gateway keeps the credentials the play holds. The seed carries
+  only a hash of the password and of the secret. A credentials file that
+  others can read, or that holds only some of the three, stops the build.
+  Tofu warns that these variables are undeclared when it reads the file,
+  which does no harm.
+
+  The importer is offered only at the first boot, so the module is applied
+  with `started = false` and `first_boot/first_boot.sh VMID OUTPUT_DIR` starts
+  the VM and answers the importer. It runs on the operator host with `NODE`
+  set to the Proxmox node's ssh target. It refuses a VM that is not stopped,
+  copies `import_seed.py` to the node, runs `qm start`, and runs the driver
+  beside the VM's serial socket with the seed's root password on stdin, read
+  from the credentials file, so the password reaches neither a command line
+  nor the node's disk. The driver names the seed disk (`da1`) to the importer,
+  logs in at the console with the seed's root password and reads the web GUI's
+  certificate off the console. `OUTPUT_DIR` then holds `console.log`,
+  `result.json` and `gateway-cert.pem`, the CA file the play pins; the driver
+  refuses a certificate that does not match the fingerprint the console banner
+  prints, and the script removes the output if it finds the password in it.
+  The node needs `python3`. A node that takes a password is reached through a
+  master connection opened by hand (`ssh -fN -M -S /tmp/opn-ssh.sock root@pve`)
+  and named in `SSH_CONTROL_PATH`. A first boot that did not take the seed
+  cannot be repeated on the same VM: destroy it and apply the module again.
+
+  The play is `playbooks/opnsense.yaml` with the `opnsense_gateway` role, run
+  from the operator host: `ansible-playbook playbooks/opnsense.yaml --check
+  --diff -e opnsense_gateway_ca_file=PATH`, where PATH is the
+  `gateway-cert.pem` the first-boot script wrote. The gateway is not an
+  Ansible host; every call is to its API at `OPNsense.internal`, so the
+  operator host must resolve that name, and the certificate file is the only
+  CA the play trusts. Before anything else the role checks the credentials
+  file (mode `0600`, holding `opnsense_api_key` and `opnsense_api_secret`),
+  that the installed `oxlorg.opnsense` collection is the pinned release, that
+  the name resolves, that the seeded key authenticates over the pinned
+  certificate, and that the gateway runs the pinned release. A renewed GUI
+  certificate fails the authentication check until the console is read again.
+  The release and the collection's commit are the role's defaults;
+  `ansible/requirements.yml` installs the collection from git at the same
+  commit, and a test fails when the two differ. The gateway's release check
+  asks the gateway for its firmware status, which probes the OPNsense mirror,
+  so the gateway needs its route out.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
@@ -332,8 +386,9 @@ proxmox_api_token = "user@realm!tokenid=secret"
 
 The endpoint must be `https://`, and TLS verification is on. Setting
 `proxmox_insecure = true` in the file skips it, which the provider's own
-docs limit to development. The OPNsense API key and, once a remote backend
-exists, its S3 credential join this file when their consumers are built.
+docs limit to development. The OPNsense root password, API key and API secret are in this file
+once the seed is built ([OPNsense](#opnsense)), and a remote backend's S3
+credential joins it when that consumer is built.
 Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the
 tree, and neither the token nor the endpoint appears in the state.
 

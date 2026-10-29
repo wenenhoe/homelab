@@ -1,0 +1,150 @@
+---
+# Everything here runs on the operator host and talks to the gateway's API; no
+# task connects to the gateway over SSH. Every check is read-only, so each runs
+# under --check too.
+
+- name: Require the gateway's certificate, as read from its console
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_ca_file is defined
+      - opnsense_gateway_ca_file | length > 0
+    quiet: true
+    fail_msg: >-
+      Set opnsense_gateway_ca_file to the gateway-cert.pem that first_boot.sh
+      read off the gateway's console. The play trusts no other CA.
+
+- name: Look at the certificate file and the credentials file
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ opnsense_gateway_ca_file }}"
+    - "{{ opnsense_gateway_credentials_file }}"
+  register: opnsense_gateway_files
+  loop_control:
+    label: "{{ item }}"
+
+- name: Require both files, and a credentials file only its owner can read
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_files.results[0].stat.exists
+      - opnsense_gateway_files.results[1].stat.exists
+      - opnsense_gateway_files.results[1].stat.mode == '0600'
+    quiet: true
+    fail_msg: >-
+      {{ opnsense_gateway_ca_file }} and {{ opnsense_gateway_credentials_file }}
+      must both exist, and the credentials file must be mode 0600.
+
+- name: Read the API credentials from the credentials file
+  ansible.builtin.set_fact:
+    opnsense_gateway_api_key: "{{ opnsense_gateway_credentials | regex_findall(opnsense_gateway_key_pattern) | first | default('', true) }}"
+    opnsense_gateway_api_secret: "{{ opnsense_gateway_credentials | regex_findall(opnsense_gateway_secret_pattern) | first | default('', true) }}"
+  vars:
+    opnsense_gateway_credentials: "{{ lookup('ansible.builtin.file', opnsense_gateway_credentials_file) }}"
+    opnsense_gateway_key_pattern: '(?m)^\s*opnsense_api_key\s*=\s*"([^"]*)"'
+    opnsense_gateway_secret_pattern: '(?m)^\s*opnsense_api_secret\s*=\s*"([^"]*)"'
+  no_log: true
+
+- name: Require both credentials
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_api_key | length > 0
+      - opnsense_gateway_api_secret | length > 0
+    quiet: true
+    fail_msg: "{{ opnsense_gateway_credentials_file }} must set opnsense_api_key and opnsense_api_secret."
+
+- name: List the installed oxlorg.opnsense collection
+  ansible.builtin.command: ansible-galaxy collection list oxlorg.opnsense --format json
+  register: opnsense_gateway_collection_list
+  changed_when: false
+  check_mode: false
+
+- name: Require the collection release to be the pinned one
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_installed_collection == opnsense_gateway_release
+    quiet: true
+    fail_msg: >-
+      oxlorg.opnsense {{ opnsense_gateway_installed_collection | default('is not installed', true) }} is installed,
+      and the play is pinned to {{ opnsense_gateway_release }}: run
+      ansible-galaxy collection install -r requirements.yml --force.
+  vars:
+    opnsense_gateway_installed_collection: >-
+      {{ (opnsense_gateway_collection_list.stdout | from_json)
+         | dict2items | map(attribute='value') | map('dict2items') | flatten
+         | selectattr('key', 'eq', 'oxlorg.opnsense') | map(attribute='value.version')
+         | first | default('', true) }}
+
+- name: Look up the management name on the operator host
+  ansible.builtin.getent:
+    database: hosts
+    key: "{{ opnsense_gateway_management_name }}"
+    fail_key: false
+  changed_when: false
+  check_mode: false
+
+- name: Require the management name to resolve
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.getent_hosts | dict2items | rejectattr('value', 'none') | list | length > 0
+    quiet: true
+    fail_msg: >-
+      {{ opnsense_gateway_management_name }} does not resolve on this host. The play connects by that name,
+      so the pinned certificate is checked for it.
+
+# The certificate is the only CA, and the name is the one it carries, so a
+# connection that succeeds is to the gateway the console read came from.
+- name: Authenticate to the gateway's API over the pinned certificate
+  ansible.builtin.uri:
+    url: "{{ opnsense_gateway_api_url }}/api/diagnostics/system/systemInformation"
+    url_username: "{{ opnsense_gateway_api_key }}"
+    url_password: "{{ opnsense_gateway_api_secret }}"
+    force_basic_auth: true
+    ca_path: "{{ opnsense_gateway_ca_file }}"
+    validate_certs: true
+    use_proxy: false
+    timeout: 30
+    return_content: false
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+- name: Read the gateway's release
+  ansible.builtin.uri:
+    url: "{{ opnsense_gateway_api_url }}/api/core/firmware/status"
+    method: POST
+    url_username: "{{ opnsense_gateway_api_key }}"
+    url_password: "{{ opnsense_gateway_api_secret }}"
+    force_basic_auth: true
+    ca_path: "{{ opnsense_gateway_ca_file }}"
+    validate_certs: true
+    use_proxy: false
+    timeout: 120
+    return_content: true
+  register: opnsense_gateway_firmware
+  changed_when: false
+  check_mode: false
+  no_log: true
+
+# Versions carry a revision, such as 26.1.11_10.
+- name: Require the gateway to run the pinned release
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_running == opnsense_gateway_release or opnsense_gateway_running.startswith(opnsense_gateway_release ~ '_')
+    quiet: true
+    fail_msg: >-
+      The gateway runs OPNsense {{ opnsense_gateway_running }} and the play is pinned to
+      {{ opnsense_gateway_release }}. The collection works only with the release of its own version.
+  vars:
+    opnsense_gateway_running: "{{ opnsense_gateway_firmware.json.product.product_version | default('') }}"
+
+# What the collection's modules take, for the tasks that configure the gateway.
+- name: Set the connection every oxlorg.opnsense module is given
+  ansible.builtin.set_fact:
+    opnsense_gateway_connection:
+      firewall: "{{ opnsense_gateway_management_name }}"
+      api_port: "{{ opnsense_gateway_api_port }}"
+      api_key: "{{ opnsense_gateway_api_key }}"
+      api_secret: "{{ opnsense_gateway_api_secret }}"
+      ssl_verify: true
+      ssl_ca_file: "{{ opnsense_gateway_ca_file }}"
+  no_log: true

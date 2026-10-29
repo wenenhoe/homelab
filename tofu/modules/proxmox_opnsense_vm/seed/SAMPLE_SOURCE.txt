@@ -1,0 +1,2 @@
+config.xml.sample is src/etc/config.xml.sample from opnsense/core at tag 26.1.6
+(commit e75f212a449838a04a3d6b73596d1e3fcde7d6a7), BSD 2-clause, unmodified.

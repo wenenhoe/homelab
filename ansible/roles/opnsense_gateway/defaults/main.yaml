@@ -49,3 +49,90 @@ opnsense_gateway_zone_services:
   - { name: DNS over UDP, protocol: UDP, port: "53" }
   - { name: NTP, protocol: UDP, port: "123" }
   - { name: ping, protocol: ICMP, icmp_type: [echoreq] }
+
+# The hosts the flows below name, as aliases. ansible/tests/test_opnsense_policy.py
+# fails when an address differs from the inventory's or the DNS records'.
+opnsense_gateway_hosts:
+  host_tailscale: 192.168.20.2
+  host_services: 192.168.20.3
+  host_play: 192.168.20.4
+  host_security: 192.168.20.5
+  host_storage: 192.168.20.6
+  host_operator_302: 192.168.30.2
+  host_proxmox_node: 10.0.0.254
+
+# Flows between zones, each a pass rule on the source zone's interfaces. A flow
+# marked enabled: false is written but not in force, until the document it
+# rests on is confirmed. Rows of the project's draft policy in
+# docs/projects/opnsense-config.md.
+opnsense_gateway_flows:
+  - name: operator hosts to the services zone over SSH
+    zones: [desktops, others]
+    source: operator_hosts
+    destination: net_services
+    protocol: TCP
+    port: "22"
+  - name: operator hosts to security for the secrets store
+    zones: [desktops, others]
+    source: operator_hosts
+    destination: host_security
+    protocol: TCP
+    port: "8200"
+  - name: operator hosts to storage for state and restores
+    zones: [desktops, others]
+    source: operator_hosts
+    destination: host_storage
+    protocol: TCP
+    port: "443"
+    enabled: false
+  - name: operator hosts to the CD agent over SSH
+    zones: [desktops, others]
+    source: operator_hosts
+    destination: cd_agent_hosts
+    protocol: TCP
+    port: "22"
+  - name: operator hosts to the Proxmox node
+    zones: [desktops, others]
+    source: operator_hosts
+    destination: host_proxmox_node
+    protocol: TCP
+    port: proxmox_node_ports
+  - name: CD agent to the services zone over SSH
+    zones: [others]
+    source: cd_agent_hosts
+    destination: net_services
+    protocol: TCP
+    port: "22"
+    enabled: false
+  - name: CD agent to security for the secrets store
+    zones: [others]
+    source: cd_agent_hosts
+    destination: host_security
+    protocol: TCP
+    port: "8200"
+    enabled: false
+  - name: CD agent to storage for the write key
+    zones: [others]
+    source: cd_agent_hosts
+    destination: host_storage
+    protocol: TCP
+    port: "443"
+    enabled: false
+  - name: tailscale router to the operator host 302 over SSH
+    zones: [services]
+    source: host_tailscale
+    destination: host_operator_302
+    protocol: TCP
+    port: "22"
+  - name: desktops to play for Minecraft
+    zones: [desktops]
+    source: net_desktops
+    destination: host_play
+    protocol: TCP
+    port: "25565"
+  - name: desktops to services for KMS
+    zones: [desktops]
+    source: net_desktops
+    destination: host_services
+    protocol: TCP
+    port: "1688"

@@ -243,7 +243,10 @@ phases:
   the operator hosts, the CD agent and the gateway's management ports, a
   floating quick pass rule at sequence 1 that admits the operator hosts to
   the gateway's SSH and API ports, and one rule per zone for DNS, NTP and
-  ping to the gateway. The play needs `-e opnsense_gateway_operator_hosts=[...]`
+  ping to the gateway, and the flows between zones listed in the role's
+  `opnsense_gateway_flows` (a pass rule on the source zone's interfaces, each
+  matched by its name; one marked `enabled: false` is written but not in
+  force). The play needs `-e opnsense_gateway_operator_hosts=[...]`
   (the IPv4 addresses the work runs from) and stops without it, since an
   empty guard rule would admit nobody. The CD agent's rule is written only
   when `opnsense_gateway_cd_agent_management` is true, and removed when it is

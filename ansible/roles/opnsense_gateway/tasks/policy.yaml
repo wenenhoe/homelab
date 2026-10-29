@@ -50,9 +50,22 @@
         - { name: operator_hosts, type: host, content: "{{ opnsense_gateway_operator_hosts }}", description: Hosts the operator's work runs from }
         - { name: cd_agent_hosts, type: host, content: "{{ opnsense_gateway_cd_agent_hosts }}", description: Hosts the CD agent runs from }
         - { name: gateway_management_ports, type: port, content: ["22", "443"], description: The gateway's SSH and API ports }
+        - { name: proxmox_node_ports, type: port, content: ["22", "8006"], description: The Proxmox node's SSH and API ports }
       loop_control:
         loop_var: opnsense_gateway_alias
         label: "{{ opnsense_gateway_alias.name }}"
+
+    - name: Name the hosts the flows reach
+      oxlorg.opnsense.alias:
+        name: "{{ opnsense_gateway_host.key }}"
+        type: host
+        content: ["{{ opnsense_gateway_host.value }}"]
+        description: "{{ opnsense_gateway_host.key }}"
+        reload: true
+      loop: "{{ opnsense_gateway_hosts | dict2items }}"
+      loop_control:
+        loop_var: opnsense_gateway_host
+        label: "{{ opnsense_gateway_host.key }}"
 
     - name: Admit the operator hosts to the gateway's management ports before any other rule
       oxlorg.opnsense.rule:
@@ -110,3 +123,26 @@
       loop_control:
         loop_var: opnsense_gateway_pair
         label: "{{ opnsense_gateway_pair.0.name }}: {{ opnsense_gateway_pair.1.name }}"
+
+    - name: Pass the flows between zones
+      oxlorg.opnsense.rule:
+        description: "{{ opnsense_gateway_flow.name }}"
+        match_fields: [description]
+        sequence: "{{ 200 + opnsense_gateway_flow_index }}"
+        enabled: "{{ opnsense_gateway_flow.enabled | default(true) }}"
+        action: pass
+        quick: true
+        interface: "{{ opnsense_gateway_zones | selectattr('name', 'in', opnsense_gateway_flow.zones) | map(attribute='interface') | list }}"
+        direction: in
+        ip_protocol: inet
+        protocol: "{{ opnsense_gateway_flow.protocol }}"
+        source_net: "{{ opnsense_gateway_flow.source }}"
+        destination_net: "{{ opnsense_gateway_flow.destination }}"
+        destination_port: "{{ opnsense_gateway_flow.port }}"
+        log: false
+        reload: true
+      loop: "{{ opnsense_gateway_flows }}"
+      loop_control:
+        loop_var: opnsense_gateway_flow
+        index_var: opnsense_gateway_flow_index
+        label: "{{ opnsense_gateway_flow.name }}"

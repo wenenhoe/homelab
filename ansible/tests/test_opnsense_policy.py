@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import sys
 from pathlib import Path
 
@@ -56,3 +57,118 @@ def test_the_services_every_zone_asks_of_the_gateway_have_distinct_names(default
     names = [service["name"] for service in defaults["opnsense_gateway_zone_services"]]
 
     assert len(set(names)) == len(names)
+
+
+INVENTORY = REPO / "ansible/inventory"
+FIXED_ALIASES = {"operator_hosts", "cd_agent_hosts"}
+
+
+def address_of(defaults: dict, alias: str) -> str | None:
+    """The address a host alias holds, the first of cd_agent_hosts, or None for a network or the operator hosts."""
+    if alias in defaults["opnsense_gateway_hosts"]:
+        return defaults["opnsense_gateway_hosts"][alias]
+    if alias == "cd_agent_hosts":
+        return defaults["opnsense_gateway_cd_agent_hosts"][0]
+    return None
+
+
+def zone_network(defaults: dict, alias: str) -> ipaddress.IPv4Network | None:
+    for zone in defaults["opnsense_gateway_zones"]:
+        if alias == f"net_{zone['name']}":
+            return ipaddress.ip_network(f"192.168.{zone['vlan']}.0/24")
+    return None
+
+
+def test_the_sos_hosts_have_the_addresses_the_inventory_gives_them(defaults):
+    inventory = yaml.safe_load((INVENTORY / "sos-inventory.yaml").read_text())["all"]["children"]["sos"]["hosts"]
+
+    for name in ("tailscale", "services", "play", "security", "storage"):
+        assert defaults["opnsense_gateway_hosts"][f"host_{name}"] == inventory[name]["ansible_host"]
+
+
+def test_the_cd_agent_has_the_address_the_inventory_gives_it(defaults):
+    inventory = yaml.safe_load((INVENTORY / "inventory.yaml").read_text())["all"]["children"]["cd_agent"]["hosts"]
+
+    assert defaults["opnsense_gateway_cd_agent_hosts"] == [inventory["cd-agent"]["ansible_host"]]
+
+
+def test_the_operator_host_302_is_the_address_the_cd_agent_trusts(defaults):
+    group = yaml.safe_load((INVENTORY / "group_vars/cd_agent.yaml").read_text())
+
+    assert defaults["opnsense_gateway_hosts"]["host_operator_302"] == group["cd_agent_operator_address"]
+
+
+def test_the_proxmox_node_has_the_address_the_dns_records_give_it(defaults):
+    records = yaml.safe_load((INVENTORY / "host_vars/services.yaml").read_text())
+    pve = [r for zone in _walk_dns_records(records) for r in zone if r.get("name") == "pve"]
+
+    assert {r["value"] for r in pve} == {defaults["opnsense_gateway_hosts"]["host_proxmox_node"]}
+
+
+def _walk_dns_records(node):
+    if isinstance(node, dict):
+        for value in node.values():
+            yield from _walk_dns_records(value)
+    elif isinstance(node, list):
+        if node and all(isinstance(item, dict) and "type" in item and "value" in item for item in node):
+            yield node
+        else:
+            for item in node:
+                yield from _walk_dns_records(item)
+
+
+def test_every_flow_starts_in_zones_that_exist(defaults):
+    known = {zone["name"] for zone in defaults["opnsense_gateway_zones"]}
+
+    for flow in defaults["opnsense_gateway_flows"]:
+        assert flow["zones"]
+        assert set(flow["zones"]) <= known, flow["name"]
+
+
+def test_every_flow_names_aliases_the_play_writes(defaults):
+    known = FIXED_ALIASES | set(defaults["opnsense_gateway_hosts"]) | {f"net_{zone['name']}" for zone in defaults["opnsense_gateway_zones"]}
+
+    for flow in defaults["opnsense_gateway_flows"]:
+        assert flow["source"] in known, flow["name"]
+        assert flow["destination"] in known, flow["name"]
+
+
+def test_every_flow_port_is_a_number_or_the_port_alias_the_play_writes(defaults):
+    for flow in defaults["opnsense_gateway_flows"]:
+        assert flow["port"] == "proxmox_node_ports" or (isinstance(flow["port"], str) and flow["port"].isdigit()), flow["name"]
+
+
+def test_a_flow_whose_source_is_known_starts_in_a_zone_that_holds_it(defaults):
+    zones = {zone["name"]: ipaddress.ip_network(f"192.168.{zone['vlan']}.0/24") for zone in defaults["opnsense_gateway_zones"]}
+
+    for flow in defaults["opnsense_gateway_flows"]:
+        address = address_of(defaults, flow["source"])
+        network = zone_network(defaults, flow["source"])
+        if address:
+            in_a_zone = any(ipaddress.ip_address(address) in zones[z] for z in flow["zones"])
+        elif network:
+            in_a_zone = any(network == zones[z] for z in flow["zones"])
+        else:
+            continue
+        assert in_a_zone, f"{flow['name']}: the source is in none of {flow['zones']}"
+
+
+def test_flow_names_are_distinct_because_the_play_matches_rules_by_name(defaults):
+    names = [flow["name"] for flow in defaults["opnsense_gateway_flows"]]
+
+    assert len(set(names)) == len(names)
+
+
+def test_the_flows_leave_the_sequences_below_them_to_the_guard_and_the_service_rules(defaults):
+    assert 200 + len(defaults["opnsense_gateway_flows"]) < 1000
+
+
+def test_a_flow_that_rests_on_an_unconfirmed_decision_is_written_but_not_in_force(defaults):
+    held_back = {flow["name"] for flow in defaults["opnsense_gateway_flows"] if flow.get("enabled") is False}
+
+    assert held_back == {
+        "operator hosts to storage for state and restores",
+        "CD agent to the services zone over SSH",
+        "CD agent to security for the secrets store",
+        "CD agent to storage for the write key",
+    }

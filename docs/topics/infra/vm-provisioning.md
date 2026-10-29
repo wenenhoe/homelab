@@ -240,6 +240,31 @@ phases:
   commit, and a test fails when the two differ. The gateway's release check
   asks the gateway for its firmware status, which probes the OPNsense mirror,
   so the gateway needs its route out.
+  A scratch gateway for developing the play is built by
+  `tofu/scratch/opnsense/scratch_gateway.sh up OUT_DIR IMAGE_URL IMAGE_CHECKSUM`
+  from the operator host, with `NODE`, `PROXMOX_ENDPOINT` and
+  `PROXMOX_API_TOKEN` set. It builds the seed with credentials of its own in
+  `OUT_DIR/credentials.tfvars`, so the real credentials file is untouched,
+  applies the module from its own Tofu root with the VM stopped (VMID 501,
+  named `opn-scratch`), runs the first-boot script, and updates the gateway
+  to `WANT_VERSION` (default the pinned release) through its firmware API
+  with `update_gateway.sh`, run on the node. The update is refused unless it
+  lands on that release, and the seeded key must still authenticate, and a
+  wrong secret still be refused, afterwards. Last it opens an ssh forward
+  from `LOCAL_PORT` (default 8443) on the operator host to the gateway's
+  GUI port, and prints the play command to run against it; the operator host
+  must resolve `OPNsense.internal` to `127.0.0.1` and have no proxy variables
+  set. The LAN NIC attaches to `LAN_BRIDGE` (default `vmbr9`), which must
+  exist with no ports and no address and be usable by the API token
+  (`SDN.Use` on `/sdn/zones/localnetwork/<bridge>`), because the seed's LAN
+  serves DHCP. The WAN NIC attaches untagged to `WAN_BRIDGE` (default
+  `vmbr1`), or tagged with `WAN_VLAN_ID`, where a DHCP server gives it an
+  address and a route out; the production WAN bridge is refused. The node
+  takes `192.168.77.10` on the LAN bridge to reach the gateway. The root's
+  state and provider directory live in `OUT_DIR`, and the root uses the
+  provider pin and lock file of the main root. `down OUT_DIR` closes the
+  tunnel and destroys the VM, its stored files and everything left on the
+  node.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.

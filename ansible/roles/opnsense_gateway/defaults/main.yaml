@@ -22,14 +22,16 @@ opnsense_gateway_credentials_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/
 # The zones the seed creates, one per VLAN, in the order seed/patch_config.py
 # adds them (opt1 is the first). Each zone's network is 192.168.<vlan>.0/24 and
 # the gateway is its .1. A zone with internet: true may reach the Internet; the
-# others (and every zone for the private ranges) may not. ansible/tests/test_opnsense_policy.py fails when this
+# others (and every zone for the private ranges) may not. A zone with dhcp: true
+# has a Kea scope, which is only for zones whose clients Tofu does not place
+# (ADR 0089). ansible/tests/test_opnsense_policy.py fails when this
 # list and the seed's differ.
 opnsense_gateway_zones:
-  - { name: services, vlan: 20, interface: opt1, internet: true }
-  - { name: others, vlan: 30, interface: opt2, internet: true }
-  - { name: desktops, vlan: 40, interface: opt3, internet: true }
-  - { name: isolated, vlan: 50, interface: opt4, internet: false }
-  - { name: experimental, vlan: 60, interface: opt5, internet: true }
+  - { name: services, vlan: 20, interface: opt1, internet: true, dhcp: false }
+  - { name: others, vlan: 30, interface: opt2, internet: true, dhcp: false }
+  - { name: desktops, vlan: 40, interface: opt3, internet: true, dhcp: true }
+  - { name: isolated, vlan: 50, interface: opt4, internet: false, dhcp: true }
+  - { name: experimental, vlan: 60, interface: opt5, internet: true, dhcp: true }
 
 # opnsense_gateway_operator_hosts has no default: it is the list of addresses
 # the operator's work runs from, which the guard rule admits to the gateway's
@@ -155,3 +157,13 @@ opnsense_gateway_sequences:
   direct_dns: 150
   flows: 200
   internet: 300
+
+# The addresses Kea hands out in each zone with dhcp: true, as host numbers of
+# 192.168.<vlan>.0/24. Reservations sit outside the pool.
+opnsense_gateway_dhcp_pool:
+  first: 10
+  last: 245
+
+# Hosts that keep an address: { name, zone, address, mac }. None by default;
+# the operator sets them where the work runs, as for the operator hosts.
+opnsense_gateway_dhcp_reservations: []

@@ -149,5 +149,18 @@
       ssl_ca_file: "{{ opnsense_gateway_ca_file }}"
   no_log: true
 
-- name: Apply the policy
-  ansible.builtin.include_tasks: policy.yaml
+- name: Write the configuration with the gateway connection
+  module_defaults:
+    group/oxlorg.opnsense.all:
+      firewall: "{{ opnsense_gateway_connection.firewall }}"
+      api_port: "{{ opnsense_gateway_connection.api_port }}"
+      api_key: "{{ opnsense_gateway_connection.api_key }}"
+      api_secret: "{{ opnsense_gateway_connection.api_secret }}"
+      ssl_verify: true
+      ssl_ca_file: "{{ opnsense_gateway_connection.ssl_ca_file }}"
+  block:
+    - name: Apply the policy
+      ansible.builtin.include_tasks: policy.yaml
+
+    - name: Apply the DHCP scopes
+      ansible.builtin.include_tasks: dhcp.yaml

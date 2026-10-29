@@ -249,7 +249,12 @@ phases:
   force). Each zone marked `internet: true` also gets a rule denying direct
   DNS (ports 53 and 853) to anything but the gateway and one passing its
   traffic to everything outside the private ranges; the others reach only the
-  flows listed. Outbound NAT is left in the automatic mode the seed sets. The play needs `-e opnsense_gateway_operator_hosts=[...]`
+  flows listed. Outbound NAT is left in the automatic mode the seed sets. Kea is
+  turned on for the zones marked `dhcp: true` (desktops and the two
+  experimental blocks, whose clients Tofu does not place), each with a scope
+  of `192.168.<vlan>.10` to `.245`, and keeps the reservations listed in
+  `opnsense_gateway_dhcp_reservations` (`name`, `zone`, `address`, `mac`), which
+  must sit in a Kea zone outside the pool; a zone not marked is left alone. The play needs `-e opnsense_gateway_operator_hosts=[...]`
   (the IPv4 addresses the work runs from) and stops without it, since an
   empty guard rule would admit nobody. The CD agent's rule is written only
   when `opnsense_gateway_cd_agent_management` is true, and removed when it is

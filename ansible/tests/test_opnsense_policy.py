@@ -209,3 +209,19 @@ def test_a_flow_that_rests_on_an_unconfirmed_decision_is_written_but_not_in_forc
         "CD agent to security for the secrets store",
         "CD agent to storage for the write key",
     }
+
+
+def test_kea_serves_the_zones_whose_clients_tofu_does_not_place(defaults):
+    dhcp = {zone["name"]: zone["dhcp"] for zone in defaults["opnsense_gateway_zones"]}
+
+    assert dhcp == {"services": False, "others": False, "desktops": True, "isolated": True, "experimental": True}
+
+
+def test_the_pool_leaves_the_low_and_high_addresses_to_reservations_and_the_gateway(defaults):
+    pool = defaults["opnsense_gateway_dhcp_pool"]
+
+    assert 2 <= pool["first"] <= pool["last"] <= 254
+
+
+def test_there_are_no_reservations_by_default(defaults):
+    assert defaults["opnsense_gateway_dhcp_reservations"] == []

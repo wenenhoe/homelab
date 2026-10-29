@@ -166,6 +166,48 @@
      "closed"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "9414928594ba9ecbe29994f25897a40ddcffe250",
+   "date": "2026-10-29T16:10:57+08:00",
+   "kind": "pr",
+   "pr": 584,
+   "title": "Maintenance",
+   "type": "other",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e519aec243cb3f1ff529b90a68bba9601fb0272d",
+   "date": "2026-10-29T17:14:46+08:00",
+   "kind": "pr",
+   "pr": 585,
+   "title": "propose newer dated lldap tags",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d1c7d8887d0b790a936e93817f2117db3987080f",
+   "date": "2026-10-29T19:03:56+08:00",
+   "kind": "pr",
+   "pr": 586,
+   "title": "Implement seed img and ansible role skeleton",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": [
+    [
+     "component",
+     "role opnsense_gateway",
+     "added"
+    ]
+   ]
   }
  ]
 }

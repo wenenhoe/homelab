@@ -110,6 +110,58 @@ class TestBuildSeed:
         assert (seed(wan_dhcp_hostname=name).findtext("interfaces/wan/dhcphostname") or "") == expected
 
 
+class TestVlans:
+    def test_adds_a_device_on_the_lan_device_for_each_zone(self):
+        vlans = seed(lan_if="vtnet3").findall("vlans/vlan")
+
+        assert [(v.findtext("if"), v.findtext("tag"), v.findtext("vlanif")) for v in vlans] == [
+            ("vtnet3", str(tag), f"vlan0.{tag}") for tag in patch_config.DEFAULT_VLANS
+        ]
+
+    def test_gives_each_device_an_interface_whose_address_is_dot_one_of_its_subnet(self):
+        interfaces = seed().find("interfaces")
+
+        assert [(i.findtext("if"), i.findtext("ipaddr"), i.findtext("subnet")) for i in (interfaces.find(f"opt{n}") for n in range(1, 6))] == [
+            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (20, 30, 40, 50, 60)
+        ]
+        assert interfaces.find("opt6") is None
+
+    def test_describes_each_zone_by_its_vmid_range(self):
+        assert [v.findtext("descr") for v in seed().findall("vlans/vlan")] == [f"VM ID {n}XX" for n in (2, 3, 4, 5, 6)]
+
+    def test_each_device_has_a_uuid_that_does_not_change_between_builds(self):
+        first = [v.get("uuid") for v in seed().findall("vlans/vlan")]
+        second = [v.get("uuid") for v in seed().findall("vlans/vlan")]
+
+        assert first == second
+        assert len(set(first)) == len(first)
+        assert all(first)
+
+    def test_the_vlan_list_is_the_one_given(self):
+        root = seed(vlans=[20, 70])
+
+        assert [v.findtext("tag") for v in root.findall("vlans/vlan")] == ["20", "70"]
+        assert root.find("interfaces/opt2/ipaddr").text == "192.168.70.1"
+
+    def test_none_given_adds_neither_devices_nor_interfaces(self):
+        root = seed(vlans=[])
+
+        assert root.find("vlans") is None
+        assert root.find("interfaces/opt1") is None
+
+    @pytest.mark.parametrize("tags", [[20, 20], [1], [255], [4000]])
+    def test_refuses_a_tag_that_is_repeated_or_outside_the_subnet_scheme(self, tags):
+        with pytest.raises(SystemExit, match="distinct numbers"):
+            seed(vlans=tags)
+
+    def test_refuses_a_lan_network_that_overlaps_a_zone(self):
+        with pytest.raises(SystemExit, match="overlaps VLAN 20"):
+            seed(lan_ip="192.168.20.254")
+
+    def test_the_lan_on_the_scratch_gateway_does_not_collide_with_a_zone(self):
+        assert seed(lan_ip="192.168.77.1").find("vlans/vlan") is not None
+
+
 class TestEnsureCredentials:
     def test_returns_the_values_a_file_already_holds_and_leaves_it_alone(self, credentials_path):
         text = f'proxmox_endpoint = "https://pve:8006/"\n{assignments()}'
@@ -188,6 +240,24 @@ class TestMain:
 
         written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
         assert api_user(written).findtext("apikeys/item/key") == CREDS["opnsense_api_key"]
+
+    def test_takes_the_vlan_tags_from_the_command_line(self, credentials_path, tmp_path_factory):
+        write_credentials(credentials_path, assignments())
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+
+        assert patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,70"]) == 0
+
+        written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
+        assert [v.findtext("tag") for v in written.findall("vlans/vlan")] == ["20", "70"]
+
+    def test_a_vlan_list_that_is_not_numbers_is_refused(self, credentials_path, tmp_path_factory, capsys):
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+
+        with pytest.raises(SystemExit) as stopped:
+            patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,x"])
+
+        assert stopped.value.code == 2
+        assert "--vlans" in capsys.readouterr().err
 
     def test_a_lan_address_is_required(self, credentials_path, tmp_path_factory, capsys):
         out = tmp_path_factory.mktemp("out") / "config.xml"

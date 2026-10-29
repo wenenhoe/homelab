@@ -191,7 +191,10 @@ phases:
   `build_seed.sh OUTPUT_DIR --lan-ip ADDRESS` writes `OUTPUT_DIR/seed.img`,
   the file the module's `seed_image_path` takes. It starts from OPNsense's own
   sample `config.xml` (`seed/SAMPLE_SOURCE.txt` names its release), assigns the
-  two NICs (`vtnet0` is the WAN, `vtnet1` the LAN), sets the LAN address, the
+  two NICs (`vtnet0` is the WAN, `vtnet1` the LAN), sets the LAN address,
+  adds a VLAN device `vlan0.<tag>` on the LAN device for each tag of `--vlans`
+  (20, 30, 40, 50 and 60 unless overridden) with an interface at
+  `192.168.<tag>.1/24`, sets the
   hostname and the domain (`OPNsense.internal` unless overridden, the name the
   play verifies the GUI certificate for), keeps the serial port as the console,
   sets root's password and adds one API user. It needs `python3`, `openssl`,

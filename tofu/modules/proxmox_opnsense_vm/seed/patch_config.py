@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Turn OPNsense's sample config.xml into the gateway's seed configuration.
 
-Assigns the WAN and LAN devices and the LAN address, sets the hostname and
-domain, keeps the serial port as the console, gives root a password and adds one
+Assigns the WAN and LAN devices and the LAN address, adds one VLAN device and
+interface per zone on the LAN device, sets the hostname and domain, keeps the serial port as the console, gives root a password and adds one
 API user whose key and secret are stored the way OPNsense stores them (the
 secret as a SHA-512 crypt hash, see ApiKeyField::add in opnsense/core).
 
@@ -14,18 +14,25 @@ hashes.
 
 import argparse
 import base64
+import ipaddress
 import os
 import re
 import secrets
 import stat
 import subprocess
 import sys
+import uuid
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from pathlib import Path
 
 CREDENTIAL_NAMES = ("opnsense_root_password", "opnsense_api_key", "opnsense_api_secret")
 DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
 BASE = Path(__file__).with_name("config.xml.sample")
+# One VLAN per VMID hundred (vlan_id = vmid // 100 * 10), each a /24 whose
+# third octet is the tag and whose gateway address is .1.
+DEFAULT_VLANS = (20, 30, 40, 50, 60)
+VLAN_NAMESPACE = uuid.UUID("5d0c7a52-3c1e-4a53-9a0f-6a4a3f0f6a11")
 ASSIGNMENT = re.compile(r'^\s*(\w+)\s*=\s*"([^"\\]*)"\s*(?:#.*)?$')
 
 
@@ -81,6 +88,38 @@ def set_text(parent: ET.Element, tag: str, value: str) -> ET.Element:
     return el
 
 
+def add_vlans(root: ET.Element, lan_if: str, lan_ip: str, lan_prefix: str, tags: Sequence[int]) -> None:
+    """Add a VLAN device on the LAN device and an interface carrying its gateway address, for each tag.
+
+    The devices are named vlan0.<tag> and the interfaces opt1, opt2, ... in the order given.
+    """
+    if len(set(tags)) != len(tags) or any(not 2 <= tag <= 254 for tag in tags):
+        raise SystemExit(f"VLAN tags must be distinct numbers from 2 to 254, got {list(tags)}")
+    lan_net = ipaddress.ip_network(f"{lan_ip}/{lan_prefix}", strict=False)
+    for tag in tags:
+        if ipaddress.ip_network(f"192.168.{tag}.0/24").overlaps(lan_net):
+            raise SystemExit(f"the LAN network {lan_net} overlaps VLAN {tag}'s 192.168.{tag}.0/24")
+    if not tags:
+        return
+    interfaces = root.find("interfaces")
+    vlans = ET.Element("vlans", {"version": "1.0.0"})
+    for number, tag in enumerate(tags, start=1):
+        vlan = ET.SubElement(vlans, "vlan", {"uuid": str(uuid.uuid5(VLAN_NAMESPACE, f"{lan_if}.{tag}"))})
+        set_text(vlan, "if", lan_if)
+        set_text(vlan, "tag", str(tag))
+        set_text(vlan, "pcp", "0")
+        set_text(vlan, "proto", "")
+        set_text(vlan, "descr", f"VM ID {tag // 10}XX")
+        set_text(vlan, "vlanif", f"vlan0.{tag}")
+        opt = ET.SubElement(interfaces, f"opt{number}")
+        set_text(opt, "if", f"vlan0.{tag}")
+        set_text(opt, "descr", f"OPT{number}")
+        set_text(opt, "enable", "1")
+        set_text(opt, "ipaddr", f"192.168.{tag}.1")
+        set_text(opt, "subnet", "24")
+    root.insert(list(root).index(interfaces) + 1, vlans)
+
+
 def build_seed(
     base: Path,
     creds: dict[str, str],
@@ -93,6 +132,7 @@ def build_seed(
     domain: str,
     api_user: str,
     wan_dhcp_hostname: str | None,
+    vlans: Sequence[int] = DEFAULT_VLANS,
 ) -> ET.ElementTree:
     tree = ET.parse(base)  # noqa: S314 - the sample configuration shipped beside this script
     root = tree.getroot()
@@ -137,6 +177,7 @@ def build_seed(
     set_text(lan, "if", lan_if)
     set_text(lan, "ipaddr", lan_ip)
     set_text(lan, "subnet", lan_prefix)
+    add_vlans(root, lan_if, lan_ip, lan_prefix, vlans)
 
     ET.indent(tree, space="  ")
     return tree
@@ -151,12 +192,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--lan-prefix", default="24")
     ap.add_argument("--wan-if", default="vtnet0", help="the device of the module's first NIC")
     ap.add_argument("--lan-if", default="vtnet1", help="the device of the module's second NIC")
+    ap.add_argument("--vlans", default=",".join(map(str, DEFAULT_VLANS)), help="comma-separated VLAN tags to add on the LAN device, none when empty")
     ap.add_argument("--hostname", default="OPNsense")
     ap.add_argument("--domain", default="internal", help="with the hostname, the management name the play verifies the GUI certificate for")
     ap.add_argument("--api-user", default="ansible")
     ap.add_argument("--wan-dhcp-hostname", help="the name the WAN's DHCP lease is registered under; the sample's empty value when omitted")
     a = ap.parse_args(argv)
 
+    try:
+        vlans = [int(tag) for tag in a.vlans.split(",") if tag.strip()]
+    except ValueError:
+        ap.error(f"--vlans takes comma-separated numbers, got {a.vlans!r}")
     creds = ensure_credentials(Path(a.credentials).expanduser())
     tree = build_seed(
         a.base,
@@ -169,6 +215,7 @@ def main(argv: list[str] | None = None) -> int:
         domain=a.domain,
         api_user=a.api_user,
         wan_dhcp_hostname=a.wan_dhcp_hostname,
+        vlans=vlans,
     )
     tree.write(a.out, encoding="UTF-8", xml_declaration=True)
     return 0

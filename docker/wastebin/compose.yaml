@@ -2,7 +2,7 @@ name: wastebin
 
 services:
   wastebin:
-    image: ghcr.io/wenenhoe/wastebin:3.9.0@sha256:afafabde724e0a93fe6fb341f77c66d3bbfc132f336c7faaec5334f06aa8c7a1
+    image: ghcr.io/wenenhoe/wastebin:3.9.0@sha256:c0252c37951ce86759d5b6bd731ae5d15b67cacd94583bf01cb7ef13d1c5a385
     container_name: wastebin
     volumes:
       - data:/data

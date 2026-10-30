@@ -204,14 +204,21 @@ phases:
   hostname and the domain (`OPNsense.internal` unless overridden, the name the
   play verifies the GUI certificate for), keeps the serial port as the console,
   turns IPv6 off (no system-wide allowance and no IPv6 address method on the
-  WAN or LAN), sets root's password and adds one API user. It needs `python3`, `openssl`,
-  `sfdisk`, mtools and `xmllint`. The root password, API key and API secret
-  are the variables `opnsense_root_password`, `opnsense_api_key` and
-  `opnsense_api_secret` in the [credentials file](#state-backend--secrets).
-  The builder reads them and appends generated ones when the file holds none,
-  so a rebuilt gateway keeps the credentials the play holds. The seed carries
-  only a hash of the password and of the secret. A credentials file that
-  others can read, or that holds only some of the three, stops the build.
+  WAN or LAN), sets root's password, puts a one-time password in front of the
+  GUI login (a `TOTP` authentication server, which the GUI is set to use, and a
+  seed on root; console and SSH logins keep the UNIX password, so the console
+  stays the way in when the token is lost, and the API user authenticates by
+  key) and adds one API user. It needs `python3`, `openssl`,
+  `sfdisk`, mtools and `xmllint`. The root password, API key, API secret and
+  root's OTP seed (base32, for an authenticator app) are the variables
+  `opnsense_root_password`, `opnsense_api_key`, `opnsense_api_secret` and
+  `opnsense_root_otp_seed` in the [credentials file](#state-backend--secrets).
+  The builder reads them and appends generated ones when the file holds none
+  of the first three, so a rebuilt gateway keeps the credentials the play
+  holds. A file that holds the first three without a seed gets one appended.
+  The seed carries only a hash of the password and of the secret, and the OTP
+  seed itself, which the gateway needs in the clear. A credentials file that
+  others can read, or that holds only some of the first three, stops the build.
   Tofu warns that these variables are undeclared when it reads the file,
   which does no harm.
 
@@ -457,7 +464,7 @@ proxmox_api_token = "user@realm!tokenid=secret"
 
 The endpoint must be `https://`, and TLS verification is on. Setting
 `proxmox_insecure = true` in the file skips it, which the provider's own
-docs limit to development. The OPNsense root password, API key and API secret are in this file
+docs limit to development. The OPNsense root password, API key, API secret and root's OTP seed are in this file
 once the seed is built ([OPNsense](#opnsense)), and a remote backend's S3
 credential joins it when that consumer is built.
 Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the

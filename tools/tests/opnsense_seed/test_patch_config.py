@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import re
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -10,7 +12,14 @@ import patch_config
 import pytest
 
 CREDENTIAL_NAMES = ("opnsense_root_password", "opnsense_api_key", "opnsense_api_secret")
-CREDS = {"opnsense_root_password": "root-pw-123", "opnsense_api_key": "KEY+/abc=", "opnsense_api_secret": "SECRET+/xyz="}
+OTP_NAME = "opnsense_root_otp_seed"
+ALL_NAMES = (*CREDENTIAL_NAMES, OTP_NAME)
+CREDS = {
+    "opnsense_root_password": "root-pw-123",
+    "opnsense_api_key": "KEY+/abc=",
+    "opnsense_api_secret": "SECRET+/xyz=",
+    OTP_NAME: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+}
 OPTIONS = {
     "wan_if": "vtnet0",
     "lan_if": "vtnet1",
@@ -35,7 +44,7 @@ def write_credentials(path: Path, text: str, mode: int = 0o600) -> Path:
     return path
 
 
-def assignments(names=CREDENTIAL_NAMES) -> str:
+def assignments(names=ALL_NAMES) -> str:
     return "".join(f'{name} = "{CREDS[name]}"\n' for name in names)
 
 
@@ -133,6 +142,33 @@ class TestHardening:
         assert ssh.find("enabled") is None
 
 
+class TestSecondFactor:
+    def test_root_carries_the_otp_seed_of_the_credentials(self):
+        root_user = next(u for u in seed().find("system").findall("user") if u.findtext("name") == "root")
+
+        assert root_user.findtext("otp_seed") == CREDS[OTP_NAME]
+
+    def test_the_seed_defines_a_totp_authentication_server(self):
+        servers = seed().findall("system/authserver")
+
+        assert [(s.findtext("type"), s.findtext("name"), s.findtext("otpLength")) for s in servers] == [("totp", "TOTP", "6")]
+        assert servers[0].findtext("refid")
+
+    def test_the_gui_authenticates_against_it_alone_so_a_password_by_itself_is_not_enough(self):
+        system = seed().find("system")
+
+        assert system.findtext("webgui/authmode") == "TOTP"
+
+    def test_console_and_ssh_keep_the_unix_password_so_the_console_stays_the_way_in(self):
+        assert seed().findtext("system/disableintegratedauth") == "1"
+
+    def test_the_api_user_is_not_given_an_otp_seed_because_it_authenticates_by_key(self):
+        assert api_user(seed()).find("otp_seed") is None
+
+    def test_the_server_id_is_the_same_in_every_build(self):
+        assert seed().findtext("system/authserver/refid") == seed().findtext("system/authserver/refid")
+
+
 class TestVlans:
     def test_adds_a_device_on_the_lan_device_for_each_zone(self):
         vlans = seed(lan_if="vtnet3").findall("vlans/vlan")
@@ -193,10 +229,10 @@ class TestEnsureCredentials:
         assert patch_config.ensure_credentials(credentials_path) == CREDS
         assert credentials_path.read_text() == text
 
-    def test_generates_all_three_into_a_new_file_readable_by_its_owner_only(self, credentials_path):
+    def test_generates_all_of_them_into_a_new_file_readable_by_its_owner_only(self, credentials_path):
         generated = patch_config.ensure_credentials(credentials_path)
 
-        assert set(generated) == set(CREDENTIAL_NAMES)
+        assert set(generated) == set(ALL_NAMES)
         assert patch_config.read_credentials(credentials_path) == generated
         assert oct(credentials_path.stat().st_mode & 0o777) == "0o600"
 
@@ -210,7 +246,7 @@ class TestEnsureCredentials:
     def test_generates_a_different_secret_for_each_credential(self, credentials_path):
         generated = patch_config.ensure_credentials(credentials_path)
 
-        assert len(set(generated.values())) == 3
+        assert len(set(generated.values())) == 4
 
     @pytest.mark.parametrize(
         "existing",
@@ -226,8 +262,25 @@ class TestEnsureCredentials:
 
         lines = credentials_path.read_text().splitlines()
         assert lines[0] == 'proxmox_endpoint = "https://pve:8006/"'
-        assert len(lines) == 4
+        assert len(lines) == 5
         assert patch_config.read_credentials(credentials_path) == generated
+
+    def test_a_file_written_before_the_otp_seed_existed_keeps_its_credentials_and_gets_a_seed(self, credentials_path):
+        before = f'proxmox_endpoint = "https://pve:8006/"\n{assignments(CREDENTIAL_NAMES)}'
+        write_credentials(credentials_path, before)
+
+        found = patch_config.ensure_credentials(credentials_path)
+
+        assert {name: found[name] for name in CREDENTIAL_NAMES} == {name: CREDS[name] for name in CREDENTIAL_NAMES}
+        assert credentials_path.read_text().startswith(before)
+        assert patch_config.read_credentials(credentials_path) == found
+        assert patch_config.ensure_credentials(credentials_path) == found
+
+    def test_the_generated_otp_seed_is_twenty_random_bytes_in_base32(self, credentials_path):
+        seed_value = patch_config.ensure_credentials(credentials_path)[OTP_NAME]
+
+        assert re.fullmatch(r"[A-Z2-7]{32}", seed_value)
+        assert len(base64.b32decode(seed_value)) == 20
 
     def test_a_second_call_returns_what_the_first_generated(self, credentials_path):
         first = patch_config.ensure_credentials(credentials_path)
@@ -251,7 +304,7 @@ class TestEnsureCredentials:
     def test_ignores_a_commented_assignment(self, credentials_path):
         write_credentials(credentials_path, f"# {assignments(CREDENTIAL_NAMES[:1])}")
 
-        assert set(patch_config.ensure_credentials(credentials_path)) == set(CREDENTIAL_NAMES)
+        assert set(patch_config.ensure_credentials(credentials_path)) == set(ALL_NAMES)
 
 
 class TestMain:

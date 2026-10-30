@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn OPNsense's sample config.xml into the gateway's seed configuration.
 
-Assigns the WAN and LAN devices and the LAN address, turns IPv6 off, adds one VLAN device and
+Assigns the WAN and LAN devices and the LAN address, turns IPv6 off, puts a one-time password in front of the GUI login, adds one VLAN device and
 interface per zone on the LAN device, sets the hostname and domain, keeps the serial port as the console, gives root a password and adds one
 API user whose key and secret are stored the way OPNsense stores them (the
 secret as a SHA-512 crypt hash, see ApiKeyField::add in opnsense/core).
@@ -27,6 +27,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 CREDENTIAL_NAMES = ("opnsense_root_password", "opnsense_api_key", "opnsense_api_secret")
+# Root's one-time password seed, in base32 as authenticator apps take it. A credentials file written before it
+# existed holds the three above without it, and gets it appended.
+OTP_SEED_NAME = "opnsense_root_otp_seed"
+TOTP_SERVER_NAME = "TOTP"
 DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
 BASE = Path(__file__).with_name("config.xml.sample")
 # One VLAN per VMID hundred (vlan_id = vmid // 100 * 10), each a /24 whose
@@ -45,7 +49,7 @@ def crypt_sha512(clear: str) -> str:
 
 
 def read_credentials(path: Path) -> dict[str, str]:
-    """The seed's three credentials as the file holds them; empty when it has none or does not exist."""
+    """The seed's credentials as the file holds them; empty when it has none or does not exist."""
     if not path.exists():
         return {}
     if stat.S_IMODE(path.stat().st_mode) & 0o077:
@@ -53,30 +57,45 @@ def read_credentials(path: Path) -> dict[str, str]:
     found = {}
     for line in path.read_text().splitlines():
         m = ASSIGNMENT.match(line)
-        if m and m[1] in CREDENTIAL_NAMES:
+        if m and m[1] in (*CREDENTIAL_NAMES, OTP_SEED_NAME):
             found[m[1]] = m[2]
     return found
 
 
-def ensure_credentials(path: Path) -> dict[str, str]:
-    """Return the three credentials, appending generated ones to the file when it holds none of them."""
-    found = read_credentials(path)
-    if len(found) == len(CREDENTIAL_NAMES):
-        return found
-    if found:
-        missing = ", ".join(n for n in CREDENTIAL_NAMES if n not in found)
-        raise SystemExit(f"{path} holds some of the OPNsense credentials but not {missing}; set all three or none")
-    generated = {
-        "opnsense_root_password": base64.urlsafe_b64encode(secrets.token_bytes(12)).decode(),
-        "opnsense_api_key": base64.b64encode(secrets.token_bytes(60)).decode(),
-        "opnsense_api_secret": base64.b64encode(secrets.token_bytes(60)).decode(),
-    }
+def new_otp_seed() -> str:
+    return base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
+
+
+def append_assignments(path: Path, values: dict[str, str]) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     existing = path.read_text() if path.exists() else ""
     separator = "" if existing.endswith("\n") or not existing else "\n"
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
     with os.fdopen(fd, "a") as fh:
-        fh.write(separator + "".join(f'{name} = "{value}"\n' for name, value in generated.items()))
+        fh.write(separator + "".join(f'{name} = "{value}"\n' for name, value in values.items()))
+
+
+def ensure_credentials(path: Path) -> dict[str, str]:
+    """Return the credentials, appending generated ones to the file when it holds none of the first three.
+
+    A file that holds the first three but no OTP seed gets a seed appended and keeps the rest.
+    """
+    found = read_credentials(path)
+    if any(name in found for name in CREDENTIAL_NAMES):
+        if not all(name in found for name in CREDENTIAL_NAMES):
+            missing = ", ".join(n for n in CREDENTIAL_NAMES if n not in found)
+            raise SystemExit(f"{path} holds some of the OPNsense credentials but not {missing}; set all three or none")
+        if OTP_SEED_NAME not in found:
+            found[OTP_SEED_NAME] = new_otp_seed()
+            append_assignments(path, {OTP_SEED_NAME: found[OTP_SEED_NAME]})
+        return found
+    generated = {
+        "opnsense_root_password": base64.urlsafe_b64encode(secrets.token_bytes(12)).decode(),
+        "opnsense_api_key": base64.b64encode(secrets.token_bytes(60)).decode(),
+        "opnsense_api_secret": base64.b64encode(secrets.token_bytes(60)).decode(),
+        OTP_SEED_NAME: new_otp_seed(),
+    }
+    append_assignments(path, generated)
     return generated
 
 
@@ -151,6 +170,7 @@ def build_seed(
     for user in system.findall("user"):
         if user.findtext("name") == "root":
             set_text(user, "password", crypt_sha512(creds["opnsense_root_password"]))
+            set_text(user, "otp_seed", creds[OTP_SEED_NAME])
 
     api = ET.Element("user")
     set_text(api, "name", api_user)
@@ -167,6 +187,17 @@ def build_seed(
     users = system.findall("user")
     system.insert(list(system).index(users[-1]) + 1, api)
     set_text(system, "nextuid", "2001")
+
+    # The GUI asks for root's password with a one-time password in front of it. Console and SSH logins keep the
+    # UNIX password, so the console stays the way in when the token is lost. The API authenticates by key.
+    server = ET.Element("authserver")
+    set_text(server, "refid", uuid.uuid5(VLAN_NAMESPACE, "authserver-totp").hex[:13])
+    set_text(server, "type", "totp")
+    set_text(server, "name", TOTP_SERVER_NAME)
+    set_text(server, "otpLength", "6")
+    system.insert(list(system).index(api) + 1, server)
+    set_text(system.find("webgui"), "authmode", TOTP_SERVER_NAME)
+    set_text(system, "disableintegratedauth", "1")
 
     # The image keeps these in its own configuration, which the seed replaces, so
     # without them the serial console goes silent.

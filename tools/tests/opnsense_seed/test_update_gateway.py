@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import os
+import socket
 import subprocess
+import tempfile
+import threading
 from pathlib import Path
 
 import pytest
 from _fake_api import FakeApi
+from _fake_console import FakeConsole
 
 SCRIPT = Path(__file__).resolve().parents[3] / "tofu" / "scratch" / "opnsense" / "update_gateway.sh"
 KEY, SECRET = "KEYKEYKEYKEY", "SECRETSECRET"
@@ -122,3 +126,51 @@ def test_an_update_job_that_never_ends_fails(update):
     status, output, _ = update("stuck", env={"UPDATE_TIMEOUT": "4"})
     assert status != 0
     assert "CHECK the update job finished: FAIL" in output
+
+
+CHECK = "CHECK the serial console shows a login prompt or the menu after the reboot"
+
+
+@pytest.fixture
+def console(certificate, tmp_path):
+    """Serve a stand-in serial console on a short socket path; yields a function taking the fault."""
+    made = []
+
+    def serve(fault):
+        path = Path(tempfile.mkdtemp(prefix="sc")) / "s"
+        pem = Path(certificate[0]).read_text()
+        made.append(FakeConsole(path, pem, seed_password="x", fault=fault))
+        return str(path)
+
+    yield serve
+    for c in made:
+        c.close()
+
+
+def test_a_console_that_shows_a_login_prompt_after_the_reboot_passes(update, console):
+    status, output, _ = update(env={"SERIAL_SOCKET": console(None), "CONSOLE_WAIT": "20"})
+
+    assert status == 0
+    assert f"{CHECK}: PASS" in output
+
+
+def test_an_unlocked_console_that_shows_its_menu_after_the_reboot_passes(update, console):
+    status, output, _ = update(env={"SERIAL_SOCKET": console("unlocked"), "CONSOLE_WAIT": "20"})
+
+    assert status == 0
+    assert f"{CHECK}: PASS" in output
+
+
+def test_a_console_that_says_nothing_after_the_reboot_fails(update, tmp_path):
+    path = tempfile.mkdtemp(prefix="sc") + "/s"
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server.bind(path)
+    server.listen(1)
+    held = []
+    threading.Thread(target=lambda: held.append(server.accept()), daemon=True).start()
+
+    status, output, _ = update(env={"SERIAL_SOCKET": path, "CONSOLE_WAIT": "3"})
+
+    server.close()
+    assert status != 0
+    assert f"{CHECK}: FAIL" in output

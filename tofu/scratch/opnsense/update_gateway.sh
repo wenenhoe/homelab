@@ -9,7 +9,7 @@
 # the updater always goes to the newest release of the series, so an update that would
 # not land on WANT_VERSION is refused unless ALLOW_LATEST=1.
 # Environment: GW_IP / GW_PORT (default LAN_IP / 443), ALLOW_LATEST=1,
-#   SERIAL_SOCKET (checks the console shows a login prompt after a reboot),
+#   SERIAL_SOCKET (checks the console answers with a login prompt or its menu after a reboot),
 #   POLL (seconds between polls, default 5), UPDATE_TIMEOUT / UP_TIMEOUT (seconds).
 # Prints "CHECK name: PASS|FAIL" lines; the exit status is the number of FAIL lines.
 set -u
@@ -152,24 +152,25 @@ else
   if [ "${after%%_*}" = "$want" ]; then check "the gateway runs $want after the update" 0; else check "the gateway runs $want after the update" 1; fi
   cfg after-update; check "the seed's seeded API user works after the update" $?
   if [ "$rebooted" = 1 ] && [ -n "${SERIAL_SOCKET:-}" ]; then
-    python3 -I - "$SERIAL_SOCKET" << 'PY'
-import socket, sys, time
+    CONSOLE_WAIT=${CONSOLE_WAIT:-60} python3 -I - "$SERIAL_SOCKET" << 'PY'
+import os, socket, sys, time
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 s.connect(sys.argv[1])
 s.settimeout(1)
 buf = b""
-end = time.monotonic() + 60
+end = time.monotonic() + float(os.environ["CONSOLE_WAIT"])
 last = 0
-while time.monotonic() < end and b"login:" not in buf:
+ready = (b"login:", b"Enter an option:")
+while time.monotonic() < end and not any(m in buf for m in ready):
     if time.monotonic() - last > 10:
         s.send(b"\r"); last = time.monotonic()
     try:
         buf += s.recv(4096)
     except socket.timeout:
         pass
-sys.exit(0 if b"login:" in buf else 1)
+sys.exit(0 if any(m in buf for m in ready) else 1)
 PY
-    check "the serial console shows a login prompt after the reboot" $?
+    check "the serial console shows a login prompt or the menu after the reboot" $?
   fi
 fi
 

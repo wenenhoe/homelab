@@ -209,7 +209,10 @@ phases:
   seed on root; OPNsense has no option left to keep console logins off that
   rule, so the console menu is not password-protected, whoever can open the
   VM's console in Proxmox reaches it, and it is the way in when the token is
-  lost; the API user authenticates by key) and adds one API user. It needs `python3`, `openssl`,
+  lost; the API user authenticates by key) and adds one API user, which holds
+  only the privileges that cover the calls of the play, the scratch update and
+  the diagnostics (system information, firmware, aliases, filter rules, Kea
+  DHCPv4 and dnsmasq) instead of `page-all`. It needs `python3`, `openssl`,
   `sfdisk`, mtools and `xmllint`. The root password, API key, API secret and
   root's OTP seed (base32, for an authenticator app) are the variables
   `opnsense_root_password`, `opnsense_api_key`, `opnsense_api_secret` and

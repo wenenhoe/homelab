@@ -81,6 +81,7 @@ await_job() { # await_job LABEL SECONDS
       misses=$((misses + 1))
       if [ "$misses" -ge 3 ]; then
         saw_drop=1; misses=0; gone=0
+        : > "$work/saw_drop"
         wait_state up "$up_timeout" || { echo timeout; return; }
       fi
     fi
@@ -133,6 +134,7 @@ elif [ "$target" != "$want" ] && [ "${ALLOW_LATEST:-0}" != 1 ]; then
   note "the update would install '${target:-nothing}', not $want. Nothing was updated. Re-run with ALLOW_LATEST=1 to update anyway, and tell me which release came out."
   check "the update lands on the pinned $want" 1
 else
+  rm -f "$work/saw_drop"
   post core/firmware/update > "$dir/fw-update-response.json" 2> /dev/null
   note "update started ($(jget "$dir/fw-update-response.json" status))"
   res=$(await_job update "$update_timeout")
@@ -140,7 +142,13 @@ else
   case "$res" in
     reboot)
       rebooted=1
-      wait_state down 300; check "the gateway went down for the reboot" $?
+      # The job can end after the gateway went down and came back, so a drop seen while following it counts.
+      if [ -e "$work/saw_drop" ]; then
+        note "the gateway went down and came back while the update job was followed"
+        check "the gateway went down for the reboot" 0
+      else
+        wait_state down "${DOWN_TIMEOUT:-300}"; check "the gateway went down for the reboot" $?
+      fi
       ;;
     done) ;;
     *) check "the update job finished" 1 ;;

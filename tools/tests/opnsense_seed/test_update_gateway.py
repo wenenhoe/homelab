@@ -70,6 +70,14 @@ def test_update_with_a_reboot_lands_on_the_pin_and_keeps_the_seeded_key(update):
     assert "CHECK the seed's seeded API user works after the update: PASS" in output
 
 
+def test_a_reboot_that_finished_before_the_job_was_seen_to_end_still_counts(update):
+    status, output, _ = update("silentreboot", env={"DOWN_TIMEOUT": "3"})
+
+    assert status == 0, output
+    assert "CHECK the gateway went down for the reboot: PASS" in output
+    assert "CHECK the API answers again after the update: PASS" in output
+
+
 def test_update_that_ends_without_a_reboot_passes(update):
     status, output, _ = update("noreboot")
     assert status == 0, output

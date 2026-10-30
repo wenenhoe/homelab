@@ -6,7 +6,8 @@ Serves only what the script calls, with the response shapes read from the 26.1.6
 Faults: nomirror (the firmware status is an error), latest-differs (the update lands past
 the pin), noreboot (the update job ends with done, not a reboot), stuck (the update never
 ends), badversion (the version is unchanged after the update), keylost (the key is refused
-after the update), authopen (a wrong secret is accepted after the update).
+after the update), authopen (a wrong secret is accepted after the update), silentreboot (the gateway goes down as the update job ends and
+comes back with no job log, so the script never sees the reboot status).
 """
 
 from __future__ import annotations
@@ -80,7 +81,9 @@ class FakeApi:
                         if fault != "badversion":
                             state["version"] = api.latest + "_10"
                         state["updated"] = True
-                        if fault != "noreboot":
+                        if fault == "silentreboot":
+                            state.update(last_done="", down_until=now + 4.0)
+                        elif fault != "noreboot":
                             state.update(last_done="reboot", reboot_at=now + 0.5)
                     return self.route(method, path, now)
 

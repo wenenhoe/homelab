@@ -2,7 +2,8 @@
 # neither server is a single point of failure for a name. The collection matches a
 # forward by its domain and target, so a changed target adds a second forward and
 # leaves the old one behind: the play reads what the gateway holds and removes every
-# forward it does not write, which also shows as a change under --check.
+# forward it does not write, which also shows as a change under --check. What it reads
+# is the API's own record of a forward: its address is `server`, not `target`.
 
 - name: Require the zones the gateway forwards
   ansible.builtin.assert:
@@ -38,14 +39,14 @@
 - name: Remove a forward the play does not write
   oxlorg.opnsense.unbound_forward:
     domain: "{{ opnsense_gateway_held.domain }}"
-    target: "{{ opnsense_gateway_held.target }}"
+    target: "{{ opnsense_gateway_held.server }}"
     port: "{{ opnsense_gateway_held.port }}"
     state: absent
     reload: true
   loop: "{{ opnsense_gateway_held_forwards.data }}"
   loop_control:
     loop_var: opnsense_gateway_held
-    label: "{{ opnsense_gateway_held.domain }} -> {{ opnsense_gateway_held.target }}"
-  when: (opnsense_gateway_held.domain ~ '|' ~ opnsense_gateway_held.target) not in opnsense_gateway_wanted
+    label: "{{ opnsense_gateway_held.domain }} -> {{ opnsense_gateway_held.server }}"
+  when: (opnsense_gateway_held.domain ~ '|' ~ opnsense_gateway_held.server) not in opnsense_gateway_wanted
   vars:
     opnsense_gateway_wanted: "{{ opnsense_gateway_forward_domains | product(opnsense_gateway_forward_servers) | map('join', '|') | list }}"

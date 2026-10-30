@@ -279,3 +279,20 @@ def test_the_forwards_are_applied_after_the_dhcp_scopes():
     includes = [task["ansible.builtin.include_tasks"] for task in block["block"]]
 
     assert includes == ["policy.yaml", "dhcp.yaml", "forwards.yaml"]
+
+
+def test_a_forward_the_gateway_holds_is_judged_by_the_domain_and_server_fields_of_the_apis_own_record():
+    import jinja2
+
+    tasks = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/forwards.yaml").read_text())
+    removal = next(task for task in tasks if task.get("name") == "Remove a forward the play does not write")
+    held = {"uuid": "u1", "domain": "internal.kit.lab", "server": "192.0.2.99", "port": "53", "enabled": "1", "forward_tcp_upstream": "0", "description": ""}
+    wanted = ["internal.kit.lab|192.168.20.3", "internal.kit.lab|192.168.20.6"]
+    env = jinja2.Environment(autoescape=False)  # noqa: S701 - an Ansible conditional, not HTML
+
+    def removes(record):
+        return env.from_string("{{ " + removal["when"] + " }}").render(opnsense_gateway_held=record, opnsense_gateway_wanted=wanted) == "True"
+
+    assert removes(held)
+    assert not removes({**held, "server": "192.168.20.3"})
+    assert removal["oxlorg.opnsense.unbound_forward"]["target"] == "{{ opnsense_gateway_held.server }}"

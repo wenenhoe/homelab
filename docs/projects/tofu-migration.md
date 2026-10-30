@@ -221,6 +221,12 @@ that role exists, nothing in the repository can rebuild the router.
   its own decision and needs an ADR for its host; the first rebuild needs
   only a place off the VM for the `tofu state pull` copy, settled before
   it.
+- Whether `tailscale` needs the 2 vCPU and 2 GB the table keeps for it. The
+  VM is a routing appliance that runs `tailscaled` and the guest agent and
+  no Docker, so it may need less than the hosts the keep-current-size rule
+  was written for. Measure its memory and CPU on the live VM while the tailnet
+  carries real traffic, and set its row before its rebuild; until then the row
+  stands, and the disk shrinks as for every host.
 
 ## Closing checklist
 

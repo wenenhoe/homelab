@@ -34,7 +34,7 @@ TOTP_SERVER_NAME = "TOTP"
 # What the play, the scratch gateway's update and the diagnostics ask the API for, as the gateway's own privilege
 # tables (ACL.xml) cover it. The firmware privilege covers the status check and the update alike.
 API_PRIVILEGES = (
-    "page-system-login-logout",  # api/diagnostics/system/systemInformation, the play's first call
+    "page-system-login-logout",  # api/diagnostics/system/system_information, the play's first call
     "page-system-firmware-manualupdate",  # api/core/firmware/*: the release check and the scratch update
     "page-firewall-alias-edit",  # api/firewall/alias/*
     "page-filter-api",  # api/firewall/filter/*

@@ -95,7 +95,7 @@
 # connection that succeeds is to the gateway the console read came from.
 - name: Authenticate to the gateway's API over the pinned certificate
   ansible.builtin.uri:
-    url: "{{ opnsense_gateway_api_url }}/api/diagnostics/system/systemInformation"
+    url: "{{ opnsense_gateway_api_url }}/api/diagnostics/system/system_information"
     url_username: "{{ opnsense_gateway_api_key }}"
     url_password: "{{ opnsense_gateway_api_secret }}"
     force_basic_auth: true

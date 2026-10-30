@@ -89,7 +89,7 @@ class FakeApi:
 
             def route(self, method, path, now):
                 state, fault = api.state, api.fault
-                if path == "diagnostics/system/systemInformation":
+                if path == "diagnostics/system/system_information":
                     return self.reply({"name": "OPNsense", "versions": [state["version"]]})
                 if path == "core/firmware/status" and method == "POST":
                     if fault == "nomirror":

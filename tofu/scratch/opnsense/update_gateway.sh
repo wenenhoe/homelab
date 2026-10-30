@@ -51,7 +51,7 @@ except Exception:
     pass' "$1" "$2"
 }
 
-api_up() { [ "$(api -o /dev/null -w '%{http_code}' "https://$name:$port/api/diagnostics/system/systemInformation")" = 200 ]; }
+api_up() { [ "$(api -o /dev/null -w '%{http_code}' "https://$name:$port/api/diagnostics/system/system_information")" = 200 ]; }
 wait_state() { # wait_state up|down SECONDS
   local end=$((SECONDS + $2))
   while [ "$SECONDS" -lt "$end" ]; do
@@ -93,7 +93,7 @@ await_job() { # await_job LABEL SECONDS
 # The seed's API user must still authenticate, and a wrong secret must still be refused,
 # over the pinned certificate and on the LAN address the seed set.
 cfg() { # cfg LABEL -> 0 when both hold
-  local url="https://$name:$port/api/diagnostics/system/systemInformation" good bad
+  local url="https://$name:$port/api/diagnostics/system/system_information" good bad
   good=$(api -o /dev/null -w '%{http_code}' "$url")
   bad=$(api -u "$API_KEY:wrong-secret" -o /dev/null -w '%{http_code}' "$url")
   echo "  auth[$1]: seeded key -> HTTP $good (expect 200), wrong secret -> HTTP $bad (expect 401)" | tee -a "$dir/config-checks.txt"

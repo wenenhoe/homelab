@@ -1,0 +1,41 @@
+{
+ "page-system-login-logout": [
+  "index.php*",
+  "ui/core/dashboard",
+  "api/core/dashboard/*",
+  "api/diagnostics/cpu_usage/*",
+  "api/diagnostics/firewall/pf_states",
+  "api/diagnostics/system/system_disk",
+  "api/diagnostics/system/system_information",
+  "api/diagnostics/system/system_resources",
+  "api/diagnostics/system/system_temperature",
+  "api/diagnostics/system/system_time",
+  "api/diagnostics/system/system_mbuf",
+  "api/diagnostics/system/system_swap"
+ ],
+ "page-firewall-alias-edit": [
+  "ui/firewall/alias/*",
+  "api/firewall/alias/*"
+ ],
+ "page-system-firmware-manualupdate": [
+  "ui/core/firmware/*",
+  "api/core/firmware/*",
+  "ui/diagnostics/log/core/pkg/*",
+  "api/diagnostics/log/core/pkg/*"
+ ],
+ "page-services-dnsforwarder": [
+  "ui/dnsmasq/*",
+  "api/dnsmasq/*"
+ ],
+ "page-filter-api": [
+  "ui/firewall/filter/*",
+  "api/firewall/filter/*"
+ ],
+ "page-dhcp-kea-v4": [
+  "ui/kea/dhcp/v4",
+  "ui/kea/dhcp/leases4",
+  "api/kea/dhcpv4/*",
+  "api/kea/leases4/*",
+  "api/kea/service/*"
+ ]
+}

@@ -8,7 +8,7 @@ solution: A small repo-owned role converges the node against its own preferences
 summary: How a host's Tailscale client is installed, joined to the tailnet and kept configured, given that the join key is a credential and the policy keys off the node's tag.
 topic: deployment-platform
 status: working
-related: [ADR-0015, ADR-0043, ADR-0049, ADR-0059, ADR-0089]
+related: [ADR-0015, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0059, ADR-0089]
 ---
 
 # 0097. How a Tailscale node is configured
@@ -54,6 +54,7 @@ The role converges, in order:
 - **Other published roles and collections.** They are younger and no better documented, and none was found that converges against the node's actual preferences, joins without a key once logged in, and sets forwarding.
 - **An OAuth client that mints the key at run time.** It is a standing credential that can add tagged nodes to the tailnet and does not expire on its own.
 - **A key from the `tailscale_key` resource in OpenTofu.** It puts the key in Tofu's state, which [ADR 0059](../0059-where-the-tailnet-policy-is-defined/revision-000.md) rules out.
+- **The router as a container on `services` or another host, with no VM of its own.** The gateway tells tailnet callers apart only by the router's address, so a container that shares its host's address makes every rule that admits the router, such as [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md)'s admission to its VLAN, admit that host, and a separate address needs macvlan on the host's NIC. The route would also depend on a host that is deployed to and rebuilt, so every such change would cut the maintainer's way in. Routing in the kernel needs `NET_ADMIN` and `/dev/net/tun`, against the `cap_drop: [ALL]` default. [ADR 0040 (Tofu VM DNS)](../0040-dns-for-tofu-provisioned-vms/revision-000.md) already keeps the router from a second job because it is the remote-access path.
 - **Carrying `tailscaled`'s state file across a rebuild.** It keeps the node's identity but puts its private key into a backup, and the repository's backups cover application data, not host state.
 
 ## Assumptions

@@ -673,6 +673,19 @@
       groupSlug: "ansible-galaxy-core",
     },
 
+    // The OPNsense collection is installed from git at a commit, because its
+    // release tag carries an earlier version's metadata. For a github.com git
+    // entry the ansible-galaxy manager hands the github-tags datasource the
+    // clone URL where it needs owner/repo, so the lookup can only fail with
+    // no-result, and a commit is not a tag it could bump anyway. The commit
+    // moves by hand with the OPNsense release it is paired with;
+    // ansible/tests/test_opnsense_pin.py keeps its two copies equal.
+    {
+      matchManagers: ["ansible-galaxy"],
+      matchDepNames: ["github.com/O-X-L/ansible-opnsense"],
+      enabled: false,
+    },
+
     // docker/lldap/compose.yaml, docker/bind9/compose.yaml, and
     // docker/caddy/compose.yaml's molecule fixtures are symlinks to
     // these same files (see docs/topics/engineering/molecule-testing.md), so there is only

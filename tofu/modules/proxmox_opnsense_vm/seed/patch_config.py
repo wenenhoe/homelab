@@ -31,6 +31,16 @@ CREDENTIAL_NAMES = ("opnsense_root_password", "opnsense_api_key", "opnsense_api_
 # existed holds the three above without it, and gets it appended.
 OTP_SEED_NAME = "opnsense_root_otp_seed"
 TOTP_SERVER_NAME = "TOTP"
+# What the play, the scratch gateway's update and the diagnostics ask the API for, as the gateway's own privilege
+# tables (ACL.xml) cover it. The firmware privilege covers the status check and the update alike.
+API_PRIVILEGES = (
+    "page-system-login-logout",  # api/diagnostics/system/systemInformation, the play's first call
+    "page-system-firmware-manualupdate",  # api/core/firmware/*: the release check and the scratch update
+    "page-firewall-alias-edit",  # api/firewall/alias/*
+    "page-filter-api",  # api/firewall/filter/*
+    "page-dhcp-kea-v4",  # api/kea/dhcpv4/* and api/kea/service/*
+    "page-services-dnsforwarder",  # api/dnsmasq/*
+)
 DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
 BASE = Path(__file__).with_name("config.xml.sample")
 # One VLAN per VMID hundred (vlan_id = vmid // 100 * 10), each a /24 whose
@@ -179,7 +189,8 @@ def build_seed(
     # The account cannot log in: its password is a hash of random bytes.
     set_text(api, "password", crypt_sha512(base64.b64encode(secrets.token_bytes(32)).decode()))
     set_text(api, "uid", "2000")
-    set_text(api, "priv", "page-all")
+    for privilege in API_PRIVILEGES:
+        ET.SubElement(api, "priv").text = privilege
     item = ET.SubElement(ET.SubElement(api, "apikeys"), "item")
     set_text(item, "key", creds["opnsense_api_key"])
     set_text(item, "secret", crypt_sha512(creds["opnsense_api_secret"]))

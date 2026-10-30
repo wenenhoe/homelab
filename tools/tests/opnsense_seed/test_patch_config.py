@@ -142,6 +142,30 @@ class TestHardening:
         assert ssh.find("enabled") is None
 
 
+class TestApiPrivileges:
+    def test_the_api_user_holds_the_privileges_the_play_needs_and_not_page_all(self):
+        privileges = [p.text for p in api_user(seed()).findall("priv")]
+
+        assert privileges == [
+            "page-system-login-logout",
+            "page-system-firmware-manualupdate",
+            "page-firewall-alias-edit",
+            "page-filter-api",
+            "page-dhcp-kea-v4",
+            "page-services-dnsforwarder",
+        ]
+        assert "page-all" not in privileges
+
+    def test_root_is_not_narrowed_because_its_group_keeps_page_all(self):
+        group = seed().find("system/group")
+
+        assert group.findtext("priv") == "page-all"
+
+    def test_every_privilege_is_a_page_privilege_name_without_a_wildcard(self):
+        for privilege in patch_config.API_PRIVILEGES:
+            assert re.fullmatch(r"page-[a-z0-9-]+", privilege)
+
+
 class TestSecondFactor:
     def test_root_carries_the_otp_seed_of_the_credentials(self):
         root_user = next(u for u in seed().find("system").findall("user") if u.findtext("name") == "root")

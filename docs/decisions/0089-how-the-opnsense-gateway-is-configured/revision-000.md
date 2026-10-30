@@ -72,9 +72,9 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 
 **Management reach.** The GUI, API and SSH accept connections only from the operator host and, until it is retired, VM 401. The subnet router is never admitted. The seed turns anti-lockout off, so the guard rule is the only way in besides the console. The Proxmox console is the way in when the network is down.
 
-**Credentials.** The API key and secret live in the file [ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md) decides, on the host that runs the play.
+**Credentials.** The API key and secret, and the seed of the GUI administrator's one-time password, live in the file [ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md) decides, on the host that runs the play.
 
-**Hardening baseline,** applied by the same play: IPv6 off while unused, key-only SSH, a second factor on the GUI administrator, an API user limited to the endpoints the play calls, and direct DNS (ports 53 and 853) out of the VLANs denied except to the gateway.
+**Hardening baseline,** applied by the seed and the play. The seed turns IPv6 off, because the collection has no module for it, and leaves SSH off, which is key-only whenever it is turned on. The seed also puts a one-time password in front of the GUI login, because OPNsense's API cannot define an authentication server: a server of the TOTP type, which the GUI is set to use, and a seed on the administrator. OPNsense no longer lets console logins skip that code, so the console menu is left unlocked, and reaching it takes the Proxmox console. The API user authenticates by key and is unaffected. The play limits the API user to the endpoints it calls, and denies direct DNS (ports 53 and 853) out of the VLANs except to the gateway.
 
 ## Alternatives considered
 

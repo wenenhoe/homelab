@@ -84,5 +84,6 @@ pythonpath = [
     "docker/openbao/watcher",
     "tofu/modules/proxmox_opnsense_vm/first_boot",
     "tofu/modules/proxmox_opnsense_vm/seed",
+    "tofu/scratch/opnsense/acceptance",
 ]
 strict = true

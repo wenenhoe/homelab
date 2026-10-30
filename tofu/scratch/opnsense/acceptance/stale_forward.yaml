@@ -1,0 +1,31 @@
+---
+# Adds an Unbound forward the play does not write, behind its back, for the acceptance run to find and remove.
+# Needs -e ca_file=... api_port=... credentials=... domain=... target=...
+- name: Add a forward the play does not write
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Read the API credentials
+      ansible.builtin.set_fact:
+        scratch_key: "{{ lookup('ansible.builtin.file', credentials) | regex_findall('(?m)^\\s*opnsense_api_key\\s*=\\s*\"([^\"]*)\"') | first }}"
+        scratch_secret: "{{ lookup('ansible.builtin.file', credentials) | regex_findall('(?m)^\\s*opnsense_api_secret\\s*=\\s*\"([^\"]*)\"') | first }}"
+      no_log: true
+
+    - name: Write the forward
+      module_defaults:
+        group/oxlorg.opnsense.all:
+          firewall: OPNsense.internal
+          api_port: "{{ api_port }}"
+          api_key: "{{ scratch_key }}"
+          api_secret: "{{ scratch_secret }}"
+          ssl_verify: true
+          ssl_ca_file: "{{ ca_file }}"
+      block:
+        - name: Forward a zone to a server the play does not name
+          oxlorg.opnsense.unbound_forward:
+            domain: "{{ domain }}"
+            target: "{{ target }}"
+            port: 53
+            description: "scratch acceptance: a forward the play does not write"
+            reload: true

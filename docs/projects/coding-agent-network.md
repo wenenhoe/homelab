@@ -49,7 +49,7 @@ VM 202 advertises the VLAN's route, and the tailnet policy grants it to the lapt
 
 - [ ] The VLAN has default-deny in both directions, with only the two source-restricted SSH inbound flows.
 - [ ] The rules are described in a topic doc and the topic doc matches an export of the rule set.
-- [ ] The zone's interface and rules are expressed in the gateway's play and the scratch kit's run passes with them.
+- [ ] The zone's interface and rules are expressed in the gateway's play and the scratch gateway's acceptance run passes with them.
 - [ ] The zone's subnet is inside no AppRole CIDR binding, and its Tailscale route is granted to the laptop alone.
 
 ## Risks

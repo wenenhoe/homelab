@@ -168,6 +168,46 @@ and `validate`, on every change under `tofu/`
 ([`pipeline.md`](../engineering/ci/pipeline.md#jobs)); run `tofu fmt -recursive`
 before pushing.
 
+### Scratch Ubuntu VM
+
+`tofu/scratch/ubuntu` is a second root for one throwaway Ubuntu VM, for work
+that needs a real VM and keeps nothing of it. It clones the template through
+`proxmox_ubuntu_vm`, tags the VM `scratch`, and shares the main root's
+provider pin and lock file through symlinks, as the scratch gateway's root
+does. Its state and provider directory live outside the checkout.
+
+`vm_id`, `ssh_public_keys` and `dns_domain` have no default. `vm_id` picks the
+zone, because the module derives the VLAN from its hundred, and the VM reaches
+only what that zone's gateway rules allow: the gateway play gives VLAN 50 no
+access to the internet (`internet: false` in
+[`opnsense_gateway_zones`](../../../ansible/roles/opnsense_gateway/defaults/main.yaml)).
+The module rejects a VMID outside 2XX to 5XX, so a VM in VLAN 60 or 70 needs its
+range widened first. In a zone the play serves with Kea, which hands out host
+numbers 10 to 245 (`opnsense_gateway_dhcp_pool`), a host part of 02 to 09 stays
+clear of the pool. `cores`, `memory_mb` and `disk_gb` default to 2, 2048 and 16.
+
+From the repo root, with the credentials file of
+[State backend & secrets](#state-backend--secrets):
+
+```sh
+umask 077
+out="$HOME/scratch-vm"
+mkdir -p "$out"
+export TF_DATA_DIR="$out/.terraform"
+printf '%s\n' 'vm_id = 502' 'dns_domain = "<internal zone>"' \
+  'ssh_public_keys = ["<public key>"]' > "$out/scratch.tfvars"
+cd tofu/scratch/ubuntu
+tofu init -backend=false -input=false -lockfile=readonly
+tofu apply -state="$out/terraform.tfstate" \
+  -var-file="$HOME/.config/tofu/credentials.tfvars" -var-file="$out/scratch.tfvars"
+tofu output -state="$out/terraform.tfstate" ssh
+```
+
+`tofu destroy` with the same `-state` and `-var-file` flags removes the VM and
+its disks and leaves the template. A VM left running keeps its cores and
+memory, so destroy it when the work is done. The API token's role already
+covers it, since the VM is a clone like any other.
+
 ## OPNsense
 
 No cloud-init story exists for OPNsense, so provisioning happens in two

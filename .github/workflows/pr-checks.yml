@@ -625,6 +625,14 @@ jobs:
         working-directory: tofu/scratch/opnsense
         run: tofu validate
 
+      - name: Install the scratch VM root's providers
+        working-directory: tofu/scratch/ubuntu
+        run: tofu init -backend=false -input=false -lockfile=readonly
+
+      - name: Validate the scratch VM root
+        working-directory: tofu/scratch/ubuntu
+        run: tofu validate
+
       - name: Run the tests
         run: tofu test
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn OPNsense's sample config.xml into the gateway's seed configuration.
 
-Assigns the WAN and LAN devices and the LAN address, adds one VLAN device and
+Assigns the WAN and LAN devices and the LAN address, turns IPv6 off, adds one VLAN device and
 interface per zone on the LAN device, sets the hostname and domain, keeps the serial port as the console, gives root a password and adds one
 API user whose key and secret are stored the way OPNsense stores them (the
 secret as a SHA-512 crypt hash, see ApiKeyField::add in opnsense/core).
@@ -86,6 +86,12 @@ def set_text(parent: ET.Element, tag: str, value: str) -> ET.Element:
         el = ET.SubElement(parent, tag)
     el.text = value
     return el
+
+
+def remove(parent: ET.Element, *tags: str) -> None:
+    for tag in tags:
+        for el in parent.findall(tag):
+            parent.remove(el)
 
 
 def add_vlans(root: ET.Element, lan_if: str, lan_ip: str, lan_prefix: str, tags: Sequence[int]) -> None:
@@ -177,6 +183,10 @@ def build_seed(
     set_text(lan, "if", lan_if)
     set_text(lan, "ipaddr", lan_ip)
     set_text(lan, "subnet", lan_prefix)
+    # IPv6 is off while unused: the system-wide switch goes, and neither interface asks for or tracks an IPv6 address.
+    remove(system, "ipv6allow")
+    remove(wan, "ipaddrv6", "dhcp6-ia-pd-len")
+    remove(lan, "ipaddrv6", "subnetv6", "track6-interface", "track6-prefix-id")
     add_vlans(root, lan_if, lan_ip, lan_prefix, vlans)
 
     ET.indent(tree, space="  ")

@@ -203,7 +203,8 @@ phases:
   `192.168.<tag>.1/24`, sets the
   hostname and the domain (`OPNsense.internal` unless overridden, the name the
   play verifies the GUI certificate for), keeps the serial port as the console,
-  sets root's password and adds one API user. It needs `python3`, `openssl`,
+  turns IPv6 off (no system-wide allowance and no IPv6 address method on the
+  WAN or LAN), sets root's password and adds one API user. It needs `python3`, `openssl`,
   `sfdisk`, mtools and `xmllint`. The root password, API key and API secret
   are the variables `opnsense_root_password`, `opnsense_api_key` and
   `opnsense_api_secret` in the [credentials file](#state-backend--secrets).

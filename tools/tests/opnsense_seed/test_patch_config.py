@@ -110,6 +110,29 @@ class TestBuildSeed:
         assert (seed(wan_dhcp_hostname=name).findtext("interfaces/wan/dhcphostname") or "") == expected
 
 
+class TestHardening:
+    def test_ipv6_is_off_system_wide_and_on_both_interfaces(self):
+        root = seed()
+
+        assert root.find("system/ipv6allow") is None
+        for name in ("wan", "lan"):
+            interface = root.find(f"interfaces/{name}")
+            assert [el.tag for el in interface if el.tag.endswith("v6") or el.tag.startswith(("track6", "dhcp6"))] == [], name
+
+    def test_the_sample_it_starts_from_allows_ipv6_so_the_test_above_removes_something(self):
+        sample = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
+
+        assert sample.find("system/ipv6allow") is not None
+        assert sample.find("interfaces/wan/ipaddrv6") is not None
+
+    def test_ssh_is_key_only_if_it_is_ever_turned_on(self):
+        ssh = seed().find("system/ssh")
+
+        assert ssh.find("passwordauth") is None
+        assert ssh.find("permitrootlogin") is None
+        assert ssh.find("enabled") is None
+
+
 class TestVlans:
     def test_adds_a_device_on_the_lan_device_for_each_zone(self):
         vlans = seed(lan_if="vtnet3").findall("vlans/vlan")

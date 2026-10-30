@@ -277,7 +277,11 @@ phases:
   (the IPv4 addresses the work runs from) and stops without it, since an
   empty guard rule would admit nobody. The CD agent's rule is written only
   when `opnsense_gateway_cd_agent_management` is true, and removed when it is
-  false.
+  false. Unbound forwards the host zone and the lan zone to the two DNS servers
+  (`opnsense_gateway_forward_servers`, `192.168.20.3` and `192.168.20.6`), the
+  zones being the play's `-e opnsense_gateway_forward_domains=[...]` because they
+  derive from the main domain, and stops without them. The play also removes any
+  forward it does not write, which `--check` reports as a change.
   The release and the collection's commit are the role's defaults;
   `ansible/requirements.yml` installs the collection from git at the same
   commit, and a test fails when the two differ. The gateway's release check

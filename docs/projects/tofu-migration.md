@@ -90,11 +90,17 @@ generated CNAME points at `host_fqdn`
 record for a host in `host_vars/services.yaml` is deleted in the rebuild's
 pull request, since the role refuses a host named both ways.
 
-**Host order.** `play`, `tailscale`, `storage`, `security`, then
-`services`. `play` is a leaf and proves the cycle. `storage` comes before
+**Host order.** `play`, `storage`, `security`, `services`, then
+`tailscale`. `play` is a leaf and proves the cycle. `storage` comes before
 `security` and `services` because every restore reads from it. `services`
-is last because its BIND9 serves the zones every other host resolves
-through. Each host keeps its current vCPU and memory, and its disk shrinks
+comes before `tailscale` because its BIND9 serves the zones every other host
+resolves through. `tailscale` is last because nothing configures a Tailscale
+node yet and the router is the maintainer's route into the lab: its rebuild
+waits on [`tailscale-node-role.md`](tailscale-node-role.md) and on the
+tailnet policy carrying the router's tag
+([`tailnet-policy-baseline.md`](tailnet-policy-baseline.md)). The other four
+hosts are reached through the router and do not join the tailnet, so their
+rebuilds do not touch it. Each host keeps its current vCPU and memory, and its disk shrinks
 to what the host uses plus headroom, on `local-lvm` (NVMe) instead of the
 `backup` pool. `storage` is the exception and stays on `backup` (HDD), so
 the on-site copy of every backup does not share a disk with the hosts it
@@ -184,9 +190,11 @@ and the generated file is empty.
 VM 202 ("Tailscale") is Tofu-unmanaged but not untracked: it is under
 interim Ansible management as the `network_infra` group
 ([`network-infra.md`](../topics/infra/network-infra.md)). It becomes
-Tofu-managed at its VMID in this stage, and the generated inventory then
-supersedes the hand-written `tailscale` entry rather than sitting beside
-it.
+Tofu-managed at its VMID in this stage, last in the host order, and the
+generated inventory then supersedes the hand-written `tailscale` entry
+rather than sitting beside it. The rebuild joins the new VM to the tailnet
+with the role [`tailscale-node-role.md`](tailscale-node-role.md) writes; until
+that role exists, nothing in the repository can rebuild the router.
 
 ## Acceptance criteria
 

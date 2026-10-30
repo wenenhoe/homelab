@@ -13,7 +13,7 @@ The tailnet's policy is the default allow-all grant. Two projects need to tighte
 
 ## Scope
 
-Taking stock of what the maintainer reaches over the tailnet today, and replacing the allow-all grant with explicit grants for exactly that, plus `tests` that assert them. Not in scope: any new route's grant ([`operator-host.md`](operator-host.md), [`coding-agent-network.md`](coding-agent-network.md)), and putting the policy under Tofu, which builds on Tofu's root module ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project), [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)).
+Taking stock of what the maintainer reaches over the tailnet today, and replacing the allow-all grant with explicit grants for exactly that, plus `tests` that assert them, and the entries the subnet router's tag needs: a `tagOwners` entry for the tag and an `autoApprovers` entry for the route the router already advertises ([ADR 0097 (Tailscale node configuration)](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)). Not in scope: any new route's grant and auto-approval entry ([`operator-host.md`](operator-host.md), [`coding-agent-network.md`](coding-agent-network.md)), and putting the policy under Tofu, which builds on Tofu's root module ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project), [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)).
 
 ## Decision
 
@@ -26,7 +26,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Take stock of what the maintainer and the nodes reach over the tailnet today | Not started | Every source, destination and port in use is listed in a topic doc, with how it was found |
-| 2 | Replace allow-all with explicit grants and `tests` | Not started | The saved policy grants exactly what Stage 1 lists, its `tests` pass, and every flow in the list still works from the node that uses it |
+| 2 | Replace allow-all with explicit grants and `tests` | Not started | The saved policy grants exactly what Stage 1 lists, its `tests` pass, every flow in the list still works from the node that uses it, and the policy holds the router's tag under `tagOwners` and its existing route under `autoApprovers`, with no node yet carrying the tag |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -38,7 +38,8 @@ Copy the current policy first, and use the admin console's preview before saving
 
 - [ ] The policy is no longer allow-all, and every flow Stage 1 lists still works.
 - [ ] `tests` assert each grant, and a save with a failing assertion is refused by the console.
-- [ ] The topic doc names who adds a grant for a new route and how.
+- [ ] The policy names the router's tag in `tagOwners` and auto-approves the route the router advertises under it, so the router's rebuild ([`tofu-migration.md`](tofu-migration.md)) joins under a tag the policy already knows.
+- [ ] The topic doc names who adds a grant, and an auto-approval entry, for a new route and how.
 
 ## Risks
 

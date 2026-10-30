@@ -13,7 +13,7 @@ The tailnet's policy is the default allow-all grant. Two projects need to tighte
 
 ## Scope
 
-Taking stock of what the maintainer reaches over the tailnet today, and replacing the allow-all grant with explicit grants for exactly that, plus `tests` that assert them, and the entries the subnet router's tag needs: a `tagOwners` entry for the tag and an `autoApprovers` entry for the route the router already advertises ([ADR 0097 (Tailscale node configuration)](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)). Not in scope: any new route's grant and auto-approval entry ([`operator-host.md`](operator-host.md), [`coding-agent-network.md`](coding-agent-network.md)), and putting the policy under Tofu, which builds on Tofu's root module ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project), [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)).
+Taking stock of what the maintainer reaches over the tailnet today, and of what else the tailnet holds (its devices, its DNS settings and the policy's other sections), and replacing the allow-all grant with explicit grants for exactly that, plus `tests` that assert them, and the entries the subnet router's tag needs: a `tagOwners` entry for the tag and an `autoApprovers` entry for the route the router already advertises ([ADR 0097 (Tailscale node configuration)](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)). Not in scope: any new route's grant and auto-approval entry ([`operator-host.md`](operator-host.md), [`coding-agent-network.md`](coding-agent-network.md)), and putting the policy under Tofu, which builds on Tofu's root module ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project), [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)).
 
 ## Decision
 
@@ -25,10 +25,17 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Take stock of what the maintainer and the nodes reach over the tailnet today | Not started | Every source, destination and port in use is listed in a topic doc, with how it was found |
-| 2 | Replace allow-all with explicit grants and `tests` | Not started | The saved policy grants exactly what Stage 1 lists, its `tests` pass, every flow in the list still works from the node that uses it, and the policy holds the router's tag under `tagOwners` and its existing route under `autoApprovers`, with no node yet carrying the tag |
+| 1 | Take stock of what the maintainer and the nodes reach over the tailnet today, and of the tailnet's devices, DNS settings and other policy sections | Not started | Every source, destination and port in use is listed in a topic doc, with how it was found, and so is every device, nameserver and non-grant policy section, each matched to something the lab uses or marked for removal |
+| 2 | Clean up the devices, then replace allow-all with explicit grants and `tests` | Not started | Every device marked for removal is gone, the saved policy grants exactly what Stage 1 lists, its `tests` pass, every flow in the list still works from the node that uses it, and the policy holds the router's tag under `tagOwners` and its existing route under `autoApprovers`, with no node yet carrying the tag |
 
 Stage status is `Not started`, `In progress`, or `Done`.
+
+### Stage 1 — what the inventory covers
+
+- **Devices.** Match each device in the console to a machine the maintainer owns and still uses. A device whose key has expired, one that has not connected for months, and one that stands for a retired machine is marked for removal. The topic doc describes devices by role, never by name or address, and the maintainer removes them in the console. Each remaining user-owned device's key expiry is a recorded choice, since an expired key drops a device off the tailnet.
+- **The Proxmox node.** It is a member and the way to the hypervisor when the router VM is broken, so Stage 2 keeps one grant to it from the maintainer's devices alone, and the inventory records how it joined and whether it should carry a tag of its own. [`proxmox-node-install.md`](proxmox-node-install.md) owns restoring that membership after a reinstall.
+- **DNS.** Record MagicDNS, the global nameservers and each split-DNS entry with every nameserver it lists. A nameserver the tailnet's resolver can reach has to sit inside a route the router advertises, and each needs a grant on port 53 from the devices that resolve through it, or tightening the policy breaks name resolution. The internal zones list the gateway today, which forwards to both servers of [ADR 0040 (Tofu VM DNS)](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md). Stage 1 records whether to list the secondary beside it once it exists, so that losing one resolver does not take the zones away.
+- **The policy's other sections.** The default policy carries a Tailscale SSH rule and a Funnel attribute besides its grant. Each is kept only if Stage 1 finds a use for it, since [ADR 0097](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) leaves Tailscale SSH and Funnel out.
 
 ### Stage 2 — the edit
 
@@ -40,6 +47,8 @@ Copy the current policy first, and use the admin console's preview before saving
 - [ ] `tests` assert each grant, and a save with a failing assertion is refused by the console.
 - [ ] The policy names the router's tag in `tagOwners` and auto-approves the route the router advertises under it, so the router's rebuild ([`tofu-migration.md`](tofu-migration.md)) joins under a tag the policy already knows.
 - [ ] The topic doc names who adds a grant, and an auto-approval entry, for a new route and how.
+- [ ] No device is left that Stage 1 could not match to a machine in use, and the topic doc records every nameserver the tailnet lists and the grant that lets each be reached.
+- [ ] No source in the tailnet has a grant to the router's own address unless Stage 1 found a use for one, since the host is managed from the operator host through the gateway and not over the tailnet.
 
 ## Risks
 

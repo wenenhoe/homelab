@@ -26,6 +26,7 @@ The tailnet is the maintainer's path into the lab away from home, and the subnet
 - **Subnet routers source-NAT by default**, so the gateway sees every tailnet caller as the router ([ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
 - **`artis3n.tailscale` v1.2.1** is the maintained collection for the node side, MIT-licensed, with one role. Its role stops unless `tailscale_authkey` is set on every run that does not skip `tailscale up`. It runs `tailscale up` again when a hash of the arguments and key changes, a hash it keeps in the login user's home directory, and it does not compare the node's actual preferences. `tailscale up` is a plain command task. It installs the package and the apt repository for several distribution families and sets no forwarding sysctl.
 - **Join keys are credentials** that [ADR 0015 (Cloud credential expiry)](../0015-cloud-credential-expiry/revision-000.md) expects to expire. An OAuth client that mints them does not expire on its own and can add any node under the tags it may apply.
+- **The Proxmox node is already a member.** It joined by hand as an ordinary node with no approved route, and it is the maintainer's way to the hypervisor when the router VM is broken, so it is the one way in that does not cross the router. It is outside the `network_infra` group.
 - **Other hosts may join.** [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) extends the router's reach to a GCP node, which may have to join the tailnet itself. The coding-agent host and the operator host do not join.
 
 ## Decision
@@ -86,6 +87,7 @@ The role converges, in order:
 - The tailnet's policy, DNS and devices other than the node's own ([ADR 0059](../0059-where-the-tailnet-policy-is-defined/revision-000.md)).
 - Exit nodes, Tailscale SSH, Serve and Funnel.
 - Whether the GCP node joins the tailnet. It may use this role if it does, decided with its own project.
+- Whether the Proxmox node's membership is configured by this role. [`proxmox-node-install.md`](../../projects/proxmox-node-install.md) decides that with its inventory of the node.
 
 ## Validation
 

@@ -196,6 +196,15 @@ rather than sitting beside it. The rebuild joins the new VM to the tailnet
 with the role [`tailscale-node-role.md`](tailscale-node-role.md) writes; until
 that role exists, nothing in the repository can rebuild the router.
 
+The live VM takes `192.168.20.2` from a reservation on the current gateway.
+The rebuilt VM carries that address itself, as a static address from
+cloud-init under the MAC its module derives, so it needs no reservation. The
+production gateway's Kea serves no VLAN 20 zone
+([`opnsense-config.md`](opnsense-config.md)), and that gateway is rebuilt after
+this cutover, so the old reservation is not carried across and nothing is
+waiting for it. The gateway's flows name the router's address, so the rebuilt
+VM must keep it.
+
 ## Acceptance criteria
 
 - [x] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
@@ -232,15 +241,6 @@ that role exists, nothing in the repository can rebuild the router.
   Measure its memory, CPU and throughput on the live VM under that traffic,
   over runs that span real operator sessions, and set its row before its
   rebuild; until then the row stands, and the disk shrinks as for every host.
-- Where VM 202's address survives the gateway's replacement. The live hosts
-  take their addresses from reservations on the current gateway, and the
-  replacement runs Kea only for clients Tofu does not place
-  ([ADR 0089](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)),
-  while a Tofu-built VM takes a static address from cloud-init under the MAC
-  its module derives. The router is rebuilt last, so until then the new
-  gateway's Kea network ([`opnsense-config.md`](opnsense-config.md)) has to hold
-  its reservation, and the rebuilt VM then carries `192.168.20.2` itself.
-  Settle which project writes that reservation before the gateway is replaced.
 
 ## Closing checklist
 

@@ -187,21 +187,42 @@ phases:
   `sha256sum` or `shasum`. OPNsense publishes no stable "latest" URL, so a
   newer release is a new URL and checksum.
 
+  A caller whose node already holds the unpacked image sets
+  `image_volume_id` (`<datastore>:import/<name>.raw`) instead of `image_url`
+  and `image_checksum`: nothing is downloaded or uploaded and the system disk
+  is imported from that volume. Exactly one of the two ways must be given,
+  and the plan fails otherwise.
+
   The seed disk comes from `seed/build_seed.sh` beside the module:
   `build_seed.sh OUTPUT_DIR --lan-ip ADDRESS` writes `OUTPUT_DIR/seed.img`,
   the file the module's `seed_image_path` takes. It starts from OPNsense's own
   sample `config.xml` (`seed/SAMPLE_SOURCE.txt` names its release), assigns the
-  two NICs (`vtnet0` is the WAN, `vtnet1` the LAN), sets the LAN address, the
+  two NICs (`vtnet0` is the WAN, `vtnet1` the LAN), sets the LAN address,
+  adds a VLAN device `vlan0.<tag>` on the LAN device for each tag of `--vlans`
+  (20, 30, 40, 50 and 60 unless overridden) with an interface at
+  `192.168.<tag>.1/24`, sets the
   hostname and the domain (`OPNsense.internal` unless overridden, the name the
   play verifies the GUI certificate for), keeps the serial port as the console,
-  sets root's password and adds one API user. It needs `python3`, `openssl`,
-  `sfdisk`, mtools and `xmllint`. The root password, API key and API secret
-  are the variables `opnsense_root_password`, `opnsense_api_key` and
-  `opnsense_api_secret` in the [credentials file](#state-backend--secrets).
-  The builder reads them and appends generated ones when the file holds none,
-  so a rebuilt gateway keeps the credentials the play holds. The seed carries
-  only a hash of the password and of the secret. A credentials file that
-  others can read, or that holds only some of the three, stops the build.
+  turns IPv6 off (no system-wide allowance and no IPv6 address method on the
+  WAN or LAN), sets root's password, puts a one-time password in front of the
+  GUI login (a `TOTP` authentication server, which the GUI is set to use, and a
+  seed on root; OPNsense has no option left to keep console logins off that
+  rule, so the console menu is not password-protected, whoever can open the
+  VM's console in Proxmox reaches it, and it is the way in when the token is
+  lost; the API user authenticates by key) and adds one API user, which holds
+  only the privileges that cover the calls of the play, the scratch update and
+  the diagnostics (system information, firmware, aliases, filter rules, Kea
+  DHCPv4 and dnsmasq) instead of `page-all`. It needs `python3`, `openssl`,
+  `sfdisk`, mtools and `xmllint`. The root password, API key, API secret and
+  root's OTP seed (base32, for an authenticator app) are the variables
+  `opnsense_root_password`, `opnsense_api_key`, `opnsense_api_secret` and
+  `opnsense_root_otp_seed` in the [credentials file](#state-backend--secrets).
+  The builder reads them and appends generated ones when the file holds none
+  of the first three, so a rebuilt gateway keeps the credentials the play
+  holds. A file that holds the first three without a seed gets one appended.
+  The seed carries only a hash of the password and of the secret, and the OTP
+  seed itself, which the gateway needs in the clear. A credentials file that
+  others can read, or that holds only some of the first three, stops the build.
   Tofu warns that these variables are undeclared when it reads the file,
   which does no harm.
 
@@ -213,8 +234,9 @@ phases:
   beside the VM's serial socket with the seed's root password on stdin, read
   from the credentials file, so the password reaches neither a command line
   nor the node's disk. The driver names the seed disk (`da1`) to the importer,
-  logs in at the console with the seed's root password and reads the web GUI's
-  certificate off the console. `OUTPUT_DIR` then holds `console.log`,
+  logs in at the console with the seed's root password when the console asks
+  for one (a login prompt that the menu follows within five seconds is not
+  answered) and reads the web GUI's certificate off the console. `OUTPUT_DIR` then holds `console.log`,
   `result.json` and `gateway-cert.pem`, the CA file the play pins; the driver
   refuses a certificate that does not match the fingerprint the console banner
   prints, and the script removes the output if it finds the password in it.
@@ -235,11 +257,76 @@ phases:
   the name resolves, that the seeded key authenticates over the pinned
   certificate, and that the gateway runs the pinned release. A renewed GUI
   certificate fails the authentication check until the console is read again.
+
+  The play then writes the policy: an alias for each zone's network, one for
+  the operator hosts, the CD agent and the gateway's management ports, a
+  floating quick pass rule at sequence 1 that admits the operator hosts to
+  the gateway's SSH and API ports, and one rule per zone for DNS, NTP and
+  ping to the gateway, and the flows between zones listed in the role's
+  `opnsense_gateway_flows` (a pass rule on the source zone's interfaces, each
+  matched by its name; one marked `enabled: false` is written but not in
+  force). Each zone marked `internet: true` also gets a rule denying direct
+  DNS (ports 53 and 853) to anything but the gateway and one passing its
+  traffic to everything outside the private ranges; the others reach only the
+  flows listed. Outbound NAT is left in the automatic mode the seed sets. Kea is
+  turned on for the zones marked `dhcp: true` (desktops and the two
+  experimental blocks, whose clients Tofu does not place), each with a scope
+  of `192.168.<vlan>.10` to `.245`, and keeps the reservations listed in
+  `opnsense_gateway_dhcp_reservations` (`name`, `zone`, `address`, `mac`), which
+  must sit in a Kea zone outside the pool; a zone not marked is left alone. The play needs `-e opnsense_gateway_operator_hosts=[...]`
+  (the IPv4 addresses the work runs from) and stops without it, since an
+  empty guard rule would admit nobody. The CD agent's rule is written only
+  when `opnsense_gateway_cd_agent_management` is true, and removed when it is
+  false. Unbound forwards the host zone and the lan zone to the two DNS servers
+  (`opnsense_gateway_forward_servers`, `192.168.20.3` and `192.168.20.6`), the
+  zones being the play's `-e opnsense_gateway_forward_domains=[...]` because they
+  derive from the main domain, and stops without them. The play also removes any
+  forward it does not write, which `--check` reports as a change.
   The release and the collection's commit are the role's defaults;
   `ansible/requirements.yml` installs the collection from git at the same
   commit, and a test fails when the two differ. The gateway's release check
   asks the gateway for its firmware status, which probes the OPNsense mirror,
   so the gateway needs its route out.
+  A scratch gateway for developing the play is built by
+  `tofu/scratch/opnsense/scratch_gateway.sh up OUT_DIR IMAGE_URL IMAGE_CHECKSUM`
+  from the operator host, with `NODE`, `PROXMOX_ENDPOINT` and
+  `PROXMOX_API_TOKEN` set. It builds the seed with credentials of its own in
+  `OUT_DIR/credentials.tfvars`, so the real credentials file is untouched,
+  has the node stage the image (see below), applies the module from its own
+  Tofu root with the VM stopped (VMID 501, named `opn-scratch`), runs the
+  first-boot script, and updates the gateway
+  to `WANT_VERSION` (default the pinned release) through its firmware API
+  with `update_gateway.sh`, run on the node. The update is refused unless it
+  lands on that release, and the seeded key must still authenticate, and a
+  wrong secret still be refused, afterwards. Last it opens an ssh forward
+  from `LOCAL_PORT` (default 8443) on the operator host to the gateway's
+  GUI port, and prints the play command to run against it; the operator host
+  must resolve `OPNsense.internal` to `127.0.0.1` and have no proxy variables
+  set. The LAN NIC attaches to `LAN_BRIDGE` (default `vmbr9`), which must
+  exist with no ports and no address and be usable by the API token
+  (`SDN.Use` on `/sdn/zones/localnetwork/<bridge>`), because the seed's LAN
+  serves DHCP. The WAN NIC attaches untagged to `WAN_BRIDGE` (default
+  `vmbr1`), or tagged with `WAN_VLAN_ID`, where a DHCP server gives it an
+  address and a route out; the production WAN bridge is refused. The node
+  takes `192.168.77.10` on the LAN bridge to reach the gateway. The root's
+  state and provider directory live in `OUT_DIR`, and the root uses the
+  provider pin and lock file of the main root. `down OUT_DIR` closes the
+  tunnel and destroys the VM, the seed it uploaded and everything left on the
+  node, but not the staged image.
+
+  The image is staged by `stage_image.sh`, which the script pipes to the node:
+  the node downloads the `.img.bz2`, checks it against `IMAGE_CHECKSUM`, unpacks
+  it and moves it into the images datastore's `import` directory in one rename
+  as `<release>-nano-amd64.raw`, with the checksum beside it in a `.sha256`
+  file. A later run that finds the file with the checksum it asks for fetches
+  nothing, so the 3 GB upload through the Proxmox API, which can fail with a
+  closed connection, happens in no run. The node needs `curl`, `bunzip2`,
+  `pvesh` and `python3`, a route to the mirror and about 4.5 GB free in the
+  datastore. The checksum is checked when the image is staged, not again when
+  it is used. `PURGE_IMAGE=1` makes `down` remove the staged image, and
+  `UPLOAD_IMAGE=1` has the operator host download the image and the module
+  upload it instead, for a node with no route to the mirror (about 7 GB free
+  where `OUT_DIR` is).
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
@@ -386,7 +473,7 @@ proxmox_api_token = "user@realm!tokenid=secret"
 
 The endpoint must be `https://`, and TLS verification is on. Setting
 `proxmox_insecure = true` in the file skips it, which the provider's own
-docs limit to development. The OPNsense root password, API key and API secret are in this file
+docs limit to development. The OPNsense root password, API key, API secret and root's OTP seed are in this file
 once the seed is built ([OPNsense](#opnsense)), and a remote backend's S3
 credential joins it when that consumer is built.
 Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the

@@ -617,6 +617,14 @@ jobs:
       - name: Validate
         run: tofu validate
 
+      - name: Install the scratch gateway root's providers
+        working-directory: tofu/scratch/opnsense
+        run: tofu init -backend=false -input=false -lockfile=readonly
+
+      - name: Validate the scratch gateway root
+        working-directory: tofu/scratch/opnsense
+        run: tofu validate
+
       - name: Run the tests
         run: tofu test
 

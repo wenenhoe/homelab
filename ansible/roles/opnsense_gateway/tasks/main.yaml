@@ -95,7 +95,7 @@
 # connection that succeeds is to the gateway the console read came from.
 - name: Authenticate to the gateway's API over the pinned certificate
   ansible.builtin.uri:
-    url: "{{ opnsense_gateway_api_url }}/api/diagnostics/system/systemInformation"
+    url: "{{ opnsense_gateway_api_url }}/api/diagnostics/system/system_information"
     url_username: "{{ opnsense_gateway_api_key }}"
     url_password: "{{ opnsense_gateway_api_secret }}"
     force_basic_auth: true
@@ -148,3 +148,22 @@
       ssl_verify: true
       ssl_ca_file: "{{ opnsense_gateway_ca_file }}"
   no_log: true
+
+- name: Write the configuration with the gateway connection
+  module_defaults:
+    group/oxlorg.opnsense.all:
+      firewall: "{{ opnsense_gateway_connection.firewall }}"
+      api_port: "{{ opnsense_gateway_connection.api_port }}"
+      api_key: "{{ opnsense_gateway_connection.api_key }}"
+      api_secret: "{{ opnsense_gateway_connection.api_secret }}"
+      ssl_verify: true
+      ssl_ca_file: "{{ opnsense_gateway_connection.ssl_ca_file }}"
+  block:
+    - name: Apply the policy
+      ansible.builtin.include_tasks: policy.yaml
+
+    - name: Apply the DHCP scopes
+      ansible.builtin.include_tasks: dhcp.yaml
+
+    - name: Apply the Unbound forwards
+      ansible.builtin.include_tasks: forwards.yaml

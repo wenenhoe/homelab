@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import re
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -10,7 +12,14 @@ import patch_config
 import pytest
 
 CREDENTIAL_NAMES = ("opnsense_root_password", "opnsense_api_key", "opnsense_api_secret")
-CREDS = {"opnsense_root_password": "root-pw-123", "opnsense_api_key": "KEY+/abc=", "opnsense_api_secret": "SECRET+/xyz="}
+OTP_NAME = "opnsense_root_otp_seed"
+ALL_NAMES = (*CREDENTIAL_NAMES, OTP_NAME)
+CREDS = {
+    "opnsense_root_password": "root-pw-123",
+    "opnsense_api_key": "KEY+/abc=",
+    "opnsense_api_secret": "SECRET+/xyz=",
+    OTP_NAME: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+}
 OPTIONS = {
     "wan_if": "vtnet0",
     "lan_if": "vtnet1",
@@ -35,7 +44,7 @@ def write_credentials(path: Path, text: str, mode: int = 0o600) -> Path:
     return path
 
 
-def assignments(names=CREDENTIAL_NAMES) -> str:
+def assignments(names=ALL_NAMES) -> str:
     return "".join(f'{name} = "{CREDS[name]}"\n' for name in names)
 
 
@@ -110,6 +119,137 @@ class TestBuildSeed:
         assert (seed(wan_dhcp_hostname=name).findtext("interfaces/wan/dhcphostname") or "") == expected
 
 
+class TestHardening:
+    def test_ipv6_is_off_system_wide_and_on_both_interfaces(self):
+        root = seed()
+
+        assert root.find("system/ipv6allow") is None
+        for name in ("wan", "lan"):
+            interface = root.find(f"interfaces/{name}")
+            assert [el.tag for el in interface if el.tag.endswith("v6") or el.tag.startswith(("track6", "dhcp6"))] == [], name
+
+    def test_the_sample_it_starts_from_allows_ipv6_so_the_test_above_removes_something(self):
+        sample = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
+
+        assert sample.find("system/ipv6allow") is not None
+        assert sample.find("interfaces/wan/ipaddrv6") is not None
+
+    def test_ssh_is_key_only_if_it_is_ever_turned_on(self):
+        ssh = seed().find("system/ssh")
+
+        assert ssh.find("passwordauth") is None
+        assert ssh.find("permitrootlogin") is None
+        assert ssh.find("enabled") is None
+
+
+class TestApiPrivileges:
+    def test_the_api_user_holds_the_privileges_the_play_needs_and_not_page_all(self):
+        privileges = [p.text for p in api_user(seed()).findall("priv")]
+
+        assert privileges == [
+            "page-system-login-logout",
+            "page-system-firmware-manualupdate",
+            "page-firewall-alias-edit",
+            "page-filter-api",
+            "page-dhcp-kea-v4",
+            "page-services-dnsforwarder",
+            "page-services-unbound",
+        ]
+        assert "page-all" not in privileges
+
+    def test_root_is_not_narrowed_because_its_group_keeps_page_all(self):
+        group = seed().find("system/group")
+
+        assert group.findtext("priv") == "page-all"
+
+    def test_every_privilege_is_a_page_privilege_name_without_a_wildcard(self):
+        for privilege in patch_config.API_PRIVILEGES:
+            assert re.fullmatch(r"page-[a-z0-9-]+", privilege)
+
+
+class TestSecondFactor:
+    def test_root_carries_the_otp_seed_of_the_credentials(self):
+        root_user = next(u for u in seed().find("system").findall("user") if u.findtext("name") == "root")
+
+        assert root_user.findtext("otp_seed") == CREDS[OTP_NAME]
+
+    def test_the_seed_defines_a_totp_authentication_server(self):
+        servers = seed().findall("system/authserver")
+
+        assert [(s.findtext("type"), s.findtext("name"), s.findtext("otpLength")) for s in servers] == [("totp", "TOTP", "6")]
+        assert servers[0].findtext("refid")
+
+    def test_the_gui_authenticates_against_it_alone_so_a_password_by_itself_is_not_enough(self):
+        system = seed().find("system")
+
+        assert system.findtext("webgui/authmode") == "TOTP"
+
+    def test_the_console_menu_is_not_password_protected_because_a_console_login_would_need_the_code_too(self):
+        assert ET.parse(patch_config.BASE).getroot().find("system/disableconsolemenu") is not None  # noqa: S314 - the sample shipped beside the builder
+        assert seed().find("system/disableconsolemenu") is None
+
+    def test_no_setting_is_written_for_the_removed_option_that_kept_console_logins_off_the_code(self):
+        assert seed().find("system/disableintegratedauth") is None
+
+    def test_the_api_user_is_not_given_an_otp_seed_because_it_authenticates_by_key(self):
+        assert api_user(seed()).find("otp_seed") is None
+
+    def test_the_server_id_is_the_same_in_every_build(self):
+        assert seed().findtext("system/authserver/refid") == seed().findtext("system/authserver/refid")
+
+
+class TestVlans:
+    def test_adds_a_device_on_the_lan_device_for_each_zone(self):
+        vlans = seed(lan_if="vtnet3").findall("vlans/vlan")
+
+        assert [(v.findtext("if"), v.findtext("tag"), v.findtext("vlanif")) for v in vlans] == [
+            ("vtnet3", str(tag), f"vlan0.{tag}") for tag in patch_config.DEFAULT_VLANS
+        ]
+
+    def test_gives_each_device_an_interface_whose_address_is_dot_one_of_its_subnet(self):
+        interfaces = seed().find("interfaces")
+
+        assert [(i.findtext("if"), i.findtext("ipaddr"), i.findtext("subnet")) for i in (interfaces.find(f"opt{n}") for n in range(1, 6))] == [
+            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (20, 30, 40, 50, 60)
+        ]
+        assert interfaces.find("opt6") is None
+
+    def test_describes_each_zone_by_its_vmid_range(self):
+        assert [v.findtext("descr") for v in seed().findall("vlans/vlan")] == [f"VM ID {n}XX" for n in (2, 3, 4, 5, 6)]
+
+    def test_each_device_has_a_uuid_that_does_not_change_between_builds(self):
+        first = [v.get("uuid") for v in seed().findall("vlans/vlan")]
+        second = [v.get("uuid") for v in seed().findall("vlans/vlan")]
+
+        assert first == second
+        assert len(set(first)) == len(first)
+        assert all(first)
+
+    def test_the_vlan_list_is_the_one_given(self):
+        root = seed(vlans=[20, 70])
+
+        assert [v.findtext("tag") for v in root.findall("vlans/vlan")] == ["20", "70"]
+        assert root.find("interfaces/opt2/ipaddr").text == "192.168.70.1"
+
+    def test_none_given_adds_neither_devices_nor_interfaces(self):
+        root = seed(vlans=[])
+
+        assert root.find("vlans") is None
+        assert root.find("interfaces/opt1") is None
+
+    @pytest.mark.parametrize("tags", [[20, 20], [1], [255], [4000]])
+    def test_refuses_a_tag_that_is_repeated_or_outside_the_subnet_scheme(self, tags):
+        with pytest.raises(SystemExit, match="distinct numbers"):
+            seed(vlans=tags)
+
+    def test_refuses_a_lan_network_that_overlaps_a_zone(self):
+        with pytest.raises(SystemExit, match="overlaps VLAN 20"):
+            seed(lan_ip="192.168.20.254")
+
+    def test_the_lan_on_the_scratch_gateway_does_not_collide_with_a_zone(self):
+        assert seed(lan_ip="192.168.77.1").find("vlans/vlan") is not None
+
+
 class TestEnsureCredentials:
     def test_returns_the_values_a_file_already_holds_and_leaves_it_alone(self, credentials_path):
         text = f'proxmox_endpoint = "https://pve:8006/"\n{assignments()}'
@@ -118,10 +258,10 @@ class TestEnsureCredentials:
         assert patch_config.ensure_credentials(credentials_path) == CREDS
         assert credentials_path.read_text() == text
 
-    def test_generates_all_three_into_a_new_file_readable_by_its_owner_only(self, credentials_path):
+    def test_generates_all_of_them_into_a_new_file_readable_by_its_owner_only(self, credentials_path):
         generated = patch_config.ensure_credentials(credentials_path)
 
-        assert set(generated) == set(CREDENTIAL_NAMES)
+        assert set(generated) == set(ALL_NAMES)
         assert patch_config.read_credentials(credentials_path) == generated
         assert oct(credentials_path.stat().st_mode & 0o777) == "0o600"
 
@@ -135,7 +275,7 @@ class TestEnsureCredentials:
     def test_generates_a_different_secret_for_each_credential(self, credentials_path):
         generated = patch_config.ensure_credentials(credentials_path)
 
-        assert len(set(generated.values())) == 3
+        assert len(set(generated.values())) == 4
 
     @pytest.mark.parametrize(
         "existing",
@@ -151,8 +291,25 @@ class TestEnsureCredentials:
 
         lines = credentials_path.read_text().splitlines()
         assert lines[0] == 'proxmox_endpoint = "https://pve:8006/"'
-        assert len(lines) == 4
+        assert len(lines) == 5
         assert patch_config.read_credentials(credentials_path) == generated
+
+    def test_a_file_written_before_the_otp_seed_existed_keeps_its_credentials_and_gets_a_seed(self, credentials_path):
+        before = f'proxmox_endpoint = "https://pve:8006/"\n{assignments(CREDENTIAL_NAMES)}'
+        write_credentials(credentials_path, before)
+
+        found = patch_config.ensure_credentials(credentials_path)
+
+        assert {name: found[name] for name in CREDENTIAL_NAMES} == {name: CREDS[name] for name in CREDENTIAL_NAMES}
+        assert credentials_path.read_text().startswith(before)
+        assert patch_config.read_credentials(credentials_path) == found
+        assert patch_config.ensure_credentials(credentials_path) == found
+
+    def test_the_generated_otp_seed_is_twenty_random_bytes_in_base32(self, credentials_path):
+        seed_value = patch_config.ensure_credentials(credentials_path)[OTP_NAME]
+
+        assert re.fullmatch(r"[A-Z2-7]{32}", seed_value)
+        assert len(base64.b32decode(seed_value)) == 20
 
     def test_a_second_call_returns_what_the_first_generated(self, credentials_path):
         first = patch_config.ensure_credentials(credentials_path)
@@ -176,7 +333,7 @@ class TestEnsureCredentials:
     def test_ignores_a_commented_assignment(self, credentials_path):
         write_credentials(credentials_path, f"# {assignments(CREDENTIAL_NAMES[:1])}")
 
-        assert set(patch_config.ensure_credentials(credentials_path)) == set(CREDENTIAL_NAMES)
+        assert set(patch_config.ensure_credentials(credentials_path)) == set(ALL_NAMES)
 
 
 class TestMain:
@@ -188,6 +345,24 @@ class TestMain:
 
         written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
         assert api_user(written).findtext("apikeys/item/key") == CREDS["opnsense_api_key"]
+
+    def test_takes_the_vlan_tags_from_the_command_line(self, credentials_path, tmp_path_factory):
+        write_credentials(credentials_path, assignments())
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+
+        assert patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,70"]) == 0
+
+        written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
+        assert [v.findtext("tag") for v in written.findall("vlans/vlan")] == ["20", "70"]
+
+    def test_a_vlan_list_that_is_not_numbers_is_refused(self, credentials_path, tmp_path_factory, capsys):
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+
+        with pytest.raises(SystemExit) as stopped:
+            patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,x"])
+
+        assert stopped.value.code == 2
+        assert "--vlans" in capsys.readouterr().err
 
     def test_a_lan_address_is_required(self, credentials_path, tmp_path_factory, capsys):
         out = tmp_path_factory.mktemp("out") / "config.xml"

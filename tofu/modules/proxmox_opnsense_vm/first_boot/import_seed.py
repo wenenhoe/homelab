@@ -85,6 +85,12 @@ class Console:
         self.sock.sendall(text.encode())
         self.sock.setblocking(False)
 
+    def settle(self, quiet, limit=30.0):
+        """Take in output until the console has been silent for `quiet` seconds, or `limit` seconds have passed."""
+        deadline = time.monotonic() + limit
+        while time.monotonic() < deadline and time.monotonic() - self.last_rx < quiet:
+            self._pump(0.1)
+
     def expect(self, pattern, timeout, step, nudge=None, quiet=20.0):
         """Wait for pattern in the output not yet consumed, and consume up to its end.
 
@@ -108,7 +114,7 @@ class Console:
             self._pump(0.2)
 
 
-def reach_menu(con, user, password, timeout, quiet, label):
+def reach_menu(con, user, password, timeout, quiet, label, settle=5.0):
     """Get to the console menu from wherever the console is.
 
     The console may be at a login prompt, at the menu, or inside a root shell. A
@@ -116,12 +122,21 @@ def reach_menu(con, user, password, timeout, quiet, label):
     console wakes one that printed its prompt before the driver connected. Inside
     a shell, Ctrl-C and `exit` walk back out to the menu. The password is typed at
     a prompt that does not echo, so it is not in the transcript.
+
+    A console whose menu is not password-protected can print a login prompt while it
+    starts and then show the menu. A prompt is answered only once the console has been
+    silent for `settle` seconds without the menu having appeared.
     """
     for _ in range(6):
         m = con.expect(rf"login: |Enter an option:|{SHELL_PROMPT}", timeout, f"{label}: login, menu or shell", nudge="\x03\r", quiet=quiet)
         if m.group(0).startswith("Enter"):
             return
         if m.group(0).endswith("login: "):
+            con.settle(settle)
+            menu = re.compile("Enter an option:").search(con.buf, con.pos)
+            if menu:
+                con.pos = menu.end()
+                return
             break
         con.send("\x03exit\r")
     else:
@@ -191,7 +206,7 @@ def seed_and_read(con, a, password, res):
         if not res["restored"]:
             res["result"] = "seed did not land"
             return 3, res
-        reach_menu(con, "root", password, a.boot_timeout, a.nudge_quiet, "seeded system")
+        reach_menu(con, "root", password, a.boot_timeout, a.nudge_quiet, "seeded system", a.login_settle)
         res["first_menu_s"] = round(con.elapsed(), 1)
         con.say("logged in with the seed's root password; the console menu is up")
         pem = read_certificate(con, st, a.poll_interval)
@@ -230,6 +245,7 @@ def main(argv=None):
     ap.add_argument("--boot-timeout", type=float, default=300)
     ap.add_argument("--step-timeout", type=float, default=60)
     ap.add_argument("--nudge-quiet", type=float, default=20, help="send a newline when the console has been silent this many seconds")
+    ap.add_argument("--login-settle", type=float, default=5, help="seconds of silence after a login prompt before it is answered, in case the menu follows")
     ap.add_argument("--poll-interval", type=float, default=3, help="seconds between looks for the certificate file")
     a = ap.parse_args(argv)
 

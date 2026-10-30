@@ -20,7 +20,7 @@ Replaces the Claude Chat, VS Code, and lazygit workflow with a dedicated VM wher
 
 ## Scope
 
-The VM (VMID 601, in the 6XX range), a `coding_agent` role, an inventory group outside `managed_hosts`, `app_hosts`, and `patched_hosts`, an unprivileged agent account, Claude Code with its built-in sandbox, and the role's Molecule scenario. Unattended security updates come from the hardening baseline ([`host-hardening.md`](../topics/infra/host-hardening.md)), not this role. Not in scope: the network zone ([`coding-agent-network.md`](coding-agent-network.md)), the Molecule runtime for the repo's own scenarios ([`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md)), client access ([`coding-agent-access-path.md`](coding-agent-access-path.md)), and rebuild automation ([`coding-agent-management.md`](coding-agent-management.md)).
+The VM (VMID 701, in the 7XX range), a `coding_agent` role, an inventory group outside `managed_hosts`, `app_hosts`, and `patched_hosts`, an unprivileged agent account, Claude Code with its built-in sandbox, and the role's Molecule scenario. Unattended security updates come from the hardening baseline ([`host-hardening.md`](../topics/infra/host-hardening.md)), not this role. Not in scope: the network zone ([`coding-agent-network.md`](coding-agent-network.md)), the Molecule runtime for the repo's own scenarios ([`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md)), client access ([`coding-agent-access-path.md`](coding-agent-access-path.md)), and rebuild automation ([`coding-agent-management.md`](coding-agent-management.md)).
 
 ## Decision
 
@@ -33,7 +33,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: built-in sandbox on this Ubuntu release with the repo's tooling, and VM sizing under load | Not started | Both assumptions in ADR 0051 are resolved and the revision can be `approved` |
-| 2 | VM shell in VLAN 60, built by hand, no nested virtualization | Not started | The VM boots in the zone and is reachable only by the two permitted SSH flows |
+| 2 | VM shell in VLAN 70, built by hand, no nested virtualization | Not started | The VM boots in the zone and is reachable only by the two permitted SSH flows |
 | 3 | Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy, since the role installs Claude Code from the Internet. `coding_agent` role and inventory group: agent and management accounts, Claude Code, sandbox settings, the hardening baseline's role, `sshd` per-account source restrictions | Not started | The role converges idempotently and the host resolves its own SSH key, never the shared one |
 | 4 | Molecule scenario for the role | Not started | The scenario passes in CI and appears in the scenario matrix |
 

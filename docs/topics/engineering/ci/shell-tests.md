@@ -13,6 +13,8 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 | `fetch_image.bats` | [`tofu/modules/proxmox_opnsense_vm/fetch_image.sh`](../../../../tofu/modules/proxmox_opnsense_vm/fetch_image.sh) |
 | `build_seed.bats` | [`tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh`](../../../../tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh) |
 | `first_boot.bats` | [`tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh`](../../../../tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh) |
+| `scratch_gateway.bats` | [`tofu/scratch/opnsense/scratch_gateway.sh`](../../../../tofu/scratch/opnsense/scratch_gateway.sh) |
+| `stage_image.bats` | [`tofu/scratch/opnsense/stage_image.sh`](../../../../tofu/scratch/opnsense/stage_image.sh) |
 | `check_freshness.bats` | the template [`check-freshness.sh.j2`](../../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) |
 | `caddy_cert_expiry.bats` | the template [`check.sh.j2`](../../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) of the `caddy_cert_expiry` role |
 | `harness.bats` | the harness itself |

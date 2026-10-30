@@ -38,7 +38,7 @@ Stage status is `Not started`, `In progress`, or `Done`. Stages 2 and 3 need no 
 
 - [ ] One flow list in the repo is the only place the expected flows are written for checking, and its rules run as a pre-commit hook.
 - [ ] The runner, started from the host that runs the play, tries each flow from a canary in the source zone, and every deny has a control that passed in the same run.
-- [ ] The canary-probe criteria of [`opnsense-config.md`](opnsense-config.md) (Stages 3 and 4), [`coding-agent-egress.md`](coding-agent-egress.md) (Stage 2) and [`operator-host-takeover.md`](operator-host-takeover.md) (Stage 1) are met by this runner.
+- [ ] The canary-probe criteria of [`opnsense-config.md`](opnsense-config.md) (Stages 3 and 4), [`coding-agent-network.md`](coding-agent-network.md) (Stage 3), [`coding-agent-egress.md`](coding-agent-egress.md) (Stages 2 and 3) and [`operator-host-takeover.md`](operator-host-takeover.md) (Stage 1) are met by this runner.
 - [ ] A scheduled run pushes a heartbeat on a pass and alerts on a failure or a missed run.
 - [ ] The resulting behavior is described in `docs/topics/infra/network-boundary-checks.md`.
 

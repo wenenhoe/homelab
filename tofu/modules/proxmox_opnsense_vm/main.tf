@@ -1,9 +1,12 @@
 locals {
-  image_bz2 = "${var.image_cache_dir}/${basename(var.image_url)}"
-  image_img = trimsuffix(local.image_bz2, ".bz2")
+  # With image_volume_id the image is already on the node; otherwise it is fetched here and uploaded.
+  fetch_image = var.image_volume_id == null && var.image_url != null
+  image_bz2   = local.fetch_image ? "${var.image_cache_dir}/${basename(var.image_url)}" : null
+  image_img   = local.fetch_image ? trimsuffix(local.image_bz2, ".bz2") : null
   # Proxmox accepts import content only under a .raw, .qcow2 or .vmdk name,
   # and the nano image is a raw disk.
-  image_file_name = "${trimsuffix(basename(local.image_img), ".img")}.raw"
+  image_file_name = local.fetch_image ? "${trimsuffix(basename(local.image_img), ".img")}.raw" : null
+  image_volume    = local.fetch_image ? one(proxmox_virtual_environment_file.image[*].id) : var.image_volume_id
   mac_prefix      = format("BC:24:11:%02X:%02X", floor(var.vm_id / 256), var.vm_id % 256)
 }
 
@@ -11,6 +14,8 @@ locals {
 # publishes the image only as .img.bz2, so the host running Tofu downloads it,
 # checks the published checksum and unpacks it before it is uploaded.
 resource "terraform_data" "image" {
+  count = local.fetch_image ? 1 : 0
+
   triggers_replace = [var.image_url, var.image_checksum]
   input            = local.image_img
 
@@ -26,12 +31,14 @@ resource "terraform_data" "image" {
 }
 
 resource "proxmox_virtual_environment_file" "image" {
+  count = local.fetch_image ? 1 : 0
+
   node_name    = var.node_name
   datastore_id = var.image_datastore_id
   content_type = "import"
 
   source_file {
-    path      = terraform_data.image.output
+    path      = one(terraform_data.image[*].output)
     file_name = local.image_file_name
   }
 
@@ -82,7 +89,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   disk {
     datastore_id = var.datastore_id
-    import_from  = proxmox_virtual_environment_file.image.id
+    import_from  = local.image_volume
     interface    = "scsi0"
     iothread     = true
     discard      = "on"
@@ -129,5 +136,10 @@ resource "proxmox_virtual_environment_vm" "this" {
   # would otherwise stop a running gateway to match started = false.
   lifecycle {
     ignore_changes = [started]
+
+    precondition {
+      condition     = var.image_volume_id == null ? (var.image_url != null && var.image_checksum != null) : (var.image_url == null && var.image_checksum == null)
+      error_message = "Give either image_url with image_checksum, or image_volume_id alone."
+    }
   }
 }

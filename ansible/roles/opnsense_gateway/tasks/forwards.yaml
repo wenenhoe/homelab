@@ -1,0 +1,52 @@
+# Unbound forwards each internal zone to both servers that hold it (ADR 0040), so
+# neither server is a single point of failure for a name. The collection matches a
+# forward by its domain and target, so a changed target adds a second forward and
+# leaves the old one behind: the play reads what the gateway holds and removes every
+# forward it does not write, which also shows as a change under --check. What it reads
+# is the API's own record of a forward: its address is `server`, not `target`.
+
+- name: Require the zones the gateway forwards
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_forward_domains is defined
+      - opnsense_gateway_forward_domains is sequence
+      - opnsense_gateway_forward_domains is not string
+      - opnsense_gateway_forward_domains | length > 0
+      - opnsense_gateway_forward_domains | select('match', '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$') | list | length == opnsense_gateway_forward_domains | length
+    quiet: true
+    fail_msg: >-
+      Set opnsense_gateway_forward_domains to the internal zones the gateway forwards, the host zone and the
+      lan zone, in lower case. They derive from the main domain, which the play does not read.
+
+- name: Forward each internal zone to the servers that hold it
+  oxlorg.opnsense.unbound_forward:
+    domain: "{{ opnsense_gateway_forward.0 }}"
+    target: "{{ opnsense_gateway_forward.1 }}"
+    port: "{{ opnsense_gateway_forward_port }}"
+    description: "{{ opnsense_gateway_forward.0 }} on {{ opnsense_gateway_forward.1 }}"
+    reload: true
+  loop: "{{ opnsense_gateway_forward_domains | product(opnsense_gateway_forward_servers) | list }}"
+  loop_control:
+    loop_var: opnsense_gateway_forward
+    label: "{{ opnsense_gateway_forward.0 }} -> {{ opnsense_gateway_forward.1 }}"
+
+- name: Read the forwards the gateway holds
+  oxlorg.opnsense.list:
+    target: unbound_forward
+  register: opnsense_gateway_held_forwards
+  check_mode: false
+
+- name: Remove a forward the play does not write
+  oxlorg.opnsense.unbound_forward:
+    domain: "{{ opnsense_gateway_held.domain }}"
+    target: "{{ opnsense_gateway_held.server }}"
+    port: "{{ opnsense_gateway_held.port }}"
+    state: absent
+    reload: true
+  loop: "{{ opnsense_gateway_held_forwards.data }}"
+  loop_control:
+    loop_var: opnsense_gateway_held
+    label: "{{ opnsense_gateway_held.domain }} -> {{ opnsense_gateway_held.server }}"
+  when: (opnsense_gateway_held.domain ~ '|' ~ opnsense_gateway_held.server) not in opnsense_gateway_wanted
+  vars:
+    opnsense_gateway_wanted: "{{ opnsense_gateway_forward_domains | product(opnsense_gateway_forward_servers) | map('join', '|') | list }}"

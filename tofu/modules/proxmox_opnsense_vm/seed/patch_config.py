@@ -188,8 +188,10 @@ def build_seed(
     system.insert(list(system).index(users[-1]) + 1, api)
     set_text(system, "nextuid", "2001")
 
-    # The GUI asks for root's password with a one-time password in front of it. Console and SSH logins keep the
-    # UNIX password, so the console stays the way in when the token is lost. The API authenticates by key.
+    # The GUI asks for root's password with a one-time password in front of it. OPNsense has no way left to keep
+    # the console off that rule, so the console menu is not password-protected: whoever can open the VM's console
+    # in Proxmox reaches it, and it is the way in when the token is lost. The API user authenticates by key.
+    remove(system, "disableconsolemenu")
     server = ET.Element("authserver")
     set_text(server, "refid", uuid.uuid5(VLAN_NAMESPACE, "authserver-totp").hex[:13])
     set_text(server, "type", "totp")
@@ -197,7 +199,6 @@ def build_seed(
     set_text(server, "otpLength", "6")
     system.insert(list(system).index(api) + 1, server)
     set_text(system.find("webgui"), "authmode", TOTP_SERVER_NAME)
-    set_text(system, "disableintegratedauth", "1")
 
     # The image keeps these in its own configuration, which the seed replaces, so
     # without them the serial console goes silent.

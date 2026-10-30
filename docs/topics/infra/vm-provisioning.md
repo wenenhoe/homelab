@@ -206,9 +206,10 @@ phases:
   turns IPv6 off (no system-wide allowance and no IPv6 address method on the
   WAN or LAN), sets root's password, puts a one-time password in front of the
   GUI login (a `TOTP` authentication server, which the GUI is set to use, and a
-  seed on root; console and SSH logins keep the UNIX password, so the console
-  stays the way in when the token is lost, and the API user authenticates by
-  key) and adds one API user. It needs `python3`, `openssl`,
+  seed on root; OPNsense has no option left to keep console logins off that
+  rule, so the console menu is not password-protected, whoever can open the
+  VM's console in Proxmox reaches it, and it is the way in when the token is
+  lost; the API user authenticates by key) and adds one API user. It needs `python3`, `openssl`,
   `sfdisk`, mtools and `xmllint`. The root password, API key, API secret and
   root's OTP seed (base32, for an authenticator app) are the variables
   `opnsense_root_password`, `opnsense_api_key`, `opnsense_api_secret` and

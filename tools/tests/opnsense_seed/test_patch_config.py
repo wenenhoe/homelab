@@ -159,8 +159,12 @@ class TestSecondFactor:
 
         assert system.findtext("webgui/authmode") == "TOTP"
 
-    def test_console_and_ssh_keep_the_unix_password_so_the_console_stays_the_way_in(self):
-        assert seed().findtext("system/disableintegratedauth") == "1"
+    def test_the_console_menu_is_not_password_protected_because_a_console_login_would_need_the_code_too(self):
+        assert ET.parse(patch_config.BASE).getroot().find("system/disableconsolemenu") is not None  # noqa: S314 - the sample shipped beside the builder
+        assert seed().find("system/disableconsolemenu") is None
+
+    def test_no_setting_is_written_for_the_removed_option_that_kept_console_logins_off_the_code(self):
+        assert seed().find("system/disableintegratedauth") is None
 
     def test_the_api_user_is_not_given_an_otp_seed_because_it_authenticates_by_key(self):
         assert api_user(seed()).find("otp_seed") is None

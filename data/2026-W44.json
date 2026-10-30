@@ -208,6 +208,65 @@
      "added"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "4b5a1c51558ba824c2b3a3fc8274cfb581301a42",
+   "date": "2026-10-30T20:55:56+08:00",
+   "kind": "pr",
+   "pr": 587,
+   "title": "stop Renovate looking up the commit-pinned OPNsense collection",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "64b36e76b78dbbd17d3a59617e54918b4b2c2bbe",
+   "date": "2026-10-30T23:35:59+08:00",
+   "kind": "pr",
+   "pr": 588,
+   "title": "Implement opnsense config policies and settings",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "259d8d9abb60a3d4f313f6e0fdd1ce8d0da8eed6",
+   "date": "2026-10-31T00:05:12+08:00",
+   "kind": "pr",
+   "pr": 589,
+   "title": "Scope tailscale node role project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tailscale-node-role",
+   "events": [
+    [
+     "adr",
+     "ADR 0097 r000 \u00b7 how a tailscale node is configured",
+     "added (working)"
+    ],
+    [
+     "project",
+     "tailscale-node-role",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "19f90dffc3f63717ab671d6205ba3e9917f253aa",
+   "date": "2026-10-31T00:35:30+08:00",
+   "kind": "pr",
+   "pr": 590,
+   "title": "Add scratch gateway acceptance checks",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
   }
  ]
 }

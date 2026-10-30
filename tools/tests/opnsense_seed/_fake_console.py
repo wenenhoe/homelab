@@ -11,6 +11,8 @@ types. Faults reach the driver's failure paths:
   shellstart   after the import the console is inside a root shell, not at a login
   nocert       the web GUI never creates its certificate
   nobanner     the console banner prints no fingerprint
+  unlocked     the console menu is not password-protected: it comes up with no login
+  staleprompt  an unlocked console that prints a login prompt while it starts, then shows the menu
 """
 
 from __future__ import annotations
@@ -105,6 +107,14 @@ class FakeConsole:
             self._phase = "shell"
             self._shell = "sh"
             self._out("# ")
+            return
+        if self.fault == "unlocked":
+            self._menu()
+            return
+        if self.fault == "staleprompt":
+            self._out("\r\nOPNsense.internal login: ")
+            time.sleep(0.15)
+            self._menu()
             return
         self._login_prompt()
 

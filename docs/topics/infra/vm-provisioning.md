@@ -231,8 +231,9 @@ phases:
   beside the VM's serial socket with the seed's root password on stdin, read
   from the credentials file, so the password reaches neither a command line
   nor the node's disk. The driver names the seed disk (`da1`) to the importer,
-  logs in at the console with the seed's root password and reads the web GUI's
-  certificate off the console. `OUTPUT_DIR` then holds `console.log`,
+  logs in at the console with the seed's root password when the console asks
+  for one (a login prompt that the menu follows within five seconds is not
+  answered) and reads the web GUI's certificate off the console. `OUTPUT_DIR` then holds `console.log`,
   `result.json` and `gateway-cert.pem`, the CA file the play pins; the driver
   refuses a certificate that does not match the fingerprint the console banner
   prints, and the script removes the output if it finds the password in it.

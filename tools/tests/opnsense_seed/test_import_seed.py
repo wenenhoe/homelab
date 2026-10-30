@@ -53,7 +53,7 @@ def drive(work, certificates, monkeypatch):
         argv = [
             "--socket", str(work / "s"), "--log", str(work / "console.log"), "--result", str(work / "result.json"),
             "--cert-out", str(work / "gateway-cert.pem"), "--boot-timeout", "5", "--step-timeout", "4", "--nudge-quiet", "0.5",
-            "--poll-interval", "0.01", *extra,
+            "--poll-interval", "0.01", "--login-settle", "0.3", *extra,
         ]  # fmt: skip
         status = import_seed.main(argv)
         return status, json.loads((work / "result.json").read_text()), console
@@ -108,6 +108,33 @@ class TestSeeding:
 
         assert (status, result) == (3, {"restored": False, "result": "seed did not land"})
         assert not (work / "gateway-cert.pem").exists()
+
+
+class TestUnlockedConsole:
+    def test_a_console_menu_with_no_login_is_reached_without_typing_a_password(self, drive):
+        status, result, console = drive("unlocked")
+
+        assert (status, result["result"]) == (0, "done")
+        assert console.typed_at_password == []
+
+    def test_a_login_prompt_that_the_menu_follows_is_not_answered(self, drive, work):
+        status, result, console = drive("staleprompt")
+
+        assert (status, result["result"]) == (0, "done")
+        assert console.typed_at_password == []
+        assert "root" not in [line for line in (work / "console.log").read_text(errors="replace").split("\n") if line.strip() == "root"]
+
+    def test_without_the_wait_the_prompt_that_the_menu_follows_would_be_answered(self, drive):
+        status, result, _ = drive("staleprompt", extra=["--login-settle", "0"])
+
+        assert status == 2
+        assert result["result"] == "timeout"
+
+    def test_a_real_login_prompt_is_still_answered(self, drive):
+        status, _, console = drive()
+
+        assert status == 0
+        assert console.typed_at_password == list(SEED_PASSWORD)
 
 
 class TestFailures:

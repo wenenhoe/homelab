@@ -36,7 +36,7 @@ Read directly off the host, not assumed:
 | Field | Value |
 | :--- | :--- |
 | OS | Ubuntu LTS (`resolute`) |
-| Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
+| Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`) by the vendor's install script, which left a one-line `tailscale.list` and a keyring package; `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
 | Host zone name | `tailscale.{{ host_domain }}` — same `<host>.{{ host_domain }}` structure as every `managed_hosts` member, a static record in `host_vars/services.yaml`; this is what `inventory.yaml`'s `ansible_host` actually uses |
 | LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained from a reservation on the gateway (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
@@ -46,6 +46,8 @@ Read directly off the host, not assumed:
 | Forwarding | `net.ipv4.ip_forward` and `net.ipv6.conf.all.forwarding` are 1 and set in `/etc/sysctl.d/99-tailscale.conf` |
 | Service files | `tailscaled.service` and `/etc/default/tailscaled` are the package's (`PORT="41641"`, `FLAGS=""`) |
 | Key expiry | `tailscale status --self --json` reports none |
+| Updates | `unattended-upgrades` takes security origins only and its local override only removes unused packages, so Tailscale's repository is outside it. `maintenance.yaml` and the client's own updater (on today) are what upgrade the package |
+| Host firewall | None; `ufw` is not installed. `tailscaled`'s own rules accept everything that arrives on `tailscale0`, so the tailnet policy decides what a tailnet source reaches on the node itself |
 
 `192.168.20.2` matches the `.02` host-octet [`vm-provisioning.md`'s VMID
 scheme](vm-provisioning.md#vmid--vlan--ip-scheme) would predict for

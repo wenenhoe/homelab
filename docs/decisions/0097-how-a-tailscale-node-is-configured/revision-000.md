@@ -19,7 +19,7 @@ The tailnet is the maintainer's path into the lab away from home, and the subnet
 
 ## Context
 
-- **The router is hand-built today.** VM 202 advertises `192.168.20.0/24`, carries no tag, has source NAT on, the tailnet's DNS accepted and the client's own auto-update on, and has Tailscale SSH off. Its forwarding sysctls are persisted in `/etc/sysctl.d/99-tailscale.conf`, and its unit and `/etc/default/tailscaled` are the package's. Its status reports no key expiry. It was installed from Tailscale's apt repository.
+- **The router is hand-built today.** VM 202 advertises `192.168.20.0/24`, carries no tag, has source NAT on, the tailnet's DNS accepted and the client's own auto-update on, and has Tailscale SSH off. Its forwarding sysctls are persisted in `/etc/sysctl.d/99-tailscale.conf`, and its unit and `/etc/default/tailscaled` are the package's. Its status reports no key expiry. It was installed with the vendor's install script, which left a one-line `tailscale.list` source and a keyring package. The host's unattended upgrades take security origins only and its local override only removes unused packages, so Tailscale's repository is outside them.
 - **Nothing in the repository configures it.** The host is patched through `maintenance.yaml` as a `network_infra` member and nothing else.
 - **The policy keys off the tag.** `tagOwners` names who may apply a tag, route auto-approval is keyed on the node's tag, and a node joined with a tagged key is not owned by a user. Tailscale turns key expiry off for a tagged device by default, and a subnet router whose key expires stops forwarding ([Key expiry](https://tailscale.com/docs/features/access-control/key-expiry)). A rebuilt node that joins untagged would take the domain's default expiry.
 - **A rebuild is a new device.** The node's identity is its state file, which holds its private key. A rebuilt VM that joins again has a new device entry and a new tailnet address.
@@ -34,7 +34,7 @@ The tailnet is the maintainer's path into the lab away from home, and the subnet
 
 The role converges, in order:
 
-1. **Install** from Tailscale's apt repository in the same DEB822 form the `docker` role uses for Docker's, and start `tailscaled`.
+1. **Install** from Tailscale's apt repository in the same DEB822 form the `docker` role uses for Docker's, and start `tailscaled`. Where the node has the vendor script's one-line source, the role removes that file in the same run, so apt does not see the repository twice.
 2. **Forwarding.** When the node advertises routes, a sysctl drop-in sets IPv4 and IPv6 forwarding.
 3. **Join**, only when the node is logged out. The role then requires a one-time key and passes it with the node's tag. A node that is already logged in needs no key, and a missing key on a logged-out node stops the play before anything changes.
 4. **Preferences**, compared against what the node reports and applied with `tailscale set` for each one that differs. The role names every preference it owns: the advertised routes, the accepted DNS setting, and the client's auto-update, which is off. Source NAT stays at its default.
@@ -43,7 +43,7 @@ The role converges, in order:
 
 **The join key** is made in the Tailscale admin console for the rebuild: single-use, pre-authorized, tagged, and valid for hours. It reaches the play as a run-time variable from the operator's environment, is not logged, and is not written anywhere.
 
-**Updates.** Only apt updates Tailscale, through `maintenance.yaml`, one host at a time like every other package.
+**Updates.** Only apt updates Tailscale, through `maintenance.yaml`, one host at a time like every other package. The client's own updater is off, and the host's unattended upgrades take security origins only ([ADR 0043 (Host hardening baseline)](../0043-host-os-hardening-baseline/revision-000.md)), so a Tailscale release reaches the router when that play runs against `network_infra` and not before.
 
 **What Molecule covers.** The install, the forwarding drop-in, the preference comparison against a stub client whose output is copied from a real node, and the refusal to join without a key. The join itself needs a control plane, so it is checked on a real node, and a `--check` run after it reports no change.
 
@@ -68,6 +68,8 @@ The role converges, in order:
 - A rebuilt router is a new device. The old device is removed in the console, and the policy's grants for the router name its tag, never its address.
 - While the router is rebuilt the tailnet has no route into the lab. The dump of the old VM is the way back ([`tofu-migration.md`](../../projects/tofu-migration.md)).
 - [ADR 0043 (Host hardening baseline)](../0043-host-os-hardening-baseline/revision-000.md) lists `net.ipv4.ip_forward: 0` among the `sysctl` area's defaults. When that area is added, it must leave forwarding on for a node that advertises routes, and the role owns that value.
+- A Tailscale release reaches the router only as often as `maintenance.yaml` runs against it, and an upgrade can restart `tailscaled` and drop the flows it forwards. Adding Tailscale's repository to the unattended origins would loosen ADR 0043's security-only rule, so it is not done here.
+- A host firewall added by the hardening baseline ([ADR 0043](../0043-host-os-hardening-baseline/revision-000.md) names `ufw`, which the repository does not configure today) has to leave forwarding and `tailscaled`'s own rules working on this node. It is a second layer behind the policy and not a replacement, because `tailscaled` accepts everything that arrives on `tailscale0`, so the policy alone decides what a tailnet source reaches on the router's own services.
 - A preference changed by hand on the node is drift that the next run repairs and `--check` shows.
 - The join is verified on a real node and not in Molecule.
 - A topic doc ([`network-infra.md`](../../topics/infra/network-infra.md)) describes the resulting behaviour once it exists.

@@ -224,9 +224,23 @@ that role exists, nothing in the repository can rebuild the router.
 - Whether `tailscale` needs the 2 vCPU and 2 GB the table keeps for it. The
   VM is a routing appliance that runs `tailscaled` and the guest agent and
   no Docker, so it may need less than the hosts the keep-current-size rule
-  was written for. Measure its memory and CPU on the live VM while the tailnet
-  carries real traffic, and set its row before its rebuild; until then the row
-  stands, and the disk shrinks as for every host.
+  was written for. At idle the guest used about 200 MB of its 2 GiB and
+  `tailscaled` about 50 MB, but an idle reading says nothing about the load
+  to come: once the operator host and the laptop replace VM 401, every
+  operator session crosses the router
+  ([ADR 0097](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)).
+  Measure its memory, CPU and throughput on the live VM under that traffic,
+  over runs that span real operator sessions, and set its row before its
+  rebuild; until then the row stands, and the disk shrinks as for every host.
+- Where VM 202's address survives the gateway's replacement. The live hosts
+  take their addresses from reservations on the current gateway, and the
+  replacement runs Kea only for clients Tofu does not place
+  ([ADR 0089](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)),
+  while a Tofu-built VM takes a static address from cloud-init under the MAC
+  its module derives. The router is rebuilt last, so until then the new
+  gateway's Kea network ([`opnsense-config.md`](opnsense-config.md)) has to hold
+  its reservation, and the rebuilt VM then carries `192.168.20.2` itself.
+  Settle which project writes that reservation before the gateway is replaced.
 
 ## Closing checklist
 

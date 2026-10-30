@@ -46,6 +46,7 @@ Read directly off the host, not assumed:
 | Forwarding | `net.ipv4.ip_forward` and `net.ipv6.conf.all.forwarding` are 1 and set in `/etc/sysctl.d/99-tailscale.conf` |
 | Service files | `tailscaled.service` and `/etc/default/tailscaled` are the package's (`PORT="41641"`, `FLAGS=""`) |
 | Key expiry | `tailscale status --self --json` reports none |
+| Availability | Not always on while spike VMs share the node and VM 401 is in service; always on once the operator host and the laptop replace VM 401, since every operator session then crosses it ([ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)) |
 | Updates | `unattended-upgrades` takes security origins only and its local override only removes unused packages, so Tailscale's repository is outside it. `maintenance.yaml` and the client's own updater (on today) are what upgrade the package |
 | Host firewall | None; `ufw` is not installed. `tailscaled`'s own rules accept everything that arrives on `tailscale0`, so the tailnet policy decides what a tailnet source reaches on the node itself |
 

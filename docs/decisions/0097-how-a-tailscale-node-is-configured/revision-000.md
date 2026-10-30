@@ -8,7 +8,7 @@ solution: A small repo-owned role converges the node against its own preferences
 summary: How a host's Tailscale client is installed, joined to the tailnet and kept configured, given that the join key is a credential and the policy keys off the node's tag.
 topic: deployment-platform
 status: working
-related: [ADR-0015, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0059, ADR-0089]
+related: [ADR-0015, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0058, ADR-0059, ADR-0089]
 ---
 
 # 0097. How a Tailscale node is configured
@@ -26,6 +26,7 @@ The tailnet is the maintainer's path into the lab away from home, and the subnet
 - **Subnet routers source-NAT by default**, so the gateway sees every tailnet caller as the router ([ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
 - **`artis3n.tailscale` v1.2.1** is the maintained collection for the node side, MIT-licensed, with one role. Its role stops unless `tailscale_authkey` is set on every run that does not skip `tailscale up`. It runs `tailscale up` again when a hash of the arguments and key changes, a hash it keeps in the login user's home directory, and it does not compare the node's actual preferences. `tailscale up` is a plain command task. It installs the package and the apt repository for several distribution families and sets no forwarding sysctl.
 - **Join keys are credentials** that [ADR 0015 (Cloud credential expiry)](../0015-cloud-credential-expiry/revision-000.md) expects to expire. An OAuth client that mints them does not expire on its own and can add any node under the tags it may apply.
+- **The router is not always on yet, and will be.** Spike VMs are created and removed on the Proxmox node while VM 401 is in service, and the router VM or its host has been shut down for days at a time. [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) makes a Tailscale route to VLAN 30 the laptop's only way to the operator host, so once the operator host and the laptop replace VM 401 every operator session crosses the router and it has to run all the time.
 - **The Proxmox node is already a member.** It joined by hand as an ordinary node with no approved route, and it is the maintainer's way to the hypervisor when the router VM is broken, so it is the one way in that does not cross the router. It is outside the `network_infra` group.
 - **Other hosts may join.** [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) extends the router's reach to a GCP node, which may have to join the tailnet itself. The coding-agent host and the operator host do not join.
 
@@ -67,7 +68,8 @@ The role converges, in order:
 ## Consequences
 
 - A rebuilt router is a new device. The old device is removed in the console, and the policy's grants for the router name its tag, never its address.
-- While the router is rebuilt the tailnet has no route into the lab. The dump of the old VM is the way back ([`tofu-migration.md`](../../projects/tofu-migration.md)).
+- While the router is rebuilt the tailnet has no route into the lab. The dump of the old VM is the way back ([`tofu-migration.md`](../../projects/tofu-migration.md)), and the Proxmox node's own membership reaches the hypervisor meanwhile. That membership helps when the router VM is broken, not when the node itself is off.
+- The router's size is judged under the operator traffic, not at idle ([`tofu-migration.md`](../../projects/tofu-migration.md)).
 - [ADR 0043 (Host hardening baseline)](../0043-host-os-hardening-baseline/revision-000.md) lists `net.ipv4.ip_forward: 0` among the `sysctl` area's defaults. When that area is added, it must leave forwarding on for a node that advertises routes, and the role owns that value.
 - A Tailscale release reaches the router only as often as `maintenance.yaml` runs against it, and an upgrade can restart `tailscaled` and drop the flows it forwards. Adding Tailscale's repository to the unattended origins would loosen ADR 0043's security-only rule, so it is not done here.
 - A host firewall added by the hardening baseline ([ADR 0043](../0043-host-os-hardening-baseline/revision-000.md) names `ufw`, which the repository does not configure today) has to leave forwarding and `tailscaled`'s own rules working on this node. It is a second layer behind the policy and not a replacement, because `tailscaled` accepts everything that arrives on `tailscale0`, so the policy alone decides what a tailnet source reaches on the router's own services.

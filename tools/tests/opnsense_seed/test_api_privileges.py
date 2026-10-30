@@ -54,6 +54,13 @@ def test_every_api_path_the_repo_calls_is_matched_by_a_privilege_of_the_api_user
     assert allowed(path), f"{file.name} calls {path}, which no privilege of the API user matches"
 
 
+@pytest.mark.parametrize(
+    "path", ["api/unbound/settings/get", "api/unbound/settings/addForward", "api/unbound/settings/delForward", "api/unbound/service/reconfigure"]
+)
+def test_the_unbound_calls_of_the_collection_are_matched(path):
+    assert allowed(path)
+
+
 def test_a_path_spelled_with_camel_case_where_the_pattern_is_snake_case_is_refused():
     assert allowed("api/diagnostics/system/system_information")
     assert not allowed("api/diagnostics/system/systemInformation")

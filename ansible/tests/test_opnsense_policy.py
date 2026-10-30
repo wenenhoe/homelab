@@ -240,3 +240,42 @@ def test_the_seed_s_sample_runs_dnsmasq_for_the_lan_which_is_what_the_play_turns
     root = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
 
     assert root.findtext("dnsmasq/enable") == "1"
+
+
+def test_the_forward_servers_are_the_hosts_the_inventory_gives_the_internal_zones(defaults):
+    inventory = yaml.safe_load((REPO / "ansible/inventory/group_vars/all/main.yaml").read_text())
+
+    assert defaults["opnsense_gateway_forward_servers"] == [inventory["dns_primary_address"], inventory["dns_secondary_address"]]
+    assert defaults["opnsense_gateway_forward_servers"] == [
+        defaults["opnsense_gateway_hosts"]["host_services"],
+        defaults["opnsense_gateway_hosts"]["host_storage"],
+    ]
+
+
+def test_there_is_no_default_for_the_forwarded_zones_because_they_derive_from_a_secret(defaults):
+    assert "opnsense_gateway_forward_domains" not in defaults
+
+
+def test_the_forwards_are_written_before_the_ones_the_play_does_not_write_are_removed():
+    tasks = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/forwards.yaml").read_text())
+    calls = [(key, task[key]) for task in tasks for key in task if key.startswith("oxlorg.opnsense.")]
+
+    assert [name for name, _ in calls] == ["oxlorg.opnsense.unbound_forward", "oxlorg.opnsense.list", "oxlorg.opnsense.unbound_forward"]
+    assert calls[0][1].get("state", "present") == "present"
+    assert calls[2][1]["state"] == "absent"
+    assert calls[1][1]["target"] == "unbound_forward"
+
+
+def test_the_list_of_held_forwards_is_read_under_check_mode_so_a_stale_forward_shows_as_a_change():
+    tasks = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/forwards.yaml").read_text())
+    listing = next(task for task in tasks if "oxlorg.opnsense.list" in task)
+
+    assert listing["check_mode"] is False
+
+
+def test_the_forwards_are_applied_after_the_dhcp_scopes():
+    tasks = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/main.yaml").read_text())
+    block = next(task for task in tasks if "module_defaults" in task)
+    includes = [task["ansible.builtin.include_tasks"] for task in block["block"]]
+
+    assert includes == ["policy.yaml", "dhcp.yaml", "forwards.yaml"]

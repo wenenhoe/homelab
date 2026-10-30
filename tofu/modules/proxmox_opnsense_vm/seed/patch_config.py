@@ -40,6 +40,7 @@ API_PRIVILEGES = (
     "page-filter-api",  # api/firewall/filter/*
     "page-dhcp-kea-v4",  # api/kea/dhcpv4/* and api/kea/service/*
     "page-services-dnsforwarder",  # api/dnsmasq/*
+    "page-services-unbound",  # api/unbound/*: the forwards
 )
 DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
 BASE = Path(__file__).with_name("config.xml.sample")

@@ -153,6 +153,7 @@ class TestApiPrivileges:
             "page-filter-api",
             "page-dhcp-kea-v4",
             "page-services-dnsforwarder",
+            "page-services-unbound",
         ]
         assert "page-all" not in privileges
 

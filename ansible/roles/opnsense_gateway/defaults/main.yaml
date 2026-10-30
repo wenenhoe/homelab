@@ -167,3 +167,12 @@ opnsense_gateway_dhcp_pool:
 # Hosts that keep an address: { name, zone, address, mac }. None by default;
 # the operator sets them where the work runs, as for the operator hosts.
 opnsense_gateway_dhcp_reservations: []
+
+# The servers that hold the internal zones, repeating the hosts above (ADR 0040):
+# Unbound forwards each zone to both. opnsense_gateway_forward_domains has no
+# default: the host zone and the lan zone derive from the main domain, a secret
+# the play does not read, so the operator sets them as -e variables.
+opnsense_gateway_forward_servers:
+  - 192.168.20.3
+  - 192.168.20.6
+opnsense_gateway_forward_port: 53

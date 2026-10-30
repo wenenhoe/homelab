@@ -164,3 +164,6 @@
 
     - name: Apply the DHCP scopes
       ansible.builtin.include_tasks: dhcp.yaml
+
+    - name: Apply the Unbound forwards
+      ansible.builtin.include_tasks: forwards.yaml

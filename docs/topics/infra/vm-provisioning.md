@@ -327,6 +327,30 @@ phases:
   `UPLOAD_IMAGE=1` has the operator host download the image and the module
   upload it instead, for a node with no route to the mirror (about 7 GB free
   where `OUT_DIR` is).
+
+  `tofu/scratch/opnsense/acceptance/acceptance.sh OUT_DIR IMAGE_URL IMAGE_CHECKSUM`
+  runs the play against a scratch gateway it builds with `scratch_gateway.sh`
+  and checks what the play must leave behind:
+  - a second run with `--check` exits cleanly and reports no change;
+  - a forward the play does not write, added behind its back, is reported by
+    `--check`, removed by a run, and gone from the next `--check`;
+  - the GUI login refuses the password alone, a wrong code and the code after
+    the password, and accepts the code in front of it (`gui_login.py`);
+  - the API key is answered on the calls the play and the update make and
+    refused with 403 on user management, source NAT and the service list
+    (`api_scope.py`);
+  - no credential value is in the results.
+
+  It runs from the operator host with the environment of `scratch_gateway.sh`
+  plus `OPERATOR` (an address in the desktops zone, default `192.168.40.250`,
+  used as the play's operator host and one reservation). `OUT_DIR` must be
+  outside the repository because it holds the credentials file; the results go
+  to `OUT_DIR/run-HHMMSS` as one file per step, and the gateway is removed on
+  every exit path unless `KEEP=1`. It needs `ansible-playbook`, the pinned
+  collection and `httpx` on the operator host, ssh to the node without a
+  prompt, and no VM with the scratch gateway's VMID. It does not probe the
+  flows between zones. The two scripts need only the standard library, and
+  their tests run against stand-in servers.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.

@@ -110,6 +110,7 @@ calls for a project, while a working one still has to be settled.
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | 1 | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
 | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides. |
+| [`tailscale-node-role.md`](projects/tailscale-node-role.md) | — | Not started — waiting on [ADR-0097/0](decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) | Write the Ansible role that installs, joins and configures a Tailscale node, prove it against the live subnet router with no change, and hand the rebuild of VM 202 a tagged join. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
 
 ## Decisions awaiting a project

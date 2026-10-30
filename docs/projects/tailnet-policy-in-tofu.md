@@ -30,7 +30,7 @@ The tailnet's policy is authored in the Tailscale admin console and has never be
 
 The `tailscale/tailscale` provider pinned in the root module, an OAuth-client credential for it in Tofu's credentials file, the policy body as a template in this repository with the maintainer's email and device IPs supplied at apply time, `tailscale_acl` for the policy and `tailscale_device_subnet_routes` with auto-approvers for route approval, and the guards that keep a bad apply from cutting off the host that runs it. The topic docs then say that Tofu owns the policy and how a grant is added.
 
-Not in scope: managing devices, auth keys or DNS through the provider; the grants themselves, which [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md), [`operator-host.md`](operator-host.md) and [`coding-agent-network.md`](coding-agent-network.md) decide and which this project carries over unchanged; the state backend.
+Not in scope: managing devices, auth keys or DNS through the provider (the subnet router's join key is [ADR 0097 (Tailscale node configuration)](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)'s, and its tag and route entries are written by the baseline and carried over unchanged with the grants); the grants themselves, which [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md), [`operator-host.md`](operator-host.md) and [`coding-agent-network.md`](coding-agent-network.md) decide and which this project carries over unchanged; the state backend.
 
 ## Decision
 
@@ -85,7 +85,6 @@ The policy's own `tests` block is what catches a bad apply before it saves, and 
 
 - How the OAuth client's expiry is tracked, since [ADR 0015 (Cloud credential expiry)](../decisions/0015-cloud-credential-expiry/revision-000.md) expects every credential to expire and something to notice, ADR 0059 expects the credential to follow Tofu's credentials file, and [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md) states no expiry cadence for that file.
 - Whether the rendered policy, with its private values, is written to Tofu's state, and if so whether the state's existing handling is enough.
-- Whether the auth-key handling of the Ansible role for the `tailscale` subnet router (VM 202) and the `tagOwners` entries in this policy can be built separately, which [`network-infra.md`](../topics/infra/network-infra.md) leaves unresolved.
 
 ## Closing checklist
 

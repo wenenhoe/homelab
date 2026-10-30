@@ -75,6 +75,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - Whether the first run after a reinstall may use the maintainer's hardware-backed key, which the ADR's first assumption leaves to the maintainer and ADRs 0056 and 0058.
 - When the node reinstall is scheduled relative to the cutover in [`tofu-migration.md`](tofu-migration.md), since both need an outage.
+- The node is a member of the tailnet, joined by hand, and is the maintainer's way to the hypervisor when the router VM is broken. A reinstall removes that join. Stage 2 records how the node joined, and the role or the reinstall has to restore the membership under the tag and with the one-time key handling that [ADR 0097 (Tailscale node configuration)](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) sets, which may mean applying that ADR's role to the node.
 
 ## Closing checklist
 

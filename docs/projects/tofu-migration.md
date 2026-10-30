@@ -90,11 +90,17 @@ generated CNAME points at `host_fqdn`
 record for a host in `host_vars/services.yaml` is deleted in the rebuild's
 pull request, since the role refuses a host named both ways.
 
-**Host order.** `play`, `tailscale`, `storage`, `security`, then
-`services`. `play` is a leaf and proves the cycle. `storage` comes before
+**Host order.** `play`, `storage`, `security`, `services`, then
+`tailscale`. `play` is a leaf and proves the cycle. `storage` comes before
 `security` and `services` because every restore reads from it. `services`
-is last because its BIND9 serves the zones every other host resolves
-through. Each host keeps its current vCPU and memory, and its disk shrinks
+comes before `tailscale` because its BIND9 serves the zones every other host
+resolves through. `tailscale` is last because nothing configures a Tailscale
+node yet and the router is the maintainer's route into the lab: its rebuild
+waits on [`tailscale-node-role.md`](tailscale-node-role.md) and on the
+tailnet policy carrying the router's tag
+([`tailnet-policy-baseline.md`](tailnet-policy-baseline.md)). The other four
+hosts are reached through the router and do not join the tailnet, so their
+rebuilds do not touch it. Each host keeps its current vCPU and memory, and its disk shrinks
 to what the host uses plus headroom, on `local-lvm` (NVMe) instead of the
 `backup` pool. `storage` is the exception and stays on `backup` (HDD), so
 the on-site copy of every backup does not share a disk with the hosts it
@@ -184,9 +190,20 @@ and the generated file is empty.
 VM 202 ("Tailscale") is Tofu-unmanaged but not untracked: it is under
 interim Ansible management as the `network_infra` group
 ([`network-infra.md`](../topics/infra/network-infra.md)). It becomes
-Tofu-managed at its VMID in this stage, and the generated inventory then
-supersedes the hand-written `tailscale` entry rather than sitting beside
-it.
+Tofu-managed at its VMID in this stage, last in the host order, and the
+generated inventory then supersedes the hand-written `tailscale` entry
+rather than sitting beside it. The rebuild joins the new VM to the tailnet
+with the role [`tailscale-node-role.md`](tailscale-node-role.md) writes; until
+that role exists, nothing in the repository can rebuild the router.
+
+The live VM takes `192.168.20.2` from a reservation on the current gateway.
+The rebuilt VM carries that address itself, as a static address from
+cloud-init under the MAC its module derives, so it needs no reservation. The
+production gateway's Kea serves no VLAN 20 zone
+([`opnsense-config.md`](opnsense-config.md)), and that gateway is rebuilt after
+this cutover, so the old reservation is not carried across and nothing is
+waiting for it. The gateway's flows name the router's address, so the rebuilt
+VM must keep it.
 
 ## Acceptance criteria
 
@@ -213,6 +230,17 @@ it.
   its own decision and needs an ADR for its host; the first rebuild needs
   only a place off the VM for the `tofu state pull` copy, settled before
   it.
+- Whether `tailscale` needs the 2 vCPU and 2 GB the table keeps for it. The
+  VM is a routing appliance that runs `tailscaled` and the guest agent and
+  no Docker, so it may need less than the hosts the keep-current-size rule
+  was written for. At idle the guest used about 200 MB of its 2 GiB and
+  `tailscaled` about 50 MB, but an idle reading says nothing about the load
+  to come: once the operator host and the laptop replace VM 401, every
+  operator session crosses the router
+  ([ADR 0097](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)).
+  Measure its memory, CPU and throughput on the live VM under that traffic,
+  over runs that span real operator sessions, and set its row before its
+  rebuild; until then the row stands, and the disk shrinks as for every host.
 
 ## Closing checklist
 

@@ -36,12 +36,19 @@ Read directly off the host, not assumed:
 | Field | Value |
 | :--- | :--- |
 | OS | Ubuntu LTS (`resolute`) |
-| Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
+| Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`) by the vendor's install script, which left a one-line `tailscale.list` and a keyring package; `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
 | Host zone name | `tailscale.{{ host_domain }}` — same `<host>.{{ host_domain }}` structure as every `managed_hosts` member, a static record in `host_vars/services.yaml`; this is what `inventory.yaml`'s `ansible_host` actually uses |
 | LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained from a reservation on the gateway (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
 | `qemu-guest-agent` | Already installed and active (pre-dates this being under management) |
 | SSH admin user | `tsadmin` |
+| Client preferences | From `tailscale debug prefs`: `AdvertiseRoutes` is `192.168.20.0/24`, `CorpDNS` is true, the client's own `AutoUpdate` is on (`Check` and `Apply`), `NoSNAT` is false, `RunSSH` and `ShieldsUp` are false, no exit node, and `AdvertiseTags` is empty |
+| Forwarding | `net.ipv4.ip_forward` and `net.ipv6.conf.all.forwarding` are 1 and set in `/etc/sysctl.d/99-tailscale.conf` |
+| Service files | `tailscaled.service` and `/etc/default/tailscaled` are the package's (`PORT="41641"`, `FLAGS=""`) |
+| Key expiry | `tailscale status --self --json` reports none |
+| Availability | Not always on while spike VMs share the node and VM 401 is in service; always on once the operator host and the laptop replace VM 401, since every operator session then crosses it ([ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)) |
+| Updates | `unattended-upgrades` takes security origins only and its local override only removes unused packages, so Tailscale's repository is outside it. `maintenance.yaml` and the client's own updater (on today) are what upgrade the package |
+| Host firewall | None; `ufw` is not installed. `tailscaled`'s own rules accept everything that arrives on `tailscale0`, so the tailnet policy decides what a tailnet source reaches on the node itself |
 
 `192.168.20.2` matches the `.02` host-octet [`vm-provisioning.md`'s VMID
 scheme](vm-provisioning.md#vmid--vlan--ip-scheme) would predict for
@@ -69,12 +76,13 @@ Tailscale admin console; see
 for where it goes from here.
 
 Re-authenticating this node after a rebuild ([`tofu-migration.md`](../../projects/tofu-migration.md))
-needs an auth key created out of band. An auth key that tags the node on
-creation puts it under a `tagOwners` entry in the policy, and a tag is
-also what route auto-approval keys off — so the Ansible role's auth-key
-handling and ADR 0059's policy-as-code work may not be as separable as
-"role first, policy later" suggests. Not resolved yet; check before the
-role's auth-key design is written.
+needs an auth key created out of band, and a rebuilt node is a new device.
+[ADR 0097 (Tailscale node configuration)](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)
+decides that the key is single-use, tagged and supplied at run time, and
+that the tag and the route's auto-approval are entries in the policy, which
+[`tailnet-policy-baseline.md`](../../projects/tailnet-policy-baseline.md)
+writes before the join. The role itself is
+[`tailscale-node-role.md`](../../projects/tailscale-node-role.md).
 
 ## Bringing a new `network_infra` host under management
 

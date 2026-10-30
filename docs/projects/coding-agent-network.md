@@ -15,11 +15,11 @@ phase: 1-network
 
 Builds the zone the coding-agent host lives behind, before the host exists: the VLAN, its default-deny rules and the laptop-only route. Staged because three assumptions in the decision (egress proxy feasibility, bridge isolation, resolver design) must be answered before rules are built on them.
 
-The egress proxy and the canary probes that check the whole boundary are [`coding-agent-egress.md`](coding-agent-egress.md), which starts once this zone exists. The host itself is [`coding-agent-host.md`](coding-agent-host.md); putting these rules under Tofu is [`opnsense-config.md`](opnsense-config.md).
+The egress proxy and the canary probes that check the whole boundary are [`coding-agent-egress.md`](coding-agent-egress.md), which starts once this zone exists. The host itself is [`coding-agent-host.md`](coding-agent-host.md); carrying these rules in the gateway's play is this project's last stage, which uses [`opnsense-config.md`](opnsense-config.md)'s role and scratch kit.
 
 ## Scope
 
-The VLAN and subnet, OPNsense interface and rules, the resolver for the zone, and the Tailscale route (advertised by VM 202 and granted to the laptop alone). Not in scope: the egress proxy, its allowlists and the canary probes ([`coding-agent-egress.md`](coding-agent-egress.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`opnsense-config.md`](opnsense-config.md)).
+The VLAN and subnet, OPNsense interface and rules, the resolver for the zone, and the Tailscale route (advertised by VM 202 and granted to the laptop alone). Not in scope: the egress proxy, its allowlists and the canary probes ([`coding-agent-egress.md`](coding-agent-egress.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)) and the gateway's play and rebuild themselves ([`opnsense-config.md`](opnsense-config.md)). The zone's interface and rules in the play are in scope, as Stage 3.
 
 ## Decision
 
@@ -33,6 +33,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spikes: filtering proxy feasibility, bridge isolation, resolver design | Not started | The three assumptions in ADR 0053 are resolved and folded into its Context, and the revision can be `approved` |
 | 2 | VLAN 70, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route starts once [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) has replaced allow-all | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
+| 3 | Carry the zone in the gateway's play: VLAN 70 in the seed's VLAN list and the role's zones, and rows 8 and 13 of [`opnsense-config.md`](opnsense-config.md)'s flow list. Starts once the zone is documented | Not started | `--check --diff` reports no change on a scratch gateway, the zone's flows in the flow list pass, and nothing else is denied that was allowed |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -48,11 +49,12 @@ VM 202 advertises the VLAN's route, and the tailnet policy grants it to the lapt
 
 - [ ] The VLAN has default-deny in both directions, with only the two source-restricted SSH inbound flows.
 - [ ] The rules are described in a topic doc and the topic doc matches an export of the rule set.
+- [ ] The zone's interface and rules are expressed in the gateway's play and the scratch kit's run passes with them.
 - [ ] The zone's subnet is inside no AppRole CIDR binding, and its Tailscale route is granted to the laptop alone.
 
 ## Risks
 
-- Hand-maintained rules drift until [`opnsense-config.md`](opnsense-config.md) lands.
+- Hand-maintained rules drift until the production gateway is rebuilt from the play ([`opnsense-config.md`](opnsense-config.md)'s last stage). A zone built by hand before that rebuild must be in the play by then.
 - The route's grant is tailnet policy edited by hand until [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) lands, and a wrong edit can expose the VLAN's SSH port to other nodes or lock out access.
 
 ## Open items

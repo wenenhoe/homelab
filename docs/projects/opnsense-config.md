@@ -4,7 +4,7 @@ title: OPNsense Gateway Configuration
 type: project
 status: building
 blocked: false
-summary: The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the coding-agent zone and its proxy.
+summary: The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it.
 decision: ADR-0089/0
 super_project: tofu-vm-provisioning
 track: opnsense
@@ -16,11 +16,11 @@ Brings the OPNsense gateway's configuration under code, so the rules that are th
 
 ## Scope
 
-The seed image and its attachment to the OPNsense module, the Ansible role that applies the gateway's configuration, and the policy, NAT, Unbound forwards and Kea scratch network it holds for the existing zones. Then the coding-agent zone's interface and rules ([`coding-agent-network.md`](coding-agent-network.md)) and egress-proxy configuration ([`coding-agent-egress.md`](coding-agent-egress.md)), with drift detected by the play's check. Not in scope: Phase 1 (VM shell and ISO), in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#opnsense), DNS for Tofu-provisioned VMs ([`bind9.md`](../topics/services/bind9.md#the-host-zone)), and changing any policy the other decisions set.
+The seed image and its attachment to the OPNsense module, the Ansible role that applies the gateway's configuration, and the policy, NAT, Unbound forwards and Kea scratch network it holds for the existing zones. Then the rebuild of the production gateway from the seed, with drift detected by the play's check. Not in scope: the coding-agent zone's interface and rules and the egress proxy's configuration, which [`coding-agent-network.md`](coding-agent-network.md) and [`coding-agent-egress.md`](coding-agent-egress.md) carry in the play themselves (see [Hand-offs](#hand-offs)), Phase 1 (VM shell and ISO), in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#opnsense), DNS for Tofu-provisioned VMs ([`bind9.md`](../topics/services/bind9.md#the-host-zone)), and changing any policy the other decisions set.
 
 ## Decision
 
-Implements [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md), `approved` once its assumptions were resolved. Stages 4 and 5 also carry out the last bullet of [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)'s Decision, which becomes `accepted` when the network project completes.
+Implements [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md), `approved` once its assumptions were resolved.
 
 The pinned pair is OPNsense 26.1.11 and the `oxlorg.opnsense` collection at commit `5cec92ea25c8280a9913dfb958109f78ce930d00`, whose `galaxy.yml` reads version 26.1.11. The collection's git tag `26.1.11` carries an earlier version's metadata, so the pin is the commit. The pair lives in the `opnsense_gateway` role's defaults, and `ansible/requirements.yml` installs the collection from git at the same commit. The mirror reports the 26.1 series as end of life, and 26.1.11 is its last release. The pair stays there: a move to 26.7 with a matching collection release is a release change, rehearsed on a scratch clone as the ADR's Validation describes, after the policy is written.
 
@@ -37,24 +37,28 @@ Update at the start and end of each PR that works a stage.
 | 1 | Spike on a scratch OPNsense in the isolated block: the seed's first-boot import, the API user and its key, the collection's coverage, savepoint revert, the gateway certificate, Unbound forwards, the unattended install | Done | Each assumption in ADR 0089 is resolved and folded into its Context, and the revision can be `approved` |
 | 2 | The seed image and the Ansible role's skeleton. Starts from Tofu's root module and credentials file | Done | A scratch gateway builds from the seed, and the play's `--check --diff` reports no change after it converges |
 | 3 | Policy, NAT, Unbound forwards and the Kea scratch network for the existing zones, with the hardening baseline | Done | `--check --diff` reports no change, and the flow list's probes ([`network-boundary-checks.md`](network-boundary-checks.md)) confirm the allowed flows work and the others fail |
-| 4 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | `--check --diff` reports no change, and the zone's flows in the flow list pass |
-| 5 | The egress proxy's configuration. Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy | Not started | The proxy's allowlist is generated from one source in the repo |
-| 6 | Rebuild the production gateway (VM 201) from the seed and apply the play, after [`tofu-migration.md`](tofu-migration.md)'s cutover of the Ubuntu hosts. Retire the hand-maintained state and decommission the old VM | Not started | The topic doc describes the repo as the owner of the gateway's configuration, the old VM is decommissioned, and canary probes still pass |
+| 4 | Rebuild the production gateway (VM 201) from the seed and apply the play, after [`tofu-migration.md`](tofu-migration.md)'s cutover of the Ubuntu hosts. Retire the hand-maintained state and decommission the old VM | Not started | The topic doc describes the repo as the owner of the gateway's configuration, the old VM is decommissioned, and canary probes still pass |
 
 Stage status is `Not started`, `In progress`, or `Done`.
+
+## Hand-offs
+
+The coding-agent zone and the egress proxy are not stages here, so they do not hold the production rebuild back. Each project puts its part in the play, using this project's role and its scratch kit, and the rebuild carries whatever has landed by then:
+
+- [`coding-agent-network.md`](coding-agent-network.md) adds VLAN 70 to the seed's VLAN list and the role's zones, and rows 8 and 13 of the flow list below, and its exit condition is a clean `--check --diff` and passing flow probes on a scratch gateway.
+- [`coding-agent-egress.md`](coding-agent-egress.md) generates the proxy's allowlist from one source in the repo and applies it from the play or its own role, with the same exit condition.
+- A zone built by hand on the live gateway before the rebuild must be in the play by then, or the rebuild would lose it.
 
 ## Acceptance criteria
 
 - [x] A scratch gateway builds from the seed, and the play's `--check --diff` reports no change once it has converged.
 - [x] The policy, NAT, Unbound forwards and Kea scratch network for the existing zones are expressed in the play, and the flow list's probes confirm every allowed flow works and every other fails.
-- [ ] The coding-agent zone's interface, rules and proxy configuration are expressed in the play, and the canary probes from [`coding-agent-egress.md`](coding-agent-egress.md) still pass after the cutover.
-- [ ] The proxy's allowlist is generated from one source in the repo.
 - [ ] The production gateway is rebuilt from the seed, the old VM is decommissioned, and the topic doc names the repo as the owner of its configuration.
 - [ ] The API credential is held only in the credentials file ADR 0048 decides.
 
 ## Risks
 
-- The hand-built rules stay authoritative until Stage 6, and drift until then.
+- The hand-built rules stay authoritative until Stage 4, and drift until then.
 - The collection works only with the OPNsense release of the same version, so the gateway's release waits for the collection's.
 - The pinned series no longer gets fixes once it is end of life, so the move to 26.7 is a later release change, not an option to skip.
 - A play applied to the live gateway changes live rules, so it runs with `--check --diff` first and the gateway VM is snapshotted before each apply.
@@ -74,7 +78,7 @@ Traffic between two hosts on the same VLAN is switched on the bridge and never r
 | 5 | Operator host | `security` | 8200 | AppRole login and secret fetch | `secrets` role, `secrets-and-credentials-flow.md` |
 | 6 | Operator host | `storage` | 443 | Tofu state and restore discovery | ADR 0058, `backup-and-restore-data-flow.md`. Written but off (`enabled: false`) until the remote state backend's port is decided; owner [`tofu-migration.md`](tofu-migration.md), which enables it in the change that settles the port |
 | 7 | Operator host | VM 303 | 22 | `playbooks/cd-agent.yaml` | `inventory.yaml` |
-| 8 | Operator host | VLAN 70 host | 22 | Provisioning the coding-agent host | ADR 0053 |
+| 8 | Operator host | VLAN 70 host | 22 | Provisioning the coding-agent host | ADR 0053. Added to the play by [`coding-agent-network.md`](coding-agent-network.md) |
 | 9 | Operator host | The node's WAN-side address | 8006, 22 | Tofu's API calls, and the first-boot script's SSH. The node is not on any VLAN: it is reached through the gateway's outbound NAT | Maintainer |
 | 10 | CD agent | VLAN 20 hosts | 22 | Deploys | Written but off until the CD agent's approles are settled against ADR 0044; owner [`cd-agent-approles.md`](cd-agent-approles.md) |
 | 11 | CD agent | `security` | 8200 | AppRole login | Written but off, as row 10 |
@@ -97,9 +101,8 @@ The untagged `lan` network (`192.168.0.0/24`, with its own DHCP range) retires a
 
 ## Open items
 
-- Whether the proxy's allowlist is generated by the gateway's play or by its own role, which depends on where the proxy runs ([`coding-agent-network.md`](coding-agent-network.md)'s Stage 1).
 - [`vm-provisioning.md`](../topics/infra/vm-provisioning.md)'s OPNsense section ties all of Phase 2 to the VMID→IP mapping. It changes when Stage 2 lands, since DNS records are the only part that needs the mapping.
-- The live gateway (VM 201) is an `i440fx` machine with SeaBIOS and an 8 GB disk, while the OPNsense module builds `q35`. Settle which the rebuilt gateway uses before Stage 6.
+- The live gateway (VM 201) is an `i440fx` machine with SeaBIOS and an 8 GB disk, while the OPNsense module builds `q35`. Settle which the rebuilt gateway uses before Stage 4.
 - How the operator host resolves the management name. The play checks that it does, and a renewal of the certificate (every 397 days) is noticed by the play's failed authentication.
 - Whether [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) needs a revision, now that the play reads the OPNsense API key and secret from its credentials file, and that the CD agent's toolchain installs a collection from git.
 - Connections from the workstation to the Proxmox API dropped now and then during spike runs (an upload closed mid-transfer, a VM create answered with an empty reply), and later three tries in a row of the 3 GB image upload failed with a closed connection. The scratch gateway's script now has the node download and unpack the image once, so no run uploads it. The cause of the drops is not found, the seed and the other uploads still go through the API, and the module has no retry of its own.

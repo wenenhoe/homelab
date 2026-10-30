@@ -51,7 +51,7 @@ flowchart LR
 - **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied. The same proxy serves VLAN 30 under its own allowlist ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)).
 - **DNS.** The host resolves through a resolver that serves no internal zones.
 - **Tailnet.** The host does not join Tailscale. The subnet router (VM 202) advertises the VLAN's route so the maintainer can reach the host away from home, the tailnet policy grants that route to the laptop alone on `tcp:22`, and `tests` assert that no other node has it. OPNsense admits the subnet router to the VLAN on port 22 only.
-- **Rules.** Hand-built and documented in a topic doc first; written again in the gateway's Ansible configuration when the OPNsense configuration project reaches this zone, not imported.
+- **Rules.** Hand-built and documented in a topic doc first; written again in the gateway's Ansible configuration by the network project's last stage, not imported.
 
 ## Alternatives considered
 

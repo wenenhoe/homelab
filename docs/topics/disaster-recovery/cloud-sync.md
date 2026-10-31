@@ -15,7 +15,7 @@ Current values, set directly in each console:
 | :--- | :--- | :--- | :--- |
 | R2 | 29 days (Bucket Lock) | 30 days | Object Lifecycle Rules + Bucket Lock Rules |
 | B2 | 28 days (Default Bucket Retention) | 30 days | Custom lifecycle rule: 29d uploading→hiding, 1d hiding→deleting |
-| OCI | 5 days (Retention Rule, Unlocked) | 7 days | Retention Rules + Lifecycle Policy Rules |
+| OCI | 3 days (Retention Rule, Unlocked) | 5 days | Retention Rules + Lifecycle Policy Rules |
 
 Every archive's filename embeds its own upload timestamp
 (`BACKUP_FILENAME` in `ansible/roles/backup_agent/templates/schedule.env.j2`)
@@ -40,9 +40,37 @@ never listed. An app's list replaces the default rather than adding to
 it; the default is `backup_defaults.cloud_targets`
 (`group_vars/all/main.yaml`, currently `[r2, b2]`). Each name must be a
 key of `cloud_sync_targets` (`host_vars/storage.yaml`), which alone
-holds the credentials. Minecraft overrides to `[oci]` alone: its nightly
-archive at 7-day retention would eat most of a single R2/B2 free tier, so it
-gets OCI's larger allowance to itself instead.
+holds the credentials. Minecraft overrides to `[oci]` alone. R2 and B2 each
+apply one lock and one delete-after to every object in their bucket (table
+above), so about a month of its daily archives would sit in each, far past
+either provider's free storage allowance. OCI's rules are the ones set for a
+short window; see [OCI window](#oci-window). Whether a second cloud can hold
+it too is open: [ADR 0098 (Second cloud copy, own window)](../../decisions/0098-giving-an-archive-its-own-window-in-a-second-cloud/revision-000.md).
+
+## OCI window
+
+OCI's delete-after is sized so the bucket's average Standard-tier storage stays
+within the free allowance of a paid account, [10 GB per
+tier](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm#objectstorage)
+(a Free Tier-only account gets 20 GB combined instead). Storage above it is
+billed. The bucket holds about as many archives as the delete-after has days,
+so the longest window that stays free is the allowance divided by one
+archive's size. Read the current size and object count with:
+
+```sh
+oci os bucket get -bn homelab-backups --fields approximateSize --fields approximateCount \
+  --query 'data.{size:"approximate-size",count:"approximate-count"}'
+```
+
+Moving archives to Infrequent Access or Archive does not shorten the bill: their
+minimum storage periods (31 and 90 days) are longer than the window, and an
+object deleted earlier is charged for the whole minimum.
+
+A second lifecycle rule aborts incomplete multipart uploads after a day. The
+write credential has no `OBJECT_DELETE`, and OCI requires it for
+[`AbortMultipartUpload`](https://docs.oracle.com/iaas/Content/Identity/policyreference/objectstoragepolicyreference.htm),
+so rclone cannot abort a failed large upload itself; without the rule its parts
+stay stored and billed.
 
 ## Mechanism
 

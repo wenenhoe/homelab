@@ -6,8 +6,9 @@
 # The script downloads the image, checks it against IMAGE_CHECKSUM, unpacks it to a raw disk on a
 # loop device, omits the module in the image's dracut configuration, regenerates the image's
 # initramfs files and fails unless none of them lists the module any more. It writes
-# OUT_DIR/<image name>-no-dyn-netconf.qcow2 and its SHA-256 beside it as <file>.sha256, and removes
-# everything else on every exit path.
+# OUT_DIR/<image name>-<release directory>-no-dyn-netconf.qcow2 and its SHA-256 beside it as
+# <file>.sha256, and removes everything else on every exit path. The release directory in the name
+# is what makes a newer release a different volume for the template to import.
 # Run it as root or as a user with sudo, which it asks for before it downloads anything. It needs
 # curl, qemu-img, losetup, lsblk, blkid, mount, umount, chroot and about 8 GB free in OUT_DIR
 # (MIN_FREE_KB). PART_TRIES and PART_WAIT bound the wait for the loop device's partitions to appear.
@@ -41,7 +42,7 @@ else
   priv() { sudo "$@"; }
 fi
 
-target=$out/$(basename "$url" .img)-no-dyn-netconf.qcow2
+target=$out/$(basename "$url" .img)-$(basename "$(dirname "$url")")-no-dyn-netconf.qcow2
 work=$(mktemp -d "$out/.prepare.XXXXXX")
 mnt=$work/mnt
 scratch=$work/tmp

@@ -108,11 +108,29 @@ for HDD or NVMe capacity planning around them.
 `tofu/modules/proxmox_ubuntu_template` and
 `tofu/modules/proxmox_ubuntu_vm` are called from the root module in
 `tofu/`. The template module's `vm_id` defaults to a free ID in the 1XX
-range, and `image_url` and `image_checksum` have no default: the root
-module passes the dated release directory of the cloud image and the
-SHA-256 that release publishes, which are the defaults of
-`ubuntu_image_url` and `ubuntu_image_checksum` in `tofu/variables.tf`.
+range. It takes its image from either `image_url` with `image_checksum`, which
+Proxmox downloads, or `image_volume_id` alone
+(`<datastore>:import/<name>.qcow2`), a volume already on the node, and
+rejects both or neither. The root module passes `image_volume_id`: the copy
+that [`prepare_image.sh`](#ubuntu-image-without-dyn-netconf) builds from the
+dated release directory and SHA-256 in `ubuntu_image_url` and
+`ubuntu_image_checksum` (`tofu/variables.tf`), named
+`<image name>-<release directory>-no-dyn-netconf.qcow2` on `image_datastore_id`.
+The `ubuntu_image_prepare_command` output prints the command for the current pin.
 The root module builds the template; it declares no VMs yet.
+
+The provider imports a disk only when it creates it and ignores a changed
+`import_from` on an existing one, so the template resource is replaced whenever
+the module's image inputs change. A new pin names a new volume and replaces the
+template on the next apply, and the first apply after the template was built from
+a download needs the replacement asked for once:
+
+```sh
+tofu -chdir=tofu apply -replace=module.ubuntu_template.proxmox_virtual_environment_vm.template
+```
+
+Replacing the template does not touch its clones, which hold their own disks,
+but a clone cannot be created while the template is absent.
 
 The template and its clones are `q35` machines booting UEFI (`ovmf`) from a
 `4m` EFI disk on the VM datastore with the distribution and Microsoft keys
@@ -180,7 +198,7 @@ rename failure in
 [cloud-init issue 6887](https://github.com/canonical/cloud-init/issues/6887). A
 VM cloned from a template built from the stock image gets its address from
 DHCP, and Kea serves no VLAN 20 zone once the gateway play has rebuilt the
-gateway.
+gateway. The template is therefore built from the copy this script writes.
 
 `tofu/modules/proxmox_ubuntu_template/prepare_image.sh IMAGE_URL IMAGE_CHECKSUM
 OUT_DIR` writes a copy of the image whose initramfs lacks the module. It runs as
@@ -204,12 +222,14 @@ update regenerates its initramfs without the module.
 It fails, writing nothing to `OUT_DIR`, when the image has no dracut, when no
 initramfs lists the module before the change (an image that no longer needs the
 step), when any initramfs still lists it afterwards, and when a listing fails. It
-writes `OUT_DIR/<image name>-no-dyn-netconf.qcow2` as a compressed qcow2 with its
-SHA-256 in `<file>.sha256`. On every exit path it unmounts in reverse order,
+writes `OUT_DIR/<image name>-<release directory>-no-dyn-netconf.qcow2` as a
+compressed qcow2 with its SHA-256 in `<file>.sha256`. On every exit path it unmounts in reverse order,
 detaches the loop device and removes its work directory, except that a failed
 unmount leaves the directory in place, since removing it over a mount would
-delete the image's files and the host's `/dev` entries. Until a template is built
-from that copy, a VM cloned from the template gets its address from DHCP.
+delete the image's files and the host's `/dev` entries. The template imports the copy
+from the node's `tofu-images` storage: copy it to
+`/var/lib/tofu-images/import/` on the node (`scp`), check the `.sha256` there,
+then run the apply above.
 
 ### Scratch Ubuntu VM
 
@@ -218,9 +238,7 @@ that needs a real VM and keeps nothing of it. It clones the template through
 `proxmox_ubuntu_vm`, tags the VM `scratch`, and shares the main root's
 provider pin and lock file through symlinks, as the scratch gateway's root
 does. Its state and provider directory live outside the checkout. Its `ssh`
-output names the static address, which a VM cloned from a template built from
-the stock image does not take (see [Ubuntu image without
-`dyn-netconf`](#ubuntu-image-without-dyn-netconf)).
+output names the static address.
 
 `vm_id`, `ssh_public_keys` and `dns_domain` have no default. `vm_id` picks the
 zone, because the module derives the VLAN from its hundred, and the VM reaches

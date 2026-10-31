@@ -6,7 +6,7 @@ setup() {
   SCRIPT=$(install_script tofu/modules/proxmox_ubuntu_template/prepare_image.sh)
   OUT="$BATS_TEST_TMPDIR/out"
   URL=https://cloud-images.example.net/releases/26.04/release-20260101/ubuntu-26.04-server-cloudimg-amd64.img
-  NAME=ubuntu-26.04-server-cloudimg-amd64-no-dyn-netconf.qcow2
+  NAME=ubuntu-26.04-server-cloudimg-amd64-release-20260101-no-dyn-netconf.qcow2
   printf 'QCOW2BASE\n' > "$BATS_TEST_TMPDIR/served.img"
   SUM=$(sha256sum "$BATS_TEST_TMPDIR/served.img" | cut -d' ' -f1)
   export SERVED="$BATS_TEST_TMPDIR/served.img" REGENERATED="$BATS_TEST_TMPDIR/regenerated" MIN_FREE_KB=1 PART_WAIT=0

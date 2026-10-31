@@ -107,6 +107,10 @@ keypair: hosts hold only the public key; the private key stays offline and
 is never on any homelab host, so a compromised host can't decrypt existing
 backups.
 
+The output is binary OpenPGP, the agent's default. Setting `GPG_OUTPUT` to
+`armored` makes it base64 text, about a third larger. `gpg -d` reads either
+form, so restore does not depend on which one an archive has.
+
 `ansible/files/backup-gpg-public-key.asc` is the public half of the live
 backup key. Show its fingerprint with:
 

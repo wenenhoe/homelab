@@ -20,22 +20,22 @@ run "downloads_the_pinned_image_as_an_import_file" {
   }
 
   assert {
-    condition     = proxmox_download_file.image.content_type == "import"
+    condition     = proxmox_download_file.image[0].content_type == "import"
     error_message = "the image must be stored as import content, which import_from requires"
   }
 
   assert {
-    condition     = proxmox_download_file.image.file_name == "ubuntu-26.04-server-cloudimg-amd64.qcow2"
+    condition     = proxmox_download_file.image[0].file_name == "ubuntu-26.04-server-cloudimg-amd64.qcow2"
     error_message = "the .img file must be stored under a .qcow2 name"
   }
 
   assert {
-    condition     = proxmox_download_file.image.datastore_id == "tofu-images"
+    condition     = proxmox_download_file.image[0].datastore_id == "tofu-images"
     error_message = "the image must be stored on the images storage the token can delete from"
   }
 
   assert {
-    condition     = proxmox_download_file.image.checksum_algorithm == "sha256" && proxmox_download_file.image.checksum == var.image_checksum
+    condition     = proxmox_download_file.image[0].checksum_algorithm == "sha256" && proxmox_download_file.image[0].checksum == var.image_checksum
     error_message = "the download must be verified against the given SHA-256"
   }
 }
@@ -118,4 +118,86 @@ run "rejects_a_plain_http_image_url" {
   }
 
   expect_failures = [var.image_url]
+}
+
+run "imports_from_a_staged_volume_without_downloading" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_template"
+  }
+
+  variables {
+    image_url       = null
+    image_checksum  = null
+    image_volume_id = "tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-dyn-netconf.qcow2"
+  }
+
+  assert {
+    condition     = length(proxmox_download_file.image) == 0
+    error_message = "a staged volume must not trigger a download"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.template.disk[0].import_from == var.image_volume_id
+    error_message = "the template's disk must be imported from the staged volume"
+  }
+}
+
+run "imports_from_the_downloaded_file_by_default" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_template"
+  }
+
+  assert {
+    condition     = output.image_volume_id == "local:import/ubuntu-26.04-server-cloudimg-amd64.qcow2"
+    error_message = "without a staged volume the template must import the downloaded file"
+  }
+}
+
+run "rejects_a_staged_volume_together_with_a_download" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_template"
+  }
+
+  variables {
+    image_volume_id = "tofu-images:import/ubuntu.qcow2"
+  }
+
+  expect_failures = [proxmox_virtual_environment_vm.template]
+}
+
+run "rejects_no_image_source_at_all" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_template"
+  }
+
+  variables {
+    image_url      = null
+    image_checksum = null
+  }
+
+  expect_failures = [proxmox_virtual_environment_vm.template]
+}
+
+run "rejects_a_volume_that_is_not_import_content" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_template"
+  }
+
+  variables {
+    image_url       = null
+    image_checksum  = null
+    image_volume_id = "tofu-images:iso/ubuntu.iso"
+  }
+
+  expect_failures = [var.image_volume_id]
 }

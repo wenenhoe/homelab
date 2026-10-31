@@ -108,11 +108,26 @@ for HDD or NVMe capacity planning around them.
 `tofu/modules/proxmox_ubuntu_template` and
 `tofu/modules/proxmox_ubuntu_vm` are called from the root module in
 `tofu/`. The template module's `vm_id` defaults to a free ID in the 1XX
-range, and `image_url` and `image_checksum` have no default: the root
-module passes the dated release directory of the cloud image and the
-SHA-256 that release publishes, which are the defaults of
-`ubuntu_image_url` and `ubuntu_image_checksum` in `tofu/variables.tf`.
+range. It takes its image from either `image_url` with `image_checksum`, which
+Proxmox downloads, or `image_volume_id` alone
+(`<datastore>:import/<name>.qcow2`), a volume already on the node, and
+rejects both or neither. The root module passes `image_volume_id`: the copy
+that [`prepare_image.sh`](#ubuntu-image-without-dyn-netconf) builds from the
+dated release directory and SHA-256 in `ubuntu_image_url` and
+`ubuntu_image_checksum` (`tofu/variables.tf`), named
+`<image name>-<release directory>-no-dyn-netconf.qcow2` on `image_datastore_id`.
+The `ubuntu_image_prepare_command` output prints the command for the current pin.
 The root module builds the template; it declares no VMs yet.
+
+The provider imports a disk only when it creates it and ignores a changed
+`import_from` on an existing one, so the template resource is replaced whenever
+the module's image inputs change. A new pin names a new volume and replaces the
+template on the next apply. The first apply after the template was built from a
+download replaces it too, since the tracking resource is new. Tofu destroys the
+old template before it creates the new one, so the image volume has to be on the
+node first (`pvesm list tofu-images --content import`). Replacing the template
+does not touch its clones, which hold their own disks, but a clone cannot be
+created while the template is absent.
 
 The template and its clones are `q35` machines booting UEFI (`ovmf`) from a
 `4m` EFI disk on the VM datastore with the distribution and Microsoft keys
@@ -167,6 +182,92 @@ is found. The `tofu-checks` CI job runs this test, with the format check, `init`
 and `validate`, on every change under `tofu/`
 ([`pipeline.md`](../engineering/ci/pipeline.md#jobs)); run `tofu fmt -recursive`
 before pushing.
+
+### Ubuntu image without `dyn-netconf`
+
+The 26.04 cloud image builds its initramfs with dracut, and dracut's
+`dyn-netconf` module brings the NIC up with DHCP before cloud-init runs.
+cloud-init then fails to rename the NIC to the name its network config uses
+(`[busy] Error renaming ... from ens18 to eth0`), the netplan files it writes
+match no device, and the VM keeps the lease that `zzzz-dracut-default.network`
+configured in place of the static address from `ip_config`. Upstream tracks the
+rename failure in
+[cloud-init issue 6887](https://github.com/canonical/cloud-init/issues/6887). A
+VM cloned from a template built from the stock image gets its address from
+DHCP, and Kea serves no VLAN 20 zone once the gateway play has rebuilt the
+gateway. The template is therefore built from the copy this script writes.
+
+`tofu/modules/proxmox_ubuntu_template/prepare_image.sh IMAGE_URL IMAGE_CHECKSUM
+OUT_DIR` writes a copy of the image whose initramfs lacks the module. It runs as
+root or as a user with `sudo`, whose password it asks for before it downloads
+anything, on a host with `curl`, `qemu-img` and util-linux (`losetup`, `lsblk`,
+`blkid`, `mount`, `chroot`), and needs about 8 GB free in `OUT_DIR`
+(`MIN_FREE_KB`). It downloads the image and checks it against the SHA-256,
+converts it to a raw disk on a loop device, and mounts the partition labelled
+`cloudimg-rootfs`, the one labelled `BOOT` when there is one, and `/dev`, `/proc`
+and `/sys`. It binds a directory of its work directory over `/var/tmp` of the
+image, because dracut builds the initramfs there and the image's root file system
+has almost no free space until the first boot grows it. It then writes `omit_dracutmodules+=" dyn-netconf "` to
+`/etc/dracut.conf.d/99-no-dyn-netconf.conf` in the image and regenerates every
+initramfs there with `dracut --regenerate-all --force --no-hostonly
+--no-hostonly-cmdline`, because a chroot sees the build host's devices and a
+host-only initramfs would fit the host instead of the VMs. Only the loop
+device's own partitions are searched for labels, since the build host can carry
+the same ones. The dracut configuration stays in the image, so a later kernel
+update regenerates its initramfs without the module.
+
+It fails, writing nothing to `OUT_DIR`, when the image has no dracut, when no
+initramfs lists the module before the change (an image that no longer needs the
+step), when any initramfs still lists it afterwards, and when a listing fails. It
+writes `OUT_DIR/<image name>-<release directory>-no-dyn-netconf.qcow2` as a
+compressed qcow2 with its SHA-256 in `<file>.sha256`. On every exit path it unmounts in reverse order,
+detaches the loop device and removes its work directory, except that a failed
+unmount leaves the directory in place, since removing it over a mount would
+delete the image's files and the host's `/dev` entries. The template imports the copy
+from the node's `tofu-images` storage: copy it to
+`/var/lib/tofu-images/import/` on the node (`scp`), check the `.sha256` there,
+then run the apply above.
+
+### Scratch Ubuntu VM
+
+`tofu/scratch/ubuntu` is a second root for one throwaway Ubuntu VM, for work
+that needs a real VM and keeps nothing of it. It clones the template through
+`proxmox_ubuntu_vm`, tags the VM `scratch`, and shares the main root's
+provider pin and lock file through symlinks, as the scratch gateway's root
+does. Its state and provider directory live outside the checkout. Its `ssh`
+output names the static address.
+
+`vm_id`, `ssh_public_keys` and `dns_domain` have no default. `vm_id` picks the
+zone, because the module derives the VLAN from its hundred, and the VM reaches
+only what that zone's gateway rules allow: the gateway play gives VLAN 50 no
+access to the internet (`internet: false` in
+[`opnsense_gateway_zones`](../../../ansible/roles/opnsense_gateway/defaults/main.yaml)).
+The module rejects a VMID outside 2XX to 5XX, so a VM in VLAN 60 or 70 needs its
+range widened first. In a zone the play serves with Kea, which hands out host
+numbers 10 to 245 (`opnsense_gateway_dhcp_pool`), a host part of 02 to 09 stays
+clear of the pool. `cores`, `memory_mb` and `disk_gb` default to 2, 2048 and 16.
+
+From the repo root, with the credentials file of
+[State backend & secrets](#state-backend--secrets):
+
+```sh
+umask 077
+out="$HOME/scratch-vm"
+mkdir -p "$out"
+export TF_DATA_DIR="$out/.terraform"
+printf '%s\n' 'vm_id = 502' 'dns_domain = "<internal zone>"' \
+  'ssh_public_keys = ["<public key>"]' > "$out/scratch.tfvars"
+cd tofu/scratch/ubuntu
+tofu init -backend=false -input=false -lockfile=readonly
+tofu apply -state="$out/terraform.tfstate" \
+  -var-file="$HOME/.config/tofu/credentials.tfvars" -var-file="$out/scratch.tfvars"
+tofu output -state="$out/terraform.tfstate" ssh
+```
+
+`tofu destroy` with the same `-state` and `-var-file` flags removes the VM and
+its disks and leaves the template. A VM left running keeps its cores and
+memory, so destroy it when the work is done. The API token's role already
+covers it, since the VM is a clone like any other.
 
 ## OPNsense
 

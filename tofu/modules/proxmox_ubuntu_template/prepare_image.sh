@@ -8,9 +8,9 @@
 # initramfs files and fails unless none of them lists the module any more. It writes
 # OUT_DIR/<image name>-no-dyn-netconf.qcow2 and its SHA-256 beside it as <file>.sha256, and removes
 # everything else on every exit path.
-# Run it as root or as a user with sudo. It needs curl, qemu-img, losetup, lsblk, blkid, mount,
-# umount, chroot and about 8 GB free in OUT_DIR (MIN_FREE_KB). PART_TRIES and PART_WAIT bound the
-# wait for the loop device's partitions to appear.
+# Run it as root or as a user with sudo, which it asks for before it downloads anything. It needs
+# curl, qemu-img, losetup, lsblk, blkid, mount, umount, chroot and about 8 GB free in OUT_DIR
+# (MIN_FREE_KB). PART_TRIES and PART_WAIT bound the wait for the loop device's partitions to appear.
 set -euo pipefail
 
 usage="usage: prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR"
@@ -36,12 +36,15 @@ free_kb=$(df -Pk "$out" | awk 'NR==2 {print $4}')
 if [ "$(id -u)" -eq 0 ]; then
   priv() { "$@"; }
 else
+  # Asked for here so the password prompt comes before the download, not in the middle of the run.
+  sudo -v || die "sudo is needed to attach and mount the image"
   priv() { sudo "$@"; }
 fi
 
 target=$out/$(basename "$url" .img)-no-dyn-netconf.qcow2
 work=$(mktemp -d "$out/.prepare.XXXXXX")
 mnt=$work/mnt
+scratch=$work/tmp
 loop=""
 mounted=()
 
@@ -69,6 +72,7 @@ cleanup() {
     echo "could not unmount everything under $work; it is left in place, unmount by hand before removing it" >&2
     exit 1
   fi
+  priv rm -rf "$scratch"
   rm -rf "$work"
   exit "$status"
 }
@@ -121,6 +125,11 @@ done
 mkdir -p "$mnt"
 do_mount "$root_dev" "$mnt"
 [ -z "$boot_dev" ] || do_mount "$boot_dev" "$mnt/boot"
+# dracut builds the initramfs in /var/tmp, and the image's root file system has almost no free
+# space until the first boot grows it, so a directory on this host's disk is bound over it.
+mkdir -p "$scratch"
+chmod 1777 "$scratch"
+do_mount --bind "$scratch" "$mnt/var/tmp"
 do_mount --bind /dev "$mnt/dev"
 do_mount -t proc proc "$mnt/proc"
 do_mount -t sysfs sysfs "$mnt/sys"

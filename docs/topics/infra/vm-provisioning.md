@@ -184,12 +184,15 @@ gateway.
 
 `tofu/modules/proxmox_ubuntu_template/prepare_image.sh IMAGE_URL IMAGE_CHECKSUM
 OUT_DIR` writes a copy of the image whose initramfs lacks the module. It runs as
-root or as a user with `sudo` on a host with `curl`, `qemu-img` and util-linux
-(`losetup`, `lsblk`, `blkid`, `mount`, `chroot`), and needs about 8 GB free in
-`OUT_DIR` (`MIN_FREE_KB`). It downloads the image and checks it against the
-SHA-256, converts it to a raw disk on a loop device, and mounts the partition
-labelled `cloudimg-rootfs`, the one labelled `BOOT` when there is one, and `/dev`,
-`/proc` and `/sys`. It then writes `omit_dracutmodules+=" dyn-netconf "` to
+root or as a user with `sudo`, whose password it asks for before it downloads
+anything, on a host with `curl`, `qemu-img` and util-linux (`losetup`, `lsblk`,
+`blkid`, `mount`, `chroot`), and needs about 8 GB free in `OUT_DIR`
+(`MIN_FREE_KB`). It downloads the image and checks it against the SHA-256,
+converts it to a raw disk on a loop device, and mounts the partition labelled
+`cloudimg-rootfs`, the one labelled `BOOT` when there is one, and `/dev`, `/proc`
+and `/sys`. It binds a directory of its work directory over `/var/tmp` of the
+image, because dracut builds the initramfs there and the image's root file system
+has almost no free space until the first boot grows it. It then writes `omit_dracutmodules+=" dyn-netconf "` to
 `/etc/dracut.conf.d/99-no-dyn-netconf.conf` in the image and regenerates every
 initramfs there with `dracut --regenerate-all --force --no-hostonly
 --no-hostonly-cmdline`, because a chroot sees the build host's devices and a

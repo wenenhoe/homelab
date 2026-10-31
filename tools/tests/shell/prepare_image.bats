@@ -22,7 +22,11 @@ BODY
 printf 'qemu-img %s\n' "$*" > "${*: -1}"
 BODY
   stub sudo <<'BODY'
-exec "$@"
+if [ "$1" = -v ]; then
+  [ -z "${SUDO_FAIL:-}" ]
+else
+  exec "$@"
+fi
 BODY
   stub losetup <<'BODY'
 [ "$1" != --find ] || echo /dev/loop7
@@ -135,6 +139,7 @@ blkid -p -o value -s LABEL /dev/loop7p16"
   run calls mount
   assert_output "mount /dev/loop7p1 WORK/mnt
 mount /dev/loop7p16 WORK/mnt/boot
+mount --bind WORK/tmp WORK/mnt/var/tmp
 mount --bind /dev WORK/mnt/dev
 mount -t proc proc WORK/mnt/proc
 mount -t sysfs sysfs WORK/mnt/sys"
@@ -145,10 +150,34 @@ mount -t sysfs sysfs WORK/mnt/sys"
 
   run calls mount
   assert_output "mount /dev/loop7p1 WORK/mnt
+mount --bind WORK/tmp WORK/mnt/var/tmp
 mount --bind /dev WORK/mnt/dev
 mount -t proc proc WORK/mnt/proc
 mount -t sysfs sysfs WORK/mnt/sys"
   run -0 ls "$OUT/$NAME"
+}
+
+@test "binds a directory of the host's disk over the image's /var/tmp before dracut runs" {
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+
+  bound=$(grep -n -m1 -E '^mount --bind .*/tmp .*/mnt/var/tmp$' "$CALLS" | cut -d: -f1)
+  regenerated=$(grep -n -m1 ' dracut ' "$CALLS" | cut -d: -f1)
+  [ -n "$bound" ]
+  [ "$bound" -lt "$regenerated" ]
+}
+
+@test "asks for sudo before it downloads anything, and stops when it is refused" {
+  [ "$(id -u)" -ne 0 ] || skip "root does not use sudo"
+
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  [ "$(grep -n -m1 '^sudo -v$' "$CALLS" | cut -d: -f1)" -lt "$(grep -n -m1 '^curl ' "$CALLS" | cut -d: -f1)" ]
+
+  rm -rf "$OUT"
+  : > "$CALLS"
+  SUDO_FAIL=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  assert_output --partial "sudo is needed to attach and mount the image"
+  run calls curl
+  assert_output ""
 }
 
 @test "unmounts in reverse order and detaches the loop device" {
@@ -158,6 +187,7 @@ mount -t sysfs sysfs WORK/mnt/sys"
   assert_output "umount WORK/mnt/sys
 umount WORK/mnt/proc
 umount WORK/mnt/dev
+umount WORK/mnt/var/tmp
 umount WORK/mnt/boot
 umount WORK/mnt"
   run calls losetup
@@ -182,6 +212,7 @@ umount WORK/mnt"
   assert_output "umount WORK/mnt/sys
 umount WORK/mnt/proc
 umount WORK/mnt/dev
+umount WORK/mnt/var/tmp
 umount WORK/mnt/boot
 umount WORK/mnt"
   run ls -A "$OUT"

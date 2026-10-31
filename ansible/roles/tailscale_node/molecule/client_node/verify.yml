@@ -35,10 +35,12 @@
           - tailscale_node_verify_state.prefs.AutoUpdate.Apply == false
           - tailscale_node_verify_calls | select('match', '^set ') | list == ['set accept-dns auto-update']
 
-    # grep exits 1 when nothing matches, which is the pass.
+    # grep exits 1 when nothing matches, which is the pass. The command module
+    # logs its own arguments to syslog, so the pattern's last character is a
+    # bracket expression: the logged command line does not match the pattern.
     - name: Search the host's configuration, state and logs for the join key
       ansible.builtin.command: >-
-        grep -rIlFs --exclude-dir=.ansible molecule-one-time-key /etc /var/lib /var/log /root /tmp /usr/local
+        grep -rIlEs --exclude-dir=.ansible molecule-one-time-ke[y] /etc /var/lib /var/log /root /tmp /usr/local
       register: tailscale_node_verify_key_search
       changed_when: false
       failed_when: tailscale_node_verify_key_search.rc != 1

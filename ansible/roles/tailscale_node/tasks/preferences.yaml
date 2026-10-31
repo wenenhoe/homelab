@@ -34,10 +34,14 @@
     argv: "{{ [tailscale_node_cli, 'set'] + tailscale_node_set_flags }}"
   when: tailscale_node_set_flags | length > 0
   changed_when: true
+  register: tailscale_node_apply
 
-# A command task is skipped in a check run, which would hide drift.
+# A command task is skipped in a check run, which would hide drift. Whether the
+# apply was skipped is what shows a check run: ansible_check_mode is false when
+# the play sets check_mode itself.
 - name: Report the preferences a check run would change
   ansible.builtin.debug:
     msg: "tailscale set {{ tailscale_node_set_flags | join(' ') }}"
-  when: ansible_check_mode and tailscale_node_set_flags | length > 0
+  when: tailscale_node_apply is skipped and tailscale_node_set_flags | length > 0
   changed_when: true
+  register: tailscale_node_drift

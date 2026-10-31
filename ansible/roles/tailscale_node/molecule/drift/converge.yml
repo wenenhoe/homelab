@@ -30,9 +30,11 @@
       register: tailscale_node_converge_prefs
       changed_when: false
 
-    - name: Assert the check run applied nothing
+    - name: Assert the check run reported the difference and applied nothing
       ansible.builtin.assert:
         that:
+          - tailscale_node_drift is changed
+          - tailscale_node_drift.msg == 'tailscale set --auto-update=false'
           - (tailscale_node_converge_prefs.stdout | from_json).AutoUpdate.Apply
 
     - name: Repair the node with the role again

@@ -133,7 +133,12 @@ the same cycle:
    ([below](#dump-storage)), then destroy it. The dump is the rollback:
    `qmrestore` it to a 9XX VMID.
 3. Add the host's module call and `ansible_hosts` entry to the root
-   module, apply, and run the inventory generator.
+   module, apply, and run the inventory generator. The first apply replaces
+   the Ubuntu template, which imports the prepared image, so build and stage
+   that image first
+   ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#ubuntu-image-without-dyn-netconf)).
+   A VM cloned from the stock image keeps a DHCP address instead of its
+   static one.
 4. Remove the host's `ansible_host` and `ansible_user` from
    `inventory.yaml`, keeping its group membership.
 5. Deploy with `deploy.yaml` and restore its apps with `restore.yaml`, as
@@ -145,7 +150,7 @@ the same cycle:
    does: it has no `backup:` entry, so `restore.yaml` does not bring it
    back, and the playbooks read their secrets from it.
 6. Delete the dump once the host's apps are confirmed healthy on the new
-   VM.
+   VM, then run `fstrim -v /mnt/vzdump` ([below](#dump-storage)).
 
 `storage` can't take the cycle as written: SeaweedFS keeps its data in a
 Docker volume on the VM's own root disk, so destroying VM 206 destroys it,
@@ -167,11 +172,24 @@ the network boundary never move together.
 #### Dump storage
 
 `backup` is `lvmthin`, which holds VM disks and not dump files, and the
-only directory storages (`local`, `tofu-images`) share one 36 GB
-filesystem. Dumps go to a directory storage on a thin volume of the same
-volume group, created once on the node. Read `vgname` and `thinpool` from
-`/etc/pve/storage.cfg`. A dump is taken and deleted per host, so 100 GB
-holds the largest (39 GB used on its root filesystem):
+only directory storages (`local`, `tofu-images`) share one filesystem with
+less than 100 GB free. Dumps go to a directory storage on a thin volume of
+the `backup` volume group, created once on the node. That is the HDD, away
+from the NVMe where the rebuilt VMs' disks go. Take `vgname` and `thinpool`
+from the `backup` entry of `/etc/pve/storage.cfg`; on the live node both are
+`backup`.
+
+The pool is overprovisioned, so `lvcreate` warns that the thin volumes' sizes
+sum to more than the pool, and autoextend protection is off: a full pool
+fails every volume on it. Read the pool's `Data%` and `Meta%` before creating
+the volume:
+
+```sh
+lvs -o lv_name,lv_size,data_percent,metadata_percent <vgname>
+```
+
+A dump is taken and deleted per host, so 100 GB holds the largest (39 GB used
+on its root filesystem):
 
 ```sh
 lvcreate -V 100G -T <vgname>/<thinpool> -n vzdump
@@ -181,6 +199,10 @@ echo '/dev/<vgname>/vzdump /mnt/vzdump ext4 defaults,nofail 0 2' >> /etc/fstab
 mount /mnt/vzdump
 pvesm add dir vzdump --path /mnt/vzdump --content backup --is_mountpoint yes
 ```
+
+A thin volume returns blocks to the pool only when its filesystem trims them,
+so a deleted dump keeps its space in the pool until `fstrim -v /mnt/vzdump`
+runs. Run it after each deletion.
 
 Remove the storage and the volume when the last dump is deleted.
 

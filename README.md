@@ -1,6 +1,6 @@
 # Homelab progress log
 
-Generated from `main` up to `19f90df`. Weeks run Monday to Sunday (UTC+8). Past weeks are frozen once written; add your own notes under the marker in a week file and they survive regeneration.
+Generated from `main` up to `1b57074`. Weeks run Monday to Sunday (UTC+8). Past weeks are frozen once written; add your own notes under the marker in a week file and they survive regeneration.
 
 _Counts are merged PRs (direct commits before the PR workflow). **Code** = changed code, config, tests or deployment · **Docs** = docs and decisions only · **Project-doc edits** = changed only project docs._
 
@@ -8,7 +8,7 @@ _Counts are merged PRs (direct commits before the PR workflow). **Code** = chang
 
 | Week | Code | Docs | Project-doc edits | Dep. updates | Projects closed |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| [2026-W44](weeks/2026-W44.md) | 13 | 4 | 1 | 0 | 2 |
+| [2026-W44](weeks/2026-W44.md) | 15 | 6 | 1 | 0 | 2 |
 | [2026-W43](weeks/2026-W43.md) | 29 | 15 | 10 | 17 | 13 |
 | [2026-W42](weeks/2026-W42.md) | 29 | 8 | 4 | 21 | 2 |
 | [2026-W41](weeks/2026-W41.md) | 32 | 4 | 4 | 18 | 5 |
@@ -19,6 +19,7 @@ _Counts are merged PRs (direct commits before the PR workflow). **Code** = chang
 
 ## Months
 
+- [2026-11](months/2026-11.md)
 - [2026-10](months/2026-10.md)
 - [2026-09](months/2026-09.md)
 - [2026-08](months/2026-08.md)

@@ -267,6 +267,77 @@
    "bot": false,
    "group": "tofu/",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "76bbeb83f0ded8c8f81ba0f38bfd9806ee19563c",
+   "date": "2026-10-31T22:17:55+08:00",
+   "kind": "pr",
+   "pr": 591,
+   "title": "Add oci window and second cloud copy",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": [
+    [
+     "adr",
+     "ADR 0098 r000 \u00b7 giving an archive its own window in a second cloud",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "c6c1bba381d14f5999ef40f5f4d4e0422dc05544",
+   "date": "2026-11-01T00:09:05+08:00",
+   "kind": "pr",
+   "pr": 592,
+   "title": "Add a scratch ubuntu vm root",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "7cfdbc34670978a4cab2886d89f6788c7e0b08eb",
+   "date": "2026-11-01T00:57:58+08:00",
+   "kind": "pr",
+   "pr": 593,
+   "title": "Record spike findings and expand scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tailscale-node-role",
+   "events": [
+    [
+     "adr",
+     "ADR 0097 r000 \u00b7 how a tailscale node is configured",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "tailscale-node-role",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "1b570746c466b4e61d63f2af85a68b6a65f9f38c",
+   "date": "2026-11-01T02:03:36+08:00",
+   "kind": "pr",
+   "pr": 594,
+   "title": "Implement tailscale node role",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tailscale-node-role",
+   "events": [
+    [
+     "component",
+     "role tailscale_node",
+     "added"
+    ]
+   ]
   }
  ]
 }

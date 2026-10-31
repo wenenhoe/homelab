@@ -44,7 +44,8 @@ holds the credentials. Minecraft overrides to `[oci]` alone. R2 and B2 each
 apply one lock and one delete-after to every object in their bucket (table
 above), so about a month of its daily archives would sit in each, far past
 either provider's free storage allowance. OCI's rules are the ones set for a
-short window; see [OCI window](#oci-window).
+short window; see [OCI window](#oci-window). Whether a second cloud can hold
+it too is open: [ADR 0098 (Second cloud copy, own window)](../../decisions/0098-giving-an-archive-its-own-window-in-a-second-cloud/revision-000.md).
 
 ## OCI window
 

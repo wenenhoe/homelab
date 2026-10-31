@@ -93,7 +93,9 @@ multipart-uploads documentation. Without it,
 not-found-or-unauthorized response this API gives for every other
 authorization gap — a single-part `PutObject` doesn't hit this, only an archive large
 enough to trigger rclone's multi-thread/multipart path (minecraft's).
-`OBJECT_DELETE` is still excluded from both leaves.
+`OBJECT_DELETE` is still excluded from both leaves, so a failed multipart
+upload is cleaned up by a lifecycle rule on the bucket, not by the client; see
+[OCI window](../../disaster-recovery/cloud-sync.md#oci-window).
 
 **Identity-Domain tenancies require an email per user**
 (`400 IdcsConversionError` from `CreateUser` without one).

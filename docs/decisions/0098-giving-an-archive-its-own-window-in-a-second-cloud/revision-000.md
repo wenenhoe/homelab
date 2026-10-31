@@ -53,6 +53,9 @@ retention of anything else stored there.
   take the bucket as an argument that defaults to the relay's own. The relay's
   leaf credentials are scoped to one bucket per provider, named by a constant
   in `tools/cloud_credentials/leaf_keys/`.
+- R2 and B2 hold little today: the other apps' archives and the secrets-store
+  snapshots come to about 50 MB in use, a small fraction of either provider's
+  free storage allowance.
 - Lock and lifecycle rules are provider-native console settings, not managed by
   the repo
   ([ADR 0010 (Offsite copy deletion)](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)),
@@ -77,16 +80,30 @@ Not yet. The candidates below answer the problem; none is chosen.
    allowed to write retention.
 3. **One cloud, as today.** SeaweedFS and OCI hold two copies of the archive.
 
-Whichever of 1 or 2 is chosen leaves a second question open: whether each
-provider receives every archive, or the relay sends each archive to only some
-of them, which would keep each provider's storage lower for a longer window.
-That needs the job manifest to select by archive, which it does not do today.
+Whichever of 1 or 2 is chosen leaves a second question open: which archives
+each provider receives. One answer divides the window by age. The newest
+archives go to R2 and B2 as soon as they land in SeaweedFS and expire there
+after a few days under their own short rules. OCI receives an archive only once
+it is older than that band, and keeps it until the window ends. The relay would
+select by age with rclone's `--max-age` on the R2 and B2 jobs and `--min-age` on
+the OCI job; the job manifest carries neither today.
+
+With SeaweedFS keeping seven days and the boundary at k days, R2 holds about k
+archives, B2 about one more (it hides a file before deleting it) and OCI the
+other seven minus k. The newest k archives are then at two providers and the
+older ones at one. At the archive's size when this was written, about 1.8 GB, a
+boundary of 2 days leaves OCI near 9 GB and one of 3 days leaves every provider
+near 7 GB or less, against the free allowance described in
+[OCI window](../../topics/disaster-recovery/cloud-sync.md#oci-window).
 
 ## Alternatives considered
 
 - **Prefix rules in the existing R2 and B2 buckets.** The longest retention
   wins on R2 and the default applies to every prefix on B2, so the existing
   rules would override or ignore a shorter one.
+- **Every provider receives every archive.** Each would hold the whole seven-day
+  window, which at the archive's current size is past each provider's free
+  storage allowance.
 - **A longer window on OCI alone.** It adds no second provider, and storage above
   the free allowance is billed.
 - **Moving older archives to OCI's cooler tiers.** The Infrequent Access and
@@ -102,11 +119,21 @@ That needs the job manifest to select by archive, which it does not do today.
   upkeep for no gain.
   **Checked by:** The maintainer deciding how many independent copies the world
   needs.
-- **Claim:** Each provider's free storage allowance has room for a dedicated
-  bucket on top of what the account already holds, which is the other apps'
-  archives and the secrets-store snapshots.
-  **Breaks if wrong:** The copy is billed for the excess.
-  **Checked by:** Reading each account's stored size in its dashboard.
+- **Claim:** The largest share of the window that one provider holds stays inside
+  its free storage allowance as the archive grows.
+  **Breaks if wrong:** That share is billed for the excess.
+  **Checked by:** Reading each account's stored size after the first full window;
+  the boundary between the age bands can be moved.
+- **Claim:** rclone's `--min-age` and `--max-age` select objects by the time
+  SeaweedFS reports for them, which is when they were uploaded.
+  **Breaks if wrong:** An archive is copied to the wrong provider, or twice.
+  **Checked by:** A spike against the SeaweedFS test target the Molecule
+  scenarios use.
+- **Claim:** Restore discovery finds an archive that only some of an app's
+  targets hold, because it lists every target in the plan.
+  **Breaks if wrong:** A restore reads the wrong provider or reports the archive
+  missing.
+  **Checked by:** Reading `restore_discovery` and its tests.
 - **Claim:** The credential tooling can create a write and a read credential for
   a second bucket per provider with the bucket argument its key functions already
   take, and restore discovery can read a target whose credentials are not the
@@ -124,6 +151,8 @@ described in [`cloud-sync.md`](../../topics/disaster-recovery/cloud-sync.md).
 
 - The relay stays additive: `rclone copy --immutable`, never `sync`
   ([ADR 0010 (Offsite copy deletion)](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)).
+- An archive is offered to a cloud before SeaweedFS prunes it, so a provider
+  that missed it does not leave it with no offsite copy.
 - A new bucket or rule never shortens the lock or delete-after of an archive
   already in a provider's existing bucket.
 - A lock on a new bucket stays strictly below that bucket's delete-after, as

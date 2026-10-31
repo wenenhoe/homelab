@@ -15,6 +15,7 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 | `first_boot.bats` | [`tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh`](../../../../tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh) |
 | `scratch_gateway.bats` | [`tofu/scratch/opnsense/scratch_gateway.sh`](../../../../tofu/scratch/opnsense/scratch_gateway.sh) |
 | `stage_image.bats` | [`tofu/scratch/opnsense/stage_image.sh`](../../../../tofu/scratch/opnsense/stage_image.sh) |
+| `prepare_image.bats` | [`tofu/modules/proxmox_ubuntu_template/prepare_image.sh`](../../../../tofu/modules/proxmox_ubuntu_template/prepare_image.sh) |
 | `acceptance.bats` | [`tofu/scratch/opnsense/acceptance/acceptance.sh`](../../../../tofu/scratch/opnsense/acceptance/acceptance.sh) |
 | `check_freshness.bats` | the template [`check-freshness.sh.j2`](../../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) |
 | `caddy_cert_expiry.bats` | the template [`check.sh.j2`](../../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) of the `caddy_cert_expiry` role |
@@ -68,6 +69,7 @@ The commands a script runs that are not stubbed (`date`, `stat`, `tar`, `ls`, `f
 
 - **`run_upgrade.bats`**: that the version argument, or the default without one, reaches the compose run in the script's own directory; and that the compose run's exit status is reported and is the script's own.
 - **`fetch_image.bats`**: that a download matching the published checksum is unpacked next to itself in a cache directory that did not exist; that the download is one `curl` of the URL into that directory; that a mismatch removes the download and leaves no unpacked image, naming the URL and both checksums; and that a failed download stops with curl's status before anything is unpacked.
+- **`prepare_image.bats`**: that the omission is in the image's dracut configuration before dracut regenerates, and dracut runs without host-only mode; that only the loop device's own partitions are asked for labels; that the mounts, the unmounts in reverse order and the loop detach happen on every exit path, and that a failed unmount keeps the work directory; that a checksum mismatch, an image without dracut, one without a root partition, one whose initramfs does not list the module, one whose initramfs still lists it after regeneration, and a listing that fails each fail with nothing written to the output directory; and that the output is the compressed qcow2 copy with its checksum beside it.
 - **`check_freshness.bats`**: that one push is made when every app is fresh, none when one is stale (and the unit still succeeds), and none when `rclone` fails (and the unit fails, naming the app and the error); that with no push URL the apps are still checked; and that the credentials reach each container in a mode 0600 env file that is removed afterwards and never appear in an argument.
 - **`caddy_cert_expiry.bats`**: that a certificate passes with more than and with exactly the threshold of days left and fails with fewer, expired, or none on the wire; and that the connection goes to loopback with the real hostname as the SNI.
 

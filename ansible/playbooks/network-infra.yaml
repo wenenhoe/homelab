@@ -1,0 +1,19 @@
+---
+# Play 0 — Secrets. Every network_infra member resolves ansible_host through
+# secrets_generated (see maintenance.yaml and bootstrap-secrets.yaml).
+# Usage: ansible-playbook network-infra.yaml --limit tailscale,localhost
+# (localhost required in --limit — see bootstrap-secrets.yaml)
+- name: Play 0 - Secrets
+  ansible.builtin.import_playbook: bootstrap-secrets.yaml
+
+# One host at a time: the subnet router is the maintainer's route into the
+# lab, so a failure on one node stops the rest. The join key reaches the role
+# from the operator's environment and only a logged-out node uses it.
+- name: Configure Tailscale on network infrastructure hosts
+  hosts: network_infra
+  become: true
+  serial: 1
+  vars:
+    tailscale_node_authkey: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTHKEY') }}"
+  roles:
+    - tailscale_node

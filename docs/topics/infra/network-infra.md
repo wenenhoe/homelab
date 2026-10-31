@@ -113,13 +113,14 @@ the play's output; it is written to no file.
 
 ```sh
 cd ansible
-ansible-playbook playbooks/network-infra.yaml --limit tailscale,localhost --check --diff
+ansible-playbook playbooks/network-infra.yaml --limit tailscale,localhost -e network_infra_check=true --diff
 read -rs TAILSCALE_AUTHKEY; export TAILSCALE_AUTHKEY   # only to join a logged-out node
 ansible-playbook playbooks/network-infra.yaml --limit tailscale,localhost
 unset TAILSCALE_AUTHKEY
 ```
 
-A check run changes nothing. It reports the `tailscale set` call a real run
+A check run changes nothing, and is asked for with `-e network_infra_check=true`
+because `--check` also puts the secrets play in check mode, which fails. It reports the `tailscale set` call a real run
 would make, so a preference changed by hand on the node shows up there. On a
 node installed by the vendor script, the first run replaces its one-line apt
 source and turns the client's auto-update off.

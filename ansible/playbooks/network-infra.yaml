@@ -9,10 +9,16 @@
 # One host at a time: the subnet router is the maintainer's route into the
 # lab, so a failure on one node stops the rest. The join key reaches the role
 # from the operator's environment and only a logged-out node uses it.
+#
+# A check run is `-e network_infra_check=true`, not `--check`: the secrets
+# play reads step-ca's root certificate with a module that has no check mode,
+# so under `--check` its result is skipped and the play fails. This play
+# stays in check mode under `--check` as well.
 - name: Configure Tailscale on network infrastructure hosts
   hosts: network_infra
   become: true
   serial: 1
+  check_mode: "{{ network_infra_check | default(ansible_check_mode) }}"
   vars:
     tailscale_node_authkey: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTHKEY') }}"
   roles:

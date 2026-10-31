@@ -68,6 +68,27 @@ Sequence:
 5. `ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost` — **not** `security` alone. Every host in `app_hosts` (`services`, `security`, `play`, `storage`) runs an agent that needs the new KEY to verify the hub again.
 6. Confirm every host reappears as a connected system on the hub's dashboard, then re-add the Telegram notification channel from "Alert notifications" below — it lived in the wiped DB too and won't come back on its own.
 
+## Rebuilding a host
+
+An agent proves which machine it is to the hub with a fingerprint. The agent
+keeps it in `/var/lib/beszel-agent/fingerprint`, in the `beszel-agent_data`
+volume, and the hub saves it when the system first connects. A rebuilt host is
+a new machine with a new volume, so its agent offers a fingerprint that
+differs from the one saved for its predecessor. The hub accepts the WebSocket
+and closes it at once, and the agent logs this on every retry:
+
+```text
+WARN Connection closed err="connection closed, code=1000, reason=fingerprint mismatch"
+```
+
+The token and key are fine, and the hub's other systems are unaffected. To fix
+it, open the hub's tokens page (`/settings/tokens`) and delete the saved
+fingerprint of the rebuilt host's system; the agent's next connection saves the
+new one. To compare the two first, read the agent's with
+`docker exec beszel-agent cat /var/lib/beszel-agent/fingerprint` on the host.
+The hub has to be running to do this, so after a rebuild of `security` restore
+the hub first.
+
 ## Runtime config
 
 | Compose file | Image | Network | Notes |

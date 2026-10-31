@@ -7,7 +7,7 @@ short: Tailscale node configuration
 solution: A small repo-owned role converges the node against its own preferences and joins it, tagged, with a one-time key supplied at run time
 summary: How a host's Tailscale client is installed, joined to the tailnet and kept configured, given that the join key is a credential and the policy keys off the node's tag.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0015, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0058, ADR-0059, ADR-0089]
 ---
 
@@ -25,6 +25,7 @@ The tailnet is the maintainer's path into the lab away from home, and the subnet
 - **A rebuild is a new device.** The node's identity is its state file, which holds its private key. A rebuilt VM that joins again has a new device entry and a new tailnet address.
 - **Subnet routers source-NAT by default**, so the gateway sees every tailnet caller as the router ([ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
 - **`artis3n.tailscale` v1.2.1** is the maintained collection for the node side, MIT-licensed, with one role. Its role stops unless `tailscale_authkey` is set on every run that does not skip `tailscale up`. It runs `tailscale up` again when a hash of the arguments and key changes, a hash it keeps in the login user's home directory, and it does not compare the node's actual preferences. `tailscale up` is a plain command task. It installs the package and the apt repository for several distribution families and sets no forwarding sysctl.
+- **`tailscale set` converges the preferences on a logged-in node without a key.** On an Ubuntu 26.04 node running Tailscale 1.104.4, joined untagged with a one-time key, a single `tailscale set` call changed the advertised routes, turned the accepted DNS setting off and turned the client's auto-update off, with no key. The node's own report (`tailscale debug prefs`) then showed `AdvertiseRoutes`, `CorpDNS: false` and `AutoUpdate.Apply: false`, and showed the same values after a restart of `tailscaled` and after a reboot of the VM, with the node still logged in. `set` takes one flag per preference and changes only the ones named. `AutoUpdate.Check` stayed `true`: it is the notice of available updates, a separate flag (`--update-check`) that the role leaves alone. The node had no Tailscale timer or apt configuration file after the change, so the client's updater is the in-process one that `AutoUpdate.Apply` controls. The values before the call were not recorded, so which of them `set` changed is not shown.
 - **Join keys are credentials** that [ADR 0015 (Cloud credential expiry)](../0015-cloud-credential-expiry/revision-000.md) expects to expire. An OAuth client that mints them does not expire on its own and can add any node under the tags it may apply.
 - **The router is not always on yet, and will be.** Spike VMs are created and removed on the Proxmox node while VM 401 is in service, and the router VM or its host has been shut down for days at a time. [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) makes a Tailscale route to VLAN 30 the laptop's only way to the operator host, so once the operator host and the laptop replace VM 401 every operator session crosses the router and it has to run all the time.
 - **The Proxmox node is already a member.** It joined by hand as an ordinary node with no approved route, and it is the maintainer's way to the hypervisor when the router VM is broken, so it is the one way in that does not cross the router. It is outside the `network_infra` group.
@@ -59,12 +60,6 @@ The role converges, in order:
 - **The router as a container on `services` or another host, with no VM of its own.** The gateway tells tailnet callers apart only by the router's address, so a container that shares its host's address makes every rule that admits the router, such as [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md)'s admission to its VLAN, admit that host, and a separate address needs macvlan on the host's NIC. The route would also depend on a host that is deployed to and rebuilt, so every such change would cut the maintainer's way in. Routing in the kernel needs `NET_ADMIN` and `/dev/net/tun`, against the `cap_drop: [ALL]` default. [ADR 0040 (Tofu VM DNS)](../0040-dns-for-tofu-provisioned-vms/revision-000.md) already keeps the router from a second job because it is the remote-access path.
 - **Carrying `tailscaled`'s state file across a rebuild.** It keeps the node's identity but puts its private key into a backup, and the repository's backups cover application data, not host state.
 
-## Assumptions
-
-- **Claim:** on a node that is already logged in, `tailscale set` applies the advertised routes, the DNS setting and auto-update off without a key, and the values survive a restart of `tailscaled` and of the VM. The package's own updater stays off once auto-update is off.
-  **Breaks if wrong:** a preference change would need `tailscale up` and so a key on every run, which is the property that rules out the collection.
-  **Checked by:** a throwaway spike on a scratch node joined with a one-time key, run outside the repository.
-
 ## Consequences
 
 - A rebuilt router is a new device. The old device is removed in the console, and the policy's grants for the router name its tag, never its address.
@@ -98,4 +93,3 @@ The Molecule scenario for the role, and a `--check` run against the live node af
 ## Reconsideration triggers
 
 - A published role or collection converges a node against its actual preferences and joins only when the node is logged out.
-- The assumption fails, so a preference change needs a key.

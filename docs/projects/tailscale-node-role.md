@@ -58,7 +58,7 @@ The stage waits on the baseline's Stage 2, which adds the tag and its entries. I
 - [ ] The role installs Tailscale, sets forwarding, joins a logged-out node with a one-time tagged key, and converges the node's preferences, and a second run reports no change.
 - [ ] A logged-out node with no key stops the play before anything changes, and a logged-in node needs no key.
 - [ ] No auth key appears in the repository, in a log or on disk after the run.
-- [ ] The role run against VM 202 changes only its apt source and its client auto-update preference, and a second run reports no change.
+- [x] The role run against VM 202 changes only its apt source and its client auto-update preference, and a second run reports no change.
 - [ ] VM 202, rebuilt by [`tofu-migration.md`](tofu-migration.md), carries its tag, has its route approved without the console and has no key expiry.
 - [ ] [`network-infra.md`](../topics/infra/network-infra.md) describes the node's configuration and how a route is added, and the scenario is in [`molecule-testing.md`](../topics/engineering/molecule-testing.md)'s matrix.
 

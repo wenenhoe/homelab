@@ -7,7 +7,7 @@ short: Tailscale node configuration
 solution: A small repo-owned role converges the node against its own preferences and joins it, tagged, with a one-time key supplied at run time
 summary: How a host's Tailscale client is installed, joined to the tailnet and kept configured, given that the join key is a credential and the policy keys off the node's tag.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0015, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0058, ADR-0059, ADR-0089]
 ---
 

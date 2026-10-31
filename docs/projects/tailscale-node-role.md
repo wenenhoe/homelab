@@ -2,7 +2,7 @@
 id: PROJ-tailscale-node-role
 title: "Tailscale Node Role"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Write the Ansible role that installs, joins and configures a Tailscale node, prove it against the live subnet router with no change, and hand the rebuild of VM 202 a tagged join.
 decision: ADR-0097/0
@@ -34,7 +34,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spike `tailscale set` on a logged-in scratch node | Done | On a scratch node joined with a one-time key, `tailscale set` changes the advertised routes, the DNS setting and auto-update with no key, the values survive a restart of `tailscaled` and of the VM, and the result is folded into ADR 0097's Context so the revision can be `approved` |
-| 2 | Write the role and show it matches the live router | Not started | The role's Molecule scenario passes with its idempotence check, and the role run against the existing VM 202 reports one change under `--check`, the replacement of the vendor's one-line apt source, and no change on the run after a real one |
+| 2 | Write the role and show it matches the live router | In progress | The role's Molecule scenario passes with its idempotence check, and the role run against the existing VM 202 reports one change under `--check`, the replacement of the vendor's one-line apt source, and no change on the run after a real one |
 | 3 | Prove the tagged join | Not started | After the baseline's saved policy carries the router's tag, a scratch node joined by the role with a one-time tagged key has its route approved without the console, reports no key expiry, and a second run reports no change |
 
 Stage status is `Not started`, `In progress`, or `Done`.

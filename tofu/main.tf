@@ -15,3 +15,17 @@ module "ubuntu_template" {
   node_name       = var.proxmox_node
   image_volume_id = local.ubuntu_image_volume_id
 }
+
+module "play" {
+  source          = "./modules/proxmox_ubuntu_vm"
+  node_name       = var.proxmox_node
+  vm_id           = 204
+  name            = "play"
+  template_vm_id  = module.ubuntu_template.vm_id
+  cores           = 4
+  memory_mb       = 4096
+  disk_gb         = 64
+  admin_username  = "playadmin"
+  dns_domain      = var.dns_domain
+  ssh_public_keys = var.ansible_ssh_public_keys
+}

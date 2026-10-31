@@ -58,3 +58,13 @@ variable "image_datastore_id" {
   type        = string
   default     = "tofu-images"
 }
+
+variable "dns_domain" {
+  description = "The lab's internal zone, host_domain in the Ansible inventory. Every VM gets it as its search domain."
+  type        = string
+}
+
+variable "ansible_ssh_public_keys" {
+  description = "Public keys installed for each VM's admin user: the public half of the key Ansible connects with."
+  type        = list(string)
+}

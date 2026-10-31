@@ -2,7 +2,9 @@
 # tools/tofu_inventory turns this into the generated inventory file.
 output "ansible_hosts" {
   description = "Ansible-managed VMs, keyed by inventory host name."
-  value       = {}
+  value = {
+    play = module.play.inventory_entry
+  }
 }
 
 output "ubuntu_image_prepare_command" {

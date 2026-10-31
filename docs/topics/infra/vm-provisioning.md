@@ -117,7 +117,10 @@ dated release directory and SHA-256 in `ubuntu_image_url` and
 `ubuntu_image_checksum` (`tofu/variables.tf`), named
 `<image name>-<release directory>-no-dyn-netconf.qcow2` on `image_datastore_id`.
 The `ubuntu_image_prepare_command` output prints the command for the current pin.
-The root module builds the template; it declares no VMs yet.
+The root module builds the template and declares one VM, `play` (VMID 204,
+4 vCPU, 4 GB, a 64 GB disk). Its `dns_domain` and `ssh_public_keys` come from the
+`dns_domain` and `ansible_ssh_public_keys` variables, which the credentials file
+sets ([State backend & secrets](#state-backend--secrets)).
 
 The provider imports a disk only when it creates it and ignores a changed
 `import_from` on an existing one, so the template resource is replaced whenever
@@ -156,8 +159,8 @@ module "services" {
   name            = "services"
   template_vm_id  = module.ubuntu_template.vm_id
   admin_username  = "svcadmin"
-  dns_domain      = "<internal zone>"
-  ssh_public_keys = ["<public half of the Ansible key>"]
+  dns_domain      = var.dns_domain
+  ssh_public_keys = var.ansible_ssh_public_keys
 }
 ```
 
@@ -530,7 +533,7 @@ The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
 configures the provider with an API token, and `.terraform.lock.hcl` is
 committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
 endpoint, token or node name instead of passing with nothing to do; that
-read is its only call apart from the template build below. The Ubuntu
+read is its only call apart from the template build and the VM it declares. The Ubuntu
 modules are in `modules/` and their tests in `tests/`; see
 [Ubuntu modules](#ubuntu-modules).
 
@@ -592,8 +595,10 @@ The file is `~/.config/tofu/credentials.tfvars`, mode `0600` in a `0700`
 directory, owned by the operator account, and passed with `-var-file`:
 
 ```hcl
-proxmox_endpoint  = "https://pve.example.lan:8006/"
-proxmox_api_token = "user@realm!tokenid=secret"
+proxmox_endpoint        = "https://pve.example.lan:8006/"
+proxmox_api_token       = "user@realm!tokenid=secret"
+dns_domain              = "internal.example.com"
+ansible_ssh_public_keys = ["ssh-ed25519 AAAA... ansible"]
 ```
 
 The endpoint must be `https://`, and TLS verification is on. Setting
@@ -601,8 +606,14 @@ The endpoint must be `https://`, and TLS verification is on. Setting
 docs limit to development. The OPNsense root password, API key, API secret and root's OTP seed are in this file
 once the seed is built ([OPNsense](#opnsense)), and a remote backend's S3
 credential joins it when that consumer is built.
+`dns_domain` is the inventory's `host_domain`, which derives from `main_domain`, a
+secret-catalog value the repository never holds. `ansible_ssh_public_keys` is the
+public half of `~/.ssh/proxmox_vm_servers`. Neither is a secret, but both feed every VM,
+so they sit with Tofu's other inputs.
 Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the
-tree, and neither the token nor the endpoint appears in the state.
+tree, and neither the token nor the endpoint appears in the state. The domain and
+the keys do, since each VM carries them, so a copy of the state is kept as private
+as the credentials file.
 
 ### Proxmox API token
 

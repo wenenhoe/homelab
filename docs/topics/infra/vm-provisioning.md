@@ -122,15 +122,12 @@ The root module builds the template; it declares no VMs yet.
 The provider imports a disk only when it creates it and ignores a changed
 `import_from` on an existing one, so the template resource is replaced whenever
 the module's image inputs change. A new pin names a new volume and replaces the
-template on the next apply, and the first apply after the template was built from
-a download needs the replacement asked for once:
-
-```sh
-tofu -chdir=tofu apply -replace=module.ubuntu_template.proxmox_virtual_environment_vm.template
-```
-
-Replacing the template does not touch its clones, which hold their own disks,
-but a clone cannot be created while the template is absent.
+template on the next apply. The first apply after the template was built from a
+download replaces it too, since the tracking resource is new. Tofu destroys the
+old template before it creates the new one, so the image volume has to be on the
+node first (`pvesm list tofu-images --content import`). Replacing the template
+does not touch its clones, which hold their own disks, but a clone cannot be
+created while the template is absent.
 
 The template and its clones are `q35` machines booting UEFI (`ovmf`) from a
 `4m` EFI disk on the VM datastore with the distribution and Microsoft keys

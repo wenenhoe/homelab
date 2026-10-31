@@ -1,0 +1,14 @@
+---
+# The client binary every task calls. Molecule points it at a stub.
+tailscale_node_cli: /usr/bin/tailscale
+
+# Canonical CIDRs, the form the node reports them in. An empty list is a
+# node that advertises nothing.
+tailscale_node_advertise_routes: []
+
+tailscale_node_accept_dns: true
+
+# Only used to join a logged-out node, and required then. The key is
+# single-use and pre-authorized; the play supplies it at run time.
+tailscale_node_tag: ""
+tailscale_node_authkey: ""

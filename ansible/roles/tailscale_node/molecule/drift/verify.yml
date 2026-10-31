@@ -1,0 +1,29 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    tailscale_node_verify_state: "{{ tailscale_node_verify_state_raw.content | b64decode | from_json }}"
+    tailscale_node_verify_calls: "{{ tailscale_node_verify_calls_raw.content | b64decode | split('\n') | select | list }}"
+  tasks:
+    - name: Read the stub client's state
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/state.json
+      register: tailscale_node_verify_state_raw
+
+    - name: Read the stub client's call log
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/calls.log
+      register: tailscale_node_verify_calls_raw
+
+    # The calls are, in order: the first run's repair, the by-hand change, and
+    # the last run's repair. A check run that applied anything would add a
+    # fourth, and a join would add an up.
+    - name: Assert the node is repaired, was never joined, and the check run set nothing
+      ansible.builtin.assert:
+        that:
+          - tailscale_node_verify_state.prefs.AutoUpdate.Apply == false
+          - tailscale_node_verify_state.prefs.AdvertiseRoutes == ['192.168.20.0/24']
+          - tailscale_node_verify_calls | select('match', '^up ') | list | length == 0
+          - tailscale_node_verify_calls | select('match', '^set ') | list == ['set auto-update', 'set auto-update', 'set auto-update']

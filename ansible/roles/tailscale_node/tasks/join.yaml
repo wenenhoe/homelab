@@ -1,0 +1,14 @@
+---
+# The key is an argument of this one command: tailscale up reads it from an
+# argument or a file and from no environment variable, and a file would put
+# it on disk. no_log keeps it out of the play's output.
+- name: Join the tailnet with the one-time key
+  ansible.builtin.command:
+    argv:
+      - "{{ tailscale_node_cli }}"
+      - up
+      - "--auth-key={{ tailscale_node_authkey }}"
+      - "--advertise-tags={{ tailscale_node_tag }}"
+  when: not tailscale_node_logged_in
+  changed_when: true
+  no_log: true

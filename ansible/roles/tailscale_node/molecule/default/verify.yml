@@ -1,0 +1,88 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    tailscale_node_verify_state: "{{ tailscale_node_verify_state_raw.content | b64decode | from_json }}"
+    tailscale_node_verify_calls: "{{ tailscale_node_verify_calls_raw.content | b64decode | split('\n') | select | list }}"
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Assert the tailscale package is installed
+      ansible.builtin.assert:
+        that:
+          - "'tailscale' in ansible_facts.packages"
+
+    - name: Stat the vendor's one-line source and the role's DEB822 source
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: tailscale_node_verify_sources
+      loop:
+        - /etc/apt/sources.list.d/tailscale.list
+        - /etc/apt/sources.list.d/tailscale.sources
+
+    - name: Assert the vendor's source is gone and the role's is in place
+      ansible.builtin.assert:
+        that:
+          - not tailscale_node_verify_sources.results[0].stat.exists
+          - tailscale_node_verify_sources.results[1].stat.exists
+
+    - name: Read the forwarding drop-in
+      ansible.builtin.slurp:
+        src: /etc/sysctl.d/99-tailscale.conf
+      register: tailscale_node_verify_dropin
+
+    - name: Read the live forwarding values
+      ansible.builtin.command: "sysctl -n {{ item }}"
+      register: tailscale_node_verify_forwarding
+      changed_when: false
+      loop:
+        - net.ipv4.ip_forward
+        - net.ipv6.conf.all.forwarding
+
+    - name: Assert forwarding is persisted and on
+      ansible.builtin.assert:
+        that:
+          - tailscale_node_verify_dropin.content | b64decode == "net.ipv4.ip_forward = 1\nnet.ipv6.conf.all.forwarding = 1\n"
+          - tailscale_node_verify_forwarding.results | map(attribute='stdout') | list == ['1', '1']
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Assert tailscaled is enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['tailscaled.service'].status == 'enabled'
+
+    - name: Read the stub client's state
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/state.json
+      register: tailscale_node_verify_state_raw
+
+    - name: Read the stub client's call log
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/calls.log
+      register: tailscale_node_verify_calls_raw
+
+    - name: Assert the node joined once, tagged, and holds the role's preferences
+      ansible.builtin.assert:
+        that:
+          - tailscale_node_verify_state.logged_in
+          - tailscale_node_verify_state.tags == 'tag:molecule'
+          - tailscale_node_verify_state.prefs.AdvertiseRoutes == ['192.168.20.0/24']
+          - tailscale_node_verify_state.prefs.CorpDNS
+          - tailscale_node_verify_state.prefs.AutoUpdate.Apply == false
+          - tailscale_node_verify_calls | select('match', '^up ') | list | length == 1
+          - tailscale_node_verify_calls | select('match', '^set ') | list == ['set advertise-routes auto-update']
+
+    # grep exits 1 when nothing matches, which is the pass. The command module
+    # logs its own arguments to syslog, so the pattern's last character is a
+    # bracket expression: the logged command line does not match the pattern.
+    - name: Search the host's configuration, state and logs for the join key
+      ansible.builtin.command: >-
+        grep -rIlEs --exclude-dir=.ansible molecule-one-time-ke[y] /etc /var/lib /var/log /root /tmp /usr/local
+      register: tailscale_node_verify_key_search
+      changed_when: false
+      failed_when: tailscale_node_verify_key_search.rc != 1

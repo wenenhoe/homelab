@@ -1,0 +1,68 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  vars:
+    tailscale_node_stub_state:
+      logged_in: false
+      prefs:
+        CorpDNS: true
+        RunSSH: false
+        RunWebClient: false
+        WantRunning: true
+        AdvertiseRoutes: null
+        AdvertiseServices: null
+        AutoUpdate:
+          Check: true
+          Apply: true
+  tasks:
+    - name: Reset coverage data from any previous test run
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: reset_coverage_data.yaml
+
+    - name: Install the stub client
+      ansible.builtin.copy:
+        src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/default/files/tailscale-stub.py"
+        dest: /usr/local/bin/tailscale-stub
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Create the stub's state directory
+      ansible.builtin.file:
+        path: /var/lib/tailscale-stub
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    # The preferences recorded for VM 202 in docs/topics/infra/network-infra.md,
+    # with the advertised routes the scenario starts from.
+    - name: Seed the stub's state
+      ansible.builtin.copy:
+        content: "{{ tailscale_node_stub_state | to_json }}"
+        dest: /var/lib/tailscale-stub/state.json
+        owner: root
+        group: root
+        mode: "0644"
+
+    # The vendor script's one-line source and keyring, as VM 202 has them.
+    - name: Seed the vendor script's apt keyring
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+        dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Seed the vendor script's one-line apt source
+      ansible.builtin.copy:
+        content: >-
+          deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg]
+          https://pkgs.tailscale.com/stable/ubuntu
+          {{ ansible_facts['distribution_release'] }} main
+        dest: /etc/apt/sources.list.d/tailscale.list
+        owner: root
+        group: root
+        mode: "0644"

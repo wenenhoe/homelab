@@ -1,0 +1,5 @@
+---
+# Each route needs a grant in the tailnet policy; the policy approves it for
+# the node's tag (ADR 0097).
+tailscale_node_advertise_routes:
+  - 192.168.20.0/24

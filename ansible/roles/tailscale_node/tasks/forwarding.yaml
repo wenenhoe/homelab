@@ -1,0 +1,12 @@
+---
+- name: Persist IPv4 and IPv6 forwarding
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-tailscale.conf
+    content: |
+      net.ipv4.ip_forward = 1
+      net.ipv6.conf.all.forwarding = 1
+    owner: root
+    group: root
+    mode: "0644"
+  when: tailscale_node_advertise_routes | length > 0
+  notify: Apply the Tailscale sysctl drop-in

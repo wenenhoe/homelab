@@ -1,0 +1,38 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    tailscale_node_verify_state: "{{ tailscale_node_verify_state_raw.content | b64decode | from_json }}"
+    tailscale_node_verify_calls: "{{ tailscale_node_verify_calls_raw.content | b64decode | split('\n') | select | list }}"
+  tasks:
+    - name: Stat the marker and everything the role would have installed
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: tailscale_node_verify_paths
+      loop:
+        - /tmp/tailscale_node_no_key_marker
+        - /etc/apt/sources.list.d/tailscale.sources
+        - /etc/apt/keyrings/tailscale.gpg
+        - /usr/bin/tailscale
+
+    - name: Read the stub client's state
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/state.json
+      register: tailscale_node_verify_state_raw
+
+    - name: Read the stub client's call log
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/calls.log
+      register: tailscale_node_verify_calls_raw
+
+    # Nothing changed before the refusal: no source, no key, no package, and
+    # the only call the client saw was the status read.
+    - name: Assert the role refused first and changed nothing
+      ansible.builtin.assert:
+        that:
+          - tailscale_node_verify_paths.results[0].stat.exists
+          - tailscale_node_verify_paths.results[1:] | map(attribute='stat') | map(attribute='exists') | select | list | length == 0
+          - not tailscale_node_verify_state.logged_in
+          - tailscale_node_verify_calls == ['status json']

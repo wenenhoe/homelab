@@ -84,6 +84,51 @@ that the tag and the route's auto-approval are entries in the policy, which
 writes before the join. The role itself is
 [`tailscale-node-role.md`](../../projects/tailscale-node-role.md).
 
+## Tailscale node configuration
+
+`playbooks/network-infra.yaml` applies the `tailscale_node` role to the group
+([ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)).
+The role converges, in order:
+
+1. **Install.** Tailscale's apt repository as a DEB822 source with its key in
+   `/etc/apt/keyrings/tailscale.gpg`, the vendor script's one-line
+   `tailscale.list` removed in the same run, the package installed and never
+   upgraded, and `tailscaled` enabled and started. Only `maintenance.yaml`
+   upgrades the package.
+2. **Forwarding.** `/etc/sysctl.d/99-tailscale.conf` sets IPv4 and IPv6
+   forwarding when the node advertises routes, and is not written otherwise.
+3. **Join**, only when the node is logged out. It needs `tailscale_node_tag`
+   and a key; a logged-out node missing either stops the play before anything
+   changes. A logged-in node needs neither.
+4. **Preferences**, compared against `tailscale debug prefs` and applied with
+   one `tailscale set` for the ones that differ: the advertised routes
+   (`tailscale_node_advertise_routes`), the accepted DNS setting
+   (`tailscale_node_accept_dns`, on by default) and the client's auto-update,
+   which is off on every node. Source NAT is left at the client's default.
+
+The join key is single-use, pre-authorized, tagged and valid for hours, made
+in the admin console for the run. It is read from `TAILSCALE_AUTHKEY` on the
+operator's machine, passed as one argument of the join command and kept out of
+the play's output; it is written to no file.
+
+```sh
+cd ansible
+ansible-playbook playbooks/network-infra.yaml --limit tailscale,localhost -e network_infra_check=true --diff
+read -rs TAILSCALE_AUTHKEY; export TAILSCALE_AUTHKEY   # only to join a logged-out node
+ansible-playbook playbooks/network-infra.yaml --limit tailscale,localhost
+unset TAILSCALE_AUTHKEY
+```
+
+A check run changes nothing, and is asked for with `-e network_infra_check=true`
+because `--check` also puts the secrets play in check mode, which fails. It reports the `tailscale set` call a real run
+would make, so a preference changed by hand on the node shows up there. On a
+node installed by the vendor script, the first run replaces its one-line apt
+source and turns the client's auto-update off.
+
+**Adding a route.** Add the CIDR, in the canonical form the node reports it in,
+to `tailscale_node_advertise_routes` in `inventory/host_vars/tailscale.yaml`,
+and add its grant to the tailnet policy. The next run calls `tailscale set`.
+
 ## Bringing a new `network_infra` host under management
 
 One-time prerequisites, none of which can be automated

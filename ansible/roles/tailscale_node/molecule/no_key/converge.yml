@@ -1,0 +1,27 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    tailscale_node_cli: /usr/local/bin/tailscale-stub
+    tailscale_node_tag: "tag:molecule"
+  tasks:
+    # Failure is the expected outcome, so block/rescue: the rescue accepts only
+    # the key check's own message, not any failure.
+    - name: "Run tailscale_node [block / rescue] (logged out, no key, failure is deliberate and expected)"
+      block:
+        - name: Include tailscale_node role
+          ansible.builtin.include_role:
+            name: tailscale_node
+      rescue:
+        - name: Confirm the failure came from the join key check
+          ansible.builtin.assert:
+            that:
+              - "'Require a join key for a logged-out node' in ansible_failed_task.name"
+              - "'tailscale_node_authkey is empty' in ansible_failed_result.msg"
+
+        - name: Leave a marker that the expected failure happened
+          ansible.builtin.file:
+            path: /tmp/tailscale_node_no_key_marker
+            state: touch
+            mode: "0644"

@@ -1,0 +1,40 @@
+---
+# A logged-in node needs no key and no tag. The scenario repairs the node,
+# changes a preference by hand, shows that a check run reports the difference
+# and applies nothing, and repairs it again. It has no idempotence step: the
+# check run reports the difference every time it runs.
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    tailscale_node_cli: /usr/local/bin/tailscale-stub
+    tailscale_node_advertise_routes: ["192.168.20.0/24"]
+  tasks:
+    - name: Repair the node with the role
+      ansible.builtin.include_role:
+        name: tailscale_node
+
+    - name: Turn the client's auto-update on by hand
+      ansible.builtin.command: "{{ tailscale_node_cli }} set --auto-update=true"
+      changed_when: true
+
+    - name: Run the role in a check run
+      check_mode: true
+      block:
+        - name: Check the node with the role
+          ansible.builtin.include_role:
+            name: tailscale_node
+
+    - name: Read the preferences after the check run
+      ansible.builtin.command: "{{ tailscale_node_cli }} debug prefs"
+      register: tailscale_node_converge_prefs
+      changed_when: false
+
+    - name: Assert the check run applied nothing
+      ansible.builtin.assert:
+        that:
+          - (tailscale_node_converge_prefs.stdout | from_json).AutoUpdate.Apply
+
+    - name: Repair the node with the role again
+      ansible.builtin.include_role:
+        name: tailscale_node

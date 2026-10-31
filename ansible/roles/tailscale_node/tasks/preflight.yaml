@@ -1,0 +1,41 @@
+---
+# Read-only commands run in a check run too, so --check sees the node's real
+# state. A missing client or a stopped tailscaled leaves stdout empty, which
+# counts as logged out.
+- name: Read the node's status
+  ansible.builtin.command:
+    argv: ["{{ tailscale_node_cli }}", status, --json]
+  register: tailscale_node_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# Stopped is a node that ran `tailscale down`: it keeps its login.
+- name: Work out whether the node is logged in
+  ansible.builtin.set_fact:
+    tailscale_node_logged_in: >-
+      {{
+        tailscale_node_status.rc == 0
+        and (tailscale_node_status.stdout | from_json).BackendState | default('')
+          in ['Running', 'Starting', 'Stopped', 'NeedsMachineAuth']
+      }}
+
+- name: Require a join key for a logged-out node
+  ansible.builtin.assert:
+    that:
+      - tailscale_node_authkey | length > 0
+    quiet: true
+    fail_msg: >-
+      {{ inventory_hostname }} is logged out and tailscale_node_authkey is empty.
+      Set TAILSCALE_AUTHKEY to a single-use, pre-authorized, tagged key.
+  when: not tailscale_node_logged_in
+
+- name: Require a tag for a logged-out node
+  ansible.builtin.assert:
+    that:
+      - tailscale_node_tag | length > 0
+    quiet: true
+    fail_msg: >-
+      {{ inventory_hostname }} is logged out and tailscale_node_tag is empty.
+      A node joins tagged, never as a user's device.
+  when: not tailscale_node_logged_in

@@ -35,6 +35,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `docker` | Docker Engine install and the `daemon.json` defaults. See [`docker-daemon.md`](docker-daemon.md). |
 | `host_hardening` | Includes the hardening collection's allow-listed areas; today, unattended security updates. See [`host-hardening.md`](../infra/host-hardening.md). |
 | `qemu_guest_agent` | Installs `qemu-guest-agent` for Proxmox VM integration. |
+| `tailscale_node` | A Tailscale node's apt repository, `tailscaled`, forwarding when it advertises routes, a join with a one-time key when it is logged out, and the preferences the role owns (advertised routes, accepted DNS, client auto-update off). See [`network-infra.md`](../infra/network-infra.md). |
 | `compose` | Reusable init/deploy/cleanup tasks for one compose app. |
 | `compose_app` | Batch-drives `compose` for every non-infra app. |
 | `caddy` | Renders Caddyfile, builds custom image, deploys. |

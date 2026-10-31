@@ -1,0 +1,44 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    tailscale_node_verify_state: "{{ tailscale_node_verify_state_raw.content | b64decode | from_json }}"
+    tailscale_node_verify_calls: "{{ tailscale_node_verify_calls_raw.content | b64decode | split('\n') | select | list }}"
+  tasks:
+    - name: Stat the forwarding drop-in
+      ansible.builtin.stat:
+        path: /etc/sysctl.d/99-tailscale.conf
+      register: tailscale_node_verify_dropin
+
+    - name: Read the stub client's state
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/state.json
+      register: tailscale_node_verify_state_raw
+
+    - name: Read the stub client's call log
+      ansible.builtin.slurp:
+        src: /var/lib/tailscale-stub/calls.log
+      register: tailscale_node_verify_calls_raw
+
+    # A node that advertises nothing gets no forwarding drop-in and is not
+    # told to advertise anything; only the DNS setting and the updater differ
+    # from what it reports.
+    - name: Assert the node holds the role's preferences and set nothing else
+      ansible.builtin.assert:
+        that:
+          - not tailscale_node_verify_dropin.stat.exists
+          - tailscale_node_verify_state.logged_in
+          - tailscale_node_verify_state.prefs.AdvertiseRoutes is none
+          - not tailscale_node_verify_state.prefs.CorpDNS
+          - tailscale_node_verify_state.prefs.AutoUpdate.Apply == false
+          - tailscale_node_verify_calls | select('match', '^set ') | list == ['set accept-dns auto-update']
+
+    # grep exits 1 when nothing matches, which is the pass.
+    - name: Search the host's configuration, state and logs for the join key
+      ansible.builtin.command: >-
+        grep -rIlFs --exclude-dir=.ansible molecule-one-time-key /etc /var/lib /var/log /root /tmp /usr/local
+      register: tailscale_node_verify_key_search
+      changed_when: false
+      failed_when: tailscale_node_verify_key_search.rc != 1

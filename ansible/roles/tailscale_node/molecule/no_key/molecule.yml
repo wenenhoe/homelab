@@ -1,0 +1,27 @@
+---
+# The role refuses before it installs anything, so this needs no systemd and
+# no privileged mode, only the stub client.
+driver:
+  name: docker
+platforms:
+  - name: tailscale-node-no-key
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    command: sleep infinity
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

@@ -1,0 +1,19 @@
+---
+# Installs Tailscale from its apt repository, sets forwarding for a node that
+# advertises routes, joins a logged-out node with a one-time key, and converges
+# the preferences the role owns (ADR 0097). A logged-in node needs no key.
+
+- name: Read the node's login state and stop before any change if it cannot join
+  ansible.builtin.import_tasks: preflight.yaml
+
+- name: Install Tailscale and start tailscaled
+  ansible.builtin.import_tasks: install.yaml
+
+- name: Persist IP forwarding for a node that advertises routes
+  ansible.builtin.import_tasks: forwarding.yaml
+
+- name: Join the tailnet
+  ansible.builtin.import_tasks: join.yaml
+
+- name: Converge the node's preferences
+  ansible.builtin.import_tasks: preferences.yaml

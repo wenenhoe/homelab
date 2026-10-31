@@ -1,0 +1,60 @@
+---
+- name: Install prerequisite packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      # deb822_repository needs it, and auto-installing it is buggy
+      # (ansible/ansible#86395), so it is installed explicitly as the docker
+      # role does.
+      - python3-debian
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create /etc/apt/keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Add Tailscale's package signing key
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+    dest: /etc/apt/keyrings/tailscale.gpg
+    mode: "0644"
+    owner: root
+    group: root
+
+- name: Add Tailscale's apt repository using DEB822 format
+  ansible.builtin.deb822_repository:
+    name: tailscale
+    types: [deb]
+    uris: ["https://pkgs.tailscale.com/stable/ubuntu"]
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: [main]
+    signed_by: /etc/apt/keyrings/tailscale.gpg
+    state: present
+    enabled: true
+
+# The vendor's install script writes the same repository as a one-line file.
+# Left in place, apt reads the repository twice and warns about the duplicate
+# target on every update.
+- name: Remove the vendor script's one-line apt source
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/tailscale.list
+    state: absent
+
+# state: present, not latest: only maintenance.yaml upgrades the package.
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+
+- name: Enable and start tailscaled
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    enabled: true
+    state: started

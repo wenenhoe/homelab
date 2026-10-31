@@ -1,0 +1,13 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    tailscale_node_cli: /usr/local/bin/tailscale-stub
+    tailscale_node_accept_dns: false
+    tailscale_node_tag: "tag:molecule"
+    tailscale_node_authkey: molecule-one-time-key
+  tasks:
+    - name: Include tailscale_node role
+      ansible.builtin.include_role:
+        name: tailscale_node

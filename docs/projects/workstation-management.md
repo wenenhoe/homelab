@@ -33,7 +33,7 @@ Update at the start and end of each PR that works a stage.
 | 3 | Audit as a repeatable script run on the laptop | Not started | A script over the Windows profile and the WSL2 home lists credential-shaped paths and fails on any beyond the push credential, the coding-agent host key, and the operator-host key's handle file |
 | 4 | Keep desktop assistants with local tool access off the laptop | Not started | None is installed in Windows or in WSL2 |
 | 5 | Retire VM 401's copies: revoke its AppRole secret and its push credential, and delete the file cache, shared SSH key, Tofu and Proxmox credentials, and any OpenBao token. Starts once [`operator-host-takeover.md`](operator-host-takeover.md) has moved the controller and Stages 1 to 4 are done | Not started | Each is revoked or deleted, and the PR lists what was checked |
-| 6 | Decommission VM 401 | Not started | The VM is destroyed and `vm-provisioning.md` no longer lists a workstation in the 4XX range |
+| 6 | Decommission VM 401. Starts once Tofu's state is held by a remote backend ([`tofu-migration.md`](tofu-migration.md)), because the state file is on VM 401 and is destroyed with it | Not started | The VM is destroyed and `vm-provisioning.md` no longer lists a workstation in the 4XX range |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -52,7 +52,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - The laptop is not converged from the repo, so the audit and the no-assistant rule hold only when they are run and kept; nothing enforces them between runs.
 - A memory-capped WSL2 may not fit every Molecule scenario. The ones that do not run on the coding-agent host, and [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) and the sizing assumption in [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md) settle which.
 - If routine work keeps needing the operator host, ADR 0056's reconsideration trigger applies and the reduction is revisited, not worked around.
-- VM 401 is the only place some tooling or state may still live; retire it only after the operator host and the laptop have done every operation it did.
+- VM 401 is the only place some tooling or state may still live; retire it only after the operator host and the laptop have done every operation it did, and after Tofu's state, which is a local file on VM 401 until [`tofu-migration.md`](tofu-migration.md) moves it, is held by a remote backend.
 
 ## Open items
 

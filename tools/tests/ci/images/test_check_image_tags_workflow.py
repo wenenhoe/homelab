@@ -50,6 +50,10 @@ class TestWorkflow:
         assert "secrets." not in text
         assert "GITHUB_TOKEN" not in text
 
+    def test_the_checkout_leaves_no_token_in_the_git_config(self, job):
+        (checkout,) = [step for step in job["steps"] if step.get("name") == "Checkout"]
+        assert checkout["with"]["persist-credentials"] is False
+
     def test_a_second_run_never_overlaps_or_cancels_the_first(self, workflow):
         assert workflow["concurrency"] == {"group": "check-image-tags", "cancel-in-progress": False}
 

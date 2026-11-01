@@ -49,6 +49,11 @@ def check_step(job):
     return step
 
 
+def checkout_step(job):
+    (step,) = [step for step in job["steps"] if step.get("name") == "Checkout"]
+    return step
+
+
 class TestWeeklyRun:
     def test_it_runs_once_a_week(self, triggers):
         (entry,) = triggers["schedule"]
@@ -80,6 +85,7 @@ class TestWeeklyRun:
         step = check_step(weekly["jobs"]["check-release-checksums"])
         assert step["env"] == {"GH_TOKEN": "${{ github.token }}"}
         assert "secrets." not in WEEKLY.read_text()
+        assert checkout_step(weekly["jobs"]["check-release-checksums"])["with"]["persist-credentials"] is False
 
 
 class TestPullRequestRun:
@@ -96,6 +102,7 @@ class TestPullRequestRun:
 
     def test_the_only_credential_is_the_workflows_own_token(self, job):
         assert check_step(job)["env"] == {"GH_TOKEN": "${{ github.token }}"}
+        assert checkout_step(job)["with"]["persist-credentials"] is False
 
     def test_the_run_is_bounded(self, job):
         assert job["timeout-minutes"] <= 15

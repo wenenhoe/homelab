@@ -338,6 +338,42 @@
      "added"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "489c24891163bd156ec247cb775c09d76df46508",
+   "date": "2026-11-01T22:11:02+08:00",
+   "kind": "pr",
+   "pr": 595,
+   "title": "stop offering OCI archives older than its delete-after",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5151bcc5a62ea713bde2f2f46e9506215935a742",
+   "date": "2026-11-01T22:38:40+08:00",
+   "kind": "pr",
+   "pr": 596,
+   "title": "Improve ci tests",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "fd51713ca2ed6d89c461f67d625e252dc6e819db",
+   "date": "2026-11-01T23:21:44+08:00",
+   "kind": "pr",
+   "pr": 597,
+   "title": "group the tailnet policy and node projects as one super project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tailnet-policy-in-tofu",
+   "events": []
   }
  ]
 }

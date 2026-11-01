@@ -81,13 +81,23 @@ and closes it at once, and the agent logs this on every retry:
 WARN Connection closed err="connection closed, code=1000, reason=fingerprint mismatch"
 ```
 
-The token and key are fine, and the hub's other systems are unaffected. To fix
-it, open the hub's tokens page (`/settings/tokens`) and delete the saved
-fingerprint of the rebuilt host's system; the agent's next connection saves the
-new one. To compare the two first, read the agent's with
-`docker exec beszel-agent cat /var/lib/beszel-agent/fingerprint` on the host.
-The hub has to be running to do this, so after a rebuild of `security` restore
-the hub first.
+The token and key are fine, and the hub's other systems are unaffected. The
+hub keeps one record per system in the `fingerprints` collection of its
+database, and a reconnecting agent does not update it. To fix it:
+
+1. Read the agent's fingerprint on the host with
+   `docker exec beszel-agent cat /var/lib/beszel-agent/fingerprint`.
+2. Log in to the hub's database dashboard at `/_/` with the superuser account.
+   The hub is built on PocketBase, and this is its own web tool for the
+   database behind the hub.
+3. Open the `fingerprints` collection, then the record whose `system` is the
+   rebuilt host. Set its `fingerprint` field to the value from step 1 and save
+   (**Unlock to save**, then **Save changes**).
+
+Deleting the saved fingerprint on the hub's tokens page (`/settings/tokens`)
+did not make the hub take the new one: the record stays, with an empty
+`fingerprint`, and step 3 fills it. The hub has to be running for this, so after
+a rebuild of `security` restore the hub first.
 
 ## Runtime config
 

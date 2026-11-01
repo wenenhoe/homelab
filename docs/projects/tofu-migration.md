@@ -148,9 +148,9 @@ the same cycle:
    restores OpenBao first, from the step 1 snapshot, as the
    [restore drill](../topics/secrets/openbao-backup-restore.md#restore-drill)
    does: it has no `backup:` entry, so `restore.yaml` does not bring it
-   back, and the playbooks read their secrets from it. Delete the host's
-   saved fingerprint in the Beszel hub, or its agent is refused
-   ([`beszel.md`](../topics/monitoring/beszel.md#rebuilding-a-host)).
+   back, and the playbooks read their secrets from it. Set the host's
+   saved fingerprint in the Beszel hub to its new agent's, or the agent is
+   refused ([`beszel.md`](../topics/monitoring/beszel.md#rebuilding-a-host)).
 6. Delete the dump once the host's apps are confirmed healthy on the new
    VM, then run `fstrim -v /mnt/vzdump` ([below](#dump-storage)).
 

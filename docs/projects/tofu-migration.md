@@ -131,7 +131,11 @@ the same cycle:
    describes. It stays on the dev VM until Stage 3 ([risks](#risks)).
 2. `vzdump --compress zstd` the stopped old VM to the `vzdump` storage
    ([below](#dump-storage)), then destroy it. The dump is the rollback:
-   `qmrestore` it to a 9XX VMID.
+   `qmrestore` it to a 9XX VMID. Then delete the host's Kea reservation and
+   lease on the live gateway (`storage` does this at step 9 of
+   [Moving `storage`](#moving-storage), since its old VM outlives the new
+   one). The new VM holds its address from cloud-init, and a reservation left
+   in place would hide a failed static configuration behind a lease.
 3. Add the host's module call and `ansible_hosts` entry to the root
    module, apply, and run the inventory generator. The first apply replaces
    the Ubuntu template, which imports the prepared image, so build and stage

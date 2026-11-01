@@ -165,7 +165,7 @@ class TestSkipReason:
         ],
     )
     def test_ordinary_references_are_not_skipped(self, text):
-        assert (rm.skip_reason(text) if "local/" not in text else None) is None
+        assert rm.skip_reason(text) is None
 
 
 class TestExists:

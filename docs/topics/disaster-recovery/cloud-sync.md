@@ -72,6 +72,30 @@ write credential has no `OBJECT_DELETE`, and OCI requires it for
 so rclone cannot abort a failed large upload itself; without the rule its parts
 stay stored and billed.
 
+## Age ceiling
+
+SeaweedFS keeps an archive for `retention_days` (7), longer than OCI's
+delete-after. `rclone copy` offers every object the destination lacks, so an
+archive the lifecycle rule has deleted from OCI would be uploaded again while
+SeaweedFS still holds it, and its age there would start over. The OCI job
+therefore carries an age ceiling: `cloud_sync_targets.oci.max_age`
+(`host_vars/storage.yaml`, currently `4d`), passed as `--max-age`, which makes
+rclone skip a source object older than that. The age is the object's
+last-modified time in SeaweedFS, which is when it landed there.
+
+The ceiling has two limits:
+
+- Below the cloud's delete-after. An archive's age in SeaweedFS is never less
+  than its age on the cloud, so an archive past the delete-after is already past
+  the ceiling.
+- Above the longest outage the relay should recover from. An archive older than
+  the ceiling is never uploaded, so a cloud that was unreachable for longer than
+  `max_age` does not receive what it missed.
+
+R2 and B2 delete after 30 days, longer than SeaweedFS keeps an archive, so
+they need no ceiling. A target without `max_age` has none, and its column in the
+job manifest holds `-`.
+
 ## Mechanism
 
 A systemd timer (`cloud-sync.timer`, daily, scheduled
@@ -81,8 +105,8 @@ room to land in SeaweedFS first) triggers `cloud-sync.service`
 looping a job manifest Ansible renders from every backup host's
 `app_catalog` data (cross-host, via `hostvars`, not requiring those
 hosts' own plays to have run first in the same invocation). One `rclone
-copy` per (app, cloud target) pair; one job failing doesn't block the
-rest of that run.
+copy` per (app, cloud target) pair, with `--max-age` for a target that sets
+`max_age`; one job failing doesn't block the rest of that run.
 
 The container runs with every capability dropped except `DAC_OVERRIDE`,
 `no-new-privileges` and a read-only root filesystem. `rclone.conf` is `0600`

@@ -61,6 +61,20 @@
           caddy (no backup: key) entirely absent. Got:
           {{ cloud_sync_jobs_raw.content | b64decode }}
 
+    - name: Confirm each job carries its target's age ceiling, and - where the target has none
+      ansible.builtin.assert:
+        that:
+          - >-
+            'alpha-host-happy_app_default_targets target_a ' ~ molecule_dest_a_bucket ~ ' 4d\n'
+            in (cloud_sync_jobs_raw.content | b64decode)
+          - >-
+            'beta-host-happy_app_override_targets target_a ' ~ molecule_dest_a_bucket ~ ' 4d\n'
+            in (cloud_sync_jobs_raw.content | b64decode)
+          - >-
+            'alpha-host-happy_app_default_targets target_b ' ~ molecule_dest_b_bucket ~ ' -\n'
+            in (cloud_sync_jobs_raw.content | b64decode)
+        fail_msg: "Job manifest: {{ cloud_sync_jobs_raw.content | b64decode }}"
+
     - name: Confirm the systemd units are installed
       ansible.builtin.stat:
         path: "{{ item }}"
@@ -143,6 +157,17 @@
           - "'beta-host-happy_app_override_targets' in cloud_sync_dest_a_listing.stdout"
         fail_msg: "target_a listing: {{ cloud_sync_dest_a_listing.stdout }}"
 
+    # Behind a ceiling, not just absent: the archive is in the source, and
+    # target_b below receives it.
+    - name: Confirm the archive older than target_a's ceiling was not relayed there
+      ansible.builtin.assert:
+        that:
+          - "'stale-archive.tar.gz.gpg' not in cloud_sync_dest_a_listing.stdout"
+        fail_msg: >-
+          An archive older than target_a's max_age was relayed to it, so a
+          cloud that has deleted an archive would get it back. target_a listing:
+          {{ cloud_sync_dest_a_listing.stdout }}
+
     - name: List target_b's bucket
       community.docker.docker_container_exec:
         container: cloud-sync-test-admin-cli
@@ -160,6 +185,7 @@
         that:
           - "'alpha-host-happy_app_default_targets' in cloud_sync_dest_b_listing.stdout"
           - "'beta-host-happy_app_override_targets' not in cloud_sync_dest_b_listing.stdout"
+          - "'alpha-host-happy_app_default_targets/stale-archive.tar.gz.gpg' in cloud_sync_dest_b_listing.stdout"
         fail_msg: >-
           happy_app_override_targets (cloud_targets: [target_a])
           showed up in target_b — the per-app target restriction isn't

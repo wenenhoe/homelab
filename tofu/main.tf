@@ -29,3 +29,17 @@ module "play" {
   dns_domain      = var.dns_domain
   ssh_public_keys = var.ansible_ssh_public_keys
 }
+
+module "security" {
+  source          = "./modules/proxmox_ubuntu_vm"
+  node_name       = var.proxmox_node
+  vm_id           = 205
+  name            = "security"
+  template_vm_id  = module.ubuntu_template.vm_id
+  cores           = 4
+  memory_mb       = 2048
+  disk_gb         = 64
+  admin_username  = "secadmin"
+  dns_domain      = var.dns_domain
+  ssh_public_keys = var.ansible_ssh_public_keys
+}

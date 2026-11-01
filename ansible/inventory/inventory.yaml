@@ -28,12 +28,10 @@ all:
         services:
           ansible_host: "services.{{ host_domain }}"
           ansible_user: svcadmin
-        # Built by Tofu: its address and login user come from the generated
-        # tofu-hosts.yaml, so this file keeps only its group membership.
+        # Built by Tofu: their address and login user come from the generated
+        # tofu-hosts.yaml, so this file keeps only their group membership.
         play:
         security:
-          ansible_host: "security.{{ host_domain }}"
-          ansible_user: secadmin
         storage:
           ansible_host: "storage.{{ host_domain }}"
           ansible_user: storeadmin

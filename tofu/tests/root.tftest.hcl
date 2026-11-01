@@ -82,16 +82,30 @@ run "declares_the_play_host_on_its_vmid" {
   }
 }
 
-run "publishes_the_play_host_for_the_inventory_generator" {
+run "declares_the_security_host_on_its_vmid" {
   command = plan
 
   assert {
-    condition     = length(output.ansible_hosts) == 1
+    condition     = module.security.vm_id == 205 && module.security.hostname == "security"
+    error_message = "the security host must be VMID 205, named security"
+  }
+}
+
+run "publishes_the_hosts_for_the_inventory_generator" {
+  command = plan
+
+  assert {
+    condition     = length(output.ansible_hosts) == 2
     error_message = "ansible_hosts must name exactly the VMs the root declares"
   }
 
   assert {
     condition     = output.ansible_hosts.play.ip_address == "192.168.20.4" && output.ansible_hosts.play.admin_username == "playadmin"
     error_message = "the play entry must carry the VMID-derived address and the admin user the inventory used"
+  }
+
+  assert {
+    condition     = output.ansible_hosts.security.ip_address == "192.168.20.5" && output.ansible_hosts.security.admin_username == "secadmin"
+    error_message = "the security entry must carry the VMID-derived address and the admin user the inventory used"
   }
 }

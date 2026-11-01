@@ -117,8 +117,8 @@ dated release directory and SHA-256 in `ubuntu_image_url` and
 `ubuntu_image_checksum` (`tofu/variables.tf`), named
 `<image name>-<release directory>-no-initrd-network.qcow2` on `image_datastore_id`.
 The `ubuntu_image_prepare_command` output prints the command for the current pin.
-The root module builds the template and declares one VM, `play` (VMID 204,
-4 vCPU, 4 GB, a 64 GB disk). Its `dns_domain` and `ssh_public_keys` come from the
+The root module builds the template and declares two VMs: `play` (VMID 204,
+4 vCPU, 4 GB, a 64 GB disk) and `security` (VMID 205, 4 vCPU, 2 GB, a 64 GB disk). Their `dns_domain` and `ssh_public_keys` come from the
 `dns_domain` and `ansible_ssh_public_keys` variables, which the credentials file
 sets ([State backend & secrets](#state-backend--secrets)).
 
@@ -544,7 +544,7 @@ The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
 configures the provider with an API token, and `.terraform.lock.hcl` is
 committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
 endpoint, token or node name instead of passing with nothing to do; that
-read is its only call apart from the template build and the VM it declares. The Ubuntu
+read is its only call apart from the template build and the VMs it declares. The Ubuntu
 modules are in `modules/` and their tests in `tests/`; see
 [Ubuntu modules](#ubuntu-modules).
 

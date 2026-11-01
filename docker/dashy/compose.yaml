@@ -2,7 +2,7 @@ name: dashy
 
 services:
   dashy:
-    image: ghcr.io/lissy93/dashy:4.9.8@sha256:a20a506fa6d77c06be2f4a83f7e7267d6ccd9fde3fd6d7f6aad7a0969ad0fe4a
+    image: ghcr.io/lissy93/dashy:4.9.12@sha256:0751a76392c1a171fe5b6c4e574c363ac6e24fc9d23df31d7c545ffc94ce44de
     container_name: dashy
     volumes:
       - data:/app/user-data

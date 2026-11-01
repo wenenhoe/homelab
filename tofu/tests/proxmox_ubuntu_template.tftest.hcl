@@ -130,7 +130,7 @@ run "imports_from_a_staged_volume_without_downloading" {
   variables {
     image_url       = null
     image_checksum  = null
-    image_volume_id = "tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-dyn-netconf.qcow2"
+    image_volume_id = "tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-initrd-network.qcow2"
   }
 
   assert {

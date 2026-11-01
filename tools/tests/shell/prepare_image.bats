@@ -6,7 +6,7 @@ setup() {
   SCRIPT=$(install_script tofu/modules/proxmox_ubuntu_template/prepare_image.sh)
   OUT="$BATS_TEST_TMPDIR/out"
   URL=https://cloud-images.example.net/releases/26.04/release-20260101/ubuntu-26.04-server-cloudimg-amd64.img
-  NAME=ubuntu-26.04-server-cloudimg-amd64-release-20260101-no-dyn-netconf.qcow2
+  NAME=ubuntu-26.04-server-cloudimg-amd64-release-20260101-no-initrd-network.qcow2
   printf 'QCOW2BASE\n' > "$BATS_TEST_TMPDIR/served.img"
   SUM=$(sha256sum "$BATS_TEST_TMPDIR/served.img" | cut -d' ' -f1)
   export SERVED="$BATS_TEST_TMPDIR/served.img" REGENERATED="$BATS_TEST_TMPDIR/regenerated" MIN_FREE_KB=1 PART_WAIT=0
@@ -48,8 +48,8 @@ BODY
 target=${*: -1}
 listing() {
   printf 'dracut modules:\nsystemd\n'
-  [ -n "${NO_MODULE:-}" ] || printf 'dyn-netconf\n'
-  printf 'bash\n'
+  [ -n "${NO_MODULE:-}" ] || printf 'systemd-networkd\n'
+  printf 'dyn-netconf\niscsi\nbash\n'
 }
 case "$*" in
   "/dev/loop7p1 "*)
@@ -76,9 +76,11 @@ case "$1" in
     cat "$mnt$3"
     ;;
   dracut)
-    [ "$(cat "$mnt/etc/dracut.conf.d/99-no-dyn-netconf.conf")" = 'omit_dracutmodules+=" dyn-netconf "' ] || exit 9
+    [ "$(cat "$mnt/etc/dracut.conf.d/99-no-initrd-network.conf")" = 'omit_dracutmodules+=" dyn-netconf iscsi "' ] || exit 9
     touch "$REGENERATED"
-    [ -n "${DRACUT_NOOP:-}" ] || sed -i '/dyn-netconf/d' "$mnt"/boot/initrd.img-*
+    # The omitted modules are gone afterwards, and systemd-networkd goes with them unless KEEP_NETWORKD says another module still needs it.
+    [ -n "${DRACUT_NOOP:-}" ] || sed -i -E '/^(dyn-netconf|iscsi)$/d' "$mnt"/boot/initrd.img-*
+    [ -n "${DRACUT_NOOP:-}" ] || [ -n "${KEEP_NETWORKD:-}" ] || sed -i '/^systemd-networkd$/d' "$mnt"/boot/initrd.img-*
     ;;
 esac
 BODY
@@ -219,6 +221,14 @@ umount WORK/mnt"
   assert_output ""
 }
 
+@test "an initramfs that still lists systemd-networkd after the omitted modules are gone fails and writes no image" {
+  KEEP_NETWORKD=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+
+  assert_output --partial "/boot/initrd.img-6.8.0-31-generic still lists systemd-networkd after the initramfs was regenerated"
+  run ls -A "$OUT"
+  assert_output ""
+}
+
 @test "a listing that fails after regeneration is a failure, not a pass" {
   LSINITRD_FAIL_AFTER=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
 
@@ -227,10 +237,10 @@ umount WORK/mnt"
   assert_output ""
 }
 
-@test "an image whose initramfs lists no such module fails before anything is written to it" {
+@test "an image whose initramfs lists no systemd-networkd fails before anything is written to it" {
   NO_MODULE=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
 
-  assert_output --partial "no initramfs of the image lists dyn-netconf: there is nothing to omit"
+  assert_output --partial "no initramfs of the image lists systemd-networkd: there is nothing to omit"
   run calls chroot
   refute_output --partial " dracut "
   run ls -A "$OUT"

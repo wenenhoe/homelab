@@ -49,7 +49,7 @@ variable "image_volume_id" {
 
   validation {
     condition     = var.image_volume_id == null || can(regex("^[^:/]+:import/[^/]+\\.(raw|qcow2|vmdk)$", var.image_volume_id))
-    error_message = "image_volume_id must look like tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-dyn-netconf.qcow2."
+    error_message = "image_volume_id must look like tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-initrd-network.qcow2."
   }
 }
 

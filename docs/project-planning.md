@@ -95,6 +95,9 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
+| `tailnet-policy` | `node` | — | [`tailscale-node-role.md`](projects/tailscale-node-role.md) | — | Building |
+| | `policy` | `1-baseline` | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | 1 | Not started — ready |
+| | `policy` | `2-in-tofu` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) |
 | `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
 | | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
@@ -109,9 +112,6 @@ calls for a project, while a working one still has to be settled.
 | [`licence-check.md`](projects/licence-check.md) | — | Not started — waiting on [ADR-0090/0](decisions/0090-licences-of-adopted-software/revision-000.md) | A registry of every pinned dependency's licence, a check when a pin changes, and a weekly check of each upstream's default-branch licence file, as ADR 0090 decides. |
 | [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | De-risking | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
-| [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | 1 | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
-| [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides. |
-| [`tailscale-node-role.md`](projects/tailscale-node-role.md) | — | Building | Write the Ansible role that installs, joins and configures a Tailscale node, prove it against the live subnet router with no change, and hand the rebuild of VM 202 a tagged join. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
 
 ## Decisions awaiting a project

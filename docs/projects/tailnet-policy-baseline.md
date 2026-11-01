@@ -5,6 +5,9 @@ type: project
 status: not-started
 blocked: false
 summary: Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant.
+super_project: tailnet-policy
+track: policy
+phase: 1-baseline
 ---
 
 # Tailnet Policy Baseline

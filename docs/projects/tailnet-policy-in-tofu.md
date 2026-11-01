@@ -6,6 +6,9 @@ status: not-started
 blocked: false
 summary: Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides.
 decision: ADR-0059/0
+super_project: tailnet-policy
+track: policy
+phase: 2-in-tofu
 depends_on:
   - project: PROJ-tailnet-policy-baseline
     reason: the policy it codes is the explicit-grant policy that project saves, and coding the allow-all grant would put a boundary under review that is about to be replaced

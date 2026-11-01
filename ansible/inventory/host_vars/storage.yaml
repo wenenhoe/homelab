@@ -55,6 +55,12 @@ cloud_sync_targets:
     # differs from the tenancy's home region. Same value already used
     # in the endpoint hostname above.
     region: "{{ secrets_generated['oci-region'] }}"
+    # Only offer archives younger than this. The bucket's delete-after is 5
+    # days and SeaweedFS keeps an archive 7, so without a ceiling the relay
+    # re-uploads each archive the lifecycle rule deletes, and it stays on OCI
+    # about twice as long as the rule intends. Keep it below the delete-after,
+    # which is set in the OCI console: docs/topics/disaster-recovery/cloud-sync.md.
+    max_age: 4d
 
 # 90min after backup_defaults.cron (group_vars/all/main.yaml), not
 # immediately after — gives every backup_agent host's own nightly run

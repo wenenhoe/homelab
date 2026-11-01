@@ -30,6 +30,7 @@
                   'path': host ~ '-' ~ entry.name,
                   'target': target,
                   'target_bucket': cloud_sync_targets[target].bucket,
+                  'max_age': cloud_sync_targets[target].max_age | default('-'),
                 }) -%}
           {%- endfor -%}
         {%- endfor -%}

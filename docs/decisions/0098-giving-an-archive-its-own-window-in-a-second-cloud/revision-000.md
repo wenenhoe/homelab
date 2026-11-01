@@ -86,7 +86,9 @@ archives go to R2 and B2 as soon as they land in SeaweedFS and expire there
 after a few days under their own short rules. OCI receives an archive only once
 it is older than that band, and keeps it until the window ends. The relay would
 select by age with rclone's `--max-age` on the R2 and B2 jobs and `--min-age` on
-the OCI job; the job manifest carries neither today.
+the OCI job. Today the job manifest carries one age option, a `--max-age` on
+the OCI job that keeps an archive from being offered again after OCI's
+delete-after ([Age ceiling](../../topics/disaster-recovery/cloud-sync.md#age-ceiling)).
 
 With SeaweedFS keeping seven days and the boundary at k days, R2 holds about k
 archives, B2 about one more (it hides a file before deleting it) and OCI the

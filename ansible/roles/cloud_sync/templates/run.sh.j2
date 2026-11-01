@@ -12,16 +12,24 @@ set -u
 
 overall_status=0
 
-while read -r src_bucket path target_remote target_bucket; do
+while read -r src_bucket path target_remote target_bucket max_age; do
   case "$src_bucket" in
     "#"* | "") continue ;;
+  esac
+
+  # max_age is a ceiling on the source object's age, set for a cloud whose own
+  # delete-after is shorter than SeaweedFS's retention: an archive that cloud
+  # has already deleted is then not offered again. - means no ceiling.
+  case "${max_age:--}" in
+    -) set -- ;;
+    *) set -- --max-age "$max_age" ;;
   esac
 
   echo "Copying seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}"
   # --immutable makes a source object that differs from the one already in
   # the cloud fail the job instead of replacing it. Archive names are never
   # reused (BACKUP_FILENAME in backup_agent), so an ordinary run never trips it.
-  if ! rclone copy --immutable "seaweedfs:${src_bucket}/${path}" "${target_remote}:${target_bucket}/${path}"; then
+  if ! rclone copy --immutable "$@" "seaweedfs:${src_bucket}/${path}" "${target_remote}:${target_bucket}/${path}"; then
     echo "FAILED: seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}" >&2
     overall_status=1
   fi

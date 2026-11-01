@@ -6,6 +6,8 @@ status: building
 blocked: false
 summary: Write the Ansible role that installs, joins and configures a Tailscale node, prove it against the live subnet router with no change, and hand the rebuild of VM 202 a tagged join.
 decision: ADR-0097/0
+super_project: tailnet-policy
+track: node
 allowed_paths:
   - ansible/roles/tailscale_node/**
   - ansible/playbooks/network-infra.yaml

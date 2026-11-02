@@ -304,3 +304,26 @@ refuses the connection.
    [rebuild cycle](../../projects/tofu-migration.md#stage-2--cutover): `deploy.yaml
    --limit security,localhost`, then `restore.yaml` for the remaining apps, and
    the Beszel fingerprint ([`beszel.md`](../monitoring/beszel.md#rebuilding-a-host)).
+
+### If init's output was lost
+
+`openbao_utils.init` waits up to 120 seconds for output and prints it as it
+arrives. If it reports a silence, or ends in a traceback, the init on `security`
+may have gone on to finish without you seeing the key shares and the root token,
+and a second run then says `Vault is already initialized`. The keys cannot be
+recovered, and with them the node cannot be unsealed or restored into. Before
+the snapshot is restored it holds nothing, so wipe it and start again:
+
+```sh
+ssh security
+cd /opt/stacks/openbao && docker compose down
+docker volume rm openbao_data
+exit
+cd ansible && ansible-playbook playbooks/bootstrap-security.yaml --tags stage1
+cd ../tools && python3 -m openbao_utils.init
+```
+
+Stage 1 creates the volume again and gives it to the `openbao` user, and keeps a
+placeholder certificate that is still in place. After the restore in step 5 this
+deletes the restored data too: the snapshot is still in R2 and B2, so go back to
+step 3.

@@ -55,3 +55,21 @@ def pty_result(exit_status: int = 0, chunks: tuple[bytes, ...] = ()):
     _stub(channel, "recv_exit_status", return_value=exit_status)
     _stub(channel, "recv", side_effect=lambda _nbytes: pending.pop(0))
     return _streams(channel, b"", b"")
+
+
+def chunked_result(chunks: tuple[bytes, ...] = (), stderr: bytes = b"", exit_status: int = 0, then_timeout: bool = False):
+    """What `exec_command` returns for a command whose output is read in chunks: each `recv` gives the next chunk, then an empty read at the end
+    of the stream, or `TimeoutError` (what a silent channel raises) when `then_timeout` is set."""
+    pending = list(chunks)
+
+    def recv(_nbytes: int) -> bytes:
+        if pending:
+            return pending.pop(0)
+        if then_timeout:
+            raise TimeoutError
+        return b""
+
+    channel = paramiko.Channel(1)
+    _stub(channel, "recv", side_effect=recv)
+    _stub(channel, "recv_exit_status", return_value=exit_status)
+    return _streams(channel, b"", stderr)

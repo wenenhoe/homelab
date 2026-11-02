@@ -133,6 +133,34 @@ Confirmed against a real running instance, not inferred from docs:
   `openbao-vault-bootstrap.md` if a step ever needs more than
   `controller`'s own read access.
 
+## Pulling a snapshot
+
+```sh
+tools/openbao_utils/scripts/snapshot-pull.sh [r2|b2] [OUTPUT]
+```
+
+Steps 2 and 3 of the [restore drill](#restore-drill) in one command, from
+`controller` or any machine with Docker, `gpg` and the exported backup private
+key. With no provider it tries R2, then B2; `OUTPUT` defaults to `./restore.snap`
+and is never overwritten. It prompts for what it needs and nothing is an
+argument or in the environment:
+
+- The provider's account id (R2) or region (B2) and the key id, read as typed.
+- The credential's secret half, read with echo off and written to a mode-0600
+  `rclone.conf` in a scratch directory. The credential is the break-glass
+  read-only one
+  ([`create_snapshot_readonly_keys.py`](../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)),
+  from the password manager, not anything in OpenBao.
+- The path of the exported private key. The script imports it into a throwaway
+  keyring in the scratch directory, so it never joins yours, and `gpg` asks for
+  the passphrase itself.
+
+It lists `openbao-snapshots`, takes the newest `snapshot-*.snap.gpg` by name (the
+name carries a UTC timestamp), decrypts it, refuses a result without a gzip
+header, and leaves only `OUTPUT`, mode 0600, with the scratch directory removed
+on every exit path. `OUTPUT` is the contents of OpenBao: delete it once the
+restore is done.
+
 ## Restore drill
 
 On a throwaway host — burn it afterward, don't reuse it:
@@ -143,7 +171,8 @@ On a throwaway host — burn it afterward, don't reuse it:
    even reachable (a sealed node returns `503`, not a clearer error).
    Its own keys and root token are used once more, in the next step,
    then discarded.
-2. Fetch the latest snapshot from R2 or B2 using the break-glass
+2. Fetch the latest snapshot from R2 or B2
+   ([`snapshot-pull.sh`](#pulling-a-snapshot) does steps 2 and 3) using the break-glass
    **read-only** credential
    ([`create_snapshot_readonly_keys.py`](../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
    not the write leaf above, which can't read.
@@ -181,8 +210,8 @@ passes Play 0 as soon as `security` is healthy.
 
 What you need before starting, none of it on the new VM:
 
-- The latest OpenBao snapshot, fetched and decrypted as the
-  [restore drill](#restore-drill) does in steps 2 and 3.
+- The latest OpenBao snapshot, fetched and decrypted with
+  [`snapshot-pull.sh`](#pulling-a-snapshot).
 - The original unseal shares (the password manager entry).
 - The latest `security-step-ca-*` archive, fetched and decrypted into a
   plain `.tar.gz` as [`restore.md`](../disaster-recovery/restore.md#manual-steps-first)
@@ -275,3 +304,26 @@ refuses the connection.
    [rebuild cycle](../../projects/tofu-migration.md#stage-2--cutover): `deploy.yaml
    --limit security,localhost`, then `restore.yaml` for the remaining apps, and
    the Beszel fingerprint ([`beszel.md`](../monitoring/beszel.md#rebuilding-a-host)).
+
+### If init's output was lost
+
+`openbao_utils.init` waits up to 120 seconds for output and prints it as it
+arrives. If it reports a silence, or ends in a traceback, the init on `security`
+may have gone on to finish without you seeing the key shares and the root token,
+and a second run then says `Vault is already initialized`. The keys cannot be
+recovered, and with them the node cannot be unsealed or restored into. Before
+the snapshot is restored it holds nothing, so wipe it and start again:
+
+```sh
+ssh security
+cd /opt/stacks/openbao && docker compose down
+docker volume rm openbao_data
+exit
+cd ansible && ansible-playbook playbooks/bootstrap-security.yaml --tags stage1
+cd ../tools && python3 -m openbao_utils.init
+```
+
+Stage 1 creates the volume again and gives it to the `openbao` user, and keeps a
+placeholder certificate that is still in place. After the restore in step 5 this
+deletes the restored data too: the snapshot is still in R2 and B2, so go back to
+step 3.

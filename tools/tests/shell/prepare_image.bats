@@ -6,10 +6,10 @@ setup() {
   SCRIPT=$(install_script tofu/modules/proxmox_ubuntu_template/prepare_image.sh)
   OUT="$BATS_TEST_TMPDIR/out"
   URL=https://cloud-images.example.net/releases/26.04/release-20260101/ubuntu-26.04-server-cloudimg-amd64.img
-  NAME=ubuntu-26.04-server-cloudimg-amd64-release-20260101-no-initrd-network.qcow2
+  NAME=ubuntu-26.04-server-cloudimg-amd64-release-20260101-prepared-Asia-Singapore.qcow2
   printf 'QCOW2BASE\n' > "$BATS_TEST_TMPDIR/served.img"
   SUM=$(sha256sum "$BATS_TEST_TMPDIR/served.img" | cut -d' ' -f1)
-  export SERVED="$BATS_TEST_TMPDIR/served.img" REGENERATED="$BATS_TEST_TMPDIR/regenerated" MIN_FREE_KB=1 PART_WAIT=0
+  export IMAGE_ETC="$BATS_TEST_TMPDIR/image-etc" SERVED="$BATS_TEST_TMPDIR/served.img" REGENERATED="$BATS_TEST_TMPDIR/regenerated" MIN_FREE_KB=1 PART_WAIT=0
 
   stub curl <<'BODY'
 while [ "$#" -gt 0 ]; do
@@ -20,6 +20,8 @@ BODY
   # Both conversions write their own arguments into the file they produce.
   stub qemu-img <<'BODY'
 printf 'qemu-img %s\n' "$*" > "${*: -1}"
+# The compression step runs after the image's files are final: keep them to look at.
+[ "$2" != -O ] || cp -a "$(dirname "${*: -2:1}")/mnt/etc" "$IMAGE_ETC"
 BODY
   stub sudo <<'BODY'
 if [ "$1" = -v ]; then
@@ -53,7 +55,10 @@ listing() {
 }
 case "$*" in
   "/dev/loop7p1 "*)
-    mkdir -p "$target/boot" "$target/etc"
+    mkdir -p "$target/boot" "$target/etc/cloud/templates" "$target/usr/share/zoneinfo/Asia" "$target/usr/share/zoneinfo/Europe"
+    touch "$target/usr/share/zoneinfo/Asia/Singapore" "$target/usr/share/zoneinfo/Europe/Paris"
+    upstream_line='127.0.1.1 {{fqdn}} {{hostname}}'
+    printf '# managed\n%s\n127.0.0.1 localhost\n' "${HOSTS_LINE:-$upstream_line}" > "$target/etc/cloud/templates/hosts.debian.tmpl"
     [ -z "${NO_BOOT_PART:-}" ] || listing > "$target/boot/initrd.img-6.8.0-31-generic"
     ;;
   "/dev/loop7p16 "*) listing > "$target/initrd.img-6.8.0-31-generic" ;;
@@ -96,7 +101,7 @@ calls() {
 }
 
 @test "writes the compressed qcow2 copy and its checksum, and nothing else in the output directory" {
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   run ls -A "$OUT"
   assert_output "$NAME
@@ -106,7 +111,7 @@ $NAME.sha256"
 }
 
 @test "downloads the image with one curl and unpacks that file to a raw disk" {
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   run calls curl
   assert_output "curl -fL --retry 3 -o WORK/base.img $URL"
@@ -116,14 +121,14 @@ qemu-img convert -O qcow2 -c WORK/disk.raw WORK/image.qcow2"
 }
 
 @test "writes the omission before dracut runs and regenerates without host-only mode" {
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   run calls chroot
   assert_output --partial "chroot WORK/mnt dracut --regenerate-all --force --no-hostonly --no-hostonly-cmdline"
 }
 
 @test "asks about the loop device's partitions only" {
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   run calls lsblk
   assert_output "lsblk -rno PATH /dev/loop7"
@@ -136,7 +141,7 @@ blkid -p -o value -s LABEL /dev/loop7p16"
 }
 
 @test "mounts the boot partition under /boot when the image has one" {
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   run calls mount
   assert_output "mount /dev/loop7p1 WORK/mnt
@@ -148,7 +153,7 @@ mount -t sysfs sysfs WORK/mnt/sys"
 }
 
 @test "reads the initramfs from the root partition when the image has no boot partition" {
-  NO_BOOT_PART=1 run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  NO_BOOT_PART=1 run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   run calls mount
   assert_output "mount /dev/loop7p1 WORK/mnt
@@ -160,7 +165,7 @@ mount -t sysfs sysfs WORK/mnt/sys"
 }
 
 @test "binds a directory of the host's disk over the image's /var/tmp before dracut runs" {
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   bound=$(grep -n -m1 -E '^mount --bind .*/tmp .*/mnt/var/tmp$' "$CALLS" | cut -d: -f1)
   regenerated=$(grep -n -m1 ' dracut ' "$CALLS" | cut -d: -f1)
@@ -171,19 +176,19 @@ mount -t sysfs sysfs WORK/mnt/sys"
 @test "asks for sudo before it downloads anything, and stops when it is refused" {
   [ "$(id -u)" -ne 0 ] || skip "root does not use sudo"
 
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
   [ "$(grep -n -m1 '^sudo -v$' "$CALLS" | cut -d: -f1)" -lt "$(grep -n -m1 '^curl ' "$CALLS" | cut -d: -f1)" ]
 
   rm -rf "$OUT"
   : > "$CALLS"
-  SUDO_FAIL=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  SUDO_FAIL=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
   assert_output --partial "sudo is needed to attach and mount the image"
   run calls curl
   assert_output ""
 }
 
 @test "unmounts in reverse order and detaches the loop device" {
-  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   run calls umount
   assert_output "umount WORK/mnt/sys
@@ -197,7 +202,7 @@ umount WORK/mnt"
 }
 
 @test "a checksum mismatch fails before the disk is attached and leaves nothing behind" {
-  run -1 "$SCRIPT" "$URL" "$(printf '1%.0s' $(seq 64))" "$OUT"
+  run -1 "$SCRIPT" "$URL" "$(printf '1%.0s' $(seq 64))" "$OUT" Asia/Singapore
 
   assert_output --partial "checksum mismatch for $URL: expected"
   run calls losetup
@@ -207,7 +212,7 @@ umount WORK/mnt"
 }
 
 @test "an initramfs that still lists the module after regeneration fails and writes no image" {
-  DRACUT_NOOP=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  DRACUT_NOOP=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   assert_output --partial "/boot/initrd.img-6.8.0-31-generic still lists dyn-netconf after the initramfs was regenerated"
   run calls umount
@@ -222,7 +227,7 @@ umount WORK/mnt"
 }
 
 @test "an initramfs that still lists systemd-networkd after the omitted modules are gone fails and writes no image" {
-  KEEP_NETWORKD=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  KEEP_NETWORKD=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   assert_output --partial "/boot/initrd.img-6.8.0-31-generic still lists systemd-networkd after the initramfs was regenerated"
   run ls -A "$OUT"
@@ -230,7 +235,7 @@ umount WORK/mnt"
 }
 
 @test "a listing that fails after regeneration is a failure, not a pass" {
-  LSINITRD_FAIL_AFTER=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  LSINITRD_FAIL_AFTER=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   assert_output --partial "could not list the modules of /boot/initrd.img-6.8.0-31-generic"
   run ls -A "$OUT"
@@ -238,7 +243,7 @@ umount WORK/mnt"
 }
 
 @test "an image whose initramfs lists no systemd-networkd fails before anything is written to it" {
-  NO_MODULE=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  NO_MODULE=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   assert_output --partial "no initramfs of the image lists systemd-networkd: there is nothing to omit"
   run calls chroot
@@ -248,7 +253,7 @@ umount WORK/mnt"
 }
 
 @test "an image without dracut fails before any initramfs is listed" {
-  NO_DRACUT=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  NO_DRACUT=1 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   assert_output --partial "the image has no dracut"
   run calls chroot
@@ -256,7 +261,7 @@ umount WORK/mnt"
 }
 
 @test "an image with no partition labelled cloudimg-rootfs fails with the loop device detached" {
-  NO_ROOT_LABEL=1 PART_TRIES=2 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  NO_ROOT_LABEL=1 PART_TRIES=2 run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   assert_output --partial "no partition of the image is labelled cloudimg-rootfs"
   run calls mount
@@ -266,7 +271,7 @@ umount WORK/mnt"
 }
 
 @test "a failed unmount fails the run and leaves the work directory in place" {
-  UMOUNT_FAIL=dev run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+  UMOUNT_FAIL=dev run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
 
   assert_output --partial "it is left in place, unmount by hand before removing it"
   run ls -A "$OUT"
@@ -274,11 +279,58 @@ umount WORK/mnt"
 }
 
 @test "refuses a URL that is not an https .img file and a checksum that is not a SHA-256" {
-  run -1 "$SCRIPT" http://cloud-images.example.net/ubuntu.img "$SUM" "$OUT"
+  run -1 "$SCRIPT" http://cloud-images.example.net/ubuntu.img "$SUM" "$OUT" Asia/Singapore
   assert_output --partial "IMAGE_URL must be an https:// URL of an Ubuntu cloud .img file"
-  run -1 "$SCRIPT" "$URL" ABC "$OUT"
+  run -1 "$SCRIPT" "$URL" ABC "$OUT" Asia/Singapore
   assert_output --partial "IMAGE_CHECKSUM must be 64 lowercase hexadecimal characters"
 
   run calls curl
   assert_output ""
+}
+
+@test "keeps only the short name on the hosts template's loopback alias and leaves its other lines" {
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
+
+  assert_equal "$(cat "$IMAGE_ETC/cloud/templates/hosts.debian.tmpl")" "# managed
+127.0.1.1 {{hostname}}
+127.0.0.1 localhost"
+}
+
+@test "sets the image's timezone, and names the image for it" {
+  run -0 "$SCRIPT" "$URL" "$SUM" "$OUT" Europe/Paris
+
+  assert_equal "$(readlink "$IMAGE_ETC/localtime")|$(cat "$IMAGE_ETC/timezone")" "/usr/share/zoneinfo/Europe/Paris|Europe/Paris"
+  run ls -A "$OUT"
+  assert_output "ubuntu-26.04-server-cloudimg-amd64-release-20260101-prepared-Europe-Paris.qcow2
+ubuntu-26.04-server-cloudimg-amd64-release-20260101-prepared-Europe-Paris.qcow2.sha256"
+}
+
+@test "a hosts template without the line it rewrites fails and writes no image" {
+  HOSTS_LINE='127.0.1.1 {{hostname}}' run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Singapore
+
+  assert_output --partial "the image's hosts template has no line '127.0.1.1 {{fqdn}} {{hostname}}' to rewrite"
+  run ls -A "$OUT"
+  assert_output ""
+}
+
+@test "a timezone the image does not have fails and writes no image" {
+  run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" Asia/Nowhere
+
+  assert_output --partial "the image has no timezone Asia/Nowhere"
+  run ls -A "$OUT"
+  assert_output ""
+}
+
+@test "a timezone that is not a zoneinfo name is refused before anything is downloaded" {
+  run -1 "$SCRIPT" "$URL" "$SUM" "$OUT" '../etc/passwd'
+
+  assert_output --partial "TIMEZONE must be a zoneinfo name such as Asia/Singapore"
+  run calls curl
+  assert_output ""
+}
+
+@test "a missing TIMEZONE is a usage error" {
+  run -1 "$SCRIPT" "$URL" "$SUM" "$OUT"
+
+  assert_output --partial "usage: prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR TIMEZONE"
 }

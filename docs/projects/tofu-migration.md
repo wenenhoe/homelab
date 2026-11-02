@@ -140,7 +140,7 @@ the same cycle:
    module, apply, and run the inventory generator. The first apply replaces
    the Ubuntu template, which imports the prepared image, so build and stage
    that image first
-   ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#ubuntu-image-without-initramfs-networking)).
+   ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#prepared-ubuntu-image)).
    A VM cloned from the stock image keeps a DHCP address instead of its
    static one. On the new host, `ip -4 addr` must show its address without
    `dynamic`, and `/run/systemd/network` must hold no

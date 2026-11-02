@@ -59,6 +59,17 @@ variable "image_datastore_id" {
   default     = "tofu-images"
 }
 
+variable "timezone" {
+  description = "Timezone of every VM, baked into the prepared image. The same zone as server_timezone in the Ansible inventory, which the containers take as TZ."
+  type        = string
+  default     = "Asia/Singapore"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$", var.timezone))
+    error_message = "timezone must be a zoneinfo name such as Asia/Singapore."
+  }
+}
+
 variable "dns_domain" {
   description = "The lab's internal zone, host_domain in the Ansible inventory. Every VM gets it as its search domain."
   type        = string

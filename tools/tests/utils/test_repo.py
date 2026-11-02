@@ -22,6 +22,7 @@ from utils import repo
 def inventory_path(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
     path = tmp_path_factory.mktemp("inventory") / "inventory.yaml"
     monkeypatch.setattr(repo, "INVENTORY_PATH", path)
+    monkeypatch.setattr(repo, "GENERATED_INVENTORY_PATH", path.with_name("tofu-hosts.yaml"))
     return path
 
 
@@ -83,6 +84,29 @@ class TestSecurityCredentialsSshTarget:
         assert user == "someadmin"
         assert host == "security.internal.example.com"
         assert key_path == str(Path("~/.ssh/some_key").expanduser())
+
+    def test_takes_the_user_from_the_generated_inventory_when_the_hand_written_entry_has_none(self, inventory_path):
+        inventory_path.write_text(
+            "all:\n  vars:\n    ansible_ssh_private_key_file: ~/.ssh/some_key\n  children:\n    managed_hosts:\n      hosts:\n        security:\n"
+        )
+        repo.GENERATED_INVENTORY_PATH.write_text("all:\n  hosts:\n    security:\n      ansible_host: 192.168.20.5\n      ansible_user: generatedadmin\n")
+        assert repo.security_ssh_target()[0] == "generatedadmin"
+
+    def test_the_generated_user_wins_over_the_hand_written_one(self, inventory_path):
+        inventory_path.write_text(
+            "all:\n  vars:\n    ansible_ssh_private_key_file: ~/.ssh/some_key\n  children:\n    managed_hosts:\n      hosts:\n"
+            "        security:\n          ansible_user: oldadmin\n"
+        )
+        repo.GENERATED_INVENTORY_PATH.write_text("all:\n  hosts:\n    security:\n      ansible_user: generatedadmin\n")
+        assert repo.security_ssh_target()[0] == "generatedadmin"
+
+    def test_stops_with_a_message_when_neither_file_names_a_user(self, inventory_path, capsys):
+        inventory_path.write_text(
+            "all:\n  vars:\n    ansible_ssh_private_key_file: ~/.ssh/some_key\n  children:\n    managed_hosts:\n      hosts:\n        security:\n"
+        )
+        with pytest.raises(SystemExit):
+            repo.security_ssh_target()
+        assert "tofu_inventory" in capsys.readouterr().err
 
 
 class TestConnectSsh:

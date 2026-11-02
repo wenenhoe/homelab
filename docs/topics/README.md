@@ -76,6 +76,7 @@ Backup, offsite copies, and getting data back.
 | [`backup.md`](disaster-recovery/backup.md) | SeaweedFS target, `backup_agent`, GPG encryption, what is backed up and where it goes. |
 | [`backup-threat-model.md`](disaster-recovery/backup-threat-model.md) | The adversary the backup design assumes, the credential-scoping constraints that follow, and the automated coverage for them. |
 | [`restore.md`](disaster-recovery/restore.md) | Restoring an app's volume(s) from a backup archive: the runbook. |
+| [`rebuild-runbook.md`](disaster-recovery/rebuild-runbook.md) | Rebuilding a Tofu-built host: the order of steps, what each is run with, what the before and after checks look at, and what is still done by hand. |
 | [`fire-drill.md`](disaster-recovery/fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
 | [`cloud-sync.md`](disaster-recovery/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
 

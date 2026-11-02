@@ -109,6 +109,32 @@ class TestSecurityCredentialsSshTarget:
         assert "tofu_inventory" in capsys.readouterr().err
 
 
+class TestSshTarget:
+    @pytest.fixture(autouse=True)
+    def _main_domain_and_inventory(self, secrets_dir, inventory_path):
+        secrets_dir.seed("main-domain", "example.com")
+        inventory_path.write_text(
+            "all:\n  vars:\n    ansible_ssh_private_key_file: ~/.ssh/some_key\n  children:\n"
+            "    managed_hosts:\n      hosts:\n        services:\n          ansible_user: svcadmin\n        play:\n"
+            "    network_infra:\n      hosts:\n        tailscale:\n          ansible_user: tsadmin\n"
+        )
+
+    def test_a_host_of_managed_hosts_has_its_own_user_and_name(self):
+        assert repo.ssh_target("services")[:2] == ("svcadmin", "services.internal.example.com")
+
+    def test_a_host_of_network_infra_is_found_too(self):
+        assert repo.ssh_target("tailscale")[:2] == ("tsadmin", "tailscale.internal.example.com")
+
+    def test_a_host_with_an_empty_entry_takes_its_user_from_the_generated_inventory(self):
+        repo.GENERATED_INVENTORY_PATH.write_text("all:\n  hosts:\n    play:\n      ansible_user: playadmin\n")
+        assert repo.ssh_target("play")[0] == "playadmin"
+
+    def test_a_host_in_no_group_stops_with_a_message_naming_it(self, capsys):
+        with pytest.raises(SystemExit):
+            repo.ssh_target("nowhere")
+        assert "No ansible_user for nowhere" in capsys.readouterr().err
+
+
 class TestConnectSsh:
     @patch("utils.repo.paramiko.SSHClient", autospec=True)
     def test_connects_with_the_given_target_and_a_timeout(self, mock_ssh_client_cls, ssh_client):

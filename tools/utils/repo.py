@@ -92,27 +92,36 @@ def main_domain() -> str:
     return domain
 
 
-def security_ssh_target() -> tuple[str, str, str]:
-    """(user, host, key_path) for SSH to `security`, read from the
-    inventory rather than hardcoded twice. The generated file, when it
-    names `security`, wins over inventory.yaml, as it does for Ansible."""
+def ssh_target(host_name: str) -> tuple[str, str, str]:
+    """(user, host, key_path) for SSH to an inventory host, read from the
+    inventory rather than hardcoded twice. The generated file, when it names the
+    host, wins over inventory.yaml, as it does for Ansible. The host is searched
+    for in managed_hosts and network_infra."""
     with INVENTORY_PATH.open() as f:
         inv = yaml.safe_load(f)
-    hosts = inv["all"]["children"]["managed_hosts"]["hosts"]
-    user = (hosts.get("security") or {}).get("ansible_user")
+    user = None
+    for group in ("managed_hosts", "network_infra"):
+        hosts = (inv["all"]["children"].get(group) or {}).get("hosts") or {}
+        if host_name in hosts:
+            user = (hosts[host_name] or {}).get("ansible_user")
+            break
     if GENERATED_INVENTORY_PATH.exists():
         with GENERATED_INVENTORY_PATH.open() as f:
             generated = (yaml.safe_load(f) or {}).get("all", {}).get("hosts", {})
-        user = generated.get("security", {}).get("ansible_user", user)
+        user = generated.get(host_name, {}).get("ansible_user", user)
     if not user:
         print(
-            f"No ansible_user for security in {INVENTORY_PATH} or {GENERATED_INVENTORY_PATH} - run tools/tofu_inventory once Tofu has built the host.",
+            f"No ansible_user for {host_name} in {INVENTORY_PATH} or {GENERATED_INVENTORY_PATH} - run tools/tofu_inventory once Tofu has built the host.",
             file=sys.stderr,
         )
         raise SystemExit(1)
     key_path = Path(inv["all"]["vars"]["ansible_ssh_private_key_file"]).expanduser()
-    host = f"security.internal.{main_domain()}"  # host_domain, see inventory.yaml
+    host = f"{host_name}.internal.{main_domain()}"  # host_domain, see inventory.yaml
     return user, host, str(key_path)
+
+
+def security_ssh_target() -> tuple[str, str, str]:
+    return ssh_target("security")
 
 
 def connect_ssh(user: str, host: str, key_path: str) -> paramiko.SSHClient:

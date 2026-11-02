@@ -140,9 +140,11 @@ the same cycle:
    module, apply, and run the inventory generator. The first apply replaces
    the Ubuntu template, which imports the prepared image, so build and stage
    that image first
-   ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#ubuntu-image-without-dyn-netconf)).
+   ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#ubuntu-image-without-initramfs-networking)).
    A VM cloned from the stock image keeps a DHCP address instead of its
-   static one.
+   static one. On the new host, `ip -4 addr` must show its address without
+   `dynamic`, and `/run/systemd/network` must hold no
+   `zzzz-dracut-default.network`.
 4. Remove the host's `ansible_host` and `ansible_user` from
    `inventory.yaml`, keeping its group membership.
 5. Deploy with `deploy.yaml` and restore its apps with `restore.yaml`, as

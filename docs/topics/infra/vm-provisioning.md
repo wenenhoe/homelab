@@ -112,10 +112,10 @@ range. It takes its image from either `image_url` with `image_checksum`, which
 Proxmox downloads, or `image_volume_id` alone
 (`<datastore>:import/<name>.qcow2`), a volume already on the node, and
 rejects both or neither. The root module passes `image_volume_id`: the copy
-that [`prepare_image.sh`](#ubuntu-image-without-dyn-netconf) builds from the
+that [`prepare_image.sh`](#ubuntu-image-without-initramfs-networking) builds from the
 dated release directory and SHA-256 in `ubuntu_image_url` and
 `ubuntu_image_checksum` (`tofu/variables.tf`), named
-`<image name>-<release directory>-no-dyn-netconf.qcow2` on `image_datastore_id`.
+`<image name>-<release directory>-no-initrd-network.qcow2` on `image_datastore_id`.
 The `ubuntu_image_prepare_command` output prints the command for the current pin.
 The root module builds the template and declares one VM, `play` (VMID 204,
 4 vCPU, 4 GB, a 64 GB disk). Its `dns_domain` and `ssh_public_keys` come from the
@@ -186,11 +186,17 @@ and `validate`, on every change under `tofu/`
 ([`pipeline.md`](../engineering/ci/pipeline.md#jobs)); run `tofu fmt -recursive`
 before pushing.
 
-### Ubuntu image without `dyn-netconf`
+### Ubuntu image without initramfs networking
 
-The 26.04 cloud image builds its initramfs with dracut, and dracut's
-`dyn-netconf` module brings the NIC up with DHCP before cloud-init runs.
-cloud-init then fails to rename the NIC to the name its network config uses
+The 26.04 cloud image builds its initramfs with dracut. Dracut's
+`systemd-networkd` module runs in the initramfs and, with no `ip=` option on the
+kernel command line, copies `dracut-default.network` to
+`/run/systemd/network/zzzz-dracut-default.network`, which asks every NIC for
+DHCP before cloud-init runs. dracut includes that module only when another
+module needs the network, and the image's generic initramfs has two:
+`dyn-netconf` and `iscsi`. Omitting `dyn-netconf` alone left `network`,
+`systemd-networkd` and the file in a generic build; omitting both leaves none of
+them. cloud-init then fails to rename the NIC to the name its network config uses
 (`[busy] Error renaming ... from ens18 to eth0`), the netplan files it writes
 match no device, and the VM keeps the lease that `zzzz-dracut-default.network`
 configured in place of the static address from `ip_config`. Upstream tracks the
@@ -201,7 +207,7 @@ DHCP, and Kea serves no VLAN 20 zone once the gateway play has rebuilt the
 gateway. The template is therefore built from the copy this script writes.
 
 `tofu/modules/proxmox_ubuntu_template/prepare_image.sh IMAGE_URL IMAGE_CHECKSUM
-OUT_DIR` writes a copy of the image whose initramfs lacks the module. It runs as
+OUT_DIR` writes a copy of the image whose initramfs lacks `systemd-networkd`. It runs as
 root or as a user with `sudo`, whose password it asks for before it downloads
 anything, on a host with `curl`, `qemu-img` and util-linux (`losetup`, `lsblk`,
 `blkid`, `mount`, `chroot`), and needs about 8 GB free in `OUT_DIR`
@@ -210,19 +216,24 @@ converts it to a raw disk on a loop device, and mounts the partition labelled
 `cloudimg-rootfs`, the one labelled `BOOT` when there is one, and `/dev`, `/proc`
 and `/sys`. It binds a directory of its work directory over `/var/tmp` of the
 image, because dracut builds the initramfs there and the image's root file system
-has almost no free space until the first boot grows it. It then writes `omit_dracutmodules+=" dyn-netconf "` to
-`/etc/dracut.conf.d/99-no-dyn-netconf.conf` in the image and regenerates every
+has almost no free space until the first boot grows it. It then writes `omit_dracutmodules+=" dyn-netconf iscsi "` to
+`/etc/dracut.conf.d/99-no-initrd-network.conf` in the image and regenerates every
 initramfs there with `dracut --regenerate-all --force --no-hostonly
 --no-hostonly-cmdline`, because a chroot sees the build host's devices and a
 host-only initramfs would fit the host instead of the VMs. Only the loop
 device's own partitions are searched for labels, since the build host can carry
 the same ones. The dracut configuration stays in the image, so a later kernel
-update regenerates its initramfs without the module.
+update regenerates its initramfs without the modules. That regeneration is
+host-only and holds no networking at all, so the `/boot` of a VM that has
+already upgraded a kernel does not show what its first boot ran; the first
+boot's journal (`journalctl -b -1`) does.
 
 It fails, writing nothing to `OUT_DIR`, when the image has no dracut, when no
-initramfs lists the module before the change (an image that no longer needs the
-step), when any initramfs still lists it afterwards, and when a listing fails. It
-writes `OUT_DIR/<image name>-<release directory>-no-dyn-netconf.qcow2` as a
+initramfs lists `systemd-networkd` before the change (an image that no longer
+needs the step), when any initramfs lists an omitted module or `systemd-networkd`
+afterwards (another module then needs the network, and the list of omitted
+modules needs that module too), and when a listing fails. It
+writes `OUT_DIR/<image name>-<release directory>-no-initrd-network.qcow2` as a
 compressed qcow2 with its SHA-256 in `<file>.sha256`. On every exit path it unmounts in reverse order,
 detaches the loop device and removes its work directory, except that a failed
 unmount leaves the directory in place, since removing it over a mount would

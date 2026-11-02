@@ -1,7 +1,7 @@
 locals {
   # prepare_image.sh names its output after the pinned file and its release directory,
   # so a new pin selects a new volume and the template is replaced.
-  ubuntu_image_volume_id = "${var.image_datastore_id}:import/${trimsuffix(basename(var.ubuntu_image_url), ".img")}-${basename(dirname(var.ubuntu_image_url))}-no-dyn-netconf.qcow2"
+  ubuntu_image_volume_id = "${var.image_datastore_id}:import/${trimsuffix(basename(var.ubuntu_image_url), ".img")}-${basename(dirname(var.ubuntu_image_url))}-no-initrd-network.qcow2"
 }
 
 # With no resources, plan would succeed without contacting Proxmox. Reading

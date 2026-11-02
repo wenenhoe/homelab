@@ -26,7 +26,7 @@ run "imports_the_prepared_image_named_after_the_pinned_release" {
   command = plan
 
   assert {
-    condition     = module.ubuntu_template.image_volume_id == "tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-dyn-netconf.qcow2"
+    condition     = module.ubuntu_template.image_volume_id == "tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-initrd-network.qcow2"
     error_message = "the template must import the prepared copy that prepare_image.sh names from the pinned URL"
   }
 }
@@ -39,7 +39,7 @@ run "a_new_pin_selects_a_new_volume" {
   }
 
   assert {
-    condition     = endswith(module.ubuntu_template.image_volume_id, "-release-20261101-no-dyn-netconf.qcow2")
+    condition     = endswith(module.ubuntu_template.image_volume_id, "-release-20261101-no-initrd-network.qcow2")
     error_message = "a different release directory must give a different volume, so the template is replaced"
   }
 }

@@ -40,6 +40,7 @@ def secrets_dir_from(environ: Mapping[str, str]) -> Path:
 
 SECRETS_DIR = secrets_dir_from(os.environ)
 INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/inventory.yaml"
+GENERATED_INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/tofu-hosts.yaml"
 
 STEP_CA_CONTAINER = "step-ca"
 OPENBAO_CONTAINER = "openbao"
@@ -92,11 +93,23 @@ def main_domain() -> str:
 
 
 def security_ssh_target() -> tuple[str, str, str]:
-    """(user, host, key_path) for SSH to `security`, read from
-    inventory.yaml rather than hardcoded twice."""
+    """(user, host, key_path) for SSH to `security`, read from the
+    inventory rather than hardcoded twice. The generated file, when it
+    names `security`, wins over inventory.yaml, as it does for Ansible."""
     with INVENTORY_PATH.open() as f:
         inv = yaml.safe_load(f)
-    user = inv["all"]["children"]["managed_hosts"]["hosts"]["security"]["ansible_user"]
+    hosts = inv["all"]["children"]["managed_hosts"]["hosts"]
+    user = (hosts.get("security") or {}).get("ansible_user")
+    if GENERATED_INVENTORY_PATH.exists():
+        with GENERATED_INVENTORY_PATH.open() as f:
+            generated = (yaml.safe_load(f) or {}).get("all", {}).get("hosts", {})
+        user = generated.get("security", {}).get("ansible_user", user)
+    if not user:
+        print(
+            f"No ansible_user for security in {INVENTORY_PATH} or {GENERATED_INVENTORY_PATH} - run tools/tofu_inventory once Tofu has built the host.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
     key_path = Path(inv["all"]["vars"]["ansible_ssh_private_key_file"]).expanduser()
     host = f"security.internal.{main_domain()}"  # host_domain, see inventory.yaml
     return user, host, str(key_path)

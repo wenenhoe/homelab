@@ -47,6 +47,16 @@ case. After a rebuild of one host, name it: the apps of the others are live and
 a restore overwrites them. --host and --skip may each be repeated, and a name
 the manifest does not hold is an error before anything is discovered.
 
+    python3 ansible/scripts/restore_all.py --check [--host HOST] [--max-age-hours N]
+                                                   # read-only: the newest backup
+                                                   # of each app on every source
+                                                   # and its age; downloads and
+                                                   # restores nothing
+
+--check is the pre-flight before destroying a host: it exits non-zero when an
+app has no source whose newest backup is within the window (30 hours by
+default, one nightly run and some slack).
+
 Exit status: 0 if every in-scope app restored successfully, 1 otherwise
 (including an aborted batch).
 """
@@ -124,6 +134,51 @@ def select_entries(entries: list[AppManifestEntry], hosts: list[str], skip: list
     if not selected:
         raise SystemExit("nothing is left to restore after --host and --skip")
     return selected
+
+
+@dataclass
+class SourceStatus:
+    app: str
+    host: str
+    source: str
+    newest: str
+    age_hours: float | None
+    state: str  # ok, stale, empty or unreachable
+
+
+def check_sources(entries: list[AppManifestEntry], seaweedfs_bucket: str, max_age_hours: float, now: datetime) -> list[SourceStatus]:
+    """For each app and each source that could restore it, the newest backup there and its age. Lists only."""
+    rows: list[SourceStatus] = []
+    for entry in entries:
+        remotes = [("seaweedfs", seaweedfs_bucket), *((target["name"], target["bucket"]) for target in entry.cloud_targets)]
+        for remote, bucket in remotes:
+            listing = rclone_lsjson(remote, bucket, entry.seaweedfs_path)
+            if listing is None:
+                rows.append(SourceStatus(entry.app, entry.host, remote, "-", None, "unreachable"))
+                continue
+            latest = pick_latest(listing, entry.host, entry.app)
+            if latest is None:
+                rows.append(SourceStatus(entry.app, entry.host, remote, "-", None, "empty"))
+                continue
+            name, stamp = latest
+            age = (now - stamp).total_seconds() / 3600
+            rows.append(SourceStatus(entry.app, entry.host, remote, name, age, "ok" if age <= max_age_hours else "stale"))
+    return rows
+
+
+def run_check(entries: list[AppManifestEntry], seaweedfs_bucket: str, max_age_hours: float) -> int:
+    rows = check_sources(entries, seaweedfs_bucket, max_age_hours, datetime.now(UTC))
+    table = [("APP", "HOST", "SOURCE", "STATE", "AGE (h)", "NEWEST")]
+    table += [(r.app, r.host, r.source, r.state, "-" if r.age_hours is None else f"{r.age_hours:.1f}", r.newest) for r in rows]
+    widths = [max(len(row[i]) for row in table) for i in range(6)]
+    for row in table:
+        print("  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=True)))
+    uncovered = sorted({e.app for e in entries} - {r.app for r in rows if r.state == "ok"})
+    if uncovered:
+        print(f"\nNo source holds a backup within {max_age_hours:g} hours of: {', '.join(uncovered)}")
+        return 1
+    print(f"\nEvery app has a backup within {max_age_hours:g} hours on at least one source.")
+    return 0
 
 
 def load_manifest() -> tuple[str, list[AppManifestEntry]]:
@@ -392,11 +447,15 @@ def main() -> int:
         metavar="APP",
         help="leave this app out, such as one already restored by hand; repeat for several",
     )
+    parser.add_argument("--check", action="store_true", help="list the newest backup of each app on every source and its age, and restore nothing")
+    parser.add_argument("--max-age-hours", type=float, default=30, metavar="N", help="with --check, how old the newest backup may be (default 30)")
     args = parser.parse_args()
 
     run_discovery_setup()
     seaweedfs_bucket, manifest_entries = load_manifest()
     manifest_entries = select_entries(manifest_entries, args.host, args.skip)
+    if args.check:
+        return run_check(manifest_entries, seaweedfs_bucket, args.max_age_hours)
 
     # Every decrypted archive is removed on the way out, whatever the exit
     # path: an abort, a declined prompt, an exception or Ctrl-C would

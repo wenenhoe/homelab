@@ -124,7 +124,10 @@ live, and a restore stops and overwrites them. `--skip` leaves an app out, such 
 `step-ca` on a rebuilt `security`, whose archive was restored by hand before
 `deploy.yaml` could run. Both may be repeated, and a name the manifest does not
 hold stops the run before anything is discovered, as does a selection that leaves
-nothing. The summary names the hosts in scope before the single `yes`. `step-ca`
+nothing. The summary names the hosts in scope before the single `yes`.
+`--check` is the read-only pre-flight: it lists each selected app's newest backup
+on every source with its age, downloads and restores nothing, and exits non-zero
+when an app has no source within `--max-age-hours` (30 by default). `step-ca`
 gates the rest of the batch only when the run covers it.
 
 Run this on the controller only — same machine/trust requirement as

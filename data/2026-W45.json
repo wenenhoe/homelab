@@ -1,0 +1,155 @@
+{
+ "week": "2026-W45",
+ "units": [
+  {
+   "cat": "scope",
+   "sha": "dd4332df4e1e5463a6de27a8fcbe8ab92fefca34",
+   "date": "2026-11-03T02:05:34+08:00",
+   "kind": "pr",
+   "pr": 608,
+   "title": "tofu state backend stage",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "ad62de7e038480ab1deb61ffae2d40abc5ce693e",
+   "date": "2026-11-03T02:11:00+08:00",
+   "kind": "pr",
+   "pr": 609,
+   "title": "tofu rebuild cycle notes",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "57105d6bb6157efe7e7e091f1f819cea362ed0b6",
+   "date": "2026-11-03T02:30:32+08:00",
+   "kind": "pr",
+   "pr": 610,
+   "title": "Add tofu play vm",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dc7c2032f001cb09f468cd5c776a1d8b4331ffc6",
+   "date": "2026-11-03T02:40:44+08:00",
+   "kind": "pr",
+   "pr": 611,
+   "title": "omit the modules that pull networking into the Ubuntu image's in\u2026",
+   "type": "fix",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "335bba9b4f51210695d796375ff7cfef7f39ee0a",
+   "date": "2026-11-03T02:48:16+08:00",
+   "kind": "pr",
+   "pr": 612,
+   "title": "Add tofu security vm",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c0b09d9b00a7a4aec50d03dded5117b17c9115c2",
+   "date": "2026-11-03T03:01:25+08:00",
+   "kind": "pr",
+   "pr": 613,
+   "title": "Add predeploy and security bootstrap",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": [
+    [
+     "adr",
+     "ADR 0099 r000 \u00b7 rebuilding security from nothing",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "c9876d7a772111aa614f91cdffc79463fccaec9d",
+   "date": "2026-11-03T03:08:06+08:00",
+   "kind": "pr",
+   "pr": 614,
+   "title": "Add openbao snapshot pull and init fix",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "31b5360f297b9c97daba0914fa16b714e27f2afb",
+   "date": "2026-11-03T03:16:47+08:00",
+   "kind": "pr",
+   "pr": 615,
+   "title": "prepare the Ubuntu image with the hosts alias and the timezone e\u2026",
+   "type": "fix",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "2635a92e63cc89456a8a0ef71d8f3b13db02d163",
+   "date": "2026-11-03T03:23:04+08:00",
+   "kind": "pr",
+   "pr": 616,
+   "title": "record the restore of security in the fire drill",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8d4e779bad749dbef0a1cf1f70ffc50ed2f5d122",
+   "date": "2026-11-03T03:34:08+08:00",
+   "kind": "pr",
+   "pr": 617,
+   "title": "Add restore all host filter and check",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9ad65ebb5a3ccac0359e9c7a296a333cfa098ab5",
+   "date": "2026-11-03T03:41:51+08:00",
+   "kind": "pr",
+   "pr": 618,
+   "title": "check a rebuilt host over SSH and lay out the rebuild in one ru\u2026",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b327a358420ca2333b2255a761dfe5218f90d792",
+   "date": "2026-11-03T04:18:24+08:00",
+   "kind": "pr",
+   "pr": 619,
+   "title": "Maintenance",
+   "type": "other",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  }
+ ]
+}

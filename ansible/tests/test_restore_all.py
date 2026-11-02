@@ -437,3 +437,80 @@ class TestWorldRestoreConfirmation:
 
         assert tasks[0]["ansible.builtin.assert"]["that"] == "restore_world_confirm | default(false) | bool"
         assert "ansible.builtin.command" in tasks[1]
+
+
+@pytest.mark.usefixtures("batch_environment")
+class TestHostAndAppSelection:
+    """A rebuilt host's restore must never reach the apps of hosts that are still live."""
+
+    @pytest.fixture
+    def fleet(self):
+        return [
+            _entry("step-ca", "security"),
+            _entry("lldap", "security"),
+            _entry("beszel-hub", "security"),
+            _entry("wastebin", "services"),
+            _entry("minecraft", "play"),
+        ]
+
+    @pytest.fixture
+    def discovered(self, fleet):
+        return {entry.app: _result(entry.app, entry.host) for entry in fleet}
+
+    @pytest.fixture
+    def all_succeed(self, fleet):
+        return {entry.app: True for entry in fleet}
+
+    def test_a_named_host_restores_only_its_own_apps(self, run_with, monkeypatch, fleet, discovered, all_succeed):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes", "--host", "security"])
+        rc, mock_restore, mock_minecraft = run_with(fleet, discovered, all_succeed)
+        assert rc == 0
+        assert [call.args[0].entry.app for call in mock_restore.call_args_list] == ["step-ca", "lldap", "beszel-hub"]
+        mock_minecraft.assert_not_called()
+
+    def test_without_a_host_every_hosts_apps_are_restored(self, run_with, fleet, discovered, all_succeed):
+        rc, mock_restore, _ = run_with(fleet, discovered, all_succeed)
+        assert rc == 0
+        assert mock_restore.call_count == len(fleet)
+
+    def test_a_skipped_app_is_never_discovered_or_restored(self, run_with, monkeypatch, fleet, discovered, all_succeed):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes", "--host", "security", "--skip", "lldap"])
+        rc, mock_restore, _ = run_with(fleet, discovered, all_succeed)
+        assert rc == 0
+        assert [call.args[0].entry.app for call in mock_restore.call_args_list] == ["step-ca", "beszel-hub"]
+        assert [call.args[0].app for call in restore_all.discover_and_decrypt.call_args_list] == ["step-ca", "beszel-hub"]
+
+    def test_skipping_step_ca_restores_the_rest_without_the_step_ca_gate(self, run_with, monkeypatch, fleet, discovered, all_succeed):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes", "--host", "security", "--skip", "step-ca"])
+        rc, mock_restore, _ = run_with(fleet, discovered, all_succeed)
+        assert rc == 0
+        assert [call.args[0].entry.app for call in mock_restore.call_args_list] == ["lldap", "beszel-hub"]
+
+    def test_a_host_without_step_ca_is_not_aborted_for_lacking_it(self, run_with, monkeypatch, fleet, discovered, all_succeed):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes", "--host", "services"])
+        rc, mock_restore, _ = run_with(fleet, discovered, all_succeed)
+        assert rc == 0
+        assert [call.args[0].entry.app for call in mock_restore.call_args_list] == ["wastebin"]
+
+    def test_step_ca_that_is_in_scope_and_cannot_be_discovered_still_aborts(self, run_with, monkeypatch, fleet, discovered, all_succeed):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes", "--host", "security"])
+        discovered["step-ca"] = restore_all.RestoreAllError("boom")
+        rc, mock_restore, _ = run_with(fleet, discovered, all_succeed)
+        assert rc == 1
+        mock_restore.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("argv", "message"),
+        [
+            pytest.param(["--host", "securty"], r"unknown host\(s\) securty", id="host-typo"),
+            pytest.param(["--skip", "lldapp"], r"unknown app\(s\) lldapp", id="app-typo"),
+            pytest.param(["--host", "play", "--skip", "minecraft"], "nothing is left to restore", id="empty-selection"),
+        ],
+    )
+    def test_a_name_the_manifest_lacks_or_an_empty_selection_stops_before_anything_is_discovered(
+        self, run_with, monkeypatch, fleet, discovered, all_succeed, argv, message
+    ):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes", *argv])
+        with pytest.raises(SystemExit, match=message):
+            run_with(fleet, discovered, all_succeed)
+        restore_all.discover_and_decrypt.assert_not_called()

@@ -37,6 +37,15 @@ Usage:
                                                    # single 'yes'
     python3 ansible/scripts/restore_all.py --yes  # unattended: skips the
                                                    # confirmation prompt
+    python3 ansible/scripts/restore_all.py --host security --skip step-ca
+                                                   # one rebuilt host only,
+                                                   # without an app already
+                                                   # restored by hand
+
+With no --host every host's apps are in scope, which is the lost-everything
+case. After a rebuild of one host, name it: the apps of the others are live and
+a restore overwrites them. --host and --skip may each be repeated, and a name
+the manifest does not hold is an error before anything is discovered.
 
 Exit status: 0 if every in-scope app restored successfully, 1 otherwise
 (including an aborted batch).
@@ -95,6 +104,26 @@ class DiscoveryResult:
     object_name: str
     backup_timestamp: datetime
     decrypted_path: Path
+
+
+def select_entries(entries: list[AppManifestEntry], hosts: list[str], skip: list[str]) -> list[AppManifestEntry]:
+    """The manifest entries a run covers: those on `hosts` (every host when none is named), without the apps in `skip`.
+
+    A name the manifest does not hold is an error, not an empty selection: a typo would otherwise restore
+    nothing, or, for --skip, everything the run meant to leave out.
+    """
+    known_hosts = sorted({entry.host for entry in entries})
+    known_apps = sorted({entry.app for entry in entries})
+    unknown_hosts = sorted(set(hosts) - set(known_hosts))
+    unknown_apps = sorted(set(skip) - set(known_apps))
+    if unknown_hosts:
+        raise SystemExit(f"unknown host(s) {', '.join(unknown_hosts)}; the manifest has: {', '.join(known_hosts)}")
+    if unknown_apps:
+        raise SystemExit(f"unknown app(s) {', '.join(unknown_apps)}; the manifest has: {', '.join(known_apps)}")
+    selected = [entry for entry in entries if (not hosts or entry.host in hosts) and entry.app not in skip]
+    if not selected:
+        raise SystemExit("nothing is left to restore after --host and --skip")
+    return selected
 
 
 def load_manifest() -> tuple[str, list[AppManifestEntry]]:
@@ -349,10 +378,25 @@ def main() -> int:
         action="store_true",
         help="skip the confirmation prompt (for unattended/fire-drill automation)",
     )
+    parser.add_argument(
+        "--host",
+        action="append",
+        default=[],
+        metavar="HOST",
+        help="restore only the apps on this host; repeat for several. Without it every host's apps are in scope",
+    )
+    parser.add_argument(
+        "--skip",
+        action="append",
+        default=[],
+        metavar="APP",
+        help="leave this app out, such as one already restored by hand; repeat for several",
+    )
     args = parser.parse_args()
 
     run_discovery_setup()
     seaweedfs_bucket, manifest_entries = load_manifest()
+    manifest_entries = select_entries(manifest_entries, args.host, args.skip)
 
     # Every decrypted archive is removed on the way out, whatever the exit
     # path: an abort, a declined prompt, an exception or Ctrl-C would
@@ -375,8 +419,11 @@ def run_batch(args: argparse.Namespace, seaweedfs_bucket: str, manifest_entries:
             errors[entry.app] = str(exc)
 
     print_summary(results, errors)
+    print(f"Hosts in scope: {', '.join(sorted({entry.host for entry in manifest_entries}))}")
 
-    if "step-ca" not in results:
+    # step-ca gates the rest only when this run covers it.
+    step_ca_selected = any(entry.app == "step-ca" for entry in manifest_entries)
+    if step_ca_selected and "step-ca" not in results:
         print(
             "\nstep-ca could not be discovered/decrypted — aborting the whole batch "
             "(lldap and tinyauth read its root cert on deploy, see deploy.yaml Play 6). "
@@ -395,25 +442,26 @@ def run_batch(args: argparse.Namespace, seaweedfs_bucket: str, manifest_entries:
 
     # step-ca first, and its failure aborts everything else — see this
     # script's module docstring.
-    step_ca_result = results["step-ca"]
-    step_ca_ok = run_app_restore(step_ca_result)
-    audit_entries.append(
-        {
-            "restored_at": datetime.now(UTC).isoformat(),
-            "app": "step-ca",
-            "host": step_ca_result.entry.host,
-            "source": step_ca_result.source,
-            "object": step_ca_result.object_name,
-            "backup_timestamp": step_ca_result.backup_timestamp.isoformat(),
-            "status": "success" if step_ca_ok else "failed",
-        }
-    )
-    step_ca_result.decrypted_path.unlink(missing_ok=True)
-    append_audit_log(audit_entries)
+    if step_ca_selected:
+        step_ca_result = results["step-ca"]
+        step_ca_ok = run_app_restore(step_ca_result)
+        audit_entries.append(
+            {
+                "restored_at": datetime.now(UTC).isoformat(),
+                "app": "step-ca",
+                "host": step_ca_result.entry.host,
+                "source": step_ca_result.source,
+                "object": step_ca_result.object_name,
+                "backup_timestamp": step_ca_result.backup_timestamp.isoformat(),
+                "status": "success" if step_ca_ok else "failed",
+            }
+        )
+        step_ca_result.decrypted_path.unlink(missing_ok=True)
+        append_audit_log(audit_entries)
 
-    if not step_ca_ok:
-        print("\nstep-ca restore failed — aborting the rest of the batch.")
-        return 1
+        if not step_ca_ok:
+            print("\nstep-ca restore failed — aborting the rest of the batch.")
+            return 1
 
     for app, result in results.items():
         if app == "step-ca":

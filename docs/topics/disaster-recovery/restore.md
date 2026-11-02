@@ -115,7 +115,17 @@ step 4 below for why.
 ```sh
 python3 ansible/scripts/restore_all.py            # interactive: one batch summary, one 'yes'
 python3 ansible/scripts/restore_all.py --yes      # unattended (fire-drill automation, etc.)
+python3 ansible/scripts/restore_all.py --host security --skip step-ca   # one rebuilt host
 ```
+
+With no `--host` every host's apps are in scope, which is the lost-everything
+case. After one host's rebuild name it with `--host`: the other hosts' apps are
+live, and a restore stops and overwrites them. `--skip` leaves an app out, such as
+`step-ca` on a rebuilt `security`, whose archive was restored by hand before
+`deploy.yaml` could run. Both may be repeated, and a name the manifest does not
+hold stops the run before anything is discovered, as does a selection that leaves
+nothing. The summary names the hosts in scope before the single `yes`. `step-ca`
+gates the rest of the batch only when the run covers it.
 
 Run this on the controller only — same machine/trust requirement as
 everything else in [the backup threat model](backup-threat-model.md):

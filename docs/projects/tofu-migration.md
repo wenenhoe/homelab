@@ -147,9 +147,9 @@ the same cycle:
    `zzzz-dracut-default.network`.
 4. Remove the host's `ansible_host` and `ansible_user` from
    `inventory.yaml`, keeping its group membership.
-5. Deploy with `deploy.yaml` and restore its apps with `restore.yaml`, as
-   [`fire-drill.md`](../topics/disaster-recovery/fire-drill.md) does on the
-   scratch host, and add a row for the host's restores to its
+5. Deploy with `deploy.yaml` and restore its apps with
+   [`restore_all.py --host <host>`](../topics/disaster-recovery/restore.md#batch-restore-all-apps-disaster-recovery-scenario),
+   which leaves the other hosts' apps alone, and add a row for the host's restores to its
    [results](../topics/disaster-recovery/fire-drill.md#results). `security`
    restores OpenBao first, from the step 1 snapshot, as the
    [restore drill](../topics/secrets/openbao-backup-restore.md#restore-drill)

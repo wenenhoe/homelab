@@ -4,22 +4,24 @@ title: Tofu Migration
 type: project
 status: building
 blocked: false
-summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild the Ubuntu VMs on the real VMID ranges, cut over, and decommission the old ones.
+summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild the Ubuntu VMs on the real VMID ranges, cut over, decommission the old ones, and move Tofu's state to a remote backend.
 super_project: tofu-vm-provisioning
 track: migration
 ---
 
 # Tofu Migration
 
-Tofu builds an isolated 5XX block, the first real `restore.yaml` runs against it, and once that is proven the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over and the old Ubuntu VMs are decommissioned. The gateway (VM 201) is rebuilt by [`opnsense-config.md`](opnsense-config.md), after this cutover. It builds on the Ubuntu and OPNsense modules and the inventory generator described in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md).
+Tofu builds an isolated 5XX block, the first real `restore.yaml` runs against it, and once that is proven the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over and the old Ubuntu VMs are decommissioned. Tofu's state then moves off the dev VM into a remote backend. The gateway (VM 201) is rebuilt by [`opnsense-config.md`](opnsense-config.md), after this cutover. It builds on the Ubuntu and OPNsense modules and the inventory generator described in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md).
 
 ## Scope
 
-The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml` run against it, the rebuild of the Ubuntu VMs on the real VMID ranges (1XX/2XX/…), the cutover, decommissioning the old Ubuntu VMs, and moving the hand-written `services`, `play`, `security`, `storage` and `tailscale` entries of `inventory.yaml` onto the generated inventory file. `storage` stays up throughout. VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope. Not in scope: the production gateway's rebuild (VM 201) and its day-2 configuration, both in [`opnsense-config.md`](opnsense-config.md).
+The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml` run against it, the rebuild of the Ubuntu VMs on the real VMID ranges (1XX/2XX/…), the cutover, decommissioning the old Ubuntu VMs, and moving the hand-written `services`, `play`, `security`, `storage` and `tailscale` entries of `inventory.yaml` onto the generated inventory file, and moving Tofu's state from the dev VM to a remote backend. `storage` stays up throughout. VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope. Not in scope: the production gateway's rebuild (VM 201) and its day-2 configuration, both in [`opnsense-config.md`](opnsense-config.md).
 
 ## Decision
 
-No ADR. The design is [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs.
+No ADR for the first two stages. The design is [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs.
+
+Stage 3 carries out a decision that is not yet made: where the remote state backend runs. It needs its own ADR, and Stage 3 does not start until that revision is `approved` and this doc names it in `decision:`.
 
 ## Environment (baseline)
 
@@ -53,6 +55,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Build the 5XX block, first `restore.yaml` run | Done | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
 | 2 | Cutover to real VMID ranges, decommission old VMs | In progress | the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old Ubuntu VMs are decommissioned with `storage` up throughout |
+| 3 | Move Tofu's state to a remote backend | Not started | the backend's host is decided by an ADR, `tofu init -migrate-state` has moved the state into it, the dev VM's file is no longer the only copy, and [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) describes the backend |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -123,8 +126,9 @@ the same cycle:
    OpenBao snapshot
    ([`openbao-backup-restore.md`](../topics/secrets/openbao-backup-restore.md#running-a-backup)),
    which is not part of that pipeline; the script exits 0 only once R2 and
-   B2 both have it. Take a copy of Tofu's state that is off the dev VM
-   ([open items](#open-items)).
+   B2 both have it. Take a copy of Tofu's state with `tofu state pull`, as
+   [State backend & secrets](../topics/infra/vm-provisioning.md#state-backend--secrets)
+   describes. It stays on the dev VM until Stage 3 ([risks](#risks)).
 2. `vzdump --compress zstd` the stopped old VM to the `vzdump` storage
    ([below](#dump-storage)), then destroy it. The dump is the rollback:
    `qmrestore` it to a 9XX VMID.
@@ -205,6 +209,16 @@ this cutover, so the old reservation is not carried across and nothing is
 waiting for it. The gateway's flows name the router's address, so the rebuilt
 VM must keep it.
 
+### Stage 3 — remote state
+
+Tofu's state is a local file on the dev VM, and the five rebuilds each change
+it. Once they are done, the state moves into the S3-compatible backend
+[`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets)
+plans, so Tofu's record of what it built no longer depends on one VM. The
+backend cannot be a VM Tofu manages, and where it runs is the ADR this stage
+waits on. The local copies the rebuilds took are deleted once the backend
+holds the state and a plan against it shows no change.
+
 ## Acceptance criteria
 
 - [x] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
@@ -215,21 +229,29 @@ VM must keep it.
 - [ ] `storage` stayed up throughout.
 - [ ] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
 - [ ] Every rebuilt host's restores are in the fire drill's results.
-- [ ] Tofu's state has a copy off the dev VM, refreshed after each apply.
+- [ ] A copy of Tofu's state was taken after each rebuild's apply.
+- [ ] Tofu's state is held by a remote backend, and a plan against it shows no change.
 - [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
+
+## Risks
+
+Could cause rework or delay but blocks nothing now — no live
+vulnerability, incident, or exposure window
+([`docs/README.md#public-repo`](../README.md#public-repo)).
+
+- Until Stage 3, every copy of Tofu's state is on the dev VM, so losing that
+  VM loses the record of what Tofu built. Retiring the dev VM
+  ([`workstation-management.md`](workstation-management.md)) must wait for
+  Stage 3.
 
 ## Open items
 
 - How the buckets are copied from VM 206 to VM 207, and how the flip is
   made once the records exist. Needs the records stage's design and the
   admin identity's reach.
-- Where Tofu's state is kept off the dev VM. The state file is the only
-  copy of what Tofu built, and each rebuild changes it, but the backup
-  [State backend & secrets](../topics/infra/vm-provisioning.md#state-backend--secrets)
-  describes lands on that same VM. The remote backend that replaces it is
-  its own decision and needs an ADR for its host; the first rebuild needs
-  only a place off the VM for the `tofu state pull` copy, settled before
-  it.
+- Where the remote state backend runs. It needs an ADR before Stage 3 starts.
+  The backend cannot be a VM Tofu manages, so it rules out `storage`, and a
+  separate small SeaweedFS instance is the leading idea.
 - Whether `tailscale` needs the 2 vCPU and 2 GB the table keeps for it. The
   VM is a routing appliance that runs `tailscaled` and the guest agent and
   no Docker, so it may need less than the hosts the keep-current-size rule

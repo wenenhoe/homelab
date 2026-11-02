@@ -20,59 +20,8 @@
       own compose deploy (see deploy.yaml's Play ordering).
   when: not step_ca_cert_container_info.exists
 
-# Reads the cert straight from the certs volume, read-only, rather than
-# exec'ing into the app: an app that crash-loops until its first cert exists
-# (lldap's cold start) cannot be exec'd into, and that is the normal state
-# on a first deploy, not a failure. The container's exit status is the
-# answer: 0 means a readable cert is there, anything else means there is
-# none (or none worth keeping), and issuance below replaces it. Same
-# read-only root mount as the renewal unit's ExecCondition.
 - name: "Read the already-issued cert, if any: {{ step_ca_cert_app_name }}"
-  community.docker.docker_container:
-    name: "step-ca-cert-inspect-{{ step_ca_cert_app_name }}"
-    image: "{{ step_ca_cert_step_cli_image }}"
-    user: root
-    volumes:
-      - "{{ step_ca_cert_certs_volume_name }}:/certs:ro"
-    command:
-      - step
-      - certificate
-      - inspect
-      - /certs/fullchain.pem
-      - --format
-      - json
-    network_mode: none
-    cap_drop:
-      - ALL
-    # The cert is mode 0600 and, once handed to the app's user, that user's.
-    # Without DAC_OVERRIDE the read fails, which this task takes for "no
-    # cert" and so reissues over a valid one.
-    capabilities:
-      - DAC_OVERRIDE
-    security_opts:
-      - no-new-privileges:true
-    detach: false
-    cleanup: true
-    # `container.Output` below is a placeholder string on any driver
-    # other than json-file, same as roles/openbao's own read of it.
-    log_driver: json-file
-  register: step_ca_cert_inspect_result
-  changed_when: false
-  failed_when: false
-  check_mode: false
-
-# `failed_when: false` above hides a probe that never ran (the Docker API
-# refused, the image would not pull) as well as one that exited non-zero, and
-# only the first leaves no exit status. Reading that as "no cert" would reissue
-# over a valid one and restart the app.
-- name: "Fail loudly if the certificate probe could not run: {{ step_ca_cert_app_name }}"
-  ansible.builtin.fail:
-    msg: >-
-      Could not check whether {{ step_ca_cert_app_name }} already has a cert
-      in the "{{ step_ca_cert_certs_volume_name }}" volume:
-      {{ step_ca_cert_inspect_result.msg | default('no result') }}.
-      Nothing was changed.
-  when: step_ca_cert_inspect_result.status is not defined
+  ansible.builtin.include_tasks: inspect.yaml
 
 # Issuance below only runs when no cert exists, so a change to the
 # requested names never reaches a cert that's already there. Fail on any

@@ -1,0 +1,16 @@
+---
+# Gives OpenBao its leaf cert from step-ca: deploy.yaml's Play 6 runs it in
+# full, and bootstrap-security.yaml sets openbao_cert_tasks_from to
+# issue.yaml for the issuance alone. The one place these variables are set.
+
+- name: Issue OpenBao's cert from step-ca
+  ansible.builtin.include_role:
+    name: step_ca_cert
+    tasks_from: "{{ openbao_cert_tasks_from }}"
+  vars:
+    step_ca_cert_app_name: openbao
+    step_ca_cert_common_name: openbao
+    step_ca_cert_container_cert_dir: /openbao/certs
+    step_ca_cert_renew_action: signal
+    step_ca_cert_chown_image: "{{ openbao_image }}"
+    step_ca_cert_chown_user: openbao

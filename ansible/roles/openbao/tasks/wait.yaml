@@ -1,0 +1,20 @@
+---
+# Waits for OpenBao to answer on loopback and fails if it never does.
+# Registers openbao_wait_status. Exit 2 is sealed or uninitialised, which is
+# the state to expect after a deploy.
+
+- name: Wait for OpenBao to answer
+  community.docker.docker_container_exec:
+    container: openbao
+    argv: [bao, status, "-address=https://127.0.0.1:8200"]
+  register: openbao_wait_status
+  changed_when: false
+  failed_when: false
+  until: openbao_wait_status.rc is defined and openbao_wait_status.rc in [0, 2]
+  retries: 20
+  delay: 5
+
+- name: Fail if OpenBao never answered
+  ansible.builtin.fail:
+    msg: "OpenBao did not answer on 127.0.0.1:8200. Read its log: docker logs openbao"
+  when: openbao_wait_status.rc is not defined or openbao_wait_status.rc not in [0, 2]

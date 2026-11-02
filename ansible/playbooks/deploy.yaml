@@ -127,16 +127,10 @@
       tags:
         - images
 
-    - name: Include step_ca_cert role for openbao
+    - name: Include openbao's cert tasks
       ansible.builtin.include_role:
-        name: step_ca_cert
-      vars:
-        step_ca_cert_app_name: openbao
-        step_ca_cert_common_name: openbao
-        step_ca_cert_container_cert_dir: /openbao/certs
-        step_ca_cert_renew_action: signal
-        step_ca_cert_chown_image: "openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f"
-        step_ca_cert_chown_user: openbao
+        name: openbao
+        tasks_from: cert.yaml
       tags:
         - images
 

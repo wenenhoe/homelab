@@ -118,9 +118,11 @@ protects:
 | `services` | 203 | 4 | 2 GB | 64 GB | 39 GB |
 
 **One host at a time.** Each rebuild is its own pull request and runs
-the same cycle:
+the same cycle, which [`rebuild-runbook.md`](../topics/disaster-recovery/rebuild-runbook.md)
+lays out with the script that runs each step:
 
-1. Back up the host's apps on demand
+1. Check that every app of the host has a recent backup
+   (`restore_all.py --check --host <host>`), back up the host's apps on demand
    ([`backup.md`](../topics/disaster-recovery/backup.md#running-a-backup-now))
    and confirm each archive is in SeaweedFS. For `security`, also take the
    OpenBao snapshot

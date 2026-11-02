@@ -24,8 +24,10 @@ services:
     # starts, not by anything in this compose file — see that role's
     # own comment for why a persistent compose service turned out to
     # be the wrong tool for that one-time fix.
+    # bootstrap-security.yaml sets openbao_publish_address to 127.0.0.1 while
+    # the node is uninitialised, so nothing else on the LAN can initialise it.
     ports:
-      - '0.0.0.0:8200:8200'
+      - '{{ openbao_publish_address | default("0.0.0.0") }}:8200:8200'
     networks:
       - caddy-proxy
     # No -config= flag: the entrypoint already scans /openbao/config by

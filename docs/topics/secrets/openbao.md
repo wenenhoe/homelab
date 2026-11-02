@@ -38,7 +38,9 @@ reverse-proxy vhost. Unlike step-ca, though, OpenBao does need
 reachability from other hosts eventually — `controller`-run plays on
 hosts other than `security` reach Vault's API for every secret now
 sourced from it. `compose.yaml.j2` publishes `8200` directly on the host
-(`0.0.0.0:8200:8200`), the same bypass-Caddy-but-still-TLS approach
+(`0.0.0.0:8200:8200`, or `127.0.0.1` while
+[`bootstrap-security.yaml`](../../../ansible/playbooks/bootstrap-security.yaml)
+holds an uninitialised node), the same bypass-Caddy-but-still-TLS approach
 lldap's LDAPS listener uses (see [`lldap.md`](../services/lldap.md)) — not proxied
 HTTP-through-Caddy, since API/token clients don't want Caddy's
 forward-auth in front of them the way a browser app does. The hostname

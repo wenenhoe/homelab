@@ -71,7 +71,8 @@ ansible-playbook playbooks/predeploy.yaml --limit security
 
 It is the only part of `deploy.yaml` that can run on a rebuilt `security`
 before OpenBao and step-ca exist there: Play 0 logs into OpenBao and reads
-step-ca's root certificate from `security`'s Docker.
+step-ca's root certificate from `security`'s Docker. It is the first step of
+[Rebuilding `security`](../secrets/openbao-backup-restore.md#rebuilding-security).
 
 ## Play 0 notes
 

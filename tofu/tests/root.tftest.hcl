@@ -26,7 +26,7 @@ run "imports_the_prepared_image_named_after_the_pinned_release" {
   command = plan
 
   assert {
-    condition     = module.ubuntu_template.image_volume_id == "tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-no-initrd-network.qcow2"
+    condition     = module.ubuntu_template.image_volume_id == "tofu-images:import/ubuntu-26.04-server-cloudimg-amd64-release-20260927-prepared-Asia-Singapore.qcow2"
     error_message = "the template must import the prepared copy that prepare_image.sh names from the pinned URL"
   }
 }
@@ -39,9 +39,37 @@ run "a_new_pin_selects_a_new_volume" {
   }
 
   assert {
-    condition     = endswith(module.ubuntu_template.image_volume_id, "-release-20261101-no-initrd-network.qcow2")
+    condition     = endswith(module.ubuntu_template.image_volume_id, "-release-20261101-prepared-Asia-Singapore.qcow2")
     error_message = "a different release directory must give a different volume, so the template is replaced"
   }
+}
+
+run "another_timezone_selects_a_new_volume_and_is_passed_to_the_script" {
+  command = plan
+
+  variables {
+    timezone = "Europe/Paris"
+  }
+
+  assert {
+    condition     = endswith(module.ubuntu_template.image_volume_id, "-prepared-Europe-Paris.qcow2")
+    error_message = "a different timezone must give a different volume, so the template is replaced"
+  }
+
+  assert {
+    condition     = endswith(output.ubuntu_image_prepare_command, " OUT_DIR Europe/Paris")
+    error_message = "the printed command must carry the timezone the image is prepared for"
+  }
+}
+
+run "rejects_a_timezone_that_is_not_a_zoneinfo_name" {
+  command = plan
+
+  variables {
+    timezone = "../etc/passwd"
+  }
+
+  expect_failures = [var.timezone]
 }
 
 run "rejects_a_pin_that_is_not_a_release_image" {
@@ -68,7 +96,7 @@ run "prints_the_command_that_prepares_the_image" {
   command = plan
 
   assert {
-    condition     = endswith(output.ubuntu_image_prepare_command, "release-20260927/ubuntu-26.04-server-cloudimg-amd64.img 8800651811af9a85465ad1d552add729947bb16488dddb4a9b5305a3d97332b2 OUT_DIR")
+    condition     = endswith(output.ubuntu_image_prepare_command, "release-20260927/ubuntu-26.04-server-cloudimg-amd64.img 8800651811af9a85465ad1d552add729947bb16488dddb4a9b5305a3d97332b2 OUT_DIR Asia/Singapore")
     error_message = "the printed command must carry the pinned URL and checksum"
   }
 }

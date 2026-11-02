@@ -112,10 +112,11 @@ range. It takes its image from either `image_url` with `image_checksum`, which
 Proxmox downloads, or `image_volume_id` alone
 (`<datastore>:import/<name>.qcow2`), a volume already on the node, and
 rejects both or neither. The root module passes `image_volume_id`: the copy
-that [`prepare_image.sh`](#ubuntu-image-without-initramfs-networking) builds from the
+that [`prepare_image.sh`](#prepared-ubuntu-image) builds from the
 dated release directory and SHA-256 in `ubuntu_image_url` and
 `ubuntu_image_checksum` (`tofu/variables.tf`), named
-`<image name>-<release directory>-no-initrd-network.qcow2` on `image_datastore_id`.
+`<image name>-<release directory>-prepared-<timezone>.qcow2` on `image_datastore_id`, with
+the zone from the `timezone` variable (default `Asia/Singapore`, the inventory's `server_timezone`).
 The `ubuntu_image_prepare_command` output prints the command for the current pin.
 The root module builds the template and declares two VMs: `play` (VMID 204,
 4 vCPU, 4 GB, a 64 GB disk) and `security` (VMID 205, 4 vCPU, 2 GB, a 64 GB disk). Their `dns_domain` and `ssh_public_keys` come from the
@@ -186,7 +187,13 @@ and `validate`, on every change under `tofu/`
 ([`pipeline.md`](../engineering/ci/pipeline.md#jobs)); run `tofu fmt -recursive`
 before pushing.
 
-### Ubuntu image without initramfs networking
+### Prepared Ubuntu image
+
+Every Ubuntu VM is cloned from a template built from a prepared copy of the cloud image. The script changes
+three things, which are fixed once in the image and not on each host: the initramfs, cloud-init's hosts template,
+and the timezone. The last two are [below](#hosts-template-and-timezone).
+
+#### Initramfs without networking
 
 The 26.04 cloud image builds its initramfs with dracut. Dracut's
 `systemd-networkd` module runs in the initramfs and, with no `ip=` option on the
@@ -207,7 +214,7 @@ DHCP, and Kea serves no VLAN 20 zone once the gateway play has rebuilt the
 gateway. The template is therefore built from the copy this script writes.
 
 `tofu/modules/proxmox_ubuntu_template/prepare_image.sh IMAGE_URL IMAGE_CHECKSUM
-OUT_DIR` writes a copy of the image whose initramfs lacks `systemd-networkd`. It runs as
+OUT_DIR TIMEZONE` writes a copy of the image whose initramfs lacks `systemd-networkd`. It runs as
 root or as a user with `sudo`, whose password it asks for before it downloads
 anything, on a host with `curl`, `qemu-img` and util-linux (`losetup`, `lsblk`,
 `blkid`, `mount`, `chroot`), and needs about 8 GB free in `OUT_DIR`
@@ -233,7 +240,7 @@ initramfs lists `systemd-networkd` before the change (an image that no longer
 needs the step), when any initramfs lists an omitted module or `systemd-networkd`
 afterwards (another module then needs the network, and the list of omitted
 modules needs that module too), and when a listing fails. It
-writes `OUT_DIR/<image name>-<release directory>-no-initrd-network.qcow2` as a
+writes `OUT_DIR/<image name>-<release directory>-prepared-<timezone>.qcow2` as a
 compressed qcow2 with its SHA-256 in `<file>.sha256`. On every exit path it unmounts in reverse order,
 detaches the loop device and removes its work directory, except that a failed
 unmount leaves the directory in place, since removing it over a mount would
@@ -241,6 +248,22 @@ delete the image's files and the host's `/dev` entries. The template imports the
 from the node's `tofu-images` storage: copy it to
 `/var/lib/tofu-images/import/` on the node (`scp`), check the `.sha256` there,
 then run the apply above.
+
+#### Hosts template and timezone
+
+A VM has a fully qualified name from its search domain and cloud-init's `manage_etc_hosts` on, so cloud-init renders
+`/etc/hosts` from `/etc/cloud/templates/hosts.debian.tmpl` at every boot with the line
+`127.0.1.1 {{fqdn}} {{hostname}}`. `systemd-resolved` answers lookups from `/etc/hosts`, and Docker's DNS for containers
+forwards to it, so a container on the host resolved the host's own name to an address that is loopback inside the
+container. Tinyauth could not reach lldap, which it addresses by a CNAME to the host's name. The script rewrites the
+line to `127.0.1.1 {{hostname}}`, matching the whole line, and stops when the template no longer has it, so an upstream
+change cannot leave the fully qualified name in place.
+
+The script also sets `/etc/localtime` and `/etc/timezone` to `TIMEZONE`, and stops when the image has no such zone.
+`server_timezone` reaches containers as `TZ`, and a host left on UTC would run the `OnCalendar` schedules of its systemd
+timers hours away from the containers' cron schedules: the cloud sync that follows the backups, the certificate renewal
+heartbeat and the expiry checks. The zone is part of the image's name, so another zone is another volume and the template
+is replaced.
 
 ### Scratch Ubuntu VM
 

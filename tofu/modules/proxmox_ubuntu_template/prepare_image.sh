@@ -1,26 +1,37 @@
 #!/usr/bin/env bash
-# Builds a copy of an Ubuntu cloud image whose initramfs has no systemd-networkd dracut module.
-# Usage: prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR
+# Builds the copy of an Ubuntu cloud image that every VM is cloned from. It changes three things.
+# Usage: prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR TIMEZONE
+# 1. The initramfs has no systemd-networkd dracut module.
 # With the module, the initramfs brings the NIC up with DHCP before cloud-init runs, so
 # cloud-init's rename of the NIC fails as busy and the static address of the VM never applies.
 # dracut includes systemd-networkd only when another module needs the network, so the script
 # omits the ones the image pulls in (dyn-netconf, iscsi), not the networking module itself.
+# 2. cloud-init's hosts template keeps only the short name on the 127.0.1.1 alias. The VM has a
+# fully qualified name and manage_etc_hosts on, so cloud-init would write the FQDN there, and
+# systemd-resolved answers from /etc/hosts, which Docker's DNS for containers forwards to: a
+# container on the host would resolve the host's own name to an address that is loopback inside it.
+# 3. The timezone is TIMEZONE, which the VMs would otherwise leave at UTC. systemd timers read
+# OnCalendar in the host's timezone, so the schedules the roles write would run hours away from the
+# containers' cron schedules, which take the same zone as TZ.
 # The script downloads the image, checks it against IMAGE_CHECKSUM, unpacks it to a raw disk on a
 # loop device, omits those modules in the image's dracut configuration, regenerates the image's
 # initramfs files and fails unless none of them lists an omitted module or systemd-networkd any
-# more. It writes OUT_DIR/<image name>-<release directory>-no-initrd-network.qcow2 and its SHA-256
+# more. It then rewrites the hosts template and sets the timezone, and fails when the template no
+# longer has the line it rewrites or the image has no such zone. It writes
+# OUT_DIR/<image name>-<release directory>-prepared-<TIMEZONE with / as ->.qcow2 and its SHA-256
 # beside it as <file>.sha256, and removes everything else on every exit path. The release directory
-# in the name is what makes a newer release a different volume for the template to import.
+# and the timezone in the name are what make a newer release or another zone a different volume for
+# the template to import.
 # Run it as root or as a user with sudo, which it asks for before it downloads anything. It needs
 # curl, qemu-img, losetup, lsblk, blkid, mount, umount, chroot and about 8 GB free in OUT_DIR
 # (MIN_FREE_KB). PART_TRIES and PART_WAIT bound the wait for the loop device's partitions to appear.
 set -euo pipefail
 
-usage="usage: prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR"
+usage="usage: prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR TIMEZONE"
 url=${1:?$usage}
 sum=${2:?$usage}
-mkdir -p "${3:?$usage}"
-out=$(cd "$3" && pwd)
+out_arg=${3:?$usage}
+tz=${4:?$usage}
 # The modules that need the network in the initramfs, and the module whose presence is the fault.
 omitted=(dyn-netconf iscsi)
 networkd=systemd-networkd
@@ -32,6 +43,9 @@ die() {
 
 [[ "$url" =~ ^https://[A-Za-z0-9._~:/%+-]+\.img$ ]] || die "IMAGE_URL must be an https:// URL of an Ubuntu cloud .img file"
 [[ "$sum" =~ ^[0-9a-f]{64}$ ]] || die "IMAGE_CHECKSUM must be 64 lowercase hexadecimal characters"
+[[ "$tz" =~ ^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$ ]] || die "TIMEZONE must be a zoneinfo name such as Asia/Singapore"
+mkdir -p "$out_arg"
+out=$(cd "$out_arg" && pwd)
 for t in curl qemu-img losetup lsblk blkid mount umount chroot; do
   command -v "$t" > /dev/null || die "$t is not installed here"
 done
@@ -46,7 +60,7 @@ else
   priv() { sudo "$@"; }
 fi
 
-target=$out/$(basename "$url" .img)-$(basename "$(dirname "$url")")-no-initrd-network.qcow2
+target=$out/$(basename "$url" .img)-$(basename "$(dirname "$url")")-prepared-${tz//\//-}.qcow2
 work=$(mktemp -d "$out/.prepare.XXXXXX")
 mnt=$work/mnt
 scratch=$work/tmp
@@ -161,11 +175,26 @@ while read -r f; do
   done
 done <<< "$after"
 
+# The line is matched exactly, so an upstream change to the template stops the build instead of leaving
+# the FQDN on the alias.
+hosts_template=$mnt/etc/cloud/templates/hosts.debian.tmpl
+fqdn_line='127.0.1.1 {{fqdn}} {{hostname}}'
+grep -qxF "$fqdn_line" "$hosts_template" || die "the image's hosts template has no line '$fqdn_line' to rewrite"
+priv sed -i "s/^127\\.0\\.1\\.1 {{fqdn}} {{hostname}}\$/127.0.1.1 {{hostname}}/" "$hosts_template"
+[ "$(grep -F '127.0.1.1' "$hosts_template")" = '127.0.1.1 {{hostname}}' ] || die "the hosts template still carries the fully qualified name"
+
+[ -f "$mnt/usr/share/zoneinfo/$tz" ] || die "the image has no timezone $tz"
+priv ln -sf "/usr/share/zoneinfo/$tz" "$mnt/etc/localtime"
+printf '%s\n' "$tz" | priv tee "$mnt/etc/timezone" > /dev/null
+[ "$(readlink "$mnt/etc/localtime")" = "/usr/share/zoneinfo/$tz" ] || die "the image's /etc/localtime is not $tz"
+
 unmount_all || die "could not unmount the image"
 qemu-img convert -O qcow2 -c "$work/disk.raw" "$work/image.qcow2"
 result=$(sha256sum "$work/image.qcow2" | cut -d' ' -f1)
 mv "$work/image.qcow2" "$target"
 printf '%s\n' "$result" > "$target.sha256"
 echo "initramfs files without ${omitted[*]} and $networkd: $(tr '\n' ' ' <<< "$after")"
+echo "hosts template: $(grep -F '127.0.1.1' "$hosts_template")"
+echo "timezone: $tz"
 echo "wrote $target"
 echo "sha256 $result"

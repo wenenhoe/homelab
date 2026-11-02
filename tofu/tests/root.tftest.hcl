@@ -7,8 +7,10 @@ mock_provider "proxmox" {
 }
 
 variables {
-  proxmox_endpoint  = "https://pve.example.lan:8006/"
-  proxmox_api_token = "tofu@pve!skeleton=secret"
+  proxmox_endpoint        = "https://pve.example.lan:8006/"
+  proxmox_api_token       = "tofu@pve!skeleton=secret"
+  dns_domain              = "internal.example.com"
+  ansible_ssh_public_keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest test"]
 }
 
 run "builds_the_template_from_the_pinned_image" {
@@ -71,11 +73,25 @@ run "prints_the_command_that_prepares_the_image" {
   }
 }
 
-run "publishes_no_inventory_hosts_until_a_vm_is_declared" {
+run "declares_the_play_host_on_its_vmid" {
   command = plan
 
   assert {
-    condition     = output.ansible_hosts == {}
-    error_message = "ansible_hosts must be empty while the root declares no VM modules"
+    condition     = module.play.vm_id == 204 && module.play.hostname == "play"
+    error_message = "the play host must be VMID 204, named play"
+  }
+}
+
+run "publishes_the_play_host_for_the_inventory_generator" {
+  command = plan
+
+  assert {
+    condition     = length(output.ansible_hosts) == 1
+    error_message = "ansible_hosts must name exactly the VMs the root declares"
+  }
+
+  assert {
+    condition     = output.ansible_hosts.play.ip_address == "192.168.20.4" && output.ansible_hosts.play.admin_username == "playadmin"
+    error_message = "the play entry must carry the VMID-derived address and the admin user the inventory used"
   }
 }

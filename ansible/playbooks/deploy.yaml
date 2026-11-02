@@ -6,34 +6,9 @@
 - name: Play 0 - Secrets
   ansible.builtin.import_playbook: bootstrap-secrets.yaml
 
-# Play 1 — System setup on every managed (real) host. Covers docker
-# engine and the stacks directory; per-app files come later.
-# hosts: managed_hosts, not hosts: all — all also includes the
-# controller (see inventory.yaml), which must never get Docker
-# installed on it or a container deployed to it.
-- name: System setup
-  hosts: managed_hosts
-  gather_facts: true
-  become: true
-  tasks:
-    - name: Include docker install role
-      ansible.builtin.include_role:
-        name: docker
-      tags:
-        - initial-setup
-
-    - name: Include qemu_guest_agent install role
-      ansible.builtin.include_role:
-        name: qemu_guest_agent
-      tags:
-        - initial-setup
-
-    - name: Include compose's preinit.yaml
-      ansible.builtin.include_role:
-        name: compose
-        tasks_from: preinit.yaml
-      tags:
-        - always # the stacks directory every role below writes into
+# Play 1 — System setup on every managed (real) host: predeploy.yaml.
+- name: Play 1 - System setup
+  ansible.builtin.import_playbook: predeploy.yaml
 
 # Play 2 — Caddy builds/deploys/restarts itself so it's already routing
 # before anything else comes up behind it.

@@ -7,7 +7,7 @@
   tasks:
     # Deliberately no container started at all — that's the whole point
     # of this scenario. The guard this tests is the very first task in
-    # step_ca_cert/tasks/main.yaml, before anything step-ca-related
+    # step_ca_cert/tasks/issue.yaml, before anything step-ca-related
     # runs, so a throwaway step-ca isn't needed here either. app_name
     # is arbitrary — the guard doesn't depend on which real app this
     # instance represents.

@@ -165,3 +165,113 @@ On a throwaway host — burn it afterward, don't reuse it:
    exited 0. No root token or `vault-bootstrap` needed for this: a
    plain read is exactly what `controller`'s own policy already
    grants.
+
+## Rebuilding `security`
+
+A rebuilt `security` cannot be brought back with `deploy.yaml` or
+`restore.yaml` alone. Both start by logging into OpenBao and reading
+step-ca's root certificate from `security`'s Docker, and a new VM has neither.
+OpenBao needs a certificate from step-ca, step-ca needs a password that is
+stored in OpenBao, and `restore.yaml` needs OpenBao for its S3 keys.
+[`bootstrap-security.yaml`](../../../ansible/playbooks/bootstrap-security.yaml)
+breaks the loop in three stages, with the steps that handle key shares left
+to the operator ([ADR 0099 (Rebuilding security from nothing)](../../decisions/0099-rebuilding-security-from-nothing/revision-000.md)).
+It is for `security` only: a rebuilt `services`, `storage` or `tailscale`
+passes Play 0 as soon as `security` is healthy.
+
+What you need before starting, none of it on the new VM:
+
+- The latest OpenBao snapshot, fetched and decrypted as the
+  [restore drill](#restore-drill) does in steps 2 and 3.
+- The original unseal shares (the password manager entry).
+- The latest `security-step-ca-*` archive, fetched and decrypted into a
+  plain `.tar.gz` as [`restore.md`](../disaster-recovery/restore.md#manual-steps-first)
+  describes.
+- The controller AppRole's `openbao-controller-role-id` and
+  `openbao-controller-secret-id` in the file cache, and `main-domain`. The
+  AppRole is part of the restored data, so the cached `secret_id` works if it
+  was issued before the snapshot was taken.
+
+The new VM's SSH host key differs from the old one's. Remove the old entry
+from `known_hosts` for `security`'s name and address first, or `openbao_utils`
+refuses the connection.
+
+1. Docker and the stacks directory, without Play 0:
+
+   ```sh
+   cd ansible && ansible-playbook playbooks/predeploy.yaml --limit security
+   ```
+
+2. Stage 1 starts OpenBao on `127.0.0.1` with the repository's own config and a
+   self-signed certificate valid for 24 hours. It creates the `caddy-proxy`
+   network with the labels Compose gives it, so Caddy's stack adopts it later.
+   Re-running it keeps an existing certificate.
+
+   ```sh
+   ansible-playbook playbooks/bootstrap-security.yaml --tags stage1
+   ```
+
+3. Initialise it with throwaway keys and unseal it with them. `init` ends by
+   asking you to store what it printed; don't. Discard the keys and the root token
+   once step 5 is done:
+
+   ```sh
+   cd ../tools
+   python3 -m openbao_utils.init
+   python3 -m openbao_utils.unseal    # twice, with two of the new shares
+   ```
+
+4. Stream the decrypted snapshot into the container as its own user, so no
+   copy is readable by anyone else:
+
+   ```sh
+   ssh security 'docker exec -i openbao sh -c "umask 077; cat > /tmp/restore.snap"' < restore.snap
+   ```
+
+5. On `security`, restore it with the throwaway root token, which is typed at a
+   hidden prompt and passed through the environment, never in an argument.
+   `bao operator raft snapshot restore -force` is the form the
+   [drill](#restore-drill) explains:
+
+   ```sh
+   ssh -t security
+   read -rs BAO_TOKEN && export BAO_TOKEN
+   docker exec -e BAO_TOKEN -e BAO_ADDR=https://127.0.0.1:8200 -e BAO_SKIP_VERIFY=true      openbao bao operator raft snapshot restore -force /tmp/restore.snap
+   docker exec openbao rm /tmp/restore.snap
+   ```
+
+6. Check `bao status`, then unseal with the original shares, twice, whether or
+   not it reports sealed:
+
+   ```sh
+   python3 -m openbao_utils.unseal
+   ```
+
+7. Stage 2 reads step-ca's two passwords out of OpenBao as the `controller`
+   AppRole (the `secret_id` goes in over stdin, and the token is revoked at the
+   end), renders step-ca's files, and restores its `data` volume from the
+   archive before starting it, so it never runs on an empty volume. It refuses
+   an archive without `config/ca.json`, which step-ca's entrypoint would answer
+   by creating a new CA. It prints the root certificate's fingerprint:
+   compare it with a host that already trusts the CA.
+
+   ```sh
+   cd ../ansible
+   ansible-playbook playbooks/bootstrap-security.yaml --tags stage2 \
+     -e bootstrap_step_ca_archive=/path/to/security-step-ca-<time>.tar.gz
+   ```
+
+8. Stage 3 re-renders OpenBao on its normal address, removes the placeholder
+   (only a self-signed certificate), has step-ca issue the real one with the
+   same task `deploy.yaml` uses, and restarts OpenBao, which seals it. Unseal it
+   with the original shares, twice:
+
+   ```sh
+   ansible-playbook playbooks/bootstrap-security.yaml --tags stage3
+   cd ../tools && python3 -m openbao_utils.unseal
+   ```
+
+9. Play 0 now passes. Continue with the
+   [rebuild cycle](../../projects/tofu-migration.md#stage-2--cutover): `deploy.yaml
+   --limit security,localhost`, then `restore.yaml` for the remaining apps, and
+   the Beszel fingerprint ([`beszel.md`](../monitoring/beszel.md#rebuilding-a-host)).

@@ -131,9 +131,18 @@ the same cycle:
    describes. It stays on the dev VM until Stage 3 ([risks](#risks)).
 2. `vzdump --compress zstd` the stopped old VM to the `vzdump` storage
    ([below](#dump-storage)), then destroy it. The dump is the rollback:
-   `qmrestore` it to a 9XX VMID.
+   `qmrestore` it to a 9XX VMID. Then delete the host's Kea reservation and
+   lease on the live gateway (`storage` does this at step 9 of
+   [Moving `storage`](#moving-storage), since its old VM outlives the new
+   one). The new VM holds its address from cloud-init, and a reservation left
+   in place would hide a failed static configuration behind a lease.
 3. Add the host's module call and `ansible_hosts` entry to the root
-   module, apply, and run the inventory generator.
+   module, apply, and run the inventory generator. The first apply replaces
+   the Ubuntu template, which imports the prepared image, so build and stage
+   that image first
+   ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#ubuntu-image-without-dyn-netconf)).
+   A VM cloned from the stock image keeps a DHCP address instead of its
+   static one.
 4. Remove the host's `ansible_host` and `ansible_user` from
    `inventory.yaml`, keeping its group membership.
 5. Deploy with `deploy.yaml` and restore its apps with `restore.yaml`, as
@@ -143,9 +152,11 @@ the same cycle:
    restores OpenBao first, from the step 1 snapshot, as the
    [restore drill](../topics/secrets/openbao-backup-restore.md#restore-drill)
    does: it has no `backup:` entry, so `restore.yaml` does not bring it
-   back, and the playbooks read their secrets from it.
+   back, and the playbooks read their secrets from it. Set the host's
+   saved fingerprint in the Beszel hub to its new agent's, or the agent is
+   refused ([`beszel.md`](../topics/monitoring/beszel.md#rebuilding-a-host)).
 6. Delete the dump once the host's apps are confirmed healthy on the new
-   VM.
+   VM, then run `fstrim -v /mnt/vzdump` ([below](#dump-storage)).
 
 `storage` can't take the cycle as written: SeaweedFS keeps its data in a
 Docker volume on the VM's own root disk, so destroying VM 206 destroys it,
@@ -154,7 +165,7 @@ VMID 207 (`192.168.20.7`) with its module call setting `datastore_id` to
 `backup`, which needs the `tofu@pve` ACL on that storage
 ([Proxmox API token](../topics/infra/vm-provisioning.md#proxmox-api-token)),
 its buckets are copied across, its record is
-flipped to the new address, and VM 206 is dumped and destroyed once every
+flipped to the new address ([below](#moving-storage)), and VM 206 is dumped and destroyed once every
 app host's on-demand backup
 ([`backup.md`](../topics/disaster-recovery/backup.md#running-a-backup-now))
 has reached the new VM and a cloud sync started by hand has relayed it.
@@ -164,14 +175,125 @@ gateway at `.1` throughout, and [`opnsense-config.md`](opnsense-config.md)'s
 last stage rebuilds it from the seed after this cutover, so the hosts and
 the network boundary never move together.
 
+#### Moving `storage`
+
+Every client reaches SeaweedFS by name: `s3.store.<lan domain>` is a CNAME to
+`storage.<host domain>`, and the `bind9` role builds that `A` record from
+`storage`'s `ansible_host`
+([`bind9.md`](../topics/services/bind9.md#the-host-zone)). Two things follow.
+The flip is the `bind9` run on `services` after the generated inventory
+addresses `storage` as `192.168.20.7`. Until then everything that reaches
+SeaweedFS by name talks to VM 206, whichever host runs it: the
+`seaweedfs_bucket` play checks VM 206's bucket, and the `seaweedfs` remote of
+`cloud_sync` reads VM 206.
+
+The copy is S3 to S3, not a copy of the Docker volume. It only reads VM 206,
+so `storage` stays up, and archive names are never reused, so
+`rclone copy --immutable` can be repeated and a second pass adds only what
+arrived since the first.
+
+1. Run the cycle's step 1 for the apps on every host, and take the state
+   copy.
+2. Add the module call (`vm_id = 207`, `datastore_id = "backup"`, 4 vCPU,
+   4 GB, a 128 GB disk) and the `storage` entry of `ansible_hosts`, apply, and
+   run the inventory generator. From here `storage` is VM 207 to Ansible, and
+   VM 206 is reached by its address. Make the edits listed after these steps
+   in the same pull request, since the role refuses a host that a static record
+   and the generated one both name.
+3. `deploy.yaml --limit storage,localhost`, without `services`, so no
+   `bind9` run flips the record yet. VM 207's SeaweedFS starts empty. Its
+   cloud-sync timer reads VM 206 by name, so the two timers relay the same
+   archives and `--immutable` makes the second a no-op.
+4. First pass, on VM 207: run the image that `cloud-sync.service` runs, with
+   its hardening flags, on the `caddy-proxy` network. Its remotes are `old`,
+   the `cloud-sync-reader` identity at the name every client uses (which still
+   resolves to VM 206), and `new`, the admin identity at
+   `http://seaweedfs:8333`, VM 207's SeaweedFS reached past Caddy and DNS.
+   Both come from `RCLONE_CONFIG_OLD_*` and `RCLONE_CONFIG_NEW_*` variables in
+   a `0600` env file that is removed afterwards, with `type` `s3`, `provider`
+   `Other` and `force_path_style` `true` as the rendered `rclone.conf` sets:
+
+   ```sh
+   docker run --rm --network caddy-proxy --env-file <env file> \
+     --cap-drop ALL --security-opt no-new-privileges:true --read-only \
+     <the cloud-sync image> copy --immutable old:homelab-backups new:homelab-backups
+   ```
+
+   Then `rclone check --size-only old:homelab-backups new:homelab-backups`
+   with the same flags reports no difference. Size only, because an object
+   written in parts may not keep its ETag.
+5. The flip: `deploy.yaml --limit services,localhost --tags infra`. The
+   `storage` record now reads `192.168.20.7`, and the primary notifies the new
+   secondary.
+6. On the live gateway, by hand as for its reservations: add `192.168.20.7` as
+   a forward server for the host and `lan_domain` zones, and add it to any
+   alias or rule that names `192.168.20.6`. The gateway forwards to the
+   secondary, which VM 206 stops being told about.
+7. Wait out the zone's TTL (3600 s), then run step 4's copy and check again.
+   List the newest object under each `<host>-<app>/` prefix on both sides.
+8. `deploy.yaml --limit storage,localhost` again, so the bucket play now
+   checks VM 207. Take each app host's on-demand backup, confirm it landed on
+   VM 207, and run `sudo systemctl start cloud-sync.service` there: it must
+   exit 0.
+9. Dump and destroy VM 206 as the cycle's step 2 does. Remove the forward to
+   `192.168.20.6` and its reservation from the live gateway.
+
+Until step 9 the flip is undone by removing the `ansible_hosts` entry,
+regenerating, restoring the static record and `dns_secondary_address`, and
+repeating step 5. An archive that reached VM 207 meanwhile is copied back with
+step 4's command reversed.
+
+The edits that move `storage` to `192.168.20.7`:
+
+- `host_vars/services.yaml`: delete the `storage` record. The role generates
+  it.
+- `inventory.yaml`: keep `storage` in its groups and drop its `ansible_host`
+  and `ansible_user`.
+- `group_vars/all/main.yaml`: `dns_secondary_address`.
+- `sos-inventory.yaml`: the `storage` address.
+- `opnsense_gateway`'s defaults: `host_storage` and the second forward server.
+  `ansible/tests/test_opnsense_policy.py` fails when any of these four
+  differ.
+
+Checks that need the lab and are made before step 4:
+
+- Whether the admin identity (`Admin:homelab-backups`) can write objects.
+  [`backup.md`](../topics/disaster-recovery/backup.md#storage-host) describes
+  it as creating the bucket only. If it cannot, `new` needs an identity with
+  `Write` on the whole bucket for the copy.
+- That VM 207 holds `192.168.20.7` from its cloud-init configuration and not
+  from a lease. The Kea reservation made for `play` would hide a missing
+  prepared image the same way.
+- Which aliases, rules and reservations on the live gateway name
+  `192.168.20.6`.
+
+One more assumption can only be checked at step 8, since only then does
+`cloud_sync` read the copied archives: that the relay finds each one equal to
+the cloud's copy. It compares modification times, and rclone keeps the original in object metadata
+when it copies. `--immutable` refuses a difference without uploading, so a
+failure there changes nothing in the clouds.
+
 #### Dump storage
 
 `backup` is `lvmthin`, which holds VM disks and not dump files, and the
-only directory storages (`local`, `tofu-images`) share one 36 GB
-filesystem. Dumps go to a directory storage on a thin volume of the same
-volume group, created once on the node. Read `vgname` and `thinpool` from
-`/etc/pve/storage.cfg`. A dump is taken and deleted per host, so 100 GB
-holds the largest (39 GB used on its root filesystem):
+only directory storages (`local`, `tofu-images`) share one filesystem with
+less than 100 GB free. Dumps go to a directory storage on a thin volume of
+the `backup` volume group, created once on the node. That is the HDD, away
+from the NVMe where the rebuilt VMs' disks go. Take `vgname` and `thinpool`
+from the `backup` entry of `/etc/pve/storage.cfg`; on the live node both are
+`backup`.
+
+The pool is overprovisioned, so `lvcreate` warns that the thin volumes' sizes
+sum to more than the pool, and autoextend protection is off: a full pool
+fails every volume on it. Read the pool's `Data%` and `Meta%` before creating
+the volume:
+
+```sh
+lvs -o lv_name,lv_size,data_percent,metadata_percent <vgname>
+```
+
+A dump is taken and deleted per host, so 100 GB holds the largest (39 GB used
+on its root filesystem):
 
 ```sh
 lvcreate -V 100G -T <vgname>/<thinpool> -n vzdump
@@ -181,6 +303,10 @@ echo '/dev/<vgname>/vzdump /mnt/vzdump ext4 defaults,nofail 0 2' >> /etc/fstab
 mount /mnt/vzdump
 pvesm add dir vzdump --path /mnt/vzdump --content backup --is_mountpoint yes
 ```
+
+A thin volume returns blocks to the pool only when its filesystem trims them,
+so a deleted dump keeps its space in the pool until `fstrim -v /mnt/vzdump`
+runs. Run it after each deletion.
 
 Remove the storage and the volume when the last dump is deleted.
 
@@ -246,9 +372,6 @@ vulnerability, incident, or exposure window
 
 ## Open items
 
-- How the buckets are copied from VM 206 to VM 207, and how the flip is
-  made once the records exist. Needs the records stage's design and the
-  admin identity's reach.
 - Where the remote state backend runs. It needs an ADR before Stage 3 starts.
   The backend cannot be a VM Tofu manages, so it rules out `storage`, and a
   separate small SeaweedFS instance is the leading idea.

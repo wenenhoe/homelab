@@ -1,11 +1,11 @@
 # Based on rikatz's coderabbit-cli-docker gist:
 # https://gist.github.com/rikatz/1135c311d86306a5bff3e39276968b17
-FROM ubuntu:26.04@sha256:0e73b71479e7bc5f006bca872e25c3cd680dc052a0116f90d63ae363537db0dd AS fetch
+FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS fetch
 
 # The CLI is pinned by version and by the sha256 of its linux-x64 zip, taken
 # from that release's SHA256SUMS; docs/topics/engineering/coderabbit-review.md has the bump steps.
-ARG CODERABBIT_VERSION=0.9.1
-ARG CODERABBIT_SHA256=9558e02f1b6570ade33d8191b33e10ffae2472ab2680d4518d03261bcebc80bc
+ARG CODERABBIT_VERSION=0.9.2
+ARG CODERABBIT_SHA256=b29bef55fd5a41a2872938516acde46f4c0ccf8fd81c0d86829c435a75a5fd9a
 
 # hadolint ignore=DL3008 # operator tooling, not a deployed app — unpinned by design.
 RUN apt-get update \
@@ -20,7 +20,7 @@ RUN curl -fsSLo coderabbit-linux-x64.zip \
     && sha256sum -c SHA256SUMS \
     && unzip -q coderabbit-linux-x64.zip coderabbit
 
-FROM ubuntu:26.04@sha256:0e73b71479e7bc5f006bca872e25c3cd680dc052a0116f90d63ae363537db0dd
+FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c
 
 # hadolint ignore=DL3008 # same reasoning as the fetch stage above.
 RUN apt-get update \

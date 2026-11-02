@@ -8,6 +8,7 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 | :--- | :--- |
 | `run_restore.bats` | [`docker/minecraft/scripts/run_restore.sh`](../../../../docker/minecraft/scripts/run_restore.sh) |
 | `snapshot_push.bats` | [`tools/openbao_utils/scripts/snapshot-push.sh`](../../../../tools/openbao_utils/scripts/snapshot-push.sh) |
+| `snapshot_pull.bats` | [`tools/openbao_utils/scripts/snapshot-pull.sh`](../../../../tools/openbao_utils/scripts/snapshot-pull.sh) |
 | `molecule_test_all.bats` | [`ansible/scripts/molecule-test-all.sh`](../../../../ansible/scripts/molecule-test-all.sh) |
 | `run_upgrade.bats` | [`docker/minecraft/scripts/run_upgrade.sh`](../../../../docker/minecraft/scripts/run_upgrade.sh) |
 | `fetch_image.bats` | [`tofu/modules/proxmox_opnsense_vm/fetch_image.sh`](../../../../tofu/modules/proxmox_opnsense_vm/fetch_image.sh) |

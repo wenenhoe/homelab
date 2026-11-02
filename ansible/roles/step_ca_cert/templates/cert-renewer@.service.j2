@@ -53,7 +53,7 @@ ExecCondition=/bin/sh -c '/usr/bin/docker run --rm --user root --network none --
 ; Renews via mTLS against the existing cert/key by default (step ca
 ; renew's own documented behavior) - no provisioner password needed
 ; here, only for the one-time initial issuance (see
-; roles/step_ca_cert/tasks/main.yaml).
+; roles/step_ca_cert/tasks/issue.yaml).
 ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} --cap-drop ALL --cap-add DAC_OVERRIDE --security-opt no-new-privileges:true -v %i_certs:/certs -v ${ROOT_LOCATION}:/root_ca.crt:ro ${STEP_CLI_IMAGE} step ca renew --force --ca-url ${CA_URL} --root /root_ca.crt /certs/fullchain.pem /certs/privkey.pem
 
 ; A renewed cert lands root-owned (the renewal above also runs --user
@@ -61,7 +61,7 @@ ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} --cap-drop A
 ; (e.g. lldap) - this is a no-op for it. It's set for an app that runs
 ; as its own image's non-root user (e.g. openbao, whose server can't
 ; read a root-owned, owner-only-mode private key) - see
-; step_ca_cert/tasks/main.yaml's identical fix for the initial-issuance
+; step_ca_cert/tasks/issue.yaml's identical fix for the initial-issuance
 ; case.
 ExecStartPost=/bin/sh -c '[ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --user root --network none --cap-drop ALL --cap-add CHOWN --security-opt no-new-privileges:true -v %i_certs:/certs "${CHOWN_IMAGE}" chown -R "${CHOWN_USER}:${CHOWN_USER}" /certs'
 

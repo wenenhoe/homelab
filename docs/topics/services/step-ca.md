@@ -87,7 +87,7 @@ step ca certificate test-client.{{ lan_domain }} test.crt test.key \
 ```
 
 `step_ca_cert`'s own initial-issuance task
-(`ansible/roles/step_ca_cert/tasks/main.yaml`) is the real, live version
+(`ansible/roles/step_ca_cert/tasks/issue.yaml`) is the real, live version
 of this — a single `step ca certificate` call with `--san`/`--password-file`/
 `--ca-url`/`--root` set explicitly, not the interactive
 `step ca bootstrap` flow above. That's the reference for a future

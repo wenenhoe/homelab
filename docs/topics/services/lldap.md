@@ -78,7 +78,7 @@ authenticates via mTLS using the cert `step ca renew` is renewing —
 `step ca renew`'s own documented default — so the provisioner password
 is never written to disk outside that one-time Ansible run (rendered to
 `/tmp`, used, removed in an `always:` block — see
-`ansible/roles/step_ca_cert/tasks/main.yaml`).
+`ansible/roles/step_ca_cert/tasks/issue.yaml`).
 
 ## Cert SANs
 

@@ -7,7 +7,7 @@ short: DR exercise cadence
 solution: A small set of exercise kinds on a cadence set by a recovery tier, with the tier derived from the catalog plus one flag for the systems every restore depends on, and results kept in the fire-drill table
 summary: Which disaster-recovery exercises the repository runs, how often, and how the cadence follows from what a system's loss would cost, so the restore paths are exercised before they are needed.
 topic: backup-recovery
-status: working
+status: approved
 related: [ADR-0012, ADR-0017, ADR-0099, ADR-0100]
 ---
 
@@ -88,6 +88,12 @@ and `check-app-catalog` refuses a `recovery_tier` other than `1`.
 A material change is a new backed-up app, a change to the backup or restore roles,
 an upgrade of the secrets store or the authority, and a change of the authority's root.
 
+**When the cadence cannot be kept.** If the staged total-loss exercise does not fit in
+the isolated block, it is run as a tabletop of the same chain until it does, and the
+fire-drill table says so. A monthly restore that is missed is carried to the next month,
+not skipped; a cadence missed for two quarters running is a reason to revise this record,
+not to ignore it.
+
 **Records.** Each real restore or rebuild is a row in the fire-drill table, with its
 source. A tabletop, a custody check and a total-loss exercise add a row too, saying
 what was done and what it found, as a change to the procedure or the records and
@@ -109,20 +115,6 @@ decided here.
 - **Scheduled automated restores into a scratch host.** The usual answer in the cloud
   guidance. It needs a scratch host that can be created unattended, which does not
   exist here. Revisit once the migration is done.
-
-## Assumptions
-
-- **Claim:** The isolated block can host the staged total-loss exercise without
-  disturbing production.
-  **Breaks if wrong:** The exercise cannot run as written and becomes a tabletop, so
-  the full chain is never exercised.
-  **Checked by:** Sizing the staged exercise against the node's free memory and disk
-  once the host migration is complete.
-- **Claim:** One maintainer can sustain a monthly app restore alongside a rebuild
-  every two to three months.
-  **Breaks if wrong:** The cadence slips and the review reports it late every month,
-  which makes the report noise.
-  **Checked by:** The first quarter's exercises against the table.
 
 ## Consequences
 

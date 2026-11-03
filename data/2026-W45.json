@@ -150,6 +150,166 @@
    "bot": false,
    "group": "docker/",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a79d3640d7a084bfcdd6bd55b75925e265f4d11d",
+   "date": "2026-11-03T15:44:24+08:00",
+   "kind": "pr",
+   "pr": 620,
+   "title": "Dedup bootstrap security",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "369f16c505018fa80698c22e79739954ea584ddc",
+   "date": "2026-11-03T15:47:28+08:00",
+   "kind": "pr",
+   "pr": 621,
+   "title": "accept the decision on rebuilding security from nothing",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0099 r000 \u00b7 rebuilding security from nothing",
+     "working \u2192 accepted"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "2445a467f0053c5533a730af573f519dce49120a",
+   "date": "2026-11-03T15:52:02+08:00",
+   "kind": "pr",
+   "pr": 622,
+   "title": "integration record decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: integration-records",
+   "events": [
+    [
+     "adr",
+     "ADR 0100 r000 \u00b7 recording how a system is integrated",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "integration-records",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "fea6c748027a1035b0906f24549c2d39dcacf98f",
+   "date": "2026-11-03T15:55:55+08:00",
+   "kind": "pr",
+   "pr": 623,
+   "title": "dr exercise decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0101 r000 \u00b7 exercising disaster recovery",
+     "added (approved)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "4cce420e51ebbc4fd791c6dae79320c4ba602134",
+   "date": "2026-11-03T16:06:36+08:00",
+   "kind": "pr",
+   "pr": 624,
+   "title": "mark the systems every restore depends on in the app catalog",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "06f2470c5a93313487a3e2c20419043e51585c96",
+   "date": "2026-11-03T16:11:03+08:00",
+   "kind": "pr",
+   "pr": 627,
+   "title": "add the disaster-recovery exercises page",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "8edf5c7cfd6af9d57aa5efa2871030108b1c9475",
+   "date": "2026-11-03T16:11:17+08:00",
+   "kind": "pr",
+   "pr": 625,
+   "title": "ask for the Gatus address instead of leaving a placeholder in t\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "6378b6ac7b577cc14cfa1bc3df726b133b510203",
+   "date": "2026-11-03T16:11:27+08:00",
+   "kind": "pr",
+   "pr": 626,
+   "title": "script the Proxmox node's dump and destroy steps and the known_\u2026",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "014fc57ea0dc971a4e7197ad0c78a5497ebf9343",
+   "date": "2026-11-03T16:38:39+08:00",
+   "kind": "pr",
+   "pr": 628,
+   "title": "track the disaster-recovery exercises and the first real runs o\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: dr-exercises",
+   "events": [
+    [
+     "project",
+     "dr-exercises",
+     "opened (building)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "6589b0460ceca635b3a178c44583f5aa59524fae",
+   "date": "2026-11-04T02:36:55+08:00",
+   "kind": "pr",
+   "pr": 629,
+   "title": "Add automated pr review",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: automated-pr-review",
+   "events": [
+    [
+     "adr",
+     "ADR 0061 r001 \u00b7 where automated code review runs and what it may write",
+     "added (working)"
+    ],
+    [
+     "project",
+     "automated-pr-review",
+     "opened (not-started)"
+    ]
+   ]
   }
  ]
 }

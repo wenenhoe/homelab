@@ -43,3 +43,18 @@ module "security" {
   dns_domain      = var.dns_domain
   ssh_public_keys = var.ansible_ssh_public_keys
 }
+
+module "storage" {
+  source          = "./modules/proxmox_ubuntu_vm"
+  node_name       = var.proxmox_node
+  vm_id           = 207
+  name            = "storage"
+  template_vm_id  = module.ubuntu_template.vm_id
+  cores           = 4
+  memory_mb       = 4096
+  disk_gb         = 128
+  datastore_id    = "backup"
+  admin_username  = "storeadmin"
+  dns_domain      = var.dns_domain
+  ssh_public_keys = var.ansible_ssh_public_keys
+}

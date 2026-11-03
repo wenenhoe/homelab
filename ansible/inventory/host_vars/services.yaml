@@ -99,4 +99,3 @@ dns_zones:
       - { name: "pve", type: A, value: "10.0.0.254" }
       - { name: "tailscale", type: A, value: "192.168.20.2" }
       - { name: "services", type: A, value: "192.168.20.3" }
-      - { name: "storage", type: A, value: "192.168.20.6" }

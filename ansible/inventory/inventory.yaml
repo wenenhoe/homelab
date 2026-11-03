@@ -33,8 +33,6 @@ all:
         play:
         security:
         storage:
-          ansible_host: "storage.{{ host_domain }}"
-          ansible_user: storeadmin
 
     # Hosts whose dns_zones, compose_apps, caddy_domain, and host_fqdn
     # are scraped by the bind9 role. Add any new app host here. Currently

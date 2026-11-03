@@ -12,6 +12,11 @@
         path: /etc/sysctl.d/99-tailscale.conf
       register: tailscale_node_verify_dropin
 
+    - name: Read the live forwarding values
+      ansible.builtin.command: sysctl -n net.ipv4.ip_forward net.ipv6.conf.all.forwarding
+      register: tailscale_node_verify_forwarding
+      changed_when: false
+
     - name: Read the stub client's state
       ansible.builtin.slurp:
         src: /var/lib/tailscale-stub/state.json
@@ -22,13 +27,15 @@
         src: /var/lib/tailscale-stub/calls.log
       register: tailscale_node_verify_calls_raw
 
-    # A node that advertises nothing gets no forwarding drop-in and is not
-    # told to advertise anything; only the DNS setting and the updater differ
-    # from what it reports.
+    # A node that advertises nothing keeps no forwarding drop-in, from an
+    # earlier run or otherwise, and forwards nothing; it is not told to
+    # advertise anything, and only the DNS setting and the updater differ from
+    # what it reports.
     - name: Assert the node holds the role's preferences and set nothing else
       ansible.builtin.assert:
         that:
           - not tailscale_node_verify_dropin.stat.exists
+          - tailscale_node_verify_forwarding.stdout_lines == ['0', '0']
           - tailscale_node_verify_state.logged_in
           - tailscale_node_verify_state.prefs.AdvertiseRoutes is none
           - not tailscale_node_verify_state.prefs.CorpDNS

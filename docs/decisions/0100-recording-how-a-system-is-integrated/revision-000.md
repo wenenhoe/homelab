@@ -7,7 +7,7 @@ short: Recording a system's integration
 solution: One required-section topic doc per integrated system, linked from its app_catalog entry, checked by check_doc_drift, with a generated disaster-recovery coverage view
 summary: How the repository makes a new app, service or dependency state its threat model, data, exposure, observability, disaster recovery and lifecycle when it is added, instead of leaving those to be found later.
 topic: documentation-process
-status: working
+status: approved
 related: [ADR-0028, ADR-0037]
 ---
 
@@ -40,6 +40,26 @@ back.
   index entry, a dead anchor and the decision and project rules.
   `check-app-catalog` validates the shape of a catalog entry. Neither asks
   whether an entry has any documentation.
+- **The same sections fit each kind of system.** Drafts of one record for a
+  catalog app, for the certificate issuance and renewal a role installs, and for
+  the cloud storage targets each filled all six sections. The role's `Exposure`
+  is "None" because it has no listener, and for a cloud target the section is
+  about what the host sends out and with which credential, which is why it names
+  both directions. A draft also needed facts the repository does not hold, such
+  as what an app keeps in its data volume, which is why a section may say what is
+  unknown.
+- **The fire-drill table joins to the catalog.** Every name in its "Apps covered"
+  column is a catalog key, in any case and with an optional parenthetical, so no
+  structured column is needed. The join also shows an app that is backed up and
+  was never restored, and a restored system that has no `backup` entry because
+  its backup is its own, as OpenBao's snapshot is.
+- **A view the apply hooks do not name stops the apply.** The hooks name their
+  generated views in a fixed list, as does their test. Applied with real
+  `git am`, a patch whose extra view is in that list is committed with the view
+  regenerated, one after another in a series. With the view missing from the
+  list the apply stops on a stale view and makes no commit. A patch that carries
+  the view itself conflicts across two series, which is why patches leave
+  generated views out.
 - **Per-system rationale is not an ADR.** An ADR records a contested choice
   ([README](../README.md)); a routine integration has no contest, so it
   needs a home that is not a decision.
@@ -53,14 +73,16 @@ sections, in this order.
 | :--- | :--- |
 | `Threat model` | What an attacker gains from the system and the path to it. |
 | `Data` | What it stores or handles, and which of it is a secret. |
-| `Exposure` | Who can reach it and through what, including the Tinyauth and TLS defaults in `AGENTS.md`. |
+| `Exposure` | What reaches it and what it reaches out to, through what and with which credential, including the Tinyauth and TLS defaults in `AGENTS.md`. |
 | `Observability` | How its failure is noticed and by whom. |
 | `Disaster recovery` | What is backed up, how it is restored, and what a rebuild of its host still needs by hand. |
 | `Lifecycle` | How it is upgraded, how it is removed, and what it waits on. |
 
-A section that does not apply says so in one line with the reason; an empty
-section is a failure, so absence is a statement. The record links the topic
-docs that already own a subject instead of repeating them.
+A section that does not apply says so in one line with the reason, and one
+whose fact is not known yet says `Unknown:` and what to check. Either fills
+the section; an empty one is a failure, so absence is a statement and a missing
+fact never blocks an integration. The record links the topic docs that already
+own a subject instead of repeating them.
 
 **Linking.** An `app_catalog` entry gains a `doc:` key naming its record, a
 path under `docs/topics/`. Several entries may name one record when they are one
@@ -75,7 +97,10 @@ a record but is still listed.
 
 **Coverage view.** `generate-doc-indexes` writes a table of every catalog app
 with its backed-up volumes, its record, and the newest fire-drill row that
-restored it. It is derived and never edited by hand.
+restored it. It is derived and never edited by hand. A name in the fire-drill
+table's "Apps covered" column is a catalog key, in any case and with an optional
+parenthetical, and the generator fails on a name that matches no key instead of
+guessing.
 
 **Readiness.** The project template gains a checklist for a project that
 introduces a system, one line per section, linking the record.
@@ -94,32 +119,6 @@ introduces a system, one line per section, linking the record.
 - **Derive the record's file name from the app name.** Simple to check, but
   existing records sit in different topic groups, and moving them to fit a name
   would break links for no gain. Lost on churn.
-
-## Assumptions
-
-- **Claim:** The same six sections fit all three kinds of system: a catalog app,
-  a service a role deploys to a host (for example the certificate renewal `step_ca_cert` installs), and
-  an external dependency (a cloud storage target, a notification channel).
-  **Breaks if wrong:** Most sections read "none" for one kind, the rule becomes
-  boilerplate, and the kinds need different section sets, which is a different
-  decision.
-  **Checked by:** drafting one record of each kind in the project's first stage.
-
-- **Claim:** The fire-drill Results table can be joined to catalog apps
-  mechanically. Its "Apps covered" cell is free text whose names do not always
-  equal catalog keys.
-  **Breaks if wrong:** The coverage view shows wrong or missing restores, and the
-  table needs a structured column, which changes a doc that is otherwise
-  prose.
-  **Checked by:** reading the table against the catalog keys in a spike.
-
-- **Claim:** A generated file beyond the three views the apply hooks know can be
-  added without the hooks committing a stale copy.
-  **Breaks if wrong:** Each applied patch leaves the new view out of date or
-  conflicts on it.
-  **Checked by:** a real `git am` in a throwaway repository, as
-  `test_applypatch_hooks.py` does, with a control that fails without the hook
-  change.
 
 ## Consequences
 
@@ -144,8 +143,8 @@ introduces a system, one line per section, linking the record.
 
 - Writing the records for apps that already exist in this revision's first
   stages; the exemption list carries them.
-- Checking that a record's content is true. The checks prove the sections are
-  present and filled, not correct.
+- Checking that a record's content is true, or counting its `Unknown:` lines.
+  The checks prove the sections are present and filled, not correct.
 - Changing the security and reliability defaults in `AGENTS.md`.
 - Covering tools that are not deployed (repository scripts, CI helpers).
 
@@ -153,7 +152,8 @@ introduces a system, one line per section, linking the record.
 
 `check_doc_drift.py` for the sections and the link; `check-app-catalog` for the
 `doc:` key's shape; a test that the coverage view is current, the way the
-other generated views are checked.
+other generated views are checked; and the apply hooks' test, which fails when
+the view is missing from the list the hooks name.
 
 ## Reconsideration triggers
 

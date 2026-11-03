@@ -275,14 +275,6 @@
       autoReplaceStringTemplate: 'openbao_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
-    {
-      customType: "regex",
-      description: "openbao's chown-image pin for cert post-issuance/renewal, a plain Ansible variable passed at include_role rather than a recognized image: key under a docker module",
-      managerFilePatterns: ["/^ansible/playbooks/deploy\\.yaml$/"],
-      matchStrings: ["step_ca_cert_chown_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
-      autoReplaceStringTemplate: 'step_ca_cert_chown_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
-      datasourceTemplate: "docker",
-    },
     // openbao_cli's native-CLI version and the sha256 of its .deb, a GitHub
     // release asset rather than a Docker Hub image, so it has its own
     // datasource. The pin is bare ("2.7.1") and the tag "v2.7.1"; the datasource

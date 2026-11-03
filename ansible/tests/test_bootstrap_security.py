@@ -1,4 +1,4 @@
-"""bootstrap-security.yaml changes nothing unless a stage is named, issues OpenBao's cert as deploy.yaml does, and publishes only on loopback until then."""
+"""bootstrap-security.yaml changes nothing unless a stage is named, shares OpenBao's cert tasks with deploy.yaml, and publishes only on loopback until then."""
 
 from __future__ import annotations
 
@@ -33,12 +33,32 @@ def render_openbao_compose(**variables: str) -> dict:
     return yaml.safe_load(jinja2.Template(template).render(server_timezone="UTC", **variables))
 
 
-def play_6_openbao_cert_vars() -> dict:
-    for play in load(ANSIBLE_DIR / "playbooks/deploy.yaml"):
-        for task in play.get("tasks", []):
-            if task.get("ansible.builtin.include_role", {}).get("name") == "step_ca_cert" and task["vars"]["step_ca_cert_app_name"] == "openbao":
-                return task["vars"]
-    raise AssertionError("deploy.yaml has no step_ca_cert include for openbao")
+def openbao_role_includes(tasks: list[dict]) -> dict[str, dict]:
+    """The `openbao` role includes among tasks (recursing into blocks), keyed by the task file they run."""
+    found: dict[str, dict] = {}
+    for task in tasks:
+        include = task.get("ansible.builtin.include_role", {})
+        if include.get("name") == "openbao":
+            found[include.get("tasks_from", "main.yaml")] = task
+        found.update(openbao_role_includes(task.get("block", [])))
+    return found
+
+
+def step_ca_cert_vars(tasks: list[dict]) -> list[dict]:
+    """Every `step_ca_cert_*` variable set on a task that includes the step_ca_cert role."""
+    return [
+        {name: value for name, value in task.get("vars", {}).items() if name.startswith("step_ca_cert_")}
+        for task in tasks
+        if task.get("ansible.builtin.include_role", {}).get("name") == "step_ca_cert" and task.get("vars")
+    ]
+
+
+def all_tasks(tasks: list[dict]) -> list[dict]:
+    flat = []
+    for task in tasks:
+        flat.append(task)
+        flat.extend(all_tasks(task.get("block", [])))
+    return flat
 
 
 def test_every_top_level_block_carries_never_and_one_stage(bootstrap_tasks):
@@ -70,17 +90,35 @@ def test_the_compose_file_publishes_on_the_address_it_is_given(variables, publis
     assert render_openbao_compose(**variables)["services"]["openbao"]["ports"] == [published]
 
 
-def test_stage_3_issues_with_the_variables_deploy_runs_for_openbao(bootstrap_tasks, openbao_image):
+def test_stage_3_issues_through_the_tasks_deploy_runs(bootstrap_tasks):
     stage_3 = next(task for task in bootstrap_tasks if task["tags"] == ["never", "stage3"])
-    issue = next(task for task in stage_3["block"] if task.get("ansible.builtin.include_role", {}).get("name") == "step_ca_cert")
-    assert issue["ansible.builtin.include_role"]["tasks_from"] == "issue.yaml"
-    bootstrap_vars = {name: (openbao_image if value == "{{ openbao_image }}" else value) for name, value in issue["vars"].items()}
-    assert bootstrap_vars == play_6_openbao_cert_vars()
+    issue = openbao_role_includes(stage_3["block"])["cert.yaml"]
+    assert issue["vars"] == {"openbao_cert_issue_only": True}
 
 
-def test_the_play_6_image_is_the_one_the_role_pins(openbao_image):
-    # The placeholder is handed to the openbao user with this image.
-    assert play_6_openbao_cert_vars()["step_ca_cert_chown_image"] == openbao_image
+def test_deploy_runs_the_whole_step_ca_cert_role_for_openbao():
+    (play_6,) = [play for play in load(ANSIBLE_DIR / "playbooks/deploy.yaml") if play["name"] == "Wire lldap, tinyauth, and openbao into step-ca"]
+    assert "vars" not in openbao_role_includes(play_6["tasks"])["cert.yaml"]
+
+
+def test_neither_playbook_spells_openbao_cert_variables(bootstrap_tasks):
+    # They have one home, roles/openbao/tasks/cert.yaml.
+    deploy_tasks = [task for play in load(ANSIBLE_DIR / "playbooks/deploy.yaml") for task in play.get("tasks", [])]
+    spelled = [
+        variables
+        for variables in step_ca_cert_vars(all_tasks(bootstrap_tasks) + all_tasks(deploy_tasks))
+        if variables.get("step_ca_cert_app_name") == "openbao"
+    ]
+    assert spelled == []
+
+
+def test_both_cert_includes_carry_the_same_variables_and_the_image_the_role_pins(openbao_image):
+    # The chown image resolves the openbao user, so it has to be the running image.
+    whole, issue_only = load(ANSIBLE_DIR / "roles/openbao/tasks/cert.yaml")
+    assert whole["ansible.builtin.include_role"].get("tasks_from") is None
+    assert issue_only["ansible.builtin.include_role"]["tasks_from"] == "issue.yaml"
+    assert whole["vars"] == issue_only["vars"]
+    assert whole["vars"]["step_ca_cert_chown_image"] == "{{ openbao_image }}"
     assert render_openbao_compose()["services"]["openbao"]["image"] == openbao_image
 
 

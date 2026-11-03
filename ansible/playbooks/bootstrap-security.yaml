@@ -35,7 +35,8 @@
     # derives caddy_domain and the rest from it, and step-ca's .env needs them.
     secrets_generated:
       main-domain: "{{ lookup('ansible.builtin.file', secrets_file_cache_dir ~ '/main-domain') | trim }}"
-    bootstrap_openbao_certs_volume: openbao_certs
+    step_ca_cert_app_name: openbao
+    bootstrap_openbao_certs_volume: "{{ step_ca_cert_certs_volume_name }}"
     bootstrap_vault_env:
       BAO_ADDR: https://127.0.0.1:8200
       BAO_SKIP_VERIFY: "true"
@@ -63,35 +64,12 @@
             name: openbao
 
         - name: Look for a cert already in OpenBao's certs volume
-          community.docker.docker_container:
-            name: bootstrap-openbao-cert-inspect
-            image: "{{ step_ca_cert_step_cli_image }}"
-            user: root
-            volumes:
-              - "{{ bootstrap_openbao_certs_volume }}:/certs:ro"
-            command: [step, certificate, inspect, /certs/fullchain.pem, --format, json]
-            network_mode: none
-            cap_drop:
-              - ALL
-            capabilities:
-              - DAC_OVERRIDE
-            security_opts:
-              - no-new-privileges:true
-            detach: false
-            cleanup: true
-            log_driver: json-file
-          register: bootstrap_cert_probe
-          changed_when: false
-          failed_when: false
-          check_mode: false
-
-        - name: Fail if the cert probe could not run
-          ansible.builtin.fail:
-            msg: "Could not check OpenBao's certs volume: {{ bootstrap_cert_probe.msg | default('no result') }}. Nothing was changed."
-          when: bootstrap_cert_probe.status is not defined
+          ansible.builtin.include_role:
+            name: step_ca_cert
+            tasks_from: inspect.yaml
 
         - name: Create a placeholder cert, which never replaces one that exists
-          when: bootstrap_cert_probe.status != 0
+          when: step_ca_cert_inspect_result.status != 0
           block:
             # 24 hours: long enough for the stages, short enough that a
             # forgotten placeholder expires on its own.
@@ -160,21 +138,9 @@
                 state: restarted
 
         - name: Wait for OpenBao to answer
-          community.docker.docker_container_exec:
-            container: openbao
-            argv: [bao, status, "-address=https://127.0.0.1:8200"]
-          register: bootstrap_openbao_status
-          changed_when: false
-          failed_when: false
-          # Exit 2 is sealed or uninitialised, which is the state to expect.
-          until: bootstrap_openbao_status.rc is defined and bootstrap_openbao_status.rc in [0, 2]
-          retries: 20
-          delay: 5
-
-        - name: Fail if OpenBao never answered
-          ansible.builtin.fail:
-            msg: "OpenBao did not answer on 127.0.0.1:8200. Read its log: docker logs openbao"
-          when: bootstrap_openbao_status.rc is not defined or bootstrap_openbao_status.rc not in [0, 2]
+          ansible.builtin.include_role:
+            name: openbao
+            tasks_from: wait.yaml
 
         - name: Say what the operator does next
           ansible.builtin.debug:
@@ -183,7 +149,7 @@
               Initialise it, restore the snapshot and unseal it with the
               original shares, as docs/topics/secrets/openbao-backup-restore.md#rebuilding-security
               describes, then run stage 2.
-          when: bootstrap_openbao_status.rc == 2
+          when: openbao_wait_status.rc == 2
 
     # Stages 2 and 3 read step-ca's two passwords out of the restored OpenBao.
     - name: Read step-ca's passwords from OpenBao
@@ -361,32 +327,9 @@
             name: openbao
 
         - name: Look at the cert in OpenBao's certs volume
-          community.docker.docker_container:
-            name: bootstrap-openbao-cert-inspect
-            image: "{{ step_ca_cert_step_cli_image }}"
-            user: root
-            volumes:
-              - "{{ bootstrap_openbao_certs_volume }}:/certs:ro"
-            command: [step, certificate, inspect, /certs/fullchain.pem, --format, json]
-            network_mode: none
-            cap_drop:
-              - ALL
-            capabilities:
-              - DAC_OVERRIDE
-            security_opts:
-              - no-new-privileges:true
-            detach: false
-            cleanup: true
-            log_driver: json-file
-          register: bootstrap_cert_inspect
-          changed_when: false
-          failed_when: false
-          check_mode: false
-
-        - name: Fail if the cert probe could not run
-          ansible.builtin.fail:
-            msg: "Could not check OpenBao's certs volume: {{ bootstrap_cert_inspect.msg | default('no result') }}. Nothing was changed."
-          when: bootstrap_cert_inspect.status is not defined
+          ansible.builtin.include_role:
+            name: step_ca_cert
+            tasks_from: inspect.yaml
 
         # The issue tasks skip a volume that has a cert, and stop on one whose
         # names differ, so the placeholder has to go. A cert from the CA is
@@ -410,32 +353,20 @@
             cleanup: true
           changed_when: true
           when:
-            - bootstrap_cert_inspect.status == 0
-            - (bootstrap_cert_inspect.container.Output | from_json).issuer_dn == (bootstrap_cert_inspect.container.Output | from_json).subject_dn
+            - step_ca_cert_inspect_result.status == 0
+            - (step_ca_cert_inspect_result.container.Output | from_json).issuer_dn == (step_ca_cert_inspect_result.container.Output | from_json).subject_dn
 
-        # The same variables as the openbao include in deploy.yaml's Play 6.
         - name: Issue OpenBao's cert from step-ca and restart it
           ansible.builtin.include_role:
-            name: step_ca_cert
-            tasks_from: issue.yaml
+            name: openbao
+            tasks_from: cert.yaml
           vars:
-            step_ca_cert_app_name: openbao
-            step_ca_cert_common_name: openbao
-            step_ca_cert_container_cert_dir: /openbao/certs
-            step_ca_cert_renew_action: signal
-            step_ca_cert_chown_image: "{{ openbao_image }}"
-            step_ca_cert_chown_user: openbao
+            openbao_cert_issue_only: true
 
         - name: Wait for OpenBao to answer
-          community.docker.docker_container_exec:
-            container: openbao
-            argv: [bao, status, "-address=https://127.0.0.1:8200"]
-          register: bootstrap_openbao_status
-          changed_when: false
-          failed_when: false
-          until: bootstrap_openbao_status.rc is defined and bootstrap_openbao_status.rc in [0, 2]
-          retries: 20
-          delay: 5
+          ansible.builtin.include_role:
+            name: openbao
+            tasks_from: wait.yaml
 
         - name: Say what the operator does next
           ansible.builtin.debug:

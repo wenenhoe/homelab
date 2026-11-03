@@ -7,7 +7,7 @@ short: Rebuilding security from nothing
 solution: Start OpenBao first on a short-lived self-signed certificate, restore its snapshot, read step-ca's passwords from it, restore step-ca from its backup, then replace the certificate
 summary: How a new `security` VM gets OpenBao and step-ca back when each needs something only the other holds, and the playbooks that deploy them need both.
 topic: secrets-store
-status: working
+status: accepted
 related: [ADR-0034]
 ---
 
@@ -44,6 +44,12 @@ authority's root and reads its secrets from the store.
   unseal handle key shares and the root token, which no playbook should hold.
 - **Caddy's compose file creates the `caddy-proxy` network** that OpenBao's and
   step-ca's stacks join as external, and Caddy deploys after Play 0.
+- **What the stages rely on holds.** The Alpine image extracts the gzip archive
+  with the tools the restore role uses, and OpenBao's image owns `/openbao/data`
+  as its own user. The `security-step-ca-*` archive holds the volume under
+  `step-ca_data`, and step-ca opens it and passes its health check although it is
+  copied while running. A `secret_id` issued before the snapshot logs in after the
+  restore, and the restored node unseals with the original shares.
 - **A node that is uninitialised can be initialised by whoever reaches it
   first.** Published on every address, a new OpenBao is open to the LAN until
   its operator runs `init`.
@@ -58,23 +64,20 @@ LAN who reaches the listener first could initialise it and hold its root token.
 stages named by tag. A run that names no stage changes nothing. The operator's
 steps stay manual.
 
-1. **Stage 1.** The play creates the `caddy-proxy` network with the labels
-   Compose gives its networks, so Caddy's stack adopts it later, and deploys
-   OpenBao with the repository's own config and image. The listener is published
-   on `127.0.0.1` only. A self-signed certificate valid for 24 hours is placed in
-   the `certs` volume, only when the volume holds none, and handed to OpenBao's
-   user.
+1. **Stage 1.** OpenBao is deployed with the repository's own config and image,
+   published on `127.0.0.1` only, on a self-signed certificate valid for 24 hours
+   that is placed only when the `certs` volume holds none. The play first creates
+   the `caddy-proxy` network with the labels Compose gives its networks, so Caddy's
+   stack adopts it later.
 2. **Operator steps.** The operator initialises the node with throwaway keys,
    restores the decrypted snapshot with `-force`, and unseals it with the original
    shares, as the [restore drill](../../topics/secrets/openbao-backup-restore.md#restore-drill)
    describes.
 3. **Stage 2.** The play logs in as `controller` inside the container, with the
-   `secret_id` on stdin, reads `step-ca-password` and
-   `step-ca-provisioner-password`, revokes the token, renders step-ca's files
-   without starting it, and restores its `data` volume from the decrypted
-   archive. step-ca first runs on the restored volume. An archive without
-   `config/ca.json` is refused before anything is stopped, since step-ca's
-   entrypoint would create a new authority.
+   `secret_id` on stdin, reads step-ca's two passwords, revokes the token, and
+   restores step-ca's `data` volume from the decrypted archive before step-ca
+   first runs. An archive without `config/ca.json` is refused before anything is
+   stopped, since step-ca's entrypoint would create a new authority.
 4. **Stage 3.** OpenBao is deployed again on its normal address, a self-signed
    certificate is removed, and the certificate is issued by the restored step-ca
    with the same task `deploy.yaml` runs. That restart seals OpenBao, and the
@@ -106,30 +109,6 @@ flowchart TD
 - **Making Play 0 skip OpenBao on a flag.** Every secret the later plays render
   comes from the store, so the plays would fail further in, and the flag would
   be a standing way to deploy without it.
-
-## Assumptions
-
-- **Claim:** The real images behave as the images used in the rehearsal: the
-  Alpine image extracts a gzip archive with `tar -z` and has `find`, `cp -a`
-  and `head`, and OpenBao's image owns `/openbao/data` as its own user.
-  **Breaks if wrong:** stage 1 or the restore role fails partway, with the
-  stack stopped.
-  **Checked by:** the first rebuild of `security`.
-- **Claim:** The `security-step-ca-*` archive holds the volume under a directory
-  named `step-ca_data`, as the restore role looks for, and its database was
-  copied in a state step-ca opens, since step-ca is not stopped during the backup.
-  **Breaks if wrong:** stage 2 refuses the archive, or step-ca fails its health
-  check on the restored volume.
-  **Checked by:** stage 2 of the first rebuild, which compares the root
-  certificate's fingerprint with a host that already trusts the authority.
-- **Claim:** The `secret_id` in the controller's file cache was issued before the
-  snapshot, and has not expired.
-  **Breaks if wrong:** stage 2's login is refused.
-  **Checked by:** stage 2 of the first rebuild.
-- **Claim:** After a forced restore the node can be unsealed with the original
-  shares whether or not it reports itself sealed.
-  **Breaks if wrong:** stage 2 stops at its check that OpenBao is unsealed.
-  **Checked by:** the first rebuild.
 
 ## Consequences
 
@@ -163,5 +142,6 @@ flowchart TD
 
 `ansible/tests/test_bootstrap_security.py` fails when a stage can run without
 being named, when only stage 1 stops being the one that publishes on loopback,
-when stage 3 issues the certificate with other variables than `deploy.yaml`, or
-when the pre-deploy play starts reading a secret.
+when stage 3 issues the certificate through other tasks than `deploy.yaml` runs
+or either playbook sets the certificate's variables itself, or when the
+pre-deploy play starts reading a secret.

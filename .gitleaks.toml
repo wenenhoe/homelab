@@ -16,5 +16,6 @@ condition = "AND"
 paths = [
   '''^ansible/roles/(docker|tailscale_node)/defaults/main\.yaml$''',
   '''^ansible/tests/test_gpg_keys\.py$''',
+  '''^tools/tests/ci/checksums/test_checksum_aptkeys\.py$''',
 ]
 regexes = ['''^[0-9A-F]{40}$''']

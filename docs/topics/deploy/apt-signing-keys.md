@@ -47,8 +47,13 @@ still has it (`gpg --show-keys /etc/apt/keyrings/<key file>`), or the
 `NO_PUBKEY` id apt reports, then change the pin, and the Dockerfile's copy for
 Docker, in one change.
 
-## What is not covered
+## Checked ahead of a run
 
-Nothing asks the vendors on a schedule, so a rotation shows at the next run of
-the role, not before it. The Molecule scenarios of both roles download the real
-keys, so a pin that is wrong fails there first.
+[`ci.checksums.aptkeys`](../../../tools/ci/checksums/aptkeys.py) asks each
+vendor the same question the roles do: it downloads the key from the address
+the role uses and requires exactly one primary key with the pinned fingerprint.
+It runs weekly and in the pull request job that a pin change triggers
+([Release checksum check](../engineering/ci/release-checksum-check.md#apt-signing-keys)),
+so a rotation fails a scheduled run before it stops a deploy. A vendor it can't
+reach fails the run too. The Molecule scenarios of both roles download the real
+keys as well, so a pin that is wrong fails there first.

@@ -32,6 +32,7 @@ BARE_PYTHON = (
     "checksums/manifest.py",
     "checksums/gpg.py",
     "checksums/verify.py",
+    "checksums/aptkeys.py",
     "images/__init__.py",
     "images/registry.py",
     "images/build.py",

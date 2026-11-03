@@ -274,6 +274,7 @@ here.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
+| [`automated-pr-review.md`](automated-pr-review.md) | — | Not started — waiting on [ADR-0061/1](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md) | Review a pull request from the private repository's CI when the maintainer labels it, describe the practice here, try it against the local CodeRabbit run, and accept the decision. |
 | [`backup-agent-compose-app.md`](backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](../decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) | Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app. |
 | [`backup-archive-retention-lock.md`](backup-archive-retention-lock.md) | — | Not started — waiting on [ADR-0081/0](../decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) | Lock the on-site backup bucket in compliance mode so the host that wrote an archive cannot delete it, and expire superseded versions once their lock ends, as ADR 0081 decides. |
 | [`backup-archive-signing.md`](backup-archive-signing.md) | — | Not started — waiting on [ADR-0079/0](../decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) | Sign each backup archive with a per-host key and make a restore refuse any archive whose signature does not verify against a key pinned in the repository, as ADR 0079 decides. |

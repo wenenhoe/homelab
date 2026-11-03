@@ -376,6 +376,11 @@ vulnerability, incident, or exposure window
   VM loses the record of what Tofu built. Retiring the dev VM
   ([`workstation-management.md`](workstation-management.md)) must wait for
   Stage 3.
+- The batch restore's `--host`, `--skip` and `--check` against the real manifest, `rebuild_check.host` on any
+  real host, `ssh_target` for hosts other than `security`, and the
+  [rebuild runbook](../topics/disaster-recovery/rebuild-runbook.md) followed end to end have been exercised by
+  tests and a rehearsal only. Each remaining rebuild is their first real run, and a defect it finds is fixed as an
+  ordinary change before the next host.
 
 ## Open items
 

@@ -1,7 +1,10 @@
 ---
 - name: Install prerequisite packages
   ansible.builtin.apt:
-    name: ca-certificates
+    name:
+      - ca-certificates
+      # Reads the fingerprint of the key downloaded below.
+      - gpg
     state: present
     update_cache: true
     cache_valid_time: 3600
@@ -14,9 +17,49 @@
     owner: root
     group: root
 
-- name: Add Tailscale's package signing key
+# apt trusts every key in the file the source's Signed-By names, so the
+# download is staged, checked to hold exactly the pinned key, and only then
+# copied to the path apt reads. A rotated or substituted key stops the play
+# with the previous key still in place. The download writes only the staging
+# file, so it runs in a check run too and the checks after it have a file to
+# read.
+- name: Download Tailscale's package signing key to a staging file
   ansible.builtin.get_url:
     url: "https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+    dest: /etc/apt/keyrings/tailscale.gpg.fetched
+    force: true
+    mode: "0644"
+    owner: root
+    group: root
+  check_mode: false
+
+- name: Read the keys in the staging file
+  # gpg stops when its home directory is missing, and a home it creates in
+  # root's would stay behind, so it reads the file with a throwaway one.
+  ansible.builtin.command:
+    argv:
+      - sh
+      - -c
+      - h=$(mktemp -d) && trap 'rm -rf "$h"' EXIT && gpg --batch --no-options --homedir "$h" --show-keys --with-colons "$1"
+      - sh
+      - /etc/apt/keyrings/tailscale.gpg.fetched
+  register: tailscale_node_apt_key_staged
+  changed_when: false
+  check_mode: false
+
+- name: Stop unless the staging file holds Tailscale's pinned key and no other
+  ansible.builtin.assert:
+    that:
+      - tailscale_node_apt_key_staged.stdout | gpg_primary_fingerprints == [tailscale_node_apt_key_fingerprint]
+    fail_msg: >-
+      The key downloaded from Tailscale holds {{ tailscale_node_apt_key_staged.stdout | gpg_primary_fingerprints }},
+      not only {{ tailscale_node_apt_key_fingerprint }}.
+    quiet: true
+
+- name: Add Tailscale's package signing key
+  ansible.builtin.copy:
+    src: /etc/apt/keyrings/tailscale.gpg.fetched
+    remote_src: true
     dest: /etc/apt/keyrings/tailscale.gpg
     mode: "0644"
     owner: root

@@ -91,7 +91,8 @@ writes before the join. The role itself is
 The role converges, in order:
 
 1. **Install.** Tailscale's apt repository as a DEB822 source with its key in
-   `/etc/apt/keyrings/tailscale.gpg`, the vendor script's one-line
+   `/etc/apt/keyrings/tailscale.gpg`, installed only if the download is the
+   pinned key ([`apt-signing-keys.md`](../deploy/apt-signing-keys.md)), the vendor script's one-line
    `tailscale.list` removed in the same run, the package installed and never
    upgraded, and `tailscaled` enabled and started. Only `maintenance.yaml`
    upgrades the package.

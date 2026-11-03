@@ -4,7 +4,8 @@
 # ansible/roles/docker/tasks/main.yaml — that role also enables+starts the
 # systemd unit, which needs a running init system `docker build` doesn't
 # have. Update both files together if the docker role's package list or
-# apt-repo setup changes; there is no automated check for this drift yet.
+# apt-repo setup changes. A test keeps the key fingerprint below equal to the
+# role's; the rest of the drift has no automated check yet.
 #
 # docker-ce's postinst enables the unit via debian's systemd triggers
 # regardless of whether systemd is PID 1 at install time, so an explicit
@@ -22,12 +23,19 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        gpg \
         python3-debian \
         python3-requests \
         fuse-overlayfs \
     && install -m 0755 -d /etc/apt/keyrings \
-    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
-    && chmod a+r /etc/apt/keyrings/docker.asc \
+    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /tmp/docker.asc \
+    && gnupg_home=$(mktemp -d) \
+    && gpg --batch --no-options --homedir "$gnupg_home" --show-keys --with-colons /tmp/docker.asc > "$gnupg_home/listing" \
+    && test "$(awk -F: '$1 == "pub" { primary = 1; next } $1 == "fpr" && primary { print $10; primary = 0 } $1 ~ /^(sub|sec|ssb)$/ { primary = 0 }' "$gnupg_home/listing")" \
+        = 9DC858229FC7DD38854AE2D88D81803C0EBFCD88 \
+    && rm -rf "$gnupg_home" \
+    && install -m 0644 /tmp/docker.asc /etc/apt/keyrings/docker.asc \
+    && rm /tmp/docker.asc \
     && . /etc/os-release \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
         > /etc/apt/sources.list.d/docker.list \

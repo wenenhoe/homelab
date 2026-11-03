@@ -12,3 +12,7 @@ tailscale_node_accept_dns: true
 # single-use and pre-authorized; the play supplies it at run time.
 tailscale_node_tag: ""
 tailscale_node_authkey: ""
+
+# The fingerprint of the key that signs Tailscale's apt repository. The role
+# stops when the downloaded key is any other, or holds more than this one.
+tailscale_node_apt_key_fingerprint: 2596A99EAAB33821893C0A79458CA832957F5868

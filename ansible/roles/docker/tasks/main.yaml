@@ -10,6 +10,8 @@
     name:
       - ca-certificates
       - curl
+      # Reads the fingerprint of the key downloaded below.
+      - gpg
       # Required by deb822_repository below. install_python_debian
       # auto-install defaults to false (and is buggy when enabled — see
       # ansible/ansible#86395), so install it explicitly instead.
@@ -26,9 +28,49 @@
     owner: root
     group: root
 
-- name: Add Docker GPG key
+# apt trusts every key in the file the repository's signed_by names, so the
+# download is staged, checked to hold exactly the pinned key, and only then
+# copied to the path apt reads. A rotated or substituted key stops the play
+# with the previous key still in place. The download writes only the staging
+# file, so it runs in a check run too and the checks after it have a file to
+# read.
+- name: Download Docker's apt signing key to a staging file
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc.fetched
+    force: true
+    mode: "0644"
+    owner: root
+    group: root
+  check_mode: false
+
+- name: Read the keys in the staging file
+  # gpg stops when its home directory is missing, and a home it creates in
+  # root's would stay behind, so it reads the file with a throwaway one.
+  ansible.builtin.command:
+    argv:
+      - sh
+      - -c
+      - h=$(mktemp -d) && trap 'rm -rf "$h"' EXIT && gpg --batch --no-options --homedir "$h" --show-keys --with-colons "$1"
+      - sh
+      - /etc/apt/keyrings/docker.asc.fetched
+  register: docker_apt_key_staged
+  changed_when: false
+  check_mode: false
+
+- name: Stop unless the staging file holds Docker's pinned key and no other
+  ansible.builtin.assert:
+    that:
+      - docker_apt_key_staged.stdout | gpg_primary_fingerprints == [docker_apt_key_fingerprint]
+    fail_msg: >-
+      The key downloaded from Docker holds {{ docker_apt_key_staged.stdout | gpg_primary_fingerprints }},
+      not only {{ docker_apt_key_fingerprint }}.
+    quiet: true
+
+- name: Add Docker's apt signing key
+  ansible.builtin.copy:
+    src: /etc/apt/keyrings/docker.asc.fetched
+    remote_src: true
     dest: /etc/apt/keyrings/docker.asc
     mode: "0644"
     owner: root

@@ -17,17 +17,41 @@ The backup and restore mechanics are in [`backup.md`](backup.md) and
 | 3 | `security` only: take the OpenBao snapshot | `tools/openbao_utils/scripts/snapshot-push.sh <role_id>` | yes |
 | 4 | Copy Tofu's state | `tofu state pull` | yes |
 | 5 | Prepare and stage the Ubuntu image if the pin or `timezone` changed | [`prepare_image.sh`](../infra/vm-provisioning.md#prepared-ubuntu-image), then `scp` to the node | partly |
-| 6 | Dump the stopped VM and destroy it, then delete its Kea reservation and lease on the live gateway | [the cycle](../../projects/tofu-migration.md#stage-2--cutover) | no |
+| 6 | Dump the stopped VM and destroy it, then delete its Kea reservation and lease on the live gateway | [`retire_vm.sh`](#on-the-node) `dump` and `destroy`; the reservation by hand ([the cycle](../../projects/tofu-migration.md#stage-2--cutover)) | partly |
 | 7 | Declare the VM, apply, run the inventory generator | [`vm-provisioning.md`](../infra/vm-provisioning.md#tofu--ansible-handoff) | yes |
-| 8 | Remove the old SSH host key from `known_hosts` for the host's name and address | `ssh-keygen -R` | no |
+| 8 | Remove the old SSH host key from `known_hosts` for the host's name and address | `cd tools && python3 -m rebuild_check.known_hosts <host>` | yes |
 | 9 | Deploy | `deploy.yaml --limit <host>,localhost`; `security` first needs [the bootstrap](../secrets/openbao-backup-restore.md#rebuilding-security) | yes |
 | 10 | Restore the host's apps | `python3 ansible/scripts/restore_all.py --host <host>` (`--skip step-ca` on `security`) | yes |
 | 11 | Set the host's new Beszel agent fingerprint in the hub | [`beszel.md`](../monitoring/beszel.md#rebuilding-a-host) | no |
 | 12 | Check the host | `cd tools && python3 -m rebuild_check.host <host>` | yes |
-| 13 | Record the restore in the fire drill, then delete the dump and `fstrim` the pool | [`fire-drill.md`](fire-drill.md#results) | no |
+| 13 | Record the restore in the fire drill, then delete the dump and `fstrim` the pool | [`fire-drill.md`](fire-drill.md#results); [`retire_vm.sh`](#on-the-node) `drop-dump` | partly |
 
 Steps 1 to 5 change nothing on the host being rebuilt, so run them first and stop
 if one fails.
+
+## On the node
+
+[`retire_vm.sh`](../../../tools/rebuild_check/scripts/retire_vm.sh) runs on the
+Proxmox node as root, piped over SSH, against the dump storage that
+[Dump storage](../../projects/tofu-migration.md#dump-storage) creates:
+
+```sh
+ssh root@<node> 'bash -s -- dump 204 play' < tools/rebuild_check/scripts/retire_vm.sh
+ssh root@<node> 'bash -s -- destroy 204 play' < tools/rebuild_check/scripts/retire_vm.sh
+ssh root@<node> 'bash -s -- drop-dump 204' < tools/rebuild_check/scripts/retire_vm.sh
+```
+
+The VMID is followed by the VM's name in Proxmox, which has to match, so a
+mistyped VMID dumps or destroys nothing. `dump` and `destroy` also refuse a
+VM that is not stopped or a dump storage that is not mounted. `dump` refuses a
+VM that already has a dump, so the rollback of an earlier rebuild is never
+replaced by accident, and fails on a dump that is missing or empty. `destroy`
+runs only when exactly one non-empty dump of the VM is there. `drop-dump`
+deletes that VM's dump, log and notes and runs `fstrim -v` on the dump volume.
+`DUMP_STORAGE` and `DUMP_DIR` name the storage and its mount point, `vzdump` and
+`/mnt/vzdump` by default.
+
+The rollback is `qmrestore` of the dump to a 9XX VMID, as the cycle says.
 
 ## What the scripts check
 
@@ -81,8 +105,7 @@ Not scripted, and where each is described:
 
 - The gateway's Kea reservation and lease, and any alias, rule or forward that
   names the old address ([the cycle](../../projects/tofu-migration.md#stage-2--cutover)).
-- `known_hosts`, the Beszel fingerprint, and the dump, destroy and `fstrim` on
-  the node.
+- The Beszel fingerprint, and creating the dump storage once.
 - OpenBao's unseal after any restart of it.
 - `r2-read-watcher` on `security`. It is installed by hand
   ([`openbao-r2-read-watcher.md`](../secrets/openbao-r2-read-watcher.md#installing)),

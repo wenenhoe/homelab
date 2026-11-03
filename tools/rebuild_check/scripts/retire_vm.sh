@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Runs on the Proxmox node, piped in over SSH: bash -s -- ACTION VMID [NAME].
+# The node's side of a host rebuild: dump the stopped old VM to the dump storage, destroy it, and
+# delete its dump once the rebuilt host is confirmed healthy.
+#   dump VMID NAME       vzdump the stopped VM to the dump storage; refuses if a dump of VMID exists
+#   destroy VMID NAME    destroy the stopped VM; refuses unless its dump is there and not empty
+#   drop-dump VMID       delete VMID's dump, then fstrim the dump volume to hand its blocks back
+# NAME is the VM's name in Proxmox. It has to match, so a mistyped VMID cannot dump or destroy another
+# VM. The dump is the only rollback for a destroyed VM, so destroy never runs without one.
+# DUMP_STORAGE and DUMP_DIR name the dump storage and where it is mounted.
+set -euo pipefail
+
+storage=${DUMP_STORAGE:-vzdump}
+dump_dir=${DUMP_DIR:-/mnt/vzdump}
+
+usage() {
+  echo "usage: bash -s -- dump|destroy VMID NAME | drop-dump VMID" >&2
+  exit 2
+}
+
+fail() {
+  echo "$*" >&2
+  exit 1
+}
+
+action=${1:-}
+vmid=${2:-}
+name=${3:-}
+case "$action" in
+  dump | destroy) [ "$#" -eq 3 ] || usage ;;
+  drop-dump) [ "$#" -eq 2 ] || usage ;;
+  *) usage ;;
+esac
+[[ "$vmid" =~ ^[0-9]+$ ]] || usage
+
+# A dump directory that is not mounted is the node's root filesystem, which a dump would fill.
+require_dump_storage() {
+  mountpoint -q "$dump_dir" || fail "$dump_dir is not a mount point: the dump storage is not mounted"
+  pvesm status --storage "$storage" > /dev/null || fail "no storage named $storage"
+}
+
+require_stopped_vm_named() {
+  local config got
+  config=$(qm config "$vmid") || fail "no VM $vmid"
+  got=$(awk -F': ' '$1 == "name" {print $2}' <<< "$config")
+  [ "$got" = "$name" ] || fail "VM $vmid is named '$got', not '$name'"
+  [ "$(qm status "$vmid")" = "status: stopped" ] || fail "VM $vmid is not stopped"
+}
+
+# The dump's archive; its log and notes sit beside it under the same prefix.
+dump_archives() {
+  shopt -s nullglob
+  archives=("$dump_dir"/vzdump-qemu-"$vmid"-*.vma.zst)
+  shopt -u nullglob
+}
+
+require_one_nonempty_dump() {
+  dump_archives
+  [ "${#archives[@]}" -eq 1 ] || fail "expected one dump of VM $vmid in $dump_dir, found ${#archives[@]}"
+  [ -s "${archives[0]}" ] || fail "the dump ${archives[0]} is empty"
+}
+
+case "$action" in
+  dump)
+    require_dump_storage
+    require_stopped_vm_named
+    dump_archives
+    [ "${#archives[@]}" -eq 0 ] || fail "VM $vmid already has a dump in $dump_dir: ${archives[0]}"
+    vzdump "$vmid" --storage "$storage" --compress zstd --mode stop
+    require_one_nonempty_dump
+    echo "dumped VM $vmid to ${archives[0]} ($(stat -c %s "${archives[0]}") bytes)"
+    ;;
+  destroy)
+    require_dump_storage
+    require_stopped_vm_named
+    require_one_nonempty_dump
+    qm destroy "$vmid" --purge 1 --destroy-unreferenced-disks 1
+    echo "destroyed VM $vmid; its dump is ${archives[0]}"
+    ;;
+  drop-dump)
+    require_dump_storage
+    dump_archives
+    [ "${#archives[@]}" -gt 0 ] || fail "no dump of VM $vmid in $dump_dir"
+    rm -f -- "$dump_dir"/vzdump-qemu-"$vmid"-*
+    fstrim -v "$dump_dir"
+    ;;
+esac

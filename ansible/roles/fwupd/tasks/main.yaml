@@ -41,6 +41,11 @@
   register: fwupd_upgrade
   when: fwupd_updates.rc == 0
   changed_when: "'Successfully installed' in fwupd_upgrade.stdout"
+  # rc 2 is EXIT_NOTHING_TO_DO: fu_cli_update raises it ("No updatable
+  # devices") when no device on the host is one LVFS supports, as on a VM.
+  # The get-upgrades gate above cannot skip this task, and a failure here
+  # would stop maintenance.yaml (serial: 1) before the hosts after it.
+  failed_when: fwupd_upgrade.rc not in [0, 2]
   # --no-reboot-check: this role decides whether and when to reboot itself
   # (the task below), not fwupdmgr's own interactive prompt-then-reboot
   # completion logic that every fwupdmgr subcommand shares (fu-cli.c's

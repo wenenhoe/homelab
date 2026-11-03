@@ -57,7 +57,7 @@ Update at the start and end of each PR that works a stage.
 
 ## Acceptance criteria
 
-- [ ] Every `app_catalog` entry names a record whose six sections are present,
+- [ ] Every `app_catalog` entry names a record whose seven sections are present,
   in order and filled.
 - [ ] The coverage view is generated and a stale one fails a check.
 - [ ] The project template carries the readiness checklist.

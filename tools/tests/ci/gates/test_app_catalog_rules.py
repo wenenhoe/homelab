@@ -217,6 +217,16 @@ class TestEachRule:
         found = rules.validate({"ok": GOOD["web"], "one": {rules.ROUTES_KEY: {"r": {}}}, "two": {"backup": {"volumes": ["x"]}}})
         assert [(v.name, v.rule) for v in found] == [("one", "route-upstream"), ("two", "backup-volume")]
 
+    def test_recovery_tier_1_is_accepted(self):
+        assert broken({"recovery_tier": 1}) == []
+
+    @pytest.mark.parametrize(
+        "tier",
+        [pytest.param(2, id="two"), pytest.param(0, id="zero"), pytest.param("1", id="text"), pytest.param(True, id="true"), pytest.param(None, id="null")],
+    )
+    def test_any_other_recovery_tier_is_refused(self, tier):
+        assert broken({"recovery_tier": tier}) == ["recovery-tier"]
+
 
 ALPHA_VARS = inventory().host_vars["alpha"]
 
@@ -431,3 +441,8 @@ class TestRealCatalog:
     def test_main_passes_on_the_real_catalog(self):
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             assert rules.main() == 0
+
+    def test_the_systems_every_restore_depends_on_are_marked_tier_1(self):
+        catalog = load_catalog()
+        marked = sorted(name for name, app in catalog.items() if app.get("recovery_tier") == 1)
+        assert marked == ["openbao", "seaweedfs", "step-ca"]

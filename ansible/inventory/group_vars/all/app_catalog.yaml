@@ -15,6 +15,9 @@
 # Sources live at {{ compose_source_dir }}/{{ app_name }}/configs/{{ item.src }}.
 # Per-host files (host_vars/*.yaml) only list which apps to deploy and,
 # for routable apps, the route host label(s).
+#
+# `recovery_tier: 1` marks a system every other restore depends on (ADR 0101).
+# Leave it out elsewhere: any other system's tier follows from its `backup`.
 app_catalog:
   caddy:
     volumes:
@@ -117,6 +120,7 @@ app_catalog:
         upstream: "shlink-web-client:8080"
 
   seaweedfs:
+    recovery_tier: 1
     volumes:
       - name: data
     configs:
@@ -174,6 +178,7 @@ app_catalog:
         auth: false
 
   step-ca:
+    recovery_tier: 1
     volumes:
       - name: data
       - name: scripts
@@ -191,6 +196,7 @@ app_catalog:
     # uses. See docs/topics/services/step-ca.md.
 
   openbao:
+    recovery_tier: 1
     volumes:
       - name: data
       - name: config

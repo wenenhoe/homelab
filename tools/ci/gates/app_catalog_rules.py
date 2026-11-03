@@ -16,6 +16,9 @@ own SeaweedFS secret pair and host variables, or the deploy fails late on an
 undefined variable. Each violation is reported with the app's (or host's) name
 and the rule it breaks; any violation fails the check.
 
+A `recovery_tier` key is `1` or absent: it marks a system every other restore depends on, and every other
+system's tier is derived from whether it has a `backup` (ADR 0101).
+
 Runs in pre-commit (PyYAML only) and so in the pre-commit-checks job. The
 inventory is read as plain YAML; no value is rendered.
 
@@ -34,6 +37,7 @@ ROUTES_KEY = "routes"
 LEGACY_ROUTES_KEY = "caddy"
 CLOUD_TARGETS_KEY = "cloud_targets"
 LEGACY_CLOUD_TARGETS_KEY = "extra_cloud_targets"
+RECOVERY_TIER_KEY = "recovery_tier"
 DEFAULTS_NAME = "backup_defaults"
 # The keys of an app's `backup:` block that have a default, which are the keys of backup_defaults. The
 # backup_plan filter in ansible/filter_plugins/ keeps the same list; a test holds the two equal.
@@ -118,6 +122,11 @@ def _check_app(name: str, app: dict[str, object]) -> list[Violation]:
     if isinstance(backup, dict):
         for rule, problem in _key_problems(backup, "backup", BACKUP_KEYS):
             fail(rule, problem)
+
+    if RECOVERY_TIER_KEY in app:
+        tier = app[RECOVERY_TIER_KEY]
+        if tier != 1 or isinstance(tier, bool):
+            fail("recovery-tier", f"`{RECOVERY_TIER_KEY}` must be 1 or left out; any other system's tier is derived from its `backup`")
 
     legacy = app.get(LEGACY_ROUTES_KEY)
     if isinstance(legacy, dict) and legacy and all(isinstance(route, dict) for route in legacy.values()):

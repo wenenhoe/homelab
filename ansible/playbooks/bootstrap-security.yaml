@@ -361,7 +361,7 @@
             name: openbao
             tasks_from: cert.yaml
           vars:
-            openbao_cert_tasks_from: issue.yaml
+            openbao_cert_issue_only: true
 
         - name: Wait for OpenBao to answer
           ansible.builtin.include_role:

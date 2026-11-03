@@ -2,6 +2,6 @@
 # Same tag as docker/openbao/compose.yaml.j2's own pin.
 openbao_image: "openbao/openbao:2.7.2@sha256:5046911075e137e154ce49ab051502f4ec7cf367d484ae4a4dce665d9b90561f"
 openbao_data_volume_name: openbao_data
-# main.yaml runs the whole step_ca_cert role; issue.yaml issues without the
-# renewal units and alerting, which need OpenBao to be up already.
-openbao_cert_tasks_from: main.yaml
+# Issues the leaf cert without installing its renewal units and alerting, which
+# need OpenBao to be up already.
+openbao_cert_issue_only: false

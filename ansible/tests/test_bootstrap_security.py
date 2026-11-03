@@ -93,7 +93,7 @@ def test_the_compose_file_publishes_on_the_address_it_is_given(variables, publis
 def test_stage_3_issues_through_the_tasks_deploy_runs(bootstrap_tasks):
     stage_3 = next(task for task in bootstrap_tasks if task["tags"] == ["never", "stage3"])
     issue = openbao_role_includes(stage_3["block"])["cert.yaml"]
-    assert issue["vars"] == {"openbao_cert_tasks_from": "issue.yaml"}
+    assert issue["vars"] == {"openbao_cert_issue_only": True}
 
 
 def test_deploy_runs_the_whole_step_ca_cert_role_for_openbao():
@@ -112,10 +112,13 @@ def test_neither_playbook_spells_openbao_cert_variables(bootstrap_tasks):
     assert spelled == []
 
 
-def test_the_cert_tasks_pass_the_image_the_role_pins(openbao_image):
+def test_both_cert_includes_carry_the_same_variables_and_the_image_the_role_pins(openbao_image):
     # The chown image resolves the openbao user, so it has to be the running image.
-    (include,) = load(ANSIBLE_DIR / "roles/openbao/tasks/cert.yaml")
-    assert include["vars"]["step_ca_cert_chown_image"] == "{{ openbao_image }}"
+    whole, issue_only = load(ANSIBLE_DIR / "roles/openbao/tasks/cert.yaml")
+    assert whole["ansible.builtin.include_role"].get("tasks_from") is None
+    assert issue_only["ansible.builtin.include_role"]["tasks_from"] == "issue.yaml"
+    assert whole["vars"] == issue_only["vars"]
+    assert whole["vars"]["step_ca_cert_chown_image"] == "{{ openbao_image }}"
     assert render_openbao_compose()["services"]["openbao"]["image"] == openbao_image
 
 

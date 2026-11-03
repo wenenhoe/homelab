@@ -36,7 +36,9 @@ alert at any other time, or naming any other role, is not expected.
 
 The watcher's own AppRole (`r2-read-watcher`) is already provisioned —
 [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md)'s step 6. This
-picks up from there.
+picks up from there. A rebuilt `security` has none of it, so these steps run
+again on the new VM, and `rebuild_check.host security` fails until they have
+([`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md#still-done-by-hand)).
 
 1. Copy everything over, from `controller`:
 
@@ -104,16 +106,32 @@ picks up from there.
    exit
    ```
 
-   Then on `security` (`ssh -t security`), with `<gatus url>` the `gatus_url` value
-   without a trailing slash:
+   Then on `security` (`ssh -t security`). `gatus_url` is built in
+   `group_vars/all/main.yaml` as `https://`, the Gatus host name, a dot and the main
+   domain. This loop asks again for a value that does not start with `https://`,
+   ends in a slash or still holds a placeholder in angle brackets, any of which
+   makes the URL malformed. Run it on its own, since `read` takes the next line of
+   anything pasted after it:
+
+   ```sh
+   gatus_url=
+   until [[ $gatus_url == https://* && $gatus_url != */ && $gatus_url != *[\<\>]* ]]; do
+     read -r -p 'gatus_url (https://..., no trailing slash): ' gatus_url
+   done
+   ```
+
+   Then write the config:
 
    ```sh
    t=$(cat ~/.gatus-token-r2)
-   printf 'url = "<gatus url>/api/v1/endpoints/backups_r2-read-watcher/external?success=true"\nrequest = "POST"\nheader = "Authorization: Bearer %s"\n' "$t" \
+   printf 'url = "%s/api/v1/endpoints/backups_r2-read-watcher/external?success=true"\nrequest = "POST"\nheader = "Authorization: Bearer %s"\n' "$gatus_url" "$t" \
      | sudo tee /etc/gatus-push/gatus-push-r2-read-watcher.curlrc >/dev/null
    sudo chmod 600 /etc/gatus-push/gatus-push-r2-read-watcher.curlrc
    unset t; shred -u ~/.gatus-token-r2
+   sudo grep '^url' /etc/gatus-push/gatus-push-r2-read-watcher.curlrc
    ```
+
+   The last line prints the URL the heartbeat will post to and nothing of the token.
 
 6. Enable and start everything:
 

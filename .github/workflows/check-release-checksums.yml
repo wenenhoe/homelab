@@ -3,6 +3,8 @@ name: Check release checksums
 # Once a week, and on demand. A pinned hash is checked when its pin changes
 # (pr-checks.yml's release-checksums job); this asks each publisher again, so
 # a key that rotated or a manifest that moved is noticed even when no pin did.
+# It also asks Docker and Tailscale whether they still serve the apt key the
+# roles pin.
 # See docs/topics/engineering/ci/release-checksum-check.md.
 #
 # The minute is off the hour to stay clear of the top-of-the-hour crowd on
@@ -40,3 +42,11 @@ jobs:
         working-directory: tools
         env:
           GH_TOKEN: ${{ github.token }}
+
+      # The same question for the apt signing keys the docker and tailscale_node
+      # roles pin by fingerprint. Runs even when the step above failed, so one
+      # run reports both. Needs no token.
+      - name: Check every pinned apt signing key against its vendor
+        if: ${{ !cancelled() }}
+        run: python3 -m ci.checksums.aptkeys
+        working-directory: tools

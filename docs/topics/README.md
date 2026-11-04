@@ -13,6 +13,7 @@ Deploying apps: how the Ansible and Compose pipeline works and how to extend it.
 | [`controller-setup.md`](deploy/controller-setup.md) | One-time setup of the machine that runs Ansible and the repo's Python tooling, and the directory each command runs from. |
 | [`ansible.md`](deploy/ansible.md) | Playbook, role, and inventory reference tables. |
 | [`deployment-flow.md`](deploy/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_catalog`. |
+| [`apt-signing-keys.md`](deploy/apt-signing-keys.md) | The apt signing keys of Docker's and Tailscale's repositories: how each role checks a downloaded key against a pinned fingerprint, where the pins are, and what to do when a vendor rotates its key. |
 | [`docker-daemon.md`](deploy/docker-daemon.md) | `/etc/docker/daemon.json`: the defaults the `docker` role merges in, how it shares the file with `bind9`, and why `live-restore` is off. |
 | [`adding-an-app.md`](deploy/adding-an-app.md) | Wiring a new Compose app into the catalog. |
 | [`container-hardening.md`](deploy/container-hardening.md) | Choosing the capabilities a container keeps: what each one is for, what its absence looks like, and how to verify a set. |

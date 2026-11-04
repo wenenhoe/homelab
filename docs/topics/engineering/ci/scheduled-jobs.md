@@ -9,7 +9,7 @@ Every workflow with a `schedule` trigger, listed by the time of day of its first
 | Workflow | Cron (UTC) | Fires (UTC) | Fires (Asia/Singapore) | What it does |
 | :--- | :--- | :--- | :--- | :--- |
 | `check-image-tags.yml` | `23 2 * * 0` | Sunday 02:23 | Sunday 10:23 | Checks that every pinned image still exists in its registry ([image tag check](image-tag-check.md)). |
-| `check-release-checksums.yml` | `41 3 * * 0` | Sunday 03:41 | Sunday 11:41 | Asks each publisher again whether the pinned release hashes are theirs ([release checksum check](release-checksum-check.md)). |
+| `check-release-checksums.yml` | `41 3 * * 0` | Sunday 03:41 | Sunday 11:41 | Asks each publisher again whether the pinned release hashes are theirs, and Docker and Tailscale whether they still serve the apt keys the roles pin ([release checksum check](release-checksum-check.md)). |
 | `check-image-provenance.yml` | `13 4 * * 0` | Sunday 04:13 | Sunday 12:13 | Asks each publisher again whether the pinned image digests are theirs ([image provenance check](image-provenance-check.md)). |
 | `check-shell-test-pins.yml` | `47 4 * * 0` | Sunday 04:47 | Sunday 12:47 | Checks that each pinned Bats release tag still points at its pinned commit ([shell test pins](shell-test-pins.md#checking-the-pins)). |
 | `progress-log.yml` | `17 16 * * *` | Every day 16:17 | Every day 00:17 | Adds what was merged to `main` since the last run to the weekly and monthly progress log on the `progress-log` branch ([Progress log](#progress-log)). |
@@ -53,7 +53,8 @@ correctness/linting jobs in [CI: PR Checks](pipeline.md#jobs) — see
 ## Release checksum check
 
 `check-release-checksums.yml` runs weekly and on demand,
-asking each publisher again whether the pinned release hashes are theirs. It
+asking each publisher again whether the pinned release hashes are theirs, and
+Docker and Tailscale whether they still serve the apt keys the roles pin. It
 is the same check the `release-checksums` PR job runs when a pin changes; what
 it verifies and how it fails is in
 [CI Release Checksum Check](release-checksum-check.md). GitHub emails a failed scheduled

@@ -40,6 +40,20 @@ the fingerprint its entry names. A signature by an expired or revoked key, or
 by any other key, fails. A publisher that rotates its key fails the weekly run
 until the new key is reviewed and committed.
 
+## Apt signing keys
+
+The same two runs also check the apt keys the `docker` and `tailscale_node`
+roles pin by fingerprint, with `python3 -m ci.checksums.aptkeys` from `tools/`.
+Each key is downloaded from the address its role uses and listed with `gpg`;
+the run fails unless it holds exactly one primary key and that key's
+fingerprint is the pinned one, and it fails for a vendor it can't reach. The
+list of keys is in
+[`tools/ci/checksums/aptkeys.py`](../../../../tools/ci/checksums/aptkeys.py),
+and a test fails for a role default named `*_apt_key_fingerprint` that has no
+entry. It needs no token, and it runs after the checksum step even when that
+one failed. What the roles do with the key, and what to do when a vendor
+rotates it, is in [`apt-signing-keys.md`](../../deploy/apt-signing-keys.md).
+
 ## When a pin, a key or a manifest changes
 
 - **A new pin** needs a registry entry in the same change; a test fails for any

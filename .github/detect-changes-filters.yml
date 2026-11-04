@@ -97,7 +97,7 @@ python_unit_tests:
   - 'pyproject.toml'
   - 'uv.lock'
 # Gates release-checksums: the registry, the verifier and the committed keys,
-# and the files that hold the pins it checks — see
+# and the files that hold the pins it checks, the apt key fingerprints included — see
 # docs/topics/engineering/ci/release-checksum-check.md. Not narrowed by
 # ci.scope.effective_changes: the check reads no comments, but a pin file is
 # small and the run is cheap, so any change to one is worth a look.
@@ -106,6 +106,8 @@ release_checksums:
   - 'tools/ci/verification.py'
   - 'ansible/roles/cd_agent/defaults/main.yaml'
   - 'ansible/roles/openbao_cli/defaults/main.yaml'
+  - 'ansible/roles/docker/defaults/main.yaml'
+  - 'ansible/roles/tailscale_node/defaults/main.yaml'
   - 'tools/coderabbit-review/Dockerfile'
 # Gates provenance: the checker and its registry and keys, and every file that
 # can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the

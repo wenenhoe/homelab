@@ -538,6 +538,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+      # The apt signing keys the docker and tailscale_node roles pin by
+      # fingerprint, against what Docker and Tailscale serve now. Runs even
+      # when the step above failed, so one run reports both. Needs no token.
+      - name: Check every pinned apt signing key against its vendor
+        if: ${{ !cancelled() }}
+        run: python3 -m ci.checksums.aptkeys
+        working-directory: tools
+
   # Shows that each pinned image digest is one its publisher signed or attested
   # (ADR 0084) — see docs/topics/engineering/ci/image-provenance-check.md.
   # Not a matrix job, so it can be required directly: a PR that changes no

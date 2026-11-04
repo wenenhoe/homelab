@@ -3,9 +3,19 @@
 [extend]
 useDefault = true
 
-# The allowlist is narrow on purpose: one value, in one file.
+# Each allowlist is narrow on purpose: one kind of value, in named files.
 [[allowlists]]
 description = "The bcrypt hash from Gatus's README, base64-encoded: CI's placeholder for the dashboard password, which authenticates nothing"
 condition = "AND"
 paths = ['''^ansible/ci-inventory/group_vars/all/ci_dummy_vars\.yaml$''']
 regexes = ['''^JDJhJDEwJHRiMnRFakxWazZLdXBzRERQazB1TE8vckRLY05Yb1hSdnoxWU0yQ1FaYXZRSW1McmladDYu$''']
+
+[[allowlists]]
+description = "Public key fingerprints, 40 upper-case hex digits that name a key and authenticate nothing: the apt key pins in two role defaults, and the tests that use fingerprints"
+condition = "AND"
+paths = [
+  '''^ansible/roles/(docker|tailscale_node)/defaults/main\.yaml$''',
+  '''^ansible/tests/test_gpg_keys\.py$''',
+  '''^tools/tests/ci/checksums/test_checksum_aptkeys\.py$''',
+]
+regexes = ['''^[0-9A-F]{40}$''']

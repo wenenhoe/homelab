@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from ci.checksums.aptkeys import KEYS
 from ci.checksums.registry import ENTRIES
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -17,6 +18,7 @@ WEEKLY = REPO_ROOT / ".github/workflows/check-release-checksums.yml"
 PR_CHECKS = REPO_ROOT / ".github/workflows/pr-checks.yml"
 FILTERS = REPO_ROOT / ".github/detect-changes-filters.yml"
 COMMAND = "python3 -m ci.checksums.verify"
+APT_KEYS_COMMAND = "python3 -m ci.checksums.aptkeys"
 
 
 @pytest.fixture(scope="module")
@@ -46,6 +48,11 @@ def job(pr_checks):
 
 def check_step(job):
     (step,) = [step for step in job["steps"] if step.get("run") == COMMAND]
+    return step
+
+
+def apt_keys_step(job):
+    (step,) = [step for step in job["steps"] if step.get("run") == APT_KEYS_COMMAND]
     return step
 
 
@@ -87,6 +94,14 @@ class TestWeeklyRun:
         assert "secrets." not in WEEKLY.read_text()
         assert checkout_step(weekly["jobs"]["check-release-checksums"])["with"]["persist-credentials"] is False
 
+    def test_the_apt_keys_are_checked_from_tools_even_when_the_checksums_step_failed(self, weekly):
+        step = apt_keys_step(weekly["jobs"]["check-release-checksums"])
+        assert step["working-directory"] == "tools"
+        assert step["if"] == "${{ !cancelled() }}"
+
+    def test_the_apt_key_step_takes_no_credential(self, weekly):
+        assert "env" not in apt_keys_step(weekly["jobs"]["check-release-checksums"])
+
 
 class TestPullRequestRun:
     def test_it_runs_only_when_the_filter_matched(self, job):
@@ -110,6 +125,14 @@ class TestPullRequestRun:
     def test_it_is_not_a_matrix_job_so_it_can_be_required_directly(self, job):
         assert "strategy" not in job
 
+    def test_the_apt_keys_are_checked_from_tools_even_when_the_checksums_step_failed(self, job):
+        step = apt_keys_step(job)
+        assert step["working-directory"] == "tools"
+        assert step["if"] == "${{ !cancelled() }}"
+
+    def test_the_apt_key_step_takes_no_credential(self, job):
+        assert "env" not in apt_keys_step(job)
+
 
 class TestFilter:
     def test_a_change_to_the_check_or_its_keys_matches(self, filters):
@@ -117,6 +140,10 @@ class TestFilter:
 
     def test_a_change_to_the_verifier_calls_it_shares_with_the_provenance_check_matches(self, filters):
         assert "tools/ci/verification.py" in filters
+
+    @pytest.mark.parametrize("key", KEYS, ids=lambda key: key.name)
+    def test_a_change_to_the_file_holding_an_apt_keys_pin_matches(self, key, filters):
+        assert key.pin.path in filters
 
     @pytest.mark.parametrize("entry", ENTRIES, ids=lambda entry: entry.name)
     def test_a_change_to_the_file_holding_an_entrys_pin_matches(self, entry, filters):

@@ -96,7 +96,9 @@ The role converges, in order:
    upgraded, and `tailscaled` enabled and started. Only `maintenance.yaml`
    upgrades the package.
 2. **Forwarding.** `/etc/sysctl.d/99-tailscale.conf` sets IPv4 and IPv6
-   forwarding when the node advertises routes, and is not written otherwise.
+   forwarding when the node advertises routes. A node that advertises none has
+   no such file: the role removes one left by an earlier run and turns both
+   forwarding values off in the same run.
 3. **Join**, only when the node is logged out. It needs `tailscale_node_tag`
    and a key; a logged-out node missing either stops the play before anything
    changes. A logged-in node needs neither.

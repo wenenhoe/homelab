@@ -21,6 +21,21 @@
         name: molecule_helpers
         tasks_from: reset_coverage_data.yaml
 
+    # What a node leaves behind when it stops advertising routes.
+    - name: Leave a forwarding drop-in from an earlier run
+      ansible.builtin.copy:
+        content: |
+          net.ipv4.ip_forward = 1
+          net.ipv6.conf.all.forwarding = 1
+        dest: /etc/sysctl.d/99-tailscale.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Turn forwarding on
+      ansible.builtin.command: sysctl -w net.ipv4.ip_forward=1 net.ipv6.conf.all.forwarding=1
+      changed_when: true
+
     - name: Install the stub client
       ansible.builtin.copy:
         src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/molecule/default/files/tailscale-stub.py"

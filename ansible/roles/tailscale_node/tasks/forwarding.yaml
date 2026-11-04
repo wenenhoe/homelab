@@ -10,3 +10,12 @@
     mode: "0644"
   when: tailscale_node_advertise_routes | length > 0
   notify: Apply the Tailscale sysctl drop-in
+
+# Forwarding is there to carry the routes the node advertises, so a node that
+# stops advertising them stops forwarding, now and after a reboot.
+- name: Stop persisting forwarding
+  ansible.builtin.file:
+    path: /etc/sysctl.d/99-tailscale.conf
+    state: absent
+  when: tailscale_node_advertise_routes | length == 0
+  notify: Turn off forwarding

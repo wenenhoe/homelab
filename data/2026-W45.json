@@ -310,6 +310,60 @@
      "opened (not-started)"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "8e101b4a1188d02429975c050c7a0adbf8bdc966",
+   "date": "2026-11-04T13:01:24+08:00",
+   "kind": "pr",
+   "pr": 630,
+   "title": "accept fwupdmgr's nothing-to-do exit code in the firmware update\u2026",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b36a7e654f023ca241d40c5f4eac4047b1707d6a",
+   "date": "2026-11-04T13:13:18+08:00",
+   "kind": "pr",
+   "pr": 631,
+   "title": "stop forwarding when a Tailscale node stops advertising routes",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8af13638556bea321b63a5d34205fb87716e1ff6",
+   "date": "2026-11-04T13:51:54+08:00",
+   "kind": "pr",
+   "pr": 632,
+   "title": "check the pinned apt key fingerprints against Docker and Tailscale",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "63ab057bfb2671620c8c50a1abe31e26e5e18e9e",
+   "date": "2026-11-04T14:47:15+08:00",
+   "kind": "pr",
+   "pr": 633,
+   "title": "Scope projects and additional work",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: molecule-container-hardening",
+   "events": [
+    [
+     "project",
+     "molecule-container-hardening",
+     "opened (not-started)"
+    ]
+   ]
   }
  ]
 }

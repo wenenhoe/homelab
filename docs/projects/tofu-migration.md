@@ -211,7 +211,10 @@ arrived since the first.
    `bind9` run flips the record yet. VM 207's SeaweedFS starts empty. Its
    cloud-sync timer reads VM 206 by name, so the two timers relay the same
    archives and `--immutable` makes the second a no-op.
-4. First pass, on VM 207: run the image that `cloud-sync.service` runs, with
+4. First pass, on VM 207:
+   [`bucket_copy.py`](../../tools/rebuild_check/scripts/bucket_copy.py) does what
+   this step describes ([how to run it](../topics/disaster-recovery/rebuild-runbook.md#copying-the-bucket)).
+   By hand, run the image that `cloud-sync.service` runs, with
    its hardening flags, on the `caddy-proxy` network. Its remotes are `old`,
    the `cloud-sync-reader` identity at the name every client uses (which still
    resolves to VM 206), and `new`, the admin identity at

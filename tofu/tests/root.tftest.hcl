@@ -119,12 +119,12 @@ run "declares_the_security_host_on_its_vmid" {
   }
 }
 
-run "declares_the_storage_host_on_its_vmid" {
+run "declares_the_storage_host_under_a_name_that_leaves_module_storage_free" {
   command = plan
 
   assert {
-    condition     = module.storage.vm_id == 207 && module.storage.hostname == "storage"
-    error_message = "the storage host must be VMID 207, named storage"
+    condition     = module.storage_old.vm_id == 207 && module.storage_old.hostname == "storage"
+    error_message = "the storage host must stay VMID 207, named storage, under the address module.storage_old"
   }
 }
 

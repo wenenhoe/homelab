@@ -44,7 +44,12 @@ module "security" {
   ssh_public_keys = var.ansible_ssh_public_keys
 }
 
-module "storage" {
+moved {
+  from = module.storage
+  to   = module.storage_old
+}
+
+module "storage_old" {
   source          = "./modules/proxmox_ubuntu_vm"
   node_name       = var.proxmox_node
   vm_id           = 207

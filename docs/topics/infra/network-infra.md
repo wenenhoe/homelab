@@ -132,6 +132,36 @@ source and turns the client's auto-update off.
 to `tailscale_node_advertise_routes` in `inventory/host_vars/tailscale.yaml`,
 and add its grant to the tailnet policy. The next run calls `tailscale set`.
 
+## Tailnet inventory
+
+What the tailnet holds and what is reached over it. It was found by reading the admin console's policy, machines and DNS pages and the router's `tailscale status`, and the flows are the ones the lab's docs record, confirmed by the maintainer. Devices are described by role, never by name or address.
+
+**Devices.** Every device belongs to the maintainer's one user and carries no tag. No other user's device is on the tailnet.
+
+| Role | Disposition | Key expiry |
+| :--- | :--- | :--- |
+| Subnet router (VM 202) | Kept | None today. Joined tagged after a rebuild, so none |
+| Proxmox node | Kept. Joined by hand, untagged, no approved route | Off, since an expired key drops the way to the hypervisor when the router VM is broken |
+| Maintainer laptop | Kept | The domain's default |
+| Maintainer phone and tablet | Kept. Backup clients for when the laptop is out of reach, with the laptop's access | The domain's default |
+| Retired Windows desktop | Remove. Not connected for months | |
+| Retired Linux desktop VM | Remove. Not connected for months | |
+
+**DNS.** MagicDNS is on. The global nameserver is a public resolver and needs no grant. Split DNS lists the gateway for `host_domain` and for `lan_domain`. The gateway sits inside the route the router advertises, so a client resolves those names only if the policy grants it port 53 there. The gateway forwards to both DNS servers of [ADR 0040](../../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md), and the secondary is not listed beside it: the router's own path to the Internet runs through the gateway, so a second entry would keep no name resolving that the tailnet could still reach.
+
+**Other policy sections.** The default policy carries a Tailscale SSH rule (members to their own devices, in check mode) and a Funnel attribute for members. No flow below uses either, and [ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) leaves both out, so neither is kept. The policy has no groups, tags, auto-approvers or tests yet.
+
+**Flows.** The laptop, phone and tablet are the only sources.
+
+| To | Port | Why | Found by |
+| :--- | :--- | :--- | :--- |
+| VLAN 20 hosts, not the gateway or the router | tcp 22 | SSH to the hosts away from home | The hosts' flow list in [`operator-host.md`](../../projects/operator-host.md), confirmed by the maintainer |
+| VLAN 20 hosts, not the gateway or the router | tcp 443 | The apps behind Caddy | Maintainer |
+| The gateway's address | tcp and udp 53 | Split-DNS lookups | The console's DNS page |
+| The Proxmox node | tcp 8006 and 22 | Its web interface and a shell when the router VM is broken | [ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md), confirmed by the maintainer |
+
+No source reaches the router's own address, since the host is managed from the operator host through the gateway and not over the tailnet, and none reaches the gateway's management ports. A remote Minecraft player is not a flow: the only player is a VM behind the same gateway as `play`.
+
 ## Bringing a new `network_infra` host under management
 
 One-time prerequisites, none of which can be automated

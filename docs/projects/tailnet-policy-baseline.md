@@ -2,7 +2,7 @@
 id: PROJ-tailnet-policy-baseline
 title: Tailnet Policy Baseline
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant.
 super_project: tailnet-policy
@@ -28,7 +28,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Take stock of what the maintainer and the nodes reach over the tailnet today, and of the tailnet's devices, DNS settings and other policy sections | Not started | Every source, destination and port in use is listed in a topic doc, with how it was found, and so is every device, nameserver and non-grant policy section, each matched to something the lab uses or marked for removal |
+| 1 | Take stock of what the maintainer and the nodes reach over the tailnet today, and of the tailnet's devices, DNS settings and other policy sections | Done | Every source, destination and port in use is listed in a topic doc, with how it was found, and so is every device, nameserver and non-grant policy section, each matched to something the lab uses or marked for removal |
 | 2 | Clean up the devices, then replace allow-all with explicit grants and `tests` | Not started | Every device marked for removal is gone, the saved policy grants exactly what Stage 1 lists, its `tests` pass, every flow in the list still works from the node that uses it, and the policy holds the router's tag under `tagOwners` and its existing route under `autoApprovers`, with no node yet carrying the tag |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -60,7 +60,7 @@ Copy the current policy first, and use the admin console's preview before saving
 
 ## Open items
 
-- Where the topic doc lives; probably with [`network-infra.md`](../topics/infra/network-infra.md).
+- None.
 
 ## Closing checklist
 

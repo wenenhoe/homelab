@@ -18,8 +18,8 @@ cd_agent_controller_machine_id: "{{ lookup('ansible.builtin.file', '/etc/machine
 # The sha256 is the one published beside the release asset,
 # uv-x86_64-unknown-linux-gnu.tar.gz.sha256. Bump both together: Renovate
 # (.github/renovate.json5) moves both from that file.
-cd_agent_uv_version: "0.13.6"
-cd_agent_uv_sha256: "f29c3e94ffabd7e6f3ba521dba169a9b7ec12100bf3257087f0f24f6123f3645"
+cd_agent_uv_version: "0.13.7"
+cd_agent_uv_sha256: "c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83"
 
 # The sha256 is the rclone-v<version>-linux-amd64.zip line of the release's
 # signed SHA256SUMS. Bump both together: Renovate (.github/renovate.json5) moves

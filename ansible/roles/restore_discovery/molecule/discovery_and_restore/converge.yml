@@ -6,6 +6,7 @@
     - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/aws_cli.yml"
   vars:
     ansible_user: root
+    server_timezone: Etc/UTC
     molecule_primary_bucket: molecule-test-primary
     molecule_fallback_bucket: molecule-test-fallback
 

@@ -114,6 +114,7 @@
               'seaweedfs_path': host ~ '-' ~ app,
               'volumes': volume_ns.list,
               'cloud_targets': target_ns.list,
+              'timezone': hostvars[host].server_timezone | default(server_timezone),
             }) -%}
       {%- endfor -%}
       {{ ns.out }}

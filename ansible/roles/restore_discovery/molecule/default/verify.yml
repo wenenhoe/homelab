@@ -36,6 +36,12 @@
           - (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'override_app') | first).seaweedfs_path == 'beta-host-override_app'
         fail_msg: "Manifest: {{ restore_discovery_manifest_parsed }}"
 
+    - name: Confirm every entry carries the timezone its host stamps archive names in
+      ansible.builtin.assert:
+        that:
+          - restore_discovery_manifest_parsed.apps | map(attribute='timezone') | unique | list == ['Asia/Singapore']
+        fail_msg: "Manifest: {{ restore_discovery_manifest_parsed }}"
+
     - name: Confirm volume names get the app_ prefix, including the multi-volume (step-ca) case
       ansible.builtin.assert:
         that:

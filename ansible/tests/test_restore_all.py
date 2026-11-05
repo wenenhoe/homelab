@@ -25,13 +25,14 @@ def _completed(returncode: int = 0, stderr: str = "") -> subprocess.CompletedPro
     return subprocess.CompletedProcess(args=[], returncode=returncode, stdout="", stderr=stderr)
 
 
-def _entry(app: str = "wastebin", host: str = "services", cloud_targets=None) -> restore_all.AppManifestEntry:
+def _entry(app: str = "wastebin", host: str = "services", cloud_targets=None, timezone: str = "UTC") -> restore_all.AppManifestEntry:
     return restore_all.AppManifestEntry(
         app=app,
         host=host,
         seaweedfs_path=app,
         volumes=[f"{app}_data"],
         cloud_targets=cloud_targets if cloud_targets is not None else [{"name": "b2", "bucket": "backups-b2"}],
+        timezone=timezone,
     )
 
 
@@ -59,26 +60,31 @@ class TestPickLatest:
             {"Name": "services-wastebin-2026-09-03T12-00-00.tar.gz.gpg"},
             {"Name": "services-wastebin-2026-09-02T12-00-00.tar.gz.gpg"},
         ]
-        name, timestamp = restore_all.pick_latest(objects, "services", "wastebin")
+        name, timestamp = restore_all.pick_latest(objects, "services", "wastebin", "UTC")
         assert name == "services-wastebin-2026-09-03T12-00-00.tar.gz.gpg"
         assert timestamp == datetime(2026, 9, 3, 12, tzinfo=UTC)
+
+    def test_reads_the_timestamp_as_wall_clock_time_in_the_hosts_timezone(self):
+        objects = [{"Name": "services-wastebin-2026-09-03T12-00-00.tar.gz.gpg"}]
+        _, timestamp = restore_all.pick_latest(objects, "services", "wastebin", "Asia/Singapore")
+        assert timestamp == datetime(2026, 9, 3, 4, tzinfo=UTC)
 
     def test_ignores_objects_for_a_different_app_or_host(self):
         objects = [
             {"Name": "services-tinyauth-2026-09-01T12-00-00.tar.gz.gpg"},
             {"Name": "play-wastebin-2026-09-01T12-00-00.tar.gz.gpg"},
         ]
-        assert restore_all.pick_latest(objects, "services", "wastebin") is None
+        assert restore_all.pick_latest(objects, "services", "wastebin", "UTC") is None
 
     def test_ignores_a_name_missing_the_trailing_dot_after_the_timestamp(self):
         # Guards the pattern's own r"\." anchor - a name that merely starts
         # with the right prefix but has no extension after the timestamp
         # should not match.
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00"}]
-        assert restore_all.pick_latest(objects, "services", "wastebin") is None
+        assert restore_all.pick_latest(objects, "services", "wastebin", "UTC") is None
 
     def test_returns_none_for_an_empty_object_list(self):
-        assert restore_all.pick_latest([], "services", "wastebin") is None
+        assert restore_all.pick_latest([], "services", "wastebin", "UTC") is None
 
 
 @pytest.mark.usefixtures("scratch_dir")
@@ -537,6 +543,15 @@ class TestCheckSources:
             ("seaweedfs", "security-lldap-2026-11-02T04-30-00.tar.gz.gpg", "ok", 7.5),
             ("b2", "security-lldap-2026-11-01T04-30-00.tar.gz.gpg", "stale", 31.5),
         ]
+
+    def test_ages_an_archive_from_the_hosts_wall_clock_time_not_from_utc(self):
+        # 04:30 in Singapore is 20:30 the evening before in UTC, 15.5 h before NOW; read as UTC it would be 7.5 h.
+        entry = _entry("lldap", "security", timezone="Asia/Singapore")
+        listing = [self._object("security", "lldap", "2026-11-02T04-30-00")]
+        with patch.object(restore_all, "rclone_lsjson", return_value=listing, autospec=True):
+            rows = restore_all.check_sources([entry], "bucket", 30, self.NOW)
+        seaweedfs = next(r for r in rows if r.source == "seaweedfs")
+        assert round(seaweedfs.age_hours, 1) == 15.5
 
     @pytest.mark.parametrize(
         ("listing", "state"),

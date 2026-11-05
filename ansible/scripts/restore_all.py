@@ -70,6 +70,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 ANSIBLE_DIR = PROJECT_ROOT / "ansible"
@@ -89,7 +90,10 @@ INVENTORY_ARGS = ["-i", "inventory/inventory.yaml", "-i", "inventory/tofu-hosts.
 # against offen/docker-volume-backup's own "Encrypting backups" docs —
 # "the backup archive will be ... saved as a .gpg file instead"). <ext>
 # varies by app (tar.gz/tar/tar.zst per BACKUP_COMPRESSION), so this
-# only anchors on the timestamp, not the full filename.
+# only anchors on the timestamp, not the full filename. The agent formats the
+# timestamp in its container's TZ, the host's server_timezone
+# (backup_agent/templates/env.j2), so it is wall-clock time in that zone and
+# the manifest carries the zone per host.
 _TIMESTAMP_RE = r"(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})"
 _TIMESTAMP_FORMAT = "%Y-%m-%dT%H-%M-%S"
 
@@ -105,6 +109,7 @@ class AppManifestEntry:
     seaweedfs_path: str
     volumes: list[str]
     cloud_targets: list[dict[str, str]]
+    timezone: str
 
 
 @dataclass
@@ -156,7 +161,7 @@ def check_sources(entries: list[AppManifestEntry], seaweedfs_bucket: str, max_ag
             if listing is None:
                 rows.append(SourceStatus(entry.app, entry.host, remote, "-", None, "unreachable"))
                 continue
-            latest = pick_latest(listing, entry.host, entry.app)
+            latest = pick_latest(listing, entry.host, entry.app, entry.timezone)
             if latest is None:
                 rows.append(SourceStatus(entry.app, entry.host, remote, "-", None, "empty"))
                 continue
@@ -250,15 +255,16 @@ def rclone_lsjson(remote: str, bucket: str, prefix: str) -> list[dict] | None:
         return None
 
 
-def pick_latest(objects: list[dict], host: str, app: str) -> tuple[str, datetime] | None:
+def pick_latest(objects: list[dict], host: str, app: str, timezone: str) -> tuple[str, datetime] | None:
     pattern = re.compile(r"^" + re.escape(f"{host}-{app}-") + _TIMESTAMP_RE + r"\.")
+    zone = ZoneInfo(timezone)
     best: tuple[str, datetime] | None = None
     for obj in objects:
         name = obj.get("Name", "")
         match = pattern.match(name)
         if not match:
             continue
-        timestamp = datetime.strptime(match.group(1), _TIMESTAMP_FORMAT).replace(tzinfo=UTC)
+        timestamp = datetime.strptime(match.group(1), _TIMESTAMP_FORMAT).replace(tzinfo=zone)
         if best is None or timestamp > best[1]:
             best = (name, timestamp)
     return best
@@ -279,7 +285,7 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
     if source is None or bucket is None:
         raise RestoreAllError(f"no objects found under {prefix}/ on any of: {', '.join(outcomes)}")
 
-    latest = pick_latest(objects, entry.host, entry.app)
+    latest = pick_latest(objects, entry.host, entry.app, entry.timezone)
     if latest is None:
         raise RestoreAllError(
             f"none of the {len(objects)} object(s) under {prefix}/ on {source} match the expected '{entry.host}-{entry.app}-<timestamp>.*' filename pattern"

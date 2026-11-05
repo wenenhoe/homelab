@@ -142,7 +142,8 @@ What it does, in order:
 1. Renders a controller-local manifest + a read-only `rclone.conf`
    (`ansible/roles/restore_discovery`, via
    `playbooks/restore-discovery-setup.yaml`) — app → host → volumes →
-   cloud fallback target(s), the same `app_catalog`/`host_vars`
+   cloud fallback target(s) → the host's `server_timezone`, in which its archive
+   names are stamped, so an archive's age is read correctly — the same `app_catalog`/`host_vars`
    resolution `cloud_sync` already does for its own upload side, so the
    two can't drift apart. The rclone identities are the SeaweedFS
    `cloud-sync-reader` identity and the six cloud **read**-leaf

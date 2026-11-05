@@ -6,6 +6,8 @@
     ansible_user: root
     project_root: /tmp/restore-discovery-default
 
+    server_timezone: Asia/Singapore
+
     seaweedfs_s3_bucket: molecule-test-backups
     seaweedfs_s3_proto: https
     seaweedfs_s3_endpoint: s3.store.molecule.invalid

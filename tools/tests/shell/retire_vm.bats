@@ -6,7 +6,9 @@ setup() {
   SCRIPT=$(install_script tools/rebuild_check/scripts/retire_vm.sh)
   export DUMP_DIR="$BATS_TEST_TMPDIR/dumps"
   mkdir -p "$DUMP_DIR"
-  DUMP="$DUMP_DIR/vzdump-qemu-204-2026_11_03-10_00_00.vma.zst"
+  # A directory storage keeps its backups in the dump/ subdirectory of its path, which vzdump creates.
+  ARCHIVE_DIR="$DUMP_DIR/dump"
+  DUMP="$ARCHIVE_DIR/vzdump-qemu-204-2026_11_03-10_00_00.vma.zst"
   export QM_NAME=play QM_STATUS=stopped
   stub mountpoint <<'BODY'
 [ "${DUMP_UNMOUNTED-}" != 1 ]
@@ -21,11 +23,12 @@ case "$1" in
   status) printf 'status: %s\n' "$QM_STATUS" ;;
 esac
 BODY
-  # vzdump writes the archive and its log under the storage's directory.
+  # vzdump writes the archive under the storage's dump/ subdirectory.
   stub vzdump <<'BODY'
+mkdir -p "$DUMP_DIR/dump"
 case "${VZDUMP_WRITES:-archive}" in
-  archive) printf 'ZSTDATA\n' > "$DUMP_DIR/vzdump-qemu-$1-2026_11_03-10_00_00.vma.zst" ;;
-  empty) : > "$DUMP_DIR/vzdump-qemu-$1-2026_11_03-10_00_00.vma.zst" ;;
+  archive) printf 'ZSTDATA\n' > "$DUMP_DIR/dump/vzdump-qemu-$1-2026_11_03-10_00_00.vma.zst" ;;
+  empty) : > "$DUMP_DIR/dump/vzdump-qemu-$1-2026_11_03-10_00_00.vma.zst" ;;
 esac
 BODY
   stub fstrim <<'BODY'
@@ -71,6 +74,7 @@ teardown() {
 }
 
 @test "dump keeps a dump that exists and does not make a second" {
+  mkdir -p "$ARCHIVE_DIR"
   printf 'OLD\n' > "$DUMP"
 
   run -1 "$SCRIPT" dump 204 play
@@ -83,21 +87,33 @@ teardown() {
 
 @test "dump fails when vzdump leaves nothing or an empty archive" {
   VZDUMP_WRITES=none run -1 "$SCRIPT" dump 204 play
-  assert_output "expected one dump of VM 204 in $DUMP_DIR, found 0"
+  assert_output "expected one dump of VM 204 in $ARCHIVE_DIR, found 0"
 
   VZDUMP_WRITES=empty run -1 "$SCRIPT" dump 204 play
   assert_output "the dump $DUMP is empty"
 }
 
 @test "a dump of another VM whose id starts the same does not count as this VM's" {
-  printf 'OTHER\n' > "$DUMP_DIR/vzdump-qemu-2041-2026_11_03-10_00_00.vma.zst"
+  mkdir -p "$ARCHIVE_DIR"
+  printf 'OTHER\n' > "$ARCHIVE_DIR/vzdump-qemu-2041-2026_11_03-10_00_00.vma.zst"
 
   run -0 "$SCRIPT" dump 204 play
 
   [ "$(cat "$DUMP")" = "ZSTDATA" ]
 }
 
+@test "an archive directly in the storage path is not the dump, since vzdump writes under dump/" {
+  printf 'ZSTDATA\n' > "$DUMP_DIR/vzdump-qemu-204-2026_11_03-10_00_00.vma.zst"
+
+  run -1 "$SCRIPT" destroy 204 play
+
+  assert_output "expected one dump of VM 204 in $ARCHIVE_DIR, found 0"
+  run calls_to qm
+  refute_output --partial "qm destroy"
+}
+
 @test "destroy removes the stopped VM and its unreferenced disks once its dump is there" {
+  mkdir -p "$ARCHIVE_DIR"
   printf 'ZSTDATA\n' > "$DUMP"
 
   run -0 "$SCRIPT" destroy 204 play
@@ -109,8 +125,9 @@ teardown() {
 
 @test "destroy without a dump, with an empty one or with a running VM destroys nothing" {
   run -1 "$SCRIPT" destroy 204 play
-  assert_output "expected one dump of VM 204 in $DUMP_DIR, found 0"
+  assert_output "expected one dump of VM 204 in $ARCHIVE_DIR, found 0"
 
+  mkdir -p "$ARCHIVE_DIR"
   : > "$DUMP"
   run -1 "$SCRIPT" destroy 204 play
   assert_output "the dump $DUMP is empty"
@@ -127,15 +144,17 @@ teardown() {
 }
 
 @test "drop-dump deletes that VM's archive and log and trims the volume, leaving other dumps" {
+  mkdir -p "$ARCHIVE_DIR"
   printf 'ZSTDATA\n' > "$DUMP"
   printf 'log\n' > "$DUMP.log"
-  printf 'OTHER\n' > "$DUMP_DIR/vzdump-qemu-2041-2026_11_03-10_00_00.vma.zst"
+  mkdir -p "$ARCHIVE_DIR"
+  printf 'OTHER\n' > "$ARCHIVE_DIR/vzdump-qemu-2041-2026_11_03-10_00_00.vma.zst"
 
   run -0 "$SCRIPT" drop-dump 204
 
   [ ! -e "$DUMP" ]
   [ ! -e "$DUMP.log" ]
-  [ -e "$DUMP_DIR/vzdump-qemu-2041-2026_11_03-10_00_00.vma.zst" ]
+  [ -e "$ARCHIVE_DIR/vzdump-qemu-2041-2026_11_03-10_00_00.vma.zst" ]
   run calls_to fstrim
   assert_output "fstrim -v $DUMP_DIR"
 }
@@ -143,7 +162,7 @@ teardown() {
 @test "drop-dump with no dump fails and trims nothing" {
   run -1 "$SCRIPT" drop-dump 204
 
-  assert_output "no dump of VM 204 in $DUMP_DIR"
+  assert_output "no dump of VM 204 in $ARCHIVE_DIR"
   run calls_to fstrim
   assert_output ""
 }

@@ -49,7 +49,8 @@ replaced by accident, and fails on a dump that is missing or empty. `destroy`
 runs only when exactly one non-empty dump of the VM is there. `drop-dump`
 deletes that VM's dump, log and notes and runs `fstrim -v` on the dump volume.
 `DUMP_STORAGE` and `DUMP_DIR` name the storage and its mount point, `vzdump` and
-`/mnt/vzdump` by default.
+`/mnt/vzdump` by default. The archives sit in the `dump/` subdirectory of that
+mount point, where Proxmox keeps the backups of a directory storage.
 
 The rollback is `qmrestore` of the dump to a 9XX VMID, as the cycle says.
 

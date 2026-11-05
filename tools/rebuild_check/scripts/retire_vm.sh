@@ -7,11 +7,13 @@
 #   drop-dump VMID       delete VMID's dump, then fstrim the dump volume to hand its blocks back
 # NAME is the VM's name in Proxmox. It has to match, so a mistyped VMID cannot dump or destroy another
 # VM. The dump is the only rollback for a destroyed VM, so destroy never runs without one.
-# DUMP_STORAGE and DUMP_DIR name the dump storage and where it is mounted.
+# DUMP_STORAGE and DUMP_DIR name the dump storage and where it is mounted. The archives sit in its dump/
+# subdirectory, where Proxmox puts the backups of a directory storage.
 set -euo pipefail
 
 storage=${DUMP_STORAGE:-vzdump}
 dump_dir=${DUMP_DIR:-/mnt/vzdump}
+archive_dir=$dump_dir/dump
 
 usage() {
   echo "usage: bash -s -- dump|destroy VMID NAME | drop-dump VMID" >&2
@@ -50,13 +52,13 @@ require_stopped_vm_named() {
 # The dump's archive; its log and notes sit beside it under the same prefix.
 dump_archives() {
   shopt -s nullglob
-  archives=("$dump_dir"/vzdump-qemu-"$vmid"-*.vma.zst)
+  archives=("$archive_dir"/vzdump-qemu-"$vmid"-*.vma.zst)
   shopt -u nullglob
 }
 
 require_one_nonempty_dump() {
   dump_archives
-  [ "${#archives[@]}" -eq 1 ] || fail "expected one dump of VM $vmid in $dump_dir, found ${#archives[@]}"
+  [ "${#archives[@]}" -eq 1 ] || fail "expected one dump of VM $vmid in $archive_dir, found ${#archives[@]}"
   [ -s "${archives[0]}" ] || fail "the dump ${archives[0]} is empty"
 }
 
@@ -65,7 +67,7 @@ case "$action" in
     require_dump_storage
     require_stopped_vm_named
     dump_archives
-    [ "${#archives[@]}" -eq 0 ] || fail "VM $vmid already has a dump in $dump_dir: ${archives[0]}"
+    [ "${#archives[@]}" -eq 0 ] || fail "VM $vmid already has a dump in $archive_dir: ${archives[0]}"
     vzdump "$vmid" --storage "$storage" --compress zstd --mode stop
     require_one_nonempty_dump
     echo "dumped VM $vmid to ${archives[0]} ($(stat -c %s "${archives[0]}") bytes)"
@@ -80,8 +82,8 @@ case "$action" in
   drop-dump)
     require_dump_storage
     dump_archives
-    [ "${#archives[@]}" -gt 0 ] || fail "no dump of VM $vmid in $dump_dir"
-    rm -f -- "$dump_dir"/vzdump-qemu-"$vmid"-*
+    [ "${#archives[@]}" -gt 0 ] || fail "no dump of VM $vmid in $archive_dir"
+    rm -f -- "$archive_dir"/vzdump-qemu-"$vmid"-*
     fstrim -v "$dump_dir"
     ;;
 esac

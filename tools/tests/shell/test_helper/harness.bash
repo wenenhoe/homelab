@@ -6,8 +6,9 @@
 # records the call, so a test that forgets one fails instead of running the
 # real tool. Add a tool to HARNESS_EXTERNAL_TOOLS when a script under test
 # starts to call it; the tools a script runs on the runner's own userland
-# (date, stat, tar, ls, find, du) are not listed.
-HARNESS_EXTERNAL_TOOLS=(bao blkid chroot curl docker fstrim git gpg gpgconf losetup lsblk mcopy mdir mformat mmd molecule mount mountpoint openssl pvesm python3 qemu-img qm scp sfdisk ssh stty sudo tofu umount vzdump xmllint)
+# (date, stat, tar, ls, find, du, df, zstd) are not listed: a test that
+# needs one stubbed defines the stub itself, and the others keep the real tool.
+HARNESS_EXTERNAL_TOOLS=(bao blkid chroot curl docker fstrim git gpg gpgconf losetup lsblk mcopy mdir mformat mmd molecule mount mountpoint openssl pvesm python3 qemu-img qm qmrestore scp sfdisk ssh stty sudo tofu umount vzdump xmllint)
 
 harness_setup() {
   # `run` flags and `run !` need 1.5.0.

@@ -19,7 +19,7 @@ BODY
   # `qm config` of a VMID with no VM fails; `qm status` prints one line.
   stub qm <<'BODY'
 case "$1" in
-  config) printf 'cores: 4\nname: %s\nmemory: 4096\n' "$QM_NAME" ;;
+  config) case " ${QM_MISSING-} " in *" $2 "*) exit 2 ;; esac; printf 'cores: 4\nname: %s\nmemory: 4096\n' "$QM_NAME" ;;
   status) printf 'status: %s\n' "$QM_STATUS" ;;
 esac
 BODY
@@ -29,9 +29,20 @@ mkdir -p "$DUMP_DIR/dump"
 case "${VZDUMP_WRITES:-archive}" in
   archive) printf 'ZSTDATA\n' > "$DUMP_DIR/dump/vzdump-qemu-$1-2026_11_03-10_00_00.vma.zst" ;;
   empty) : > "$DUMP_DIR/dump/vzdump-qemu-$1-2026_11_03-10_00_00.vma.zst" ;;
+  truncated) printf 'TRUNCATED\n' > "$DUMP_DIR/dump/vzdump-qemu-$1-2026_11_03-10_00_00.vma.zst" ;;
 esac
 BODY
   stub fstrim <<'BODY'
+true
+BODY
+  # zstd -t fails on an archive whose content is TRUNCATED; df reports the volume's free space.
+  stub zstd <<'BODY'
+! grep -q TRUNCATED "${@: -1}"
+BODY
+  stub df <<'BODY'
+printf 'Avail\n 26G\n'
+BODY
+  stub qmrestore <<'BODY'
 true
 BODY
 }
@@ -87,10 +98,10 @@ teardown() {
 
 @test "dump fails when vzdump leaves nothing or an empty archive" {
   VZDUMP_WRITES=none run -1 "$SCRIPT" dump 204 play
-  assert_output "expected one dump of VM 204 in $ARCHIVE_DIR, found 0"
+  assert_line "expected one dump of VM 204 in $ARCHIVE_DIR, found 0"
 
   VZDUMP_WRITES=empty run -1 "$SCRIPT" dump 204 play
-  assert_output "the dump $DUMP is empty"
+  assert_line "the dump $DUMP is empty"
 }
 
 @test "a dump of another VM whose id starts the same does not count as this VM's" {
@@ -174,4 +185,71 @@ teardown() {
   assert_output --partial "usage:"
   run -2 "$SCRIPT" dump '204;x' play
   assert_output --partial "usage:"
+}
+
+@test "dump reports the free space before and after and checks the archive reads through" {
+  run -0 "$SCRIPT" dump 204 play
+
+  assert_line "free on $DUMP_DIR: 26G"
+  [ "$(grep -c '^free on' <<< "$output")" -eq 2 ]
+  run calls_to zstd
+  assert_output "zstd -t -q -- $DUMP"
+}
+
+@test "dump and destroy refuse an archive zstd cannot read to the end, and destroy destroys nothing" {
+  VZDUMP_WRITES=truncated run -1 "$SCRIPT" dump 204 play
+  assert_output --partial "does not pass zstd -t"
+
+  mkdir -p "$ARCHIVE_DIR"
+  printf 'TRUNCATED\n' > "$DUMP"
+  run -1 "$SCRIPT" destroy 204 play
+  assert_output "the dump $DUMP does not pass zstd -t: it is not a usable rollback"
+  run calls_to qm
+  refute_output --partial "qm destroy"
+}
+
+@test "restore brings the dump back as a stopped VM at the new VMID, off on boot, with new MACs" {
+  mkdir -p "$ARCHIVE_DIR"
+  printf 'ZSTDATA\n' > "$DUMP"
+
+  QM_MISSING=906 run -0 "$SCRIPT" restore 204 906
+
+  assert_output --partial "restored VM 204 as VM 906, stopped"
+  run calls_to qmrestore
+  assert_output "qmrestore $DUMP 906 --unique 1"
+  run calls_to qm
+  assert_output --partial "qm set 906 --onboot 0"
+  refute_output --partial "qm start"
+}
+
+@test "restore puts the disks on RESTORE_STORAGE when it is set" {
+  mkdir -p "$ARCHIVE_DIR"
+  printf 'ZSTDATA\n' > "$DUMP"
+
+  RESTORE_STORAGE=backup QM_MISSING=906 run -0 "$SCRIPT" restore 204 906
+
+  run calls_to qmrestore
+  assert_output "qmrestore $DUMP 906 --unique 1 --storage backup"
+}
+
+@test "restore refuses a VMID below 900, one that exists, a missing dump and an unreadable one" {
+  mkdir -p "$ARCHIVE_DIR"
+  printf 'ZSTDATA\n' > "$DUMP"
+
+  run -1 "$SCRIPT" restore 204 206
+  assert_output --partial "900 or above"
+
+  run -1 "$SCRIPT" restore 204 906
+  assert_output "VM 906 already exists"
+
+  printf 'TRUNCATED\n' > "$DUMP"
+  QM_MISSING=906 run -1 "$SCRIPT" restore 204 906
+  assert_output --partial "does not pass zstd -t"
+
+  rm "$DUMP"
+  QM_MISSING=906 run -1 "$SCRIPT" restore 204 906
+  assert_output "expected one dump of VM 204 in $ARCHIVE_DIR, found 0"
+
+  run calls_to qmrestore
+  assert_output ""
 }

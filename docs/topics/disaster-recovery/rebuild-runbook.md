@@ -59,7 +59,12 @@ The rollback is `qmrestore` of the dump to a 9XX VMID, as the cycle says.
 every source that could restore it, with its age, and downloads nothing. It exits
 non-zero when an app has no source within 30 hours (`--max-age-hours`), which is
 one nightly run and some slack. A source that is unreachable or empty is shown as
-such, since the restore falls back from SeaweedFS to the app's cloud targets.
+such, since the restore falls back from SeaweedFS to the app's cloud targets. The
+MTIME column compares each source's modification time of that archive with the
+instant its name stamps; a difference of more than an hour is shown and named in
+a warning, and does not change the exit status. It says the archive was copied
+without its original time, which the relay's `--max-age` and a bucket's
+lifecycle would read as young.
 
 **After (`rebuild_check.host`).** One line per check, over SSH, changing nothing:
 

@@ -553,6 +553,41 @@ class TestCheckSources:
         seaweedfs = next(r for r in rows if r.source == "seaweedfs")
         assert round(seaweedfs.age_hours, 1) == 15.5
 
+    @staticmethod
+    def _with_modtime(host: str, app: str, stamp: str, modtime: str) -> dict:
+        return {"Name": f"{host}-{app}-{stamp}.tar.gz.gpg", "ModTime": modtime}
+
+    @pytest.mark.parametrize(
+        ("modtime", "skew"),
+        [
+            pytest.param("2026-11-02T20-30-00", None, id="unparseable"),
+            pytest.param("2026-11-02T04:31:10+08:00", 0.0, id="the-stamp-in-the-hosts-zone"),
+            pytest.param("2026-11-02T04:30:00+08:00", 0.0, id="exact"),
+            pytest.param("2026-11-02T04:30:00Z", 8.0, id="copied-in-utc-at-the-same-clock-reading"),
+            pytest.param("2026-11-04T10:00:00Z", 62.0, id="copied-days-later"),
+        ],
+    )
+    def test_the_modification_time_is_compared_with_the_instant_the_name_stamps(self, modtime, skew):
+        entry = _entry("lldap", "security", timezone="Asia/Singapore")
+        listing = [self._with_modtime("security", "lldap", "2026-11-02T04-30-00", modtime)]
+        with patch.object(restore_all, "rclone_lsjson", return_value=listing, autospec=True):
+            row = next(r for r in restore_all.check_sources([entry], "bucket", 30, self.NOW) if r.source == "seaweedfs")
+        assert (None if row.mtime_skew_hours is None else round(row.mtime_skew_hours)) == (None if skew is None else round(skew))
+
+    def test_a_listing_without_a_modification_time_gives_no_skew(self):
+        entry = _entry("lldap", "security")
+        with patch.object(restore_all, "rclone_lsjson", return_value=[self._object("security", "lldap", "2026-11-02T04-30-00")], autospec=True):
+            (row, *_) = restore_all.check_sources([entry], "bucket", 30, self.NOW)
+        assert row.mtime_skew_hours is None
+
+    @pytest.mark.parametrize(
+        ("skew", "cell"),
+        [(None, "-"), (0.2, "ok"), (-0.9, "ok"), (8.0, "+8.0h"), (-3.0, "-3.0h")],
+    )
+    def test_only_a_skew_past_the_tolerance_is_shown_as_a_number(self, skew, cell):
+        row = restore_all.SourceStatus("lldap", "security", "seaweedfs", "n", 1.0, "ok", skew)
+        assert restore_all._skew_cell(row) == cell
+
     @pytest.mark.parametrize(
         ("listing", "state"),
         [
@@ -611,6 +646,23 @@ class TestMainCheck:
         rows = self._rows(("step-ca", "ok"), ("lldap", "stale"), ("lldap", "ok"), ("wastebin", "ok"))
         rc, _, _ = self._run(monkeypatch, entries, rows, ["--check"])
         assert rc == 0
+
+    def test_a_skewed_source_is_named_in_a_warning_that_does_not_change_the_exit_status(self, monkeypatch, entries, capsys):
+        rows = [
+            restore_all.SourceStatus("step-ca", "security", "seaweedfs", "n", 1.0, "ok", 0.1),
+            restore_all.SourceStatus("lldap", "security", "seaweedfs", "n", 1.0, "ok", 22.0),
+            restore_all.SourceStatus("wastebin", "services", "seaweedfs", "n", 1.0, "ok", None),
+        ]
+        rc, _, _ = self._run(monkeypatch, entries, rows, ["--check"])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "by more than 1 hours on: lldap@seaweedfs." in out
+        assert "+22.0h" in out
+
+    def test_no_warning_when_every_modification_time_matches(self, monkeypatch, entries, capsys):
+        rc, _, _ = self._run(monkeypatch, entries, self._rows(("step-ca", "ok"), ("lldap", "ok"), ("wastebin", "ok")), ["--check"])
+        assert rc == 0
+        assert "modification time" not in capsys.readouterr().out
 
     def test_the_host_filter_and_the_window_reach_the_check(self, monkeypatch, entries):
         rc, check, _ = self._run(

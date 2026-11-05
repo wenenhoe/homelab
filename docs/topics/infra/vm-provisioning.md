@@ -119,7 +119,7 @@ dated release directory and SHA-256 in `ubuntu_image_url` and
 the zone from the `timezone` variable (default `Asia/Singapore`, the inventory's `server_timezone`).
 The `ubuntu_image_prepare_command` output prints the command for the current pin.
 The root module builds the template and declares three VMs: `play` (VMID 204,
-4 vCPU, 4 GB, a 64 GB disk), `security` (VMID 205, 4 vCPU, 2 GB, a 64 GB disk) and `storage` (VMID 206, 4 vCPU, 4 GB, a 128 GB disk on `backup`), plus the earlier `storage` VM (VMID 207, `storage_old`), which stays declared until its buckets are copied to the first. Their `dns_domain` and `ssh_public_keys` come from the
+4 vCPU, 4 GB, a 64 GB disk), `security` (VMID 205, 4 vCPU, 2 GB, a 64 GB disk) and `storage` (VMID 206, 4 vCPU, 4 GB, a 128 GB disk on `backup`). Their `dns_domain` and `ssh_public_keys` come from the
 `dns_domain` and `ansible_ssh_public_keys` variables, which the credentials file
 sets ([State backend & secrets](#state-backend--secrets)).
 

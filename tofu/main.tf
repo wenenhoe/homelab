@@ -44,23 +44,6 @@ module "security" {
   ssh_public_keys = var.ansible_ssh_public_keys
 }
 
-# Holds the on-site copy of every backup: removing this module destroys the VM
-# and its data, so remove it only once the buckets are on the storage VM below.
-module "storage_old" {
-  source          = "./modules/proxmox_ubuntu_vm"
-  node_name       = var.proxmox_node
-  vm_id           = 207
-  name            = "storage"
-  template_vm_id  = module.ubuntu_template.vm_id
-  cores           = 4
-  memory_mb       = 4096
-  disk_gb         = 128
-  datastore_id    = "backup"
-  admin_username  = "storeadmin"
-  dns_domain      = var.dns_domain
-  ssh_public_keys = var.ansible_ssh_public_keys
-}
-
 module "storage" {
   source          = "./modules/proxmox_ubuntu_vm"
   node_name       = var.proxmox_node

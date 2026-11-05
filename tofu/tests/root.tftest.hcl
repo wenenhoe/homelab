@@ -128,15 +128,6 @@ run "declares_the_storage_host_on_its_vmid" {
   }
 }
 
-run "keeps_the_earlier_storage_vm_declared_until_its_data_is_copied" {
-  command = plan
-
-  assert {
-    condition     = module.storage_old.vm_id == 207
-    error_message = "the earlier storage VM (VMID 207) must stay declared, since removing it destroys the on-site backups"
-  }
-}
-
 run "publishes_the_hosts_for_the_inventory_generator" {
   command = plan
 
@@ -158,10 +149,5 @@ run "publishes_the_hosts_for_the_inventory_generator" {
   assert {
     condition     = output.ansible_hosts.storage.ip_address == "192.168.20.6" && output.ansible_hosts.storage.admin_username == "storeadmin"
     error_message = "the storage entry must carry the VMID-derived address and the admin user the inventory used"
-  }
-
-  assert {
-    condition     = !contains(keys(output.ansible_hosts), "storage_old")
-    error_message = "the earlier storage VM must not be published, or the inventory would name storage twice"
   }
 }

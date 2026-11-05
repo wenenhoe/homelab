@@ -60,7 +60,7 @@ opnsense_gateway_hosts:
   host_services: 192.168.20.3
   host_play: 192.168.20.4
   host_security: 192.168.20.5
-  host_storage: 192.168.20.7
+  host_storage: 192.168.20.6
   host_operator_302: 192.168.30.2
   host_proxmox_node: 10.0.0.254
 
@@ -174,5 +174,5 @@ opnsense_gateway_dhcp_reservations: []
 # the play does not read, so the operator sets them as -e variables.
 opnsense_gateway_forward_servers:
   - 192.168.20.3
-  - 192.168.20.7
+  - 192.168.20.6
 opnsense_gateway_forward_port: 53

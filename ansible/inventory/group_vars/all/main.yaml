@@ -15,7 +15,7 @@ host_fqdn: "{{ inventory_hostname }}.{{ host_domain }}."
 # reservation on the gateway. The primary notifies the secondary at one and
 # the secondary transfers from the other, so each is set once here.
 dns_primary_address: "192.168.20.3"
-dns_secondary_address: "192.168.20.7"
+dns_secondary_address: "192.168.20.6"
 
 docker_users:
   - "{{ ansible_user }}"

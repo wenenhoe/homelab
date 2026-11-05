@@ -113,7 +113,7 @@ protects:
 | :--- | :-: | :-: | :-: | :-: | :-: |
 | `play` | 204 | 4 | 4 GB | 64 GB | 25 GB |
 | `tailscale` | 202 | 2 | 2 GB | 16 GB | 6.5 GB |
-| `storage` | 207 | 4 | 4 GB | 128 GB (`backup`) | 39 GB |
+| `storage` | 206 | 4 | 4 GB | 128 GB (`backup`) | 39 GB |
 | `security` | 205 | 4 | 2 GB | 64 GB | 24 GB |
 | `services` | 203 | 4 | 2 GB | 64 GB | 39 GB |
 
@@ -168,7 +168,9 @@ lays out with the script that runs each step:
 `storage` can't take the cycle as written: SeaweedFS keeps its data in a
 Docker volume on the VM's own root disk, so destroying VM 206 destroys it,
 and `storage` has to stay up. It is built beside the old VM at the free
-VMID 207 (`192.168.20.7`) with its module call setting `datastore_id` to
+VMID 207 (`192.168.20.7`), and once VM 206 is gone it is built again at VMID 206
+(`192.168.20.6`), so the VMIDs and addresses stay contiguous
+([below](#moving-storage-to-vmid-206)). Each build has its module call setting `datastore_id` to
 `backup`, which needs the `tofu@pve` ACL on that storage
 ([Proxmox API token](../topics/infra/vm-provisioning.md#proxmox-api-token)),
 its buckets are copied across, its record is
@@ -279,6 +281,23 @@ One more assumption can only be checked at step 8, since only then does
 the cloud's copy. It compares modification times, and rclone keeps the original in object metadata
 when it copies. `--immutable` refuses a difference without uploading, so a
 failure there changes nothing in the clouds.
+
+#### Moving `storage` to VMID 206
+
+The same copy and flip run again with the numbers swapped: VM 207 is the old
+VM, the new one is VMID 206 at `192.168.20.6`, and the edits listed above go back to
+`192.168.20.6`. What differs:
+
+- VM 207's module is renamed `storage_old` with a `moved` block and applied on
+  its own, since a `moved` block cannot name an address that is still declared.
+  The next apply adds `module "storage"` at VMID 206 and publishes it as the
+  `storage` entry of `ansible_hosts`; `storage_old` is not published.
+- `old` is the name every client uses until the flip, and VM 207 behind it. The
+  repeat copy after the flip pins that name to `192.168.20.7` with `--add-host`.
+- VM 207 is stopped and dumped with `retire_vm.sh dump 207 storage`, then
+  destroyed by removing `storage_old` from the root module and applying, so
+  Tofu's state does not keep a VM that is gone. The gateway's forward to
+  `192.168.20.7` goes with it.
 
 #### Dump storage
 

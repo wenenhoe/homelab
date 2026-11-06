@@ -8,7 +8,8 @@ checks look at what a rebuild is known to get wrong: the address came from
 DHCP, the dracut network file is back, a container resolves the host's name to
 something else, the timezone is wrong, a unit failed, a container is not
 running. A host without Docker skips the two that need it. `security` has a few
-more, for what only it runs, and `tailscale` checks that it forwards packets.
+more, for what only it runs, and `tailscale` checks that it forwards packets and
+that the tailnet holds it under its tag, with its route approved and no key expiry.
 
 Each check is a command run on the host and a judgement on its output; none
 changes anything. The expected address is what the lab's DNS says for the
@@ -23,6 +24,7 @@ Exits 1 when any check fails.
 
 from __future__ import annotations
 
+import json
 import re
 import socket
 import sys
@@ -40,6 +42,7 @@ COMMAND_TIMEOUT_SECONDS = 60
 # The image the compose role seeds volumes with, so every host has it already.
 SEED_TASKS = PROJECT_ROOT / "ansible/roles/compose/tasks/seed_volume.yaml"
 GROUP_VARS = PROJECT_ROOT / "ansible/inventory/group_vars/all/main.yaml"
+TAILSCALE_VARS = PROJECT_ROOT / "ansible/inventory/host_vars/tailscale.yaml"
 
 # What a healthy container looks like next to the others: openbao reports
 # unhealthy whenever it is sealed, which is its own check below.
@@ -182,6 +185,54 @@ def ip_forwarding_is_on(run: Runner, expected: Expected) -> Result:
     return Result(True, "IPv4 and IPv6 forwarding are on")
 
 
+def _tailscale_self(run: Runner) -> tuple[dict | None, str]:
+    """The `Self` node of `tailscale status --self --json`, or None and what went wrong."""
+    status, out = run("tailscale status --self --json")
+    try:
+        return json.loads(out)["Self"], ""
+    except ValueError, KeyError, TypeError:
+        return None, f"tailscale status said {out.strip()[:120] or 'nothing'} (exit {status})"
+
+
+def tailscale_is_online(run: Runner, expected: Expected) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    if node.get("Online") is not True:
+        return Result(False, "the node is not online in the tailnet")
+    return Result(True, "online in the tailnet")
+
+
+def tailscale_carries_its_tag(run: Runner, expected: Expected, vars_path: Path = TAILSCALE_VARS) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    tag = yaml.safe_load(vars_path.read_text())["tailscale_node_tag"]
+    if node.get("Tags") != [tag]:
+        return Result(False, f"the node's tags are {node.get('Tags')}, not [{tag!r}]: the policy's approval of its route is keyed on the tag")
+    return Result(True, f"tagged {tag}")
+
+
+def tailscale_routes_are_approved(run: Runner, expected: Expected, vars_path: Path = TAILSCALE_VARS) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    routes = sorted(yaml.safe_load(vars_path.read_text())["tailscale_node_advertise_routes"])
+    approved = sorted(node.get("PrimaryRoutes") or [])
+    if approved != routes:
+        return Result(False, f"approved routes are {approved}, not {routes}: the policy has not approved what the node advertises")
+    return Result(True, f"approved: {', '.join(approved)}")
+
+
+def tailscale_key_does_not_expire(run: Runner, expected: Expected) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    if node.get("KeyExpiry") is not None:
+        return Result(False, f"the node key expires at {node['KeyExpiry']}: the router drops off the tailnet then")
+    return Result(True, "the node key does not expire")
+
+
 COMMON_CHECKS = (
     address_is_static,
     no_dracut_network_file,
@@ -197,7 +248,7 @@ DOCKER_CHECKS = (containers_resolve_the_hosts_name, containers_are_running_and_h
 
 HOST_CHECKS = {
     "security": (openbao_is_unsealed, step_ca_is_healthy, tinyauth_reaches_ldap, r2_read_watcher_is_running),
-    "tailscale": (ip_forwarding_is_on,),
+    "tailscale": (ip_forwarding_is_on, tailscale_is_online, tailscale_carries_its_tag, tailscale_routes_are_approved, tailscale_key_does_not_expire),
 }
 
 

@@ -429,16 +429,16 @@ holds the state and a plan against it shows no change.
 
 - [x] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
 - [x] The first `restore.yaml` run against it succeeds, as the restore-path fire drill.
-- [ ] Every Ubuntu VM is rebuilt on the real VMID ranges by Tofu.
-- [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
-- [ ] The old Ubuntu VMs are decommissioned.
-- [ ] The rebuilt `tailscale` VM carries its tag, has its route approved without the console and has no key expiry.
+- [x] Every Ubuntu VM is rebuilt on the real VMID ranges by Tofu.
+- [x] The generated inventory replaces the hand-written entries, including `tailscale`.
+- [x] The old Ubuntu VMs are decommissioned.
+- [x] The rebuilt `tailscale` VM carries its tag, has its route approved without the console and has no key expiry.
 - [ ] `storage` stayed up throughout.
 - [ ] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
-- [ ] Every rebuilt host's restores are in the fire drill's results.
+- [x] Every rebuilt host's restores are in the fire drill's results.
 - [ ] A copy of Tofu's state was taken after each rebuild's apply.
 - [ ] Tofu's state is held by a remote backend, and a plan against it shows no change.
-- [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
+- [x] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Risks
 

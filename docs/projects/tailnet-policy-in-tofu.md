@@ -27,7 +27,7 @@ allowed_paths:
 
 # Tailnet Policy in OpenTofu
 
-The tailnet's policy is authored in the Tailscale admin console and has never been reviewed as code. Its allow-all grant has been replaced by hand with explicit grants and tests ([`network-infra.md`](../topics/infra/network-infra.md#tailnet-policy)). This project moves the policy into the Tofu root module, so a change to it is a reviewed diff and a change made in the console shows up as drift. It is staged because the first stage settles the one assumption that decides whether the provider can be used as the decision describes, and the later ones add a credential, a template, and the guards against a bad apply locking out the host that applies it.
+The tailnet's policy is authored in the Tailscale admin console and has never been reviewed as code. Its allow-all grant has been replaced by hand with explicit grants and tests ([`tailnet-policy.md`](../topics/infra/tailnet-policy.md)). This project moves the policy into the Tofu root module, so a change to it is a reviewed diff and a change made in the console shows up as drift. It is staged because the first stage settles the one assumption that decides whether the provider can be used as the decision describes, and the later ones add a credential, a template, and the guards against a bad apply locking out the host that applies it.
 
 ## Scope
 
@@ -69,7 +69,7 @@ The policy's own `tests` block is what catches a bad apply before it saves, and 
 - [ ] A copy of the live policy exists before every apply.
 - [ ] The maintainer's email and device IPs appear nowhere in the repository.
 - [ ] The apply procedure names the console as its recovery path.
-- [ ] The saved policy grants what it granted before the move, and every flow in [the policy's flow list](../topics/infra/network-infra.md#tailnet-policy) still works.
+- [ ] The saved policy grants what it granted before the move, and every flow in [the policy's flow list](../topics/infra/tailnet-policy.md) still works.
 
 ## Agent handoff
 

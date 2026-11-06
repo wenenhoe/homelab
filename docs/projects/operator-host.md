@@ -36,7 +36,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 2 — tailnet policy
 
-The policy already holds explicit grants ([`network-infra.md`](../topics/infra/network-infra.md#adding-a-grant-for-a-route) says how a route's grant is added). Add one grant to it: the laptop reaches VLAN 30 on `tcp:22`, and no other source has a grant for that route. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is hand-edited in the console now and coded later — see
+The policy already holds explicit grants ([`tailnet-policy.md`](../topics/infra/tailnet-policy.md#adding-a-grant-for-a-route) says how a route's grant is added). Add one grant to it: the laptop reaches VLAN 30 on `tcp:22`, and no other source has a grant for that route. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is hand-edited in the console now and coded later — see
 [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md).
 
 ### Stage 2 — required flows

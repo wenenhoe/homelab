@@ -36,7 +36,8 @@ Machines and what sits beneath the apps: hosts, network, hypervisor, provisionin
 | [`tofu/opnsense-gateway.md`](infra/tofu/opnsense-gateway.md) | The Ansible play that writes the gateway's policy, Kea and Unbound configuration through its API. |
 | [`tofu/opnsense-scratch-gateway.md`](infra/tofu/opnsense-scratch-gateway.md) | The scratch gateway for developing the play, and the acceptance run that checks what the play leaves behind. |
 | [`tofu/state-and-credentials.md`](infra/tofu/state-and-credentials.md) | Where Tofu's state lives and the planned remote backend, the credentials file, and the Proxmox API token's privileges. |
-| [`network-infra.md`](infra/network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, and their bootstrap prerequisites. |
+| [`network-infra.md`](infra/network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, what the router VM looks like, how the `tailscale_node` role configures it, and bringing a new host under management. |
+| [`tailnet-policy.md`](infra/tailnet-policy.md) | The tailnet's explicit-grant policy by role: devices, policy sections, DNS, the flows, and how to change the policy or add a grant for a route. |
 | [`host-hardening.md`](infra/host-hardening.md) | The `host_hardening` role: its allow-list of `konstruktoid.hardening` areas, what each sets, where `maintenance.yaml` applies it, and how to verify a host. |
 | [`qemu-guest-agent.md`](infra/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
 

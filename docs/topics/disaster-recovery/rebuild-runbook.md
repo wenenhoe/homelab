@@ -117,7 +117,7 @@ console for the run ([`network-infra.md`](../infra/network-infra.md#tailscale-no
 
 - **Run the cycle from the LAN.** While the VM is gone nothing advertises the
   lab's subnet. The Proxmox node joined the tailnet by hand and stays reachable
-  over it ([Tailnet policy](../infra/network-infra.md#tailnet-policy)).
+  over it ([Tailnet policy](../infra/tailnet-policy.md)).
 - **The rebuilt node is a new device.** The policy already holds the tag and the
   route's approval. Check the device with `rebuild_check.host` before removing the
   old one in the console: until then the dump's rollback is the old VM with its

@@ -119,11 +119,20 @@ run "declares_the_security_host_on_its_vmid" {
   }
 }
 
+run "declares_the_storage_host_on_its_vmid" {
+  command = plan
+
+  assert {
+    condition     = module.storage.vm_id == 206 && module.storage.hostname == "storage"
+    error_message = "the storage host must be VMID 206, named storage"
+  }
+}
+
 run "publishes_the_hosts_for_the_inventory_generator" {
   command = plan
 
   assert {
-    condition     = length(output.ansible_hosts) == 2
+    condition     = length(output.ansible_hosts) == 3
     error_message = "ansible_hosts must name exactly the VMs the root declares"
   }
 
@@ -135,5 +144,10 @@ run "publishes_the_hosts_for_the_inventory_generator" {
   assert {
     condition     = output.ansible_hosts.security.ip_address == "192.168.20.5" && output.ansible_hosts.security.admin_username == "secadmin"
     error_message = "the security entry must carry the VMID-derived address and the admin user the inventory used"
+  }
+
+  assert {
+    condition     = output.ansible_hosts.storage.ip_address == "192.168.20.6" && output.ansible_hosts.storage.admin_username == "storeadmin"
+    error_message = "the storage entry must carry the VMID-derived address and the admin user the inventory used"
   }
 }

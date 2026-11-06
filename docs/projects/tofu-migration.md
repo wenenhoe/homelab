@@ -54,7 +54,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Build the 5XX block, first `restore.yaml` run | Done | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
-| 2 | Cutover to real VMID ranges, decommission old VMs | In progress | the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old Ubuntu VMs are decommissioned with `storage` up throughout |
+| 2 | Cutover to real VMID ranges, decommission old VMs | Done | the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old Ubuntu VMs are decommissioned with `storage` up throughout |
 | 3 | Move Tofu's state to a remote backend | Not started | the backend's host is decided by an ADR, `tofu init -migrate-state` has moved the state into it, the dev VM's file is no longer the only copy, and [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) describes the backend |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -433,10 +433,10 @@ holds the state and a plan against it shows no change.
 - [x] The generated inventory replaces the hand-written entries, including `tailscale`.
 - [x] The old Ubuntu VMs are decommissioned.
 - [x] The rebuilt `tailscale` VM carries its tag, has its route approved without the console and has no key expiry.
-- [ ] `storage` stayed up throughout.
-- [ ] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
+- [x] `storage` stayed up throughout.
+- [x] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
 - [x] Every rebuilt host's restores are in the fire drill's results.
-- [ ] A copy of Tofu's state was taken after each rebuild's apply.
+- [x] A copy of Tofu's state was taken after each rebuild's apply.
 - [ ] Tofu's state is held by a remote backend, and a plan against it shows no change.
 - [x] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 

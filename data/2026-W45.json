@@ -364,6 +364,208 @@
      "opened (not-started)"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "126f603a7323277eb932af5ca2e51eb19f857281",
+   "date": "2026-11-06T16:02:00+08:00",
+   "kind": "pr",
+   "pr": 651,
+   "title": "Fix timezone and add mtime audit",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "fd122a5e6007afc05b3782089697f0f45afe1dac",
+   "date": "2026-11-06T16:05:28+08:00",
+   "kind": "pr",
+   "pr": 652,
+   "title": "add a DNS check that asks both servers the same questions",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8cb00590afe669ed69924dd1c06b59806132394c",
+   "date": "2026-11-06T16:12:14+08:00",
+   "kind": "pr",
+   "pr": 653,
+   "title": "Add bucket copy tool",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9800886089fec4db96c695a238c2e4b30e5ce011",
+   "date": "2026-11-06T16:15:51+08:00",
+   "kind": "pr",
+   "pr": 654,
+   "title": "Retire vm dump",
+   "type": "fix",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c84a6591ef03757b03aa9c17b8187bc2a67c102e",
+   "date": "2026-11-06T16:19:08+08:00",
+   "kind": "pr",
+   "pr": 655,
+   "title": "tofu storage vm",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "4fd58361dcd2762c1d351be8fb06004148b4a469",
+   "date": "2026-11-06T17:03:14+08:00",
+   "kind": "pr",
+   "pr": 656,
+   "title": "let the tailnet policy project edit the Tailscale node ADR's ta\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tailnet-policy-in-tofu",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "45590660a3db460be1be42130b2442e7751120c6",
+   "date": "2026-11-06T17:15:17+08:00",
+   "kind": "pr",
+   "pr": 657,
+   "title": "Implement tailnet policy baseline",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tailnet-policy-baseline",
+   "events": [
+    [
+     "project",
+     "tailnet-policy-baseline",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "85d9e3bb949b61bed255ff204ca317c7fd4faa08",
+   "date": "2026-11-06T17:22:14+08:00",
+   "kind": "pr",
+   "pr": 658,
+   "title": "add the Tofu change review decision and its project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-plan-guard",
+   "events": [
+    [
+     "adr",
+     "ADR 0102 r000 \u00b7 knowing what a tofu change will do",
+     "added (working)"
+    ],
+    [
+     "project",
+     "tofu-plan-guard",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "e6e2c25d36e24bac4586bcab5ea8a1b406e05314",
+   "date": "2026-11-06T18:51:14+08:00",
+   "kind": "pr",
+   "pr": 659,
+   "title": "Continue tailscale node role",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tailscale-node-role",
+   "events": [
+    [
+     "adr",
+     "ADR 0097 r000 \u00b7 how a tailscale node is configured",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "tailscale-node-role",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "e60c0b7d8a460fb1b198ea4399edbce05824b8ad",
+   "date": "2026-11-06T23:40:57+08:00",
+   "kind": "pr",
+   "pr": 660,
+   "title": "tofu services vm",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "20376bc2b83010e988278148e0ab222eb4fb2247",
+   "date": "2026-11-07T00:39:43+08:00",
+   "kind": "pr",
+   "pr": 661,
+   "title": "tofu tailscale vm",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "d99e19828e45cb42ae6c6ed4cf554de1de8d70c1",
+   "date": "2026-11-07T01:25:23+08:00",
+   "kind": "pr",
+   "pr": 662,
+   "title": "add the Tofu state backend decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": [
+    [
+     "adr",
+     "ADR 0103 r000 \u00b7 where tofus state is held",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "d013efb0ac6ba34ad488f1e65674d3d1ec644491",
+   "date": "2026-11-07T02:17:17+08:00",
+   "kind": "pr",
+   "pr": 664,
+   "title": "let three infra projects edit the split Tofu and tailnet topic \u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tailnet-policy-in-tofu",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "cd546e4f87d213ea0d5cd326e3f2ea1e8f3709df",
+   "date": "2026-11-07T02:19:58+08:00",
+   "kind": "pr",
+   "pr": 663,
+   "title": "Reorganise tofu migration related docs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
   }
  ]
 }

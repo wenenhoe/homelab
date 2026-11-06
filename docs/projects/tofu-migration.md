@@ -33,11 +33,11 @@ Update at the start and end of each PR that works a stage. Stage status is `Not 
 | :-: | :--- | :--- | :--- |
 | 1 | Build the 5XX block, first `restore.yaml` run | Done | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
 | 2 | Cutover to real VMID ranges, decommission old VMs | Done | the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old Ubuntu VMs are decommissioned with `storage` up throughout |
-| 3 | Move Tofu's state to a remote backend | Not started | the backend is decided by [ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md), `tofu init -migrate-state` has moved the state into it, the dev VM's file is no longer the only copy, and [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) describes the backend |
+| 3 | Move Tofu's state to a remote backend | Not started | the backend is decided by [ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md), `tofu init -migrate-state` has moved the state into it, the dev VM's file is no longer the only copy, and [`tofu/state-and-credentials.md`](../topics/infra/tofu/state-and-credentials.md) describes the backend |
 
 ### Stage 3 — remote state
 
-Tofu's state is a local file on the dev VM, and each rebuild changed it. The state moves into the S3-compatible backend that [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) plans, so it no longer depends on one VM.
+Tofu's state is a local file on the dev VM, and each rebuild changed it. The state moves into the backend [ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md) chooses, so it no longer depends on one VM. [`tofu/state-and-credentials.md`](../topics/infra/tofu/state-and-credentials.md) describes it once built.
 
 | Part | State |
 | :--- | :--- |

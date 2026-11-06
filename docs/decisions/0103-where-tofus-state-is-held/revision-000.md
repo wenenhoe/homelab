@@ -24,7 +24,7 @@ recovering it needs nothing that Tofu itself has to rebuild first.
 
 - **What exists.** State is `tofu/terraform.tfstate` on the host that runs Tofu. A copy
   is taken after each apply with `tofu state pull`, and the copies sit on the same VM
-  ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#state-backend--secrets)).
+  ([`tofu/state-and-credentials.md`](../../topics/infra/tofu/state-and-credentials.md)).
   Retiring VM 401 waits on the state leaving it
   ([`workstation-management.md`](../../projects/workstation-management.md)).
 - **The backend cannot be a host Tofu builds.** Tofu has to be able to rebuild any VM it
@@ -128,7 +128,7 @@ flowchart LR
   megabytes, so what it adds is small, but the allowance is not its own.
 - Tofu's apply depends on the live provider being reachable. The copy cannot run Tofu on
   its own, only recover the state.
-- [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#state-backend--secrets)
+- [`tofu/state-and-credentials.md`](../../topics/infra/tofu/state-and-credentials.md)
   describes the backend once it is built.
 
 ## Invariants

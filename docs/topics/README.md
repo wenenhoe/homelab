@@ -30,7 +30,12 @@ Machines and what sits beneath the apps: hosts, network, hypervisor, provisionin
 
 | Doc | Covers |
 | :--- | :--- |
-| [`vm-provisioning.md`](infra/vm-provisioning.md) | **Partly implemented.** Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, the Ubuntu and OPNsense VM modules and the Tofu↔Ansible inventory handoff, which are built, and OPNsense day-2 configuration and the remote state backend, which are not. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
+| [`vm-provisioning.md`](infra/vm-provisioning.md) | The scheme OpenTofu-driven Proxmox provisioning rests on (VMID, VLAN, IP and MAC), the Tofu↔Ansible inventory handoff, and how to install and run Tofu. Links to the docs below for what Tofu builds. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
+| [`tofu/ubuntu-vms.md`](infra/tofu/ubuntu-vms.md) | The Ubuntu template and VM modules, the prepared cloud image (initramfs, hosts template, timezone) and the scratch Ubuntu VM. |
+| [`tofu/opnsense-vm.md`](infra/tofu/opnsense-vm.md) | The OPNsense VM module, its image, the seed disk and the first-boot script that answers the importer. |
+| [`tofu/opnsense-gateway.md`](infra/tofu/opnsense-gateway.md) | The Ansible play that writes the gateway's policy, Kea and Unbound configuration through its API. |
+| [`tofu/opnsense-scratch-gateway.md`](infra/tofu/opnsense-scratch-gateway.md) | The scratch gateway for developing the play, and the acceptance run that checks what the play leaves behind. |
+| [`tofu/state-and-credentials.md`](infra/tofu/state-and-credentials.md) | Where Tofu's state lives and the planned remote backend, the credentials file, and the Proxmox API token's privileges. |
 | [`network-infra.md`](infra/network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, and their bootstrap prerequisites. |
 | [`host-hardening.md`](infra/host-hardening.md) | The `host_hardening` role: its allow-list of `konstruktoid.hardening` areas, what each sets, where `maintenance.yaml` applies it, and how to verify a host. |
 | [`qemu-guest-agent.md`](infra/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |

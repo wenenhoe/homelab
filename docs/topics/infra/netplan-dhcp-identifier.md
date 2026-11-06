@@ -7,7 +7,7 @@ is a transitional fix, not final architecture:
 [`projects/tofu-migration.md`](../../projects/tofu-migration.md)
 decommissions these hosts in favor of
 Tofu-provisioned VMs with static IPs and no DHCP at all — see
-[`vm-provisioning.md`](vm-provisioning.md#ubuntu-vms) for why that
+[`tofu/ubuntu-vms.md`](tofu/ubuntu-vms.md#the-vm-module) for why that
 design skips DHCP entirely rather than needing this same fix. Not
 Ansible-managed — applied by hand, and not worth automating given
 it's headed for replacement.

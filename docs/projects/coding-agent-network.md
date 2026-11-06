@@ -32,7 +32,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spikes: filtering proxy feasibility, bridge isolation, resolver design | Not started | The three assumptions in ADR 0053 are resolved and folded into its Context, and the revision can be `approved` |
-| 2 | VLAN 70, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route starts once [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) has replaced allow-all | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
+| 2 | VLAN 70, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route's grant is added as [`network-infra.md`](../topics/infra/network-infra.md#adding-a-grant-for-a-route) describes | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
 | 3 | Carry the zone in the gateway's play: VLAN 70 in the seed's VLAN list and the role's zones, and rows 8 and 13 of [`opnsense-config.md`](opnsense-config.md)'s flow list. Starts once the zone is documented | Not started | `--check --diff` reports no change on a scratch gateway, the zone's flows in the flow list pass, and nothing else is denied that was allowed |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -43,7 +43,7 @@ Throwaway, time-boxed, on a scratch VLAN and VM, discarded once answered. The qu
 
 ### Stage 2 — tailnet route
 
-VM 202 advertises the VLAN's route, and the tailnet policy grants it to the laptop on `tcp:22` only, with `tests` asserting that no other node has it. Starts once [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) has replaced the allow-all grant, so this stage only adds its grant, as [`operator-host.md`](operator-host.md)'s Stage 2 does: copy the current policy first and use the console's preview before saving. Advertise or approve the route only after the saved policy grants it to the laptop alone.
+VM 202 advertises the VLAN's route, and the tailnet policy grants it to the laptop on `tcp:22` only, with `tests` asserting that no other node has it. This stage only adds its grant to the policy's explicit grants, as [`operator-host.md`](operator-host.md)'s Stage 2 does: copy the current policy first and use the console's preview before saving. Advertise or approve the route only after the saved policy grants it to the laptop alone.
 
 ## Acceptance criteria
 

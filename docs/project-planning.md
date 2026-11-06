@@ -65,7 +65,6 @@ calls for a project, while a working one still has to be settled.
 | [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | De-risking | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
-| [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | 1 | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
 | [`integration-records.md`](projects/integration-records.md) | — | Not started — ready | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
 | [`molecule-container-hardening.md`](projects/molecule-container-hardening.md) | — | Not started — ready | Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them. |
@@ -99,8 +98,7 @@ calls for a project, while a working one still has to be settled.
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `tailnet-policy` | `node` | — | [`tailscale-node-role.md`](projects/tailscale-node-role.md) | — | Building |
-| | `policy` | `1-baseline` | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | 1 | Not started — ready |
-| | `policy` | `2-in-tofu` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) |
+| | `policy` | `2-in-tofu` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [ADR-0059/0](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
 | `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
 | | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |

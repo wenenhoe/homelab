@@ -99,9 +99,9 @@ pull request, since the role refuses a host named both ways.
 comes before `tailscale` because its BIND9 serves the zones every other host
 resolves through. `tailscale` is last because nothing configures a Tailscale
 node yet and the router is the maintainer's route into the lab: its rebuild
-waits on [`tailscale-node-role.md`](tailscale-node-role.md) and on the
-tailnet policy carrying the router's tag
-([`tailnet-policy-baseline.md`](tailnet-policy-baseline.md)). The other four
+waits on [`tailscale-node-role.md`](tailscale-node-role.md), whose last
+stage proves the tagged join against the tailnet policy that already carries
+the router's tag. The other four
 hosts are reached through the router and do not join the tailnet, so their
 rebuilds do not touch it. Each host keeps its current vCPU and memory, and its disk shrinks
 to what the host uses plus headroom, on `local-lvm` (NVMe) instead of the

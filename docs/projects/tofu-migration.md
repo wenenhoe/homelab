@@ -21,7 +21,7 @@ The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml`
 
 No ADR for the first two stages. The design is [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs.
 
-Stage 3 carries out a decision that is not yet made: where the remote state backend runs. It needs its own ADR, and Stage 3 does not start until that revision is `approved` and this doc names it in `decision:`.
+Stage 3 carries out [ADR 0103 (Tofu state backend)](../decisions/0103-where-tofus-state-is-held/revision-000.md), which is `working`. Stage 3 does not start until that revision is `approved` and this doc names it in `decision:`.
 
 ## Environment (baseline)
 
@@ -421,8 +421,8 @@ Tofu's state is a local file on the dev VM, and the five rebuilds each change
 it. Once they are done, the state moves into the S3-compatible backend
 [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets)
 plans, so Tofu's record of what it built no longer depends on one VM. The
-backend cannot be a VM Tofu manages, and where it runs is the ADR this stage
-waits on. The local copies the rebuilds took are deleted once the backend
+backend cannot be a VM Tofu manages, and where it holds the state is decided by
+[ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md), which this stage waits on. The local copies the rebuilds took are deleted once the backend
 holds the state and a plan against it shows no change.
 
 ## Acceptance criteria
@@ -458,9 +458,9 @@ vulnerability, incident, or exposure window
 
 ## Open items
 
-- Where the remote state backend runs. It needs an ADR before Stage 3 starts.
-  The backend cannot be a VM Tofu manages, so it rules out `storage`, and a
-  separate small SeaweedFS instance is the leading idea.
+- Which of R2 and B2 is the live backend, and whether either honours conditional
+  writes for the lock. [ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md)
+  leaves both to a bucket check before it can be `approved`.
 - Whether `tailscale` needs the 2 vCPU and 2 GB the table keeps for it. The
   VM is a routing appliance that runs `tailscaled` and the guest agent and
   no Docker, so it may need less than the hosts the keep-current-size rule

@@ -71,15 +71,31 @@ def soa_serial(dig: Dig, server: str, zone: str) -> tuple[str | None, str]:
     return fields[2], ""
 
 
+MAX_CNAME_HOPS = 8
+
+
 def addresses(dig: Dig, server: str, name: str) -> tuple[frozenset[str] | None, str]:
-    """The addresses `name` resolves to on `server`, following a CNAME; None and why when it did not answer."""
-    status, out = dig(server, name, "A")
-    if status != 0:
-        return None, f"{server} did not answer (dig exit {status})"
-    found = frozenset(line for line in out.split() if line.replace(".", "").isdigit())
-    if not found:
-        return None, f"{server} has no address for {name}"
-    return found, ""
+    """The addresses `name` resolves to on `server`, following a CNAME; None and why when it did not answer.
+
+    An authoritative server answers a CNAME whose target is in another of its zones with the CNAME alone,
+    so each target is asked for again, as a resolver does.
+    """
+    current = name
+    asked = set()
+    for _ in range(MAX_CNAME_HOPS):
+        asked.add(current)
+        status, out = dig(server, current, "A")
+        if status != 0:
+            return None, f"{server} did not answer (dig exit {status})"
+        lines = out.split()
+        found = frozenset(line for line in lines if line.replace(".", "").isdigit())
+        if found:
+            return found, ""
+        targets = [line.rstrip(".") for line in lines]
+        if not targets or targets[-1] in asked:
+            break
+        current = targets[-1]
+    return None, f"{server} has no address for {name}"
 
 
 def zones_have_one_serial(dig: Dig, plan: Plan) -> Result:

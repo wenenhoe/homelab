@@ -25,11 +25,9 @@ all:
     # group doesn't exist there and doesn't need to.
     managed_hosts:
       hosts:
-        services:
-          ansible_host: "services.{{ host_domain }}"
-          ansible_user: svcadmin
         # Built by Tofu: their address and login user come from the generated
         # tofu-hosts.yaml, so this file keeps only their group membership.
+        services:
         play:
         security:
         storage:

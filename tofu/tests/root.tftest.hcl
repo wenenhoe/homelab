@@ -119,6 +119,15 @@ run "declares_the_security_host_on_its_vmid" {
   }
 }
 
+run "declares_the_services_host_on_its_vmid" {
+  command = plan
+
+  assert {
+    condition     = module.services.vm_id == 203 && module.services.hostname == "services"
+    error_message = "the services host must be VMID 203, named services"
+  }
+}
+
 run "declares_the_storage_host_on_its_vmid" {
   command = plan
 
@@ -132,7 +141,7 @@ run "publishes_the_hosts_for_the_inventory_generator" {
   command = plan
 
   assert {
-    condition     = length(output.ansible_hosts) == 3
+    condition     = length(output.ansible_hosts) == 4
     error_message = "ansible_hosts must name exactly the VMs the root declares"
   }
 
@@ -149,5 +158,10 @@ run "publishes_the_hosts_for_the_inventory_generator" {
   assert {
     condition     = output.ansible_hosts.storage.ip_address == "192.168.20.6" && output.ansible_hosts.storage.admin_username == "storeadmin"
     error_message = "the storage entry must carry the VMID-derived address and the admin user the inventory used"
+  }
+
+  assert {
+    condition     = output.ansible_hosts.services.ip_address == "192.168.20.3" && output.ansible_hosts.services.admin_username == "svcadmin"
+    error_message = "the services entry must carry the VMID-derived address and the admin user the inventory used"
   }
 }

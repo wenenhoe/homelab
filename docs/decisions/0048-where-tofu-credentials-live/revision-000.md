@@ -18,7 +18,7 @@ related: [ADR-0013, ADR-0018, ADR-0020, ADR-0026]
 Tofu needs standing credentials before it can provision anything: a
 Proxmox API token, an OPNsense API key once its day-2 configuration is
 managed, and an S3 credential once its state has a remote backend
-([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#state-backend--secrets)).
+([`tofu/state-and-credentials.md`](../../topics/infra/tofu/state-and-credentials.md)).
 Every other secret in this repo lives in OpenBao on `security`
 ([0013](../0013-secret-storage/revision-000.md)
 through

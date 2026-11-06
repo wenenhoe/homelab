@@ -42,7 +42,7 @@ The role converges, in order:
 3. **Join**, only when the node is logged out. The role then requires a one-time key and passes it with the node's tag. A node that is already logged in needs no key, and a missing key on a logged-out node stops the play before anything changes.
 4. **Preferences**, compared against what the node reports and applied with `tailscale set` for each one that differs. The role names every preference it owns: the advertised routes, the accepted DNS setting, and the client's auto-update, which is off. Source NAT stays at its default.
 
-**The tag and the routes.** The node joins with one tag, `tagOwners` names the maintainer as its owner, and `autoApprovers` approves the routes it advertises. Both live in the tailnet policy, which is written by hand in the console ([`network-infra.md`](../../topics/infra/network-infra.md#tailnet-policy)) and which [ADR 0059](../0059-where-the-tailnet-policy-is-defined/revision-000.md) later carries into OpenTofu unchanged. The routes the node advertises are a host variable, so a new zone's route is a change to that variable and one grant in the policy.
+**The tag and the routes.** The node joins with one tag, `tagOwners` names the maintainer as its owner, and `autoApprovers` approves the routes it advertises. Both live in the tailnet policy, which is written by hand in the console ([`tailnet-policy.md`](../../topics/infra/tailnet-policy.md)) and which [ADR 0059](../0059-where-the-tailnet-policy-is-defined/revision-000.md) later carries into OpenTofu unchanged. The routes the node advertises are a host variable, so a new zone's route is a change to that variable and one grant in the policy.
 
 **The join key** is made in the Tailscale admin console for the rebuild: single-use, pre-authorized, tagged, and valid for hours. It reaches the play as a run-time variable from the operator's environment, is not logged, and is not written anywhere.
 
@@ -63,7 +63,7 @@ The role converges, in order:
 ## Consequences
 
 - A rebuilt router is a new device. The old device is removed in the console, and the policy's grants for the router name its tag, never its address.
-- While the router is rebuilt the tailnet has no route into the lab. The dump of the old VM is the way back ([`tofu-migration.md`](../../projects/tofu-migration.md)), and the Proxmox node's own membership reaches the hypervisor meanwhile. That membership helps when the router VM is broken, not when the node itself is off.
+- While the router is rebuilt the tailnet has no route into the lab. The dump of the old VM is the way back ([`rebuild-runbook.md`](../../topics/disaster-recovery/rebuild-runbook.md#tailscale)), and the Proxmox node's own membership reaches the hypervisor meanwhile. That membership helps when the router VM is broken, not when the node itself is off.
 - The router's size is judged under the operator traffic, not at idle ([`tofu-migration.md`](../../projects/tofu-migration.md)).
 - [ADR 0043 (Host hardening baseline)](../0043-host-os-hardening-baseline/revision-000.md) lists `net.ipv4.ip_forward: 0` among the `sysctl` area's defaults. When that area is added, it must leave forwarding on for a node that advertises routes, and the role owns that value.
 - A Tailscale release reaches the router only as often as `maintenance.yaml` runs against it, and an upgrade can restart `tailscaled` and drop the flows it forwards. Adding Tailscale's repository to the unattended origins would loosen ADR 0043's security-only rule, so it is not done here.

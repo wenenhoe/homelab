@@ -1,579 +1,122 @@
 # VM Provisioning: Proxmox via OpenTofu
 
-The design record for OpenTofu-driven Proxmox provisioning: VMID/VLAN/IP
-scheme, MAC scheme, Ubuntu/OPNsense provisioning, and the boundary with
-Ansible. The move of the existing hosts onto it is tracked in
-[`docs/projects/tofu-migration.md`](../../projects/tofu-migration.md),
-not here.
+The scheme OpenTofu-driven Proxmox provisioning rests on (VMID, VLAN, IP and MAC),
+the boundary with Ansible, and how to run Tofu. OpenTofu owns everything up to "the
+VM exists, boots, and can be reached over SSH with the right network config."
+Ansible's job starts there; [`deployment-flow.md`](../deploy/deployment-flow.md)
+covers what happens once it takes over.
 
-OpenTofu owns everything up to "the VM exists, boots, and can be reached
-over SSH with the right network config." Ansible's job starts there,
-unchanged from today. This doc is the decision record for that boundary
-and the scheme both sides depend on — see
-[`deployment-flow.md`](../deploy/deployment-flow.md) for what happens once Ansible
-takes over.
+| Subject | Doc | State |
+| :--- | :--- | :--- |
+| Ubuntu template, VM module, prepared image, scratch VM | [`tofu/ubuntu-vms.md`](tofu/ubuntu-vms.md) | Built; the five Ubuntu hosts are declared in the root module |
+| OPNsense VM module, seed disk, first boot | [`tofu/opnsense-vm.md`](tofu/opnsense-vm.md) | Built; the root module declares no gateway, since the production one is hand-maintained |
+| Gateway configuration through its API | [`tofu/opnsense-gateway.md`](tofu/opnsense-gateway.md) | Built; applied to a scratch gateway |
+| Scratch gateway and its acceptance run | [`tofu/opnsense-scratch-gateway.md`](tofu/opnsense-scratch-gateway.md) | Built |
+| State, credentials file, Proxmox API token | [`tofu/state-and-credentials.md`](tofu/state-and-credentials.md) | State is a local file; the remote backend is planned |
+| Rebuilding a host | [`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md) | Built |
+
+Build status across the initiative is in the `tofu-vm-provisioning` entry of
+[`project-planning.md`](../../project-planning.md#super-projects).
 
 ## VMID / VLAN / IP scheme
 
-VMID-hundred ranges follow the existing numbering convention (from
-notes, not introduced by this doc); each networked range maps to its own
-VLAN/subnet:
+VMID-hundred ranges follow the existing numbering convention; each networked range
+maps to its own VLAN and subnet:
 
 | VMID range | Purpose | VLAN | Subnet | This repo's scope |
 | :--- | :--- | :--- | :--- | :--- |
 | 1XX | Templates | — (not networked) | — | Tofu's own cloud-init Ubuntu template lands here |
-| 2XX | Production — Services | 20 | `192.168.20.0/24` | Primary target — current managed hosts + OPNsense |
+| 2XX | Production — Services | 20 | `192.168.20.0/24` | Primary target: the Ubuntu hosts and the gateway |
 | 3XX | Production — Others | 30 | `192.168.30.0/24` | Reserved, unused today |
-| 4XX | Production — Desktops | 40 | `192.168.40.0/24` | **Out of scope** — GPU passthrough/manual OS installs, not cloud-init-able the same way |
-| 5XX | Experimental | 50 | `192.168.50.0/24` | Migration staging — see the project doc |
+| 4XX | Production — Desktops | 40 | `192.168.40.0/24` | **Out of scope**: GPU passthrough and manual OS installs, not cloud-init-able the same way |
+| 5XX | Experimental | 50 | `192.168.50.0/24` | Isolated experiments: the [scratch gateway](tofu/opnsense-scratch-gateway.md) is VMID 501, and a [scratch VM](tofu/ubuntu-vms.md#scratch-ubuntu-vm)'s VMID picks its zone |
 | 6XX–8XX | Unassigned | — | — | Reserved for future ranges as needed |
 | 9XX | Archived | — (not running) | — | No networking required |
 
-`X00` and `1000+` are reserved and never assigned to a real VM — so
-within a range, `vlan_id = (vmid // 100) * 10`, `host_octet = vmid % 100`
-never produces a `.0` host address to collide with. `.1` in every
-networked VLAN is reserved for OPNsense's own sub-interface (the
-gateway), independent of whether a VM literally holds the `X01` VMID.
-A VM other than OPNsense never takes an `X01` VMID, because its derived
-address would be the gateway's; every other VMID in a range starts at `X02`.
+Within a range, `vlan_id = (vmid // 100) * 10` and `host_octet = vmid % 100`:
 
-Within each VLAN's `/24`, addresses are split so Tofu-managed static IPs
-and Kea's dynamic pool never collide:
+- `X00` and `1000+` are never assigned to a real VM, so the derivation never produces
+  a `.0` host address.
+- `.1` in every networked VLAN is the OPNsense sub-interface (the gateway), whether or
+  not a VM holds the `X01` VMID. A VM other than OPNsense never takes `X01`; every
+  other VMID in a range starts at `X02`.
 
-- `.1`–`.49` — gateway + Tofu-provisioned VMs (static, VMID-derived)
-- `.50`–`.254` — Kea DHCP pool for anything not Tofu-managed (laptops, phones, non-provisioned devices)
+Each VLAN's `/24` is split so Tofu's static addresses and Kea's pool never collide:
 
-VM 401 ("Development") is the workstation used to develop this repo and
-likely to run `tofu apply`/`ansible-playbook` itself — worth calling out
-explicitly if so, since that makes it a dependency of the tooling, not
-just another 4XX desktop, even though it stays outside Tofu/Ansible's
-management scope either way.
+| Addresses | Used for |
+| :--- | :--- |
+| `.1`–`.49` | The gateway and Tofu-provisioned VMs (static, VMID-derived) |
+| `.50`–`.254` | Kea's DHCP pool, for anything Tofu does not manage (laptops, phones). A client here has no DNS name |
 
-Both OPNsense NICs are `virtio`: one on the physical WAN bridge
-(untagged, unless `wan_vlan_id` puts it on a VLAN of the LAN bridge), one on the VLAN-aware LAN bridge that every other VM's NIC
-also attaches to, tagged per-VM to whichever VLAN its VMID range implies.
+VM 401 ("Development") is the controller today
+([ADR 0058](../../decisions/0058-where-operator-work-runs/revision-000.md)), so it is
+a dependency of the tooling although it stays outside Tofu's and Ansible's
+management.
 
 ## MAC address scheme
 
-Proxmox's own auto-assigned MACs use OUI `BC:24:11`. Tofu keeps that
-prefix (stays recognizable as Proxmox-owned) and encodes the VMID plus
-NIC index into the rest: `BC:24:11:{VMID as 4 hex digits}:{NIC index}`
-— e.g. VMID 201, NIC 0 → `BC:24:11:00:C9:00`. Deterministic per VMID, so
-a rebuilt VM gets the same MAC every time — required for the
-MAC-matched network config below to stay stable across rebuilds.
-A Kea static-reservation key was the other option this MAC scheme
-would have supported, but that path isn't taken — see the Ubuntu VMs
-section for why.
+Proxmox's own auto-assigned MACs use OUI `BC:24:11`. Tofu keeps that prefix, so a
+MAC stays recognisable as Proxmox-owned, and encodes the VMID plus the NIC index into
+the rest:
 
-## Ubuntu VMs
+`BC:24:11:{VMID as 4 hex digits}:{NIC index}`, for example VMID 201, NIC 0 →
+`BC:24:11:00:C9:00`.
 
-Tofu builds the cloud-init template itself rather than relying on a
-pre-existing one: the `proxmox_ubuntu_template` module downloads the
-official Ubuntu cloud image, verifies it against a SHA-256 the caller
-supplies, and registers it as a Proxmox template VM in the 1XX range,
-next to the existing Windows templates (103–105). The
-`proxmox_ubuntu_vm` module then clones it per VM. Network config is
-injected through cloud-init at first boot: the module sets the NIC's
-deterministic MAC and an `ip_config` holding a static IP (the
-VMID-derived address from the scheme above), gateway and nameservers,
-and Proxmox renders the cloud-init `network-config` from them,
-matching the NIC by its MAC address — no DHCP involved at all. A
-hand-written `network-config` would be an uploaded snippet file, which
-the provider writes over SSH to the node; `ip_config` needs only the
-API token. This avoids the alternative (an Ansible-rendered netplan
-file post-boot) racing against whatever address the VM picks up before
-Ansible can connect at all, and sidesteps DHCP/Kea entirely rather
-than working around it — see
-[`netplan-dhcp-identifier.md`](netplan-dhcp-identifier.md) for the
-current-fleet bug that's the real motivation for skipping DHCP here.
-
-Default sizing (adjust per host once real usage is observed):
-
-| Host | vCPU | RAM | Disk |
-| :--- | :--- | :--- | :--- |
-| OPNsense | 2 | 2 GB | 32 GB |
-| services / security | 2 | 2 GB | 32 GB |
-| play (Minecraft) | 4 | 4 GB | 64 GB |
-| storage | 2 | 4 GB | 64 GB+ |
-
-VM disks go on `local-lvm` (NVMe) for performance, except `storage`'s,
-which goes on `backup` (HDD): it holds the on-site copy of every backup,
-so it must not share a disk with the hosts it protects. The OPNsense ISO and
-Ubuntu cloud image go on `tofu-images`, a directory storage that holds
-only ISO and import content — both small, one-time downloads, no need
-for HDD or NVMe capacity planning around them.
-
-### Ubuntu modules
-
-`tofu/modules/proxmox_ubuntu_template` and
-`tofu/modules/proxmox_ubuntu_vm` are called from the root module in
-`tofu/`. The template module's `vm_id` defaults to a free ID in the 1XX
-range. It takes its image from either `image_url` with `image_checksum`, which
-Proxmox downloads, or `image_volume_id` alone
-(`<datastore>:import/<name>.qcow2`), a volume already on the node, and
-rejects both or neither. The root module passes `image_volume_id`: the copy
-that [`prepare_image.sh`](#prepared-ubuntu-image) builds from the
-dated release directory and SHA-256 in `ubuntu_image_url` and
-`ubuntu_image_checksum` (`tofu/variables.tf`), named
-`<image name>-<release directory>-prepared-<timezone>.qcow2` on `image_datastore_id`, with
-the zone from the `timezone` variable (default `Asia/Singapore`, the inventory's `server_timezone`).
-The `ubuntu_image_prepare_command` output prints the command for the current pin.
-The root module builds the template and declares five VMs: `tailscale` (VMID 202,
-2 vCPU, 2 GB, a 16 GB disk), `services` (VMID 203,
-4 vCPU, 2 GB, a 64 GB disk), `play` (VMID 204, 4 vCPU, 4 GB, a 64 GB disk), `security` (VMID 205, 4 vCPU, 2 GB, a 64 GB disk) and `storage` (VMID 206, 4 vCPU, 4 GB, a 128 GB disk on `backup`). Their `dns_domain` and `ssh_public_keys` come from the
-`dns_domain` and `ansible_ssh_public_keys` variables, which the credentials file
-sets ([State backend & secrets](#state-backend--secrets)).
-
-The provider imports a disk only when it creates it and ignores a changed
-`import_from` on an existing one, so the template resource is replaced whenever
-the module's image inputs change. A new pin names a new volume and replaces the
-template on the next apply. The first apply after the template was built from a
-download replaces it too, since the tracking resource is new. Tofu destroys the
-old template before it creates the new one, so the image volume has to be on the
-node first (`pvesm list tofu-images --content import`). Replacing the template
-does not touch its clones, which hold their own disks, but a clone cannot be
-created while the template is absent.
-
-The template and its clones are `q35` machines booting UEFI (`ovmf`) from a
-`4m` EFI disk on the VM datastore with the distribution and Microsoft keys
-pre-enrolled, so secure boot is on. The clone
-repeats the firmware and the EFI disk, because the provider otherwise plans
-SeaBIOS and a `2m` disk over the template's, and a different EFI disk type
-replaces the VM. The OPNsense module does not set firmware.
-
-From `vm_id` the VM module derives everything the scheme above fixes: the
-VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
-rejects a VMID outside 2XX to 5XX and one whose last two digits fall
-outside 02 to 49, the reserved, gateway and DHCP-pool host parts.
-Nameservers default to the VLAN's gateway; `dns_servers` replaces them.
-`dns_domain`, the lab's internal zone, has no default: a VM with no search
-domain gets a copy of the node's own. Its
-defaults are the services/security row of the sizing table, and a larger
-host overrides `cores`, `memory_mb` and `disk_gb`. Its outputs are `vm_id`,
-`hostname`, `ip_address`, `mac_address` and `inventory_entry`, the one the
-inventory generator reads.
-
-```hcl
-module "services" {
-  source          = "./modules/proxmox_ubuntu_vm"
-  node_name       = var.proxmox_node
-  vm_id           = 203
-  name            = "services"
-  template_vm_id  = module.ubuntu_template.vm_id
-  admin_username  = "svcadmin"
-  dns_domain      = var.dns_domain
-  ssh_public_keys = var.ansible_ssh_public_keys
-}
-```
-
-Both modules store their image on `tofu-images`, created once on the node:
-
-```sh
-pvesm add dir tofu-images --path /var/lib/tofu-images --content iso,import
-```
-
-Deleting a stored file takes `Datastore.Allocate`, which gives full access
-to every volume on a storage, so the token holds it on this storage only
-(see [Proxmox API token](#proxmox-api-token)). Bumping an image URL
-replaces the download, and the old file goes with it. Disks are imported from it
-through the API alone; the other route, `file_id` on an `iso` download,
-needs SSH to the node. The provider's docs say a `.qcow2` file name is
-rejected by Proxmox before 8.4.
-
-`tofu -chdir=tofu test` checks the VMID-derived values and the input
-rules against a mocked provider, so it needs no node or credentials. A new
-`run` block with its own `module` source needs `tofu init` again before it
-is found. The `tofu-checks` CI job runs this test, with the format check, `init`
-and `validate`, on every change under `tofu/`
-([`pipeline.md`](../engineering/ci/pipeline.md#jobs)); run `tofu fmt -recursive`
-before pushing.
-
-### Prepared Ubuntu image
-
-Every Ubuntu VM is cloned from a template built from a prepared copy of the cloud image. The script changes
-three things, which are fixed once in the image and not on each host: the initramfs, cloud-init's hosts template,
-and the timezone. The last two are [below](#hosts-template-and-timezone).
-
-#### Initramfs without networking
-
-The 26.04 cloud image builds its initramfs with dracut. Dracut's
-`systemd-networkd` module runs in the initramfs and, with no `ip=` option on the
-kernel command line, copies `dracut-default.network` to
-`/run/systemd/network/zzzz-dracut-default.network`, which asks every NIC for
-DHCP before cloud-init runs. dracut includes that module only when another
-module needs the network, and the image's generic initramfs has two:
-`dyn-netconf` and `iscsi`. Omitting `dyn-netconf` alone left `network`,
-`systemd-networkd` and the file in a generic build; omitting both leaves none of
-them. cloud-init then fails to rename the NIC to the name its network config uses
-(`[busy] Error renaming ... from ens18 to eth0`), the netplan files it writes
-match no device, and the VM keeps the lease that `zzzz-dracut-default.network`
-configured in place of the static address from `ip_config`. Upstream tracks the
-rename failure in
-[cloud-init issue 6887](https://github.com/canonical/cloud-init/issues/6887). A
-VM cloned from a template built from the stock image gets its address from
-DHCP, and Kea serves no VLAN 20 zone once the gateway play has rebuilt the
-gateway. The template is therefore built from the copy this script writes.
-
-`tofu/modules/proxmox_ubuntu_template/prepare_image.sh IMAGE_URL IMAGE_CHECKSUM
-OUT_DIR TIMEZONE` writes a copy of the image whose initramfs lacks `systemd-networkd`. It runs as
-root or as a user with `sudo`, whose password it asks for before it downloads
-anything, on a host with `curl`, `qemu-img` and util-linux (`losetup`, `lsblk`,
-`blkid`, `mount`, `chroot`), and needs about 8 GB free in `OUT_DIR`
-(`MIN_FREE_KB`). It downloads the image and checks it against the SHA-256,
-converts it to a raw disk on a loop device, and mounts the partition labelled
-`cloudimg-rootfs`, the one labelled `BOOT` when there is one, and `/dev`, `/proc`
-and `/sys`. It binds a directory of its work directory over `/var/tmp` of the
-image, because dracut builds the initramfs there and the image's root file system
-has almost no free space until the first boot grows it. It then writes `omit_dracutmodules+=" dyn-netconf iscsi "` to
-`/etc/dracut.conf.d/99-no-initrd-network.conf` in the image and regenerates every
-initramfs there with `dracut --regenerate-all --force --no-hostonly
---no-hostonly-cmdline`, because a chroot sees the build host's devices and a
-host-only initramfs would fit the host instead of the VMs. Only the loop
-device's own partitions are searched for labels, since the build host can carry
-the same ones. The dracut configuration stays in the image, so a later kernel
-update regenerates its initramfs without the modules. That regeneration is
-host-only and holds no networking at all, so the `/boot` of a VM that has
-already upgraded a kernel does not show what its first boot ran; the first
-boot's journal (`journalctl -b -1`) does.
-
-It fails, writing nothing to `OUT_DIR`, when the image has no dracut, when no
-initramfs lists `systemd-networkd` before the change (an image that no longer
-needs the step), when any initramfs lists an omitted module or `systemd-networkd`
-afterwards (another module then needs the network, and the list of omitted
-modules needs that module too), and when a listing fails. It
-writes `OUT_DIR/<image name>-<release directory>-prepared-<timezone>.qcow2` as a
-compressed qcow2 with its SHA-256 in `<file>.sha256`. On every exit path it unmounts in reverse order,
-detaches the loop device and removes its work directory, except that a failed
-unmount leaves the directory in place, since removing it over a mount would
-delete the image's files and the host's `/dev` entries. The template imports the copy
-from the node's `tofu-images` storage: copy it to
-`/var/lib/tofu-images/import/` on the node (`scp`), check the `.sha256` there,
-then run the apply above.
-
-#### Hosts template and timezone
-
-A VM has a fully qualified name from its search domain and cloud-init's `manage_etc_hosts` on, so cloud-init renders
-`/etc/hosts` from `/etc/cloud/templates/hosts.debian.tmpl` at every boot with the line
-`127.0.1.1 {{fqdn}} {{hostname}}`. `systemd-resolved` answers lookups from `/etc/hosts`, and Docker's DNS for containers
-forwards to it, so a container on the host resolved the host's own name to an address that is loopback inside the
-container. Tinyauth could not reach lldap, which it addresses by a CNAME to the host's name. The script rewrites the
-line to `127.0.1.1 {{hostname}}`, matching the whole line, and stops when the template no longer has it, so an upstream
-change cannot leave the fully qualified name in place.
-
-The script also sets `/etc/localtime` and `/etc/timezone` to `TIMEZONE`, and stops when the image has no such zone.
-`server_timezone` reaches containers as `TZ`, and a host left on UTC would run the `OnCalendar` schedules of its systemd
-timers hours away from the containers' cron schedules: the cloud sync that follows the backups, the certificate renewal
-heartbeat and the expiry checks. The zone is part of the image's name, so another zone is another volume and the template
-is replaced.
-
-### Scratch Ubuntu VM
-
-`tofu/scratch/ubuntu` is a second root for one throwaway Ubuntu VM, for work
-that needs a real VM and keeps nothing of it. It clones the template through
-`proxmox_ubuntu_vm`, tags the VM `scratch`, and shares the main root's
-provider pin and lock file through symlinks, as the scratch gateway's root
-does. Its state and provider directory live outside the checkout. Its `ssh`
-output names the static address.
-
-`vm_id`, `ssh_public_keys` and `dns_domain` have no default. `vm_id` picks the
-zone, because the module derives the VLAN from its hundred, and the VM reaches
-only what that zone's gateway rules allow: the gateway play gives VLAN 50 no
-access to the internet (`internet: false` in
-[`opnsense_gateway_zones`](../../../ansible/roles/opnsense_gateway/defaults/main.yaml)).
-The module rejects a VMID outside 2XX to 5XX, so a VM in VLAN 60 or 70 needs its
-range widened first. In a zone the play serves with Kea, which hands out host
-numbers 10 to 245 (`opnsense_gateway_dhcp_pool`), a host part of 02 to 09 stays
-clear of the pool. `cores`, `memory_mb` and `disk_gb` default to 2, 2048 and 16.
-
-From the repo root, with the credentials file of
-[State backend & secrets](#state-backend--secrets):
-
-```sh
-umask 077
-out="$HOME/scratch-vm"
-mkdir -p "$out"
-export TF_DATA_DIR="$out/.terraform"
-printf '%s\n' 'vm_id = 502' 'dns_domain = "<internal zone>"' \
-  'ssh_public_keys = ["<public key>"]' > "$out/scratch.tfvars"
-cd tofu/scratch/ubuntu
-tofu init -backend=false -input=false -lockfile=readonly
-tofu apply -state="$out/terraform.tfstate" \
-  -var-file="$HOME/.config/tofu/credentials.tfvars" -var-file="$out/scratch.tfvars"
-tofu output -state="$out/terraform.tfstate" ssh
-```
-
-`tofu destroy` with the same `-state` and `-var-file` flags removes the VM and
-its disks and leaves the template. A VM left running keeps its cores and
-memory, so destroy it when the work is done. The API token's role already
-covers it, since the VM is a clone like any other.
-
-## OPNsense
-
-No cloud-init story exists for OPNsense, so provisioning happens in two
-phases:
-
-- **Phase 1, now:** the `proxmox_opnsense_vm` module creates the VM
-  with OPNsense's pre-installed `nano` image as its system disk, and the
-  first configuration comes from a seed disk the importer reads at the
-  first boot ([ADR 0089 (OPNsense configuration)](../../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
-  OPNsense publishes the image only as the `.img.bz2` of one release, and
-  Proxmox refuses to decompress a download of import content. The host
-  running Tofu therefore downloads it with `fetch_image.sh`, checks it
-  against the SHA-256 the caller supplies, unpacks it into `image_cache_dir`
-  (about 3.5 GB; `.image-cache/` is ignored by git) and uploads the unpacked
-  image as import content. A checksum mismatch removes the download and fails
-  the apply before anything is uploaded. The host needs `curl`, `bunzip2` and
-  `sha256sum` or `shasum`. OPNsense publishes no stable "latest" URL, so a
-  newer release is a new URL and checksum.
-
-  A caller whose node already holds the unpacked image sets
-  `image_volume_id` (`<datastore>:import/<name>.raw`) instead of `image_url`
-  and `image_checksum`: nothing is downloaded or uploaded and the system disk
-  is imported from that volume. Exactly one of the two ways must be given,
-  and the plan fails otherwise.
-
-  The seed disk comes from `seed/build_seed.sh` beside the module:
-  `build_seed.sh OUTPUT_DIR --lan-ip ADDRESS` writes `OUTPUT_DIR/seed.img`,
-  the file the module's `seed_image_path` takes. It starts from OPNsense's own
-  sample `config.xml` (`seed/SAMPLE_SOURCE.txt` names its release), assigns the
-  two NICs (`vtnet0` is the WAN, `vtnet1` the LAN), sets the LAN address,
-  adds a VLAN device `vlan0.<tag>` on the LAN device for each tag of `--vlans`
-  (20, 30, 40, 50 and 60 unless overridden) with an interface at
-  `192.168.<tag>.1/24`, sets the
-  hostname and the domain (`OPNsense.internal` unless overridden, the name the
-  play verifies the GUI certificate for), keeps the serial port as the console,
-  turns IPv6 off (no system-wide allowance and no IPv6 address method on the
-  WAN or LAN), sets root's password, puts a one-time password in front of the
-  GUI login (a `TOTP` authentication server, which the GUI is set to use, and a
-  seed on root; OPNsense has no option left to keep console logins off that
-  rule, so the console menu is not password-protected, whoever can open the
-  VM's console in Proxmox reaches it, and it is the way in when the token is
-  lost; the API user authenticates by key) and adds one API user, which holds
-  only the privileges that cover the calls of the play, the scratch update and
-  the diagnostics (system information, firmware, aliases, filter rules, Kea
-  DHCPv4 and dnsmasq) instead of `page-all`. It needs `python3`, `openssl`,
-  `sfdisk`, mtools and `xmllint`. The root password, API key, API secret and
-  root's OTP seed (base32, for an authenticator app) are the variables
-  `opnsense_root_password`, `opnsense_api_key`, `opnsense_api_secret` and
-  `opnsense_root_otp_seed` in the [credentials file](#state-backend--secrets).
-  The builder reads them and appends generated ones when the file holds none
-  of the first three, so a rebuilt gateway keeps the credentials the play
-  holds. A file that holds the first three without a seed gets one appended.
-  The seed carries only a hash of the password and of the secret, and the OTP
-  seed itself, which the gateway needs in the clear. A credentials file that
-  others can read, or that holds only some of the first three, stops the build.
-  Tofu warns that these variables are undeclared when it reads the file,
-  which does no harm.
-
-  The importer is offered only at the first boot, so the module is applied
-  with `started = false` and `first_boot/first_boot.sh VMID OUTPUT_DIR` starts
-  the VM and answers the importer. It runs on the operator host with `NODE`
-  set to the Proxmox node's ssh target. It refuses a VM that is not stopped,
-  copies `import_seed.py` to the node, runs `qm start`, and runs the driver
-  beside the VM's serial socket with the seed's root password on stdin, read
-  from the credentials file, so the password reaches neither a command line
-  nor the node's disk. The driver names the seed disk (`da1`) to the importer,
-  logs in at the console with the seed's root password when the console asks
-  for one (a login prompt that the menu follows within five seconds is not
-  answered) and reads the web GUI's certificate off the console. `OUTPUT_DIR` then holds `console.log`,
-  `result.json` and `gateway-cert.pem`, the CA file the play pins; the driver
-  refuses a certificate that does not match the fingerprint the console banner
-  prints, and the script removes the output if it finds the password in it.
-  The node needs `python3`. A node that takes a password is reached through a
-  master connection opened by hand (`ssh -fN -M -S /tmp/opn-ssh.sock root@pve`)
-  and named in `SSH_CONTROL_PATH`. A first boot that did not take the seed
-  cannot be repeated on the same VM: destroy it and apply the module again.
-
-  The play is `playbooks/opnsense.yaml` with the `opnsense_gateway` role, run
-  from the operator host: `ansible-playbook playbooks/opnsense.yaml --check
-  --diff -e opnsense_gateway_ca_file=PATH`, where PATH is the
-  `gateway-cert.pem` the first-boot script wrote. The gateway is not an
-  Ansible host; every call is to its API at `OPNsense.internal`, so the
-  operator host must resolve that name, and the certificate file is the only
-  CA the play trusts. Before anything else the role checks the credentials
-  file (mode `0600`, holding `opnsense_api_key` and `opnsense_api_secret`),
-  that the installed `oxlorg.opnsense` collection is the pinned release, that
-  the name resolves, that the seeded key authenticates over the pinned
-  certificate, and that the gateway runs the pinned release. A renewed GUI
-  certificate fails the authentication check until the console is read again.
-
-  The play then writes the policy: an alias for each zone's network, one for
-  the operator hosts, the CD agent and the gateway's management ports, a
-  floating quick pass rule at sequence 1 that admits the operator hosts to
-  the gateway's SSH and API ports, and one rule per zone for DNS, NTP and
-  ping to the gateway, and the flows between zones listed in the role's
-  `opnsense_gateway_flows` (a pass rule on the source zone's interfaces, each
-  matched by its name; one marked `enabled: false` is written but not in
-  force). Each zone marked `internet: true` also gets a rule denying direct
-  DNS (ports 53 and 853) to anything but the gateway and one passing its
-  traffic to everything outside the private ranges; the others reach only the
-  flows listed. Outbound NAT is left in the automatic mode the seed sets. Kea is
-  turned on for the zones marked `dhcp: true` (desktops and the two
-  experimental blocks, whose clients Tofu does not place), each with a scope
-  of `192.168.<vlan>.10` to `.245`, and keeps the reservations listed in
-  `opnsense_gateway_dhcp_reservations` (`name`, `zone`, `address`, `mac`), which
-  must sit in a Kea zone outside the pool; a zone not marked is left alone. The play needs `-e opnsense_gateway_operator_hosts=[...]`
-  (the IPv4 addresses the work runs from) and stops without it, since an
-  empty guard rule would admit nobody. The CD agent's rule is written only
-  when `opnsense_gateway_cd_agent_management` is true, and removed when it is
-  false. Unbound forwards the host zone and the lan zone to the two DNS servers
-  (`opnsense_gateway_forward_servers`, `192.168.20.3` and `192.168.20.6`), the
-  zones being the play's `-e opnsense_gateway_forward_domains=[...]` because they
-  derive from the main domain, and stops without them. The play also removes any
-  forward it does not write, which `--check` reports as a change.
-  The release and the collection's commit are the role's defaults;
-  `ansible/requirements.yml` installs the collection from git at the same
-  commit, and a test fails when the two differ. The gateway's release check
-  asks the gateway for its firmware status, which probes the OPNsense mirror,
-  so the gateway needs its route out.
-  A scratch gateway for developing the play is built by
-  `tofu/scratch/opnsense/scratch_gateway.sh up OUT_DIR IMAGE_URL IMAGE_CHECKSUM`
-  from the operator host, with `NODE`, `PROXMOX_ENDPOINT` and
-  `PROXMOX_API_TOKEN` set. It builds the seed with credentials of its own in
-  `OUT_DIR/credentials.tfvars`, so the real credentials file is untouched,
-  has the node stage the image (see below), applies the module from its own
-  Tofu root with the VM stopped (VMID 501, named `opn-scratch`), runs the
-  first-boot script, and updates the gateway
-  to `WANT_VERSION` (default the pinned release) through its firmware API
-  with `update_gateway.sh`, run on the node. The update is refused unless it
-  lands on that release, and the seeded key must still authenticate, and a
-  wrong secret still be refused, afterwards. Last it opens an ssh forward
-  from `LOCAL_PORT` (default 8443) on the operator host to the gateway's
-  GUI port, and prints the play command to run against it; the operator host
-  must resolve `OPNsense.internal` to `127.0.0.1` and have no proxy variables
-  set. The LAN NIC attaches to `LAN_BRIDGE` (default `vmbr9`), which must
-  exist with no ports and no address and be usable by the API token
-  (`SDN.Use` on `/sdn/zones/localnetwork/<bridge>`), because the seed's LAN
-  serves DHCP. The WAN NIC attaches untagged to `WAN_BRIDGE` (default
-  `vmbr1`), or tagged with `WAN_VLAN_ID`, where a DHCP server gives it an
-  address and a route out; the production WAN bridge is refused. The node
-  takes `192.168.77.10` on the LAN bridge to reach the gateway. The root's
-  state and provider directory live in `OUT_DIR`, and the root uses the
-  provider pin and lock file of the main root. `down OUT_DIR` closes the
-  tunnel and destroys the VM, the seed it uploaded and everything left on the
-  node, but not the staged image.
-
-  The image is staged by `stage_image.sh`, which the script pipes to the node:
-  the node downloads the `.img.bz2`, checks it against `IMAGE_CHECKSUM`, unpacks
-  it and moves it into the images datastore's `import` directory in one rename
-  as `<release>-nano-amd64.raw`, with the checksum beside it in a `.sha256`
-  file. A later run that finds the file with the checksum it asks for fetches
-  nothing, so the 3 GB upload through the Proxmox API, which can fail with a
-  closed connection, happens in no run. The node needs `curl`, `bunzip2`,
-  `pvesh` and `python3`, a route to the mirror and about 4.5 GB free in the
-  datastore. The checksum is checked when the image is staged, not again when
-  it is used. `PURGE_IMAGE=1` makes `down` remove the staged image, and
-  `UPLOAD_IMAGE=1` has the operator host download the image and the module
-  upload it instead, for a node with no route to the mirror (about 7 GB free
-  where `OUT_DIR` is).
-
-  `tofu/scratch/opnsense/acceptance/acceptance.sh OUT_DIR IMAGE_URL IMAGE_CHECKSUM`
-  runs the play against a scratch gateway it builds with `scratch_gateway.sh`
-  and checks what the play must leave behind:
-  - a second run with `--check` exits cleanly and reports no change;
-  - a forward the play does not write, added behind its back, is reported by
-    `--check`, removed by a run, and gone from the next `--check`;
-  - the GUI login refuses the password alone, a wrong code and the code after
-    the password, and accepts the code in front of it (`gui_login.py`);
-  - the API key is answered on the calls the play and the update make and
-    refused with 403 on user management, source NAT and the service list
-    (`api_scope.py`);
-  - no credential value is in the results.
-
-  It runs from the operator host with the environment of `scratch_gateway.sh`
-  plus `OPERATOR` (an address in the desktops zone, default `192.168.40.250`,
-  used as the play's operator host and one reservation). `OUT_DIR` must be
-  outside the repository because it holds the credentials file; the results go
-  to `OUT_DIR/run-HHMMSS` as one file per step, and the gateway is removed on
-  every exit path unless `KEEP=1`. It needs `ansible-playbook`, the pinned
-  collection and `httpx` on the operator host, ssh to the node without a
-  prompt, and no VM with the scratch gateway's VMID. It does not probe the
-  flows between zones. The two scripts need only the standard library, and
-  their tests run against stand-in servers.
-- **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
-  rules) automated via OPNsense's config API once the VMID→IP mapping is
-  fully code-driven.
-
-**DNS.** The gateway runs no authoritative DNS and registers no name.
-Every Tofu-provisioned VM has a static address, so its name is an `A` record
-that BIND9 on `services` renders from the generated inventory, and the gateway
-forwards the zone to `services` and `storage`
-([`bind9.md`](../services/bind9.md#the-host-zone)). A client in the
-`.50`–`.254` DHCP pool has no name.
-
-The module gives the VM two virtio NICs with MACs from the scheme above,
-NIC 0 on the physical WAN bridge and NIC 1 on the VLAN-aware LAN bridge,
-both untagged so OPNsense sees every VLAN. The system disk is the only
-boot device and is imported at `disk_gb`; the image is 3 GB and the
-gateway grows its root file system into the rest at the first boot. A
-serial port on a socket is the console. When `seed_image_path` names a
-raw disk image holding `conf/config.xml`, the module uploads it as import
-content under the VM's lowercased name and attaches it as `scsi1`. The
-caller sets `started = false` when a script on the node answers the
-importer, because that script must be connected to the serial socket
-before the first boot passes the importer's prompt. `started` applies only
-when the VM is created: a later apply neither starts nor stops it, so a
-change of `started` never powers a running gateway off. Setting `wan_bridge` to the
-LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a
-WAN that is an ordinary client of another OPNsense's LAN; NIC 1 stays
-untagged. Its `vm_id` is the gateway
-VMID of a range, host part 01. The root module declares no OPNsense VM
-yet, so the module's call is where its bridges, sizing and image are
-passed.
-
-**Boot order.** `order=1` for OPNsense with `up=60` (60s) before any
-dependent VM is considered clear to start — gives DHCP/DNS time to come
-up before anything else races to request an address or resolve a name.
-Tofu does not set it: Proxmox requires `Sys.Modify` on `/` for a startup
-order, which is cluster-wide and far wider than the token's role. Set it
-once on the VM with `qm set <vmid> --startup order=1,up=60`.
+It is deterministic per VMID, so a rebuilt VM gets the same MAC every time, which the
+MAC-matched network config
+([`tofu/ubuntu-vms.md`](tofu/ubuntu-vms.md#network-at-first-boot)) needs to stay
+stable across rebuilds.
 
 ## Tofu ↔ Ansible handoff
 
-Tofu does not write into `ansible/` directly. The root module's
-`ansible_hosts` output maps an inventory host name to
-`module.<name>.inventory_entry`, which carries the VM's static address and
-login user. `tools/tofu_inventory` reads it with `tofu output -json` and
-writes `ansible/inventory/tofu-hosts.yaml`, a gitignored file giving each
-host its `ansible_host` (the IP, since a static VM has no DHCP lease to
+Tofu does not write into `ansible/` directly.
+
+```mermaid
+flowchart LR
+    mod["Root module:<br/>an inventory_entry per VM"] --> out["ansible_hosts output"]
+    out -- "tofu output -json" --> gen["tools/tofu_inventory"]
+    gen --> file["ansible/inventory/tofu-hosts.yaml<br/>(gitignored)"]
+    hand["inventory.yaml<br/>group membership only"] --> ans["Ansible: merged by host name,<br/>generated address and user win"]
+    file --> ans
+    file -. "A record per host" .-> dns["bind9 role<br/>host zone"]
+```
+
+The root module's `ansible_hosts` output maps an inventory host name to
+`module.<name>.inventory_entry`, which carries the VM's static address and login
+user. `tools/tofu_inventory` reads it and writes `ansible/inventory/tofu-hosts.yaml`
+giving each host its `ansible_host` (the IP, since a static VM has no DHCP lease to
 register in DNS) and `ansible_user`. Run it from `tools/` after an apply:
 
 ```sh
 cd tools && uv run python -m tofu_inventory
 ```
 
-The generator rejects an entry with extra or missing keys, a name that is
-not a DNS label (lowercase letters, digits and hyphens, starting with a
-letter, not ending in a hyphen, at most 63 characters) or an address that is
-not IPv4, and a failed run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
-cannot know — group membership — and `ansible.cfg` loads the two files in
-that order, so Ansible merges them by host name and the generated address
-and user win ([`ansible.md`](../deploy/ansible.md#inventory) covers a run
-that passes `-i`). A new VM is a module call, an `ansible_hosts` entry and
-a name in its groups. Each tool keeps one job, as `host_vars` and `app_catalog`
-already split concerns in this repo.
+| Rule | Detail |
+| :--- | :--- |
+| Rejects | An entry with extra or missing keys; a name that is not a DNS label (lowercase letters, digits and hyphens, starting with a letter, not ending in a hyphen, at most 63 characters); an address that is not IPv4. A failed run leaves the previous file in place |
+| Merge | `inventory.yaml` keeps only what Tofu cannot know — group membership. `ansible.cfg` loads the two files in that order, so Ansible merges them by host name and the generated address and user win ([`ansible.md`](../deploy/ansible.md#inventory) covers a run that passes `-i`) |
+| New VM | A module call, an `ansible_hosts` entry and a name in its groups |
+| DNS | No further step: the `bind9` role gives every host the inventory addresses by an IPv4 address an `A` record of its inventory host name and its `ansible_host` in the host zone ([`bind9.md`](../services/bind9.md#the-host-zone)). A host with a hand-written record in `host_vars/services.yaml` loses it when rebuilt: the role refuses a host named both ways |
 
-The VM's name needs no further step. The `bind9` role gives every host the
-inventory addresses by an IPv4 address an `A` record of its inventory host
-name and its `ansible_host` in the host zone
-([`bind9.md`](../services/bind9.md#the-host-zone)), so the record follows the
-address Tofu assigned. A host that had a hand-written record in
-`host_vars/services.yaml` loses it when it is rebuilt: the role refuses a host
-named both ways.
+Each tool keeps one job, as `host_vars` and `app_catalog` already split concerns in
+this repo.
 
 ## Tofu project
 
-The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
-(`~> 1.13`) and the `bpg/proxmox` provider (exactly), `providers.tf`
-configures the provider with an API token, and `.terraform.lock.hcl` is
-committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
-endpoint, token or node name instead of passing with nothing to do; that
-read is its only call apart from the template build and the VMs it declares. The Ubuntu
-modules are in `modules/` and their tests in `tests/`; see
-[Ubuntu modules](#ubuntu-modules).
+The root module is `tofu/` at the repo root.
 
-OpenTofu is installed on the host that runs it with its official
-installer (Debian and Ubuntu). Read the script before running it:
+| File | Holds |
+| :--- | :--- |
+| `versions.tf` | Pins OpenTofu (`~> 1.13`) and the `bpg/proxmox` provider (exactly) |
+| `providers.tf` | Configures the provider with an API token |
+| `.terraform.lock.hcl` | Committed |
+| `main.tf` | Reads the `pve` node, so `tofu plan` fails on a wrong endpoint, token or node name instead of passing with nothing to do; that read is its only call apart from the template build and the VMs it declares |
+| `modules/`, `tests/` | The modules ([Ubuntu](tofu/ubuntu-vms.md#modules), [OPNsense](tofu/opnsense-vm.md#the-module)) and their tests |
+
+### Installing
+
+OpenTofu is installed on the host that runs it with its official installer (Debian
+and Ubuntu). Read the script before running it:
 
 ```sh
 curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh
@@ -582,12 +125,15 @@ chmod +x install-opentofu.sh
 rm -f install-opentofu.sh
 ```
 
-`tofu version` must satisfy `required_version` in `versions.tf`. The
-provider needs no separate install: `tofu init` fetches it. Run Tofu from
-the repo root with `umask 077`, which makes the state file `0600`, and
-with `TF_DATA_DIR` set outside the checkout on every command. Without it
-`tofu init` unpacks the provider, README included, into `tofu/.terraform/`,
-where `check-doc-drift` scans it and fails `pre-commit`:
+`tofu version` must satisfy `required_version` in `versions.tf`. The provider needs no
+separate install: `tofu init` fetches it.
+
+### Running
+
+Run Tofu from the repo root with `umask 077`, which makes the state file `0600`, and
+with `TF_DATA_DIR` set outside the checkout on every command. Without it `tofu init`
+unpacks the provider, README included, into `tofu/.terraform/`, where
+`check-doc-drift` scans it and fails `pre-commit`:
 
 ```sh
 umask 077
@@ -597,8 +143,8 @@ tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
 ```
 
 To stop repeating the flags, set them in the shell profile. `TF_CLI_ARGS_<command>`
-adds arguments to one command only, which `init` needs since it takes no
-`-var-file`, and after `cd tofu` no `-chdir` is needed:
+adds arguments to one command only, which `init` needs since it takes no `-var-file`,
+and after `cd tofu` no `-chdir` is needed:
 
 ```sh
 export TF_DATA_DIR="$HOME/.cache/tofu/homelab"
@@ -607,85 +153,5 @@ for c in plan apply destroy refresh import console; do
 done
 ```
 
-## State backend & secrets
-
-Tofu state is `tofu/terraform.tfstate` on the host that runs Tofu, ignored
-by git. It is the only copy: `git clean -x` deletes ignored files, so it
-is never run in the checkout, and a backup is taken after each apply with
-`tofu -chdir=tofu state pull` redirected to a `0600` file outside the
-checkout. A remote S3-compatible backend (`opentofu-state`) is planned, and
-`tofu init -migrate-state` moves existing state into it. The backend
-can't be a VM Tofu manages, since Tofu has to be able to rebuild that
-VM, which rules out the SeaweedFS on `storage`. A separate small SeaweedFS
-instance is the leading idea; where it runs is not decided, and choosing
-the host is a decision that needs an ADR before anything is built. The
-bucket is created by hand, since SeaweedFS does not create one on first
-write ([`backup.md`](../disaster-recovery/backup.md)).
-
-Tofu's own secrets live in a file on the host that runs Tofu, outside the
-repo and outside OpenBao, since Tofu must be able to rebuild the host that
-runs OpenBao — see the
-[decision](../../decisions/0048-where-tofu-credentials-live/revision-000.md).
-The file is `~/.config/tofu/credentials.tfvars`, mode `0600` in a `0700`
-directory, owned by the operator account, and passed with `-var-file`:
-
-```hcl
-proxmox_endpoint        = "https://pve.example.lan:8006/"
-proxmox_api_token       = "user@realm!tokenid=secret"
-dns_domain              = "internal.example.com"
-ansible_ssh_public_keys = ["ssh-ed25519 AAAA... ansible"]
-```
-
-The endpoint must be `https://`, and TLS verification is on. Setting
-`proxmox_insecure = true` in the file skips it, which the provider's own
-docs limit to development. The OPNsense root password, API key, API secret and root's OTP seed are in this file
-once the seed is built ([OPNsense](#opnsense)), and a remote backend's S3
-credential joins it when that consumer is built.
-`dns_domain` is the inventory's `host_domain`, which derives from `main_domain`, a
-secret-catalog value the repository never holds. `ansible_ssh_public_keys` is the
-public half of `~/.ssh/proxmox_vm_servers`. Neither is a secret, but both feed every VM,
-so they sit with Tofu's other inputs.
-Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the
-tree, and neither the token nor the endpoint appears in the state. The domain and
-the keys do, since each VM carries them, so a copy of the state is kept as private
-as the credentials file.
-
-### Proxmox API token
-
-The token is created on the Proxmox node, outside this repo, and this
-section is its only record. It belongs to the user `tofu@pve`, which holds
-the role `TofuProvision` on the six paths below, and `TofuImageStore` on one. The token ID is
-`skeleton` and privilege separation is off, so the token has the user's
-rights. The value in the credentials file is `tofu@pve!skeleton=<secret>`.
-On the node:
-
-```sh
-pveum user add tofu@pve
-pveum role add TofuProvision -privs "Sys.Audit,Sys.AccessNetwork,Datastore.Audit,Datastore.AllocateSpace,Datastore.AllocateTemplate,VM.Allocate,VM.Audit,VM.Clone,VM.PowerMgmt,VM.Config.CPU,VM.Config.Memory,VM.Config.Disk,VM.Config.Network,VM.Config.Cloudinit,VM.Config.CDROM,VM.Config.Options,VM.Config.HWType,SDN.Use"
-pveum acl modify /nodes/pve --users tofu@pve --roles TofuProvision
-pveum role add TofuImageStore -privs "Datastore.Allocate"
-pveum acl modify /storage/tofu-images --users tofu@pve --roles TofuProvision,TofuImageStore
-pveum acl modify /storage/local-lvm --users tofu@pve --roles TofuProvision
-pveum acl modify /storage/backup --users tofu@pve --roles TofuProvision
-pveum acl modify /vms --users tofu@pve --roles TofuProvision
-pveum acl modify /sdn/zones/localnetwork/vmbr0 --users tofu@pve --roles TofuProvision
-pveum acl modify /sdn/zones/localnetwork/vmbr1 --users tofu@pve --roles TofuProvision
-pveum user token add tofu@pve skeleton --privsep=0
-```
-
-| Path | Used for |
-| :--- | :--- |
-| `/nodes/pve` | Reading the node, and the image download with its size lookup (`Sys.AccessNetwork`) |
-| `/storage/tofu-images` | Storing and removing images, and reading them for the disk import (`Datastore.Allocate`, from `TofuImageStore`, only here) |
-| `/storage/local-lvm` | VM disks and cloud-init drives |
-| `/storage/backup` | The disk and cloud-init drive of `storage` |
-| `/vms` | Creating, cloning, configuring and starting VMs: every VM on the node, Tofu-managed or not |
-| `/sdn/zones/localnetwork/vmbr0` | Attaching the OPNsense WAN NIC to the physical bridge |
-| `/sdn/zones/localnetwork/vmbr1` | Attaching a NIC to the VLAN-aware bridge |
-
-The role order above matters only on a fresh setup: `TofuImageStore` must
-exist before the ACL names it. The image download needs `Sys.AccessNetwork` on the node, or the older
-`Sys.Modify` on `/`, which is far wider; the role takes the first.
-`TofuProvision` holds every privilege on every path, and Proxmox checks
-each one only where it applies. A change that makes Tofu call more of the Proxmox API
-widens the role to the privileges it needs and lists them here.
+The credentials file and the API token are in
+[`tofu/state-and-credentials.md`](tofu/state-and-credentials.md).

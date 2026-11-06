@@ -62,7 +62,7 @@ entries are keyed on it, and a rebuilt node joins under it. What any node is
 allowed to reach is the tailnet's policy, described in
 [Tailnet policy](#tailnet-policy).
 
-Re-authenticating this node after a rebuild ([`tofu-migration.md`](../../projects/tofu-migration.md))
+Re-authenticating this node after a rebuild ([`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md#tailscale))
 needs an auth key created out of band, and a rebuilt node is a new device.
 [ADR 0097 (Tailscale node configuration)](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)
 decides that the key is single-use, tagged and supplied at run time, and

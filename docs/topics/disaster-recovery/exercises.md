@@ -43,7 +43,7 @@ the secrets store or the certificate authority, or changes the authority's root.
 
 **Backup check.** `python3 ansible/scripts/restore_all.py --check` lists the newest archive of
 each app on every source and its age, and restores nothing
-([`rebuild-runbook.md`](rebuild-runbook.md#what-the-scripts-check)).
+([`rebuild-tools.md`](rebuild-tools.md#what-the-checks-look-at)).
 
 **App restore.** The real fire drill in [`fire-drill.md`](fire-drill.md#real-fire-drill), on a scratch
 host. Pick the system whose newest row in the [results](fire-drill.md#results) is oldest, and a

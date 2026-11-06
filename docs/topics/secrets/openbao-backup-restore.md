@@ -301,7 +301,7 @@ refuses the connection.
    ```
 
 9. Play 0 now passes. Continue with the
-   [rebuild cycle](../../projects/tofu-migration.md#stage-2--cutover): `deploy.yaml
+   [rebuild cycle](../disaster-recovery/rebuild-runbook.md#the-cycle): `deploy.yaml
    --limit security,localhost`, then `restore.yaml` for the remaining apps, and
    the Beszel fingerprint ([`beszel.md`](../monitoring/beszel.md#rebuilding-a-host)).
 

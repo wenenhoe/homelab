@@ -7,7 +7,7 @@ short: Decision and project workflow
 solution: "Open questions live in explorations until a choice is made, decisions come in two weights, a project starts only on an approved decision, and accepted records are kept small by condensing, merging and demoting"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended with a home for unsettled questions, a lighter record for small decisions, and a way to compact accepted records."
 topic: documentation-process
-status: working
+status: approved
 supersedes: 3
 related: [ADR-0061, ADR-0080, ADR-0082]
 ---

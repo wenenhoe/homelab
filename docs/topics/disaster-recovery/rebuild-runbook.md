@@ -39,19 +39,28 @@ Proxmox node as root, piped over SSH, against the dump storage that
 ssh root@<node> 'bash -s -- dump 204 play' < tools/rebuild_check/scripts/retire_vm.sh
 ssh root@<node> 'bash -s -- destroy 204 play' < tools/rebuild_check/scripts/retire_vm.sh
 ssh root@<node> 'bash -s -- drop-dump 204' < tools/rebuild_check/scripts/retire_vm.sh
+ssh root@<node> 'bash -s -- restore 204 904' < tools/rebuild_check/scripts/retire_vm.sh
 ```
 
 The VMID is followed by the VM's name in Proxmox, which has to match, so a
 mistyped VMID dumps or destroys nothing. `dump` and `destroy` also refuse a
 VM that is not stopped or a dump storage that is not mounted. `dump` refuses a
 VM that already has a dump, so the rollback of an earlier rebuild is never
-replaced by accident, and fails on a dump that is missing or empty. `destroy`
-runs only when exactly one non-empty dump of the VM is there. `drop-dump`
-deletes that VM's dump, log and notes and runs `fstrim -v` on the dump volume.
+replaced by accident, and fails on a dump that is missing, empty or that
+`zstd -t` cannot read to the end. `destroy` runs only when exactly one non-empty
+dump of the VM is there and it passes `zstd -t` again. `dump` and `drop-dump`
+print the free space on the dump volume, so a dump that would not fit is seen
+before the next one is started. `drop-dump` deletes that VM's dump, log and
+notes and runs `fstrim -v` on the dump volume.
 `DUMP_STORAGE` and `DUMP_DIR` name the storage and its mount point, `vzdump` and
-`/mnt/vzdump` by default.
+`/mnt/vzdump` by default. The archives sit in the `dump/` subdirectory of that
+mount point, where Proxmox keeps the backups of a directory storage.
 
-The rollback is `qmrestore` of the dump to a 9XX VMID, as the cycle says.
+The rollback is `restore`, which runs `qmrestore` of the dump to a VMID of 900
+or above, as the cycle says. The copy gets new MAC addresses, does not start on
+boot and is left stopped: it has the old VM's address, so start it only once
+that address is free or changed. `RESTORE_STORAGE` names the storage for its
+disks; unset, they go back where the dump says they were.
 
 ### Copying the bucket
 

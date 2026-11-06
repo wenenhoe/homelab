@@ -301,8 +301,9 @@ the volume:
 lvs -o lv_name,lv_size,data_percent,metadata_percent <vgname>
 ```
 
-A dump is taken and deleted per host, so 100 GB holds the largest (39 GB used
-on its root filesystem):
+A dump is taken and deleted per host, so 100 GB holds the largest. That is
+`storage`'s: a 256 GB disk that dumped to a 74 GB archive, since the dump skips
+zeroed blocks. Delete one host's dump before taking the next:
 
 ```sh
 lvcreate -V 100G -T <vgname>/<thinpool> -n vzdump

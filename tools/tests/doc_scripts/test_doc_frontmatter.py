@@ -86,6 +86,7 @@ class TestRevisionValidation:
             pytest.param({"narrows": ["ADR-0015"]}, id="narrows is a list"),
             pytest.param({"related": ["0014"]}, id="related isn't ADR ids"),
             pytest.param({"former_ids": "ADR-0027"}, id="former_ids isn't a list"),
+            pytest.param({"weight": "heavy"}, id="unknown weight"),
         ],
     )
     def test_rejected_frontmatter(self, root, overrides):
@@ -97,6 +98,20 @@ class TestRevisionValidation:
     def test_every_topic_is_accepted_including_security_hardening(self, root, topic):
         path = revision(root, "0001-x", 0, topic=topic)
         assert fm_mod.read_frontmatter(path)["topic"] == topic
+
+    @pytest.mark.parametrize("weight", sorted(fm_mod.WEIGHTS))
+    def test_both_weights_are_accepted(self, root, weight):
+        assert fm_mod.read_frontmatter(revision(root, "0013-secret-storage", 0, weight=weight))["weight"] == weight
+
+    def test_template_variants_are_not_docs(self, root):
+        for name in ("README.md", "TEMPLATE.md", "TEMPLATE-light.md"):
+            (root / "docs/decisions").mkdir(parents=True, exist_ok=True)
+            (root / "docs/decisions" / name).write_text("x\n", encoding="utf-8")
+        write_doc(root, "docs/projects/real.md", {"id": "PROJ-real"})
+        assert [p.name for p in fm_mod.docs_in(root / "docs/decisions")] == []
+        assert fm_mod.is_template("TEMPLATE-light.md")
+        assert not fm_mod.is_template("TEMPLATES.md")
+        assert not fm_mod.is_template("template.md")
 
     def test_short_name_is_required(self, root):
         path = revision(root, "0013-secret-storage", 0)

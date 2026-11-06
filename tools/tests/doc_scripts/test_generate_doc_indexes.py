@@ -472,6 +472,15 @@ class TestLineagesIndex:
         assert "[0013](0013-secret-storage/revision-001.md)" in out
         assert "| OpenBao | Accepted (revision 1) | Revision 2 working; Formerly ADR-0027 |" in out
 
+    def test_a_light_revision_is_marked_and_a_full_one_is_not(self, root):
+        revision(root, "0013-secret-storage", 0, status="accepted", solution="Light one", weight="light")
+        revision(root, "0014-other", 0, status="accepted", solution="Full one", weight="full")
+        revision(root, "0015-third", 0, status="accepted", solution="Default one")
+        out = gen.render_lineages_index(root)
+        assert "| Light one | Accepted, light |" in out
+        assert "| Full one | Accepted |" in out
+        assert "| Default one | Accepted |" in out
+
     def test_the_original_is_labelled_when_a_successor_exists(self, root):
         revision(root, "0013-secret-storage", 0, status="accepted", solution="File cache")
         revision(root, "0013-secret-storage", 1, status="working", supersedes=0, solution="OpenBao")

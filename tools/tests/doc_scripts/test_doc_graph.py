@@ -380,3 +380,30 @@ class TestHeadingErrors:
     def test_status_wording_inside_prose_is_not_a_status_line(self, root):
         revision(root, "0013-secret-storage", 0, body="# 0013. Secret storage\n\nThe **Status:** field is not repeated here.\n")
         assert graph.heading_errors(root) == []
+
+
+class TestWeightErrors:
+    def light(self, root, body, **overrides):
+        return revision(root, "0013-secret-storage", 0, body=body, weight="light", **overrides)
+
+    def test_a_short_light_revision_with_the_allowed_sections_is_clean(self, root):
+        self.light(root, "# 0013. Secret storage\n\n## Problem\n\nx\n\n## Decision\n\ny\n\n## Reconsideration triggers\n\nz\n")
+        assert graph.weight_errors(root) == []
+
+    @pytest.mark.parametrize("heading", graph.LIGHT_FORBIDDEN_SECTIONS)
+    def test_a_light_revision_cannot_carry_a_full_section(self, root, heading):
+        self.light(root, f"# 0013. Secret storage\n\n## {heading}\n\nx\n")
+        assert_one_error(graph.weight_errors(root), "weight: light", f"## {heading}")
+
+    def test_a_light_revision_over_the_length_is_refused(self, root):
+        self.light(root, "# 0013. Secret storage\n\n" + "word " * (graph.LIGHT_MAX_WORDS + 1))
+        assert_one_error(graph.weight_errors(root), "words")
+
+    def test_a_light_revision_at_the_length_is_clean(self, root):
+        self.light(root, "word " * graph.LIGHT_MAX_WORDS)
+        assert graph.weight_errors(root) == []
+
+    def test_a_full_revision_may_be_long_and_carry_every_section(self, root):
+        revision(root, "0013-secret-storage", 0, body="## Invariants\n\n## Non-goals\n\n## Validation\n\n" + "word " * 2000)
+        revision(root, "0014-other", 0, weight="full", body="## Invariants\n\nx\n")
+        assert graph.weight_errors(root) == []

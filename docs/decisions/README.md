@@ -13,10 +13,31 @@ Write one when a decision:
   available on a given platform)
 - would be expensive to reverse, or someone new would otherwise have to
   reconstruct it from old commits
-- is still open — a known gap, tracked but not yet resolved
-
 Skip it for a trivial or cheaply reversible choice, an implementation
-detail inside an established pattern, or a temporary experiment.
+detail inside an established pattern, or a temporary experiment. A
+question with no chosen solution yet is an
+[exploration](../explorations/README.md), not a decision; a `working`
+revision is a chosen solution that still has open assumptions.
+
+## Weights
+
+A revision carries `weight: full` (the default) or `weight: light`.
+
+- **Full** when the decision touches a trust boundary, a credential, a path
+  that can lose data or block recovery, or would take more than one pull
+  request to reverse. Use [`TEMPLATE.md`](TEMPLATE.md).
+- **Light** for anything smaller that is still worth a record: a problem,
+  the context that decides it, the decision, the option that lost, and what
+  would reopen it, using [`TEMPLATE-light.md`](TEMPLATE-light.md). It has no
+  Invariants, Non-goals or Validation, and its body stays under the length
+  `doc_graph.py` sets; `check_doc_drift.py` fails one that has a forbidden
+  section or runs over.
+- A choice that would not surprise a reader of the code is not a decision at
+  all. It goes in a topic doc or the conventions.
+
+Lineages, states, supersession and editing work the same for both weights.
+A light record that turns out to need invariants becomes a new, full
+revision. The generated index marks a light one.
 
 ## Lineages and revisions
 

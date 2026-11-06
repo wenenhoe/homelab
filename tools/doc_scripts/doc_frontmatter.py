@@ -36,6 +36,8 @@ PROJECT_LIFECYCLE_STATUS = {"not-started", "de-risking", "building", "done"}
 
 # Kinds are decided by path: a lineage revision or a project.
 EXPLORATION_STATUS = {"open"}
+# How much record a decision carries (ADR 0037 revision 4); a revision without `weight:` is full.
+WEIGHTS = {"full", "light"}
 
 VALID_STATUS = {
     "adr-revision": ADR_REVISION_STATUS,
@@ -134,6 +136,8 @@ def _validate_revision(path: Path, data: dict) -> None:
         _fail(path, "'narrows' must be a single ADR id like ADR-0015")
     _id_list(path, data, "related")
     _id_list(path, data, "former_ids")
+    if "weight" in data and data["weight"] not in WEIGHTS:
+        _fail(path, f"'weight' must be one of {sorted(WEIGHTS)}, not {data['weight']!r}")
 
 
 def _validate_project(path: Path, data: dict) -> None:
@@ -205,8 +209,13 @@ def read_frontmatter(path: Path) -> dict:
     return data
 
 
+def is_template(name: str) -> bool:
+    """TEMPLATE.md, or a variant of it such as TEMPLATE-light.md."""
+    return name == "TEMPLATE.md" or (name.startswith("TEMPLATE-") and name.endswith(".md"))
+
+
 def docs_in(dir_path: Path) -> list[Path]:
-    return sorted(p for p in dir_path.glob("*.md") if p.name not in ("README.md", "TEMPLATE.md"))
+    return sorted(p for p in dir_path.glob("*.md") if p.name != "README.md" and not is_template(p.name))
 
 
 @dataclass(frozen=True)
@@ -223,6 +232,10 @@ class Revision:
     @property
     def label(self) -> str:
         return f"{self.number}-{self.candidate}" if self.candidate else str(self.number)
+
+    @property
+    def weight(self) -> str:
+        return self.fm.get("weight", "full")
 
 
 @dataclass(frozen=True)

@@ -327,6 +327,8 @@ def _adr_solution_cells(lineage: Lineage, prefix: str = "") -> tuple[str, str, s
     else:
         solution = current.fm["solution"]
         status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current)})" if len(lineage.revisions) > 1 else "")
+        if current.weight == "light":
+            status += ", light"
         adr_cell = _lineage_link(lineage, prefix)
     return adr_cell, solution, status
 

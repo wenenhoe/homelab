@@ -152,7 +152,13 @@ agreement only.
   are copied across, with [`bucket_copy.py`](#copying-the-bucket), before the old
   one is destroyed
   ([Moving `storage`](../../projects/tofu-migration.md#moving-storage)).
-- **`services`**, **`tailscale`**: not rebuilt yet. Their plan is in
+- **`services`** follows the cycle. It is the DNS primary, so run
+  `python3 -m rebuild_check.dns` before the host is destroyed and again after
+  its deploy: the serial of each zone is printed, and after the rebuild it is
+  higher than before and equal on both servers. Its only backed-up apps are
+  `kms` and `wastebin`, and `dashy` is rebuilt by the deploy
+  ([Moving `services`](../../projects/tofu-migration.md#moving-services)).
+- **`tailscale`**: not rebuilt yet. Its plan is in
   [`tofu-migration.md`](../../projects/tofu-migration.md#stage-2--cutover), and a
   topic here would describe what has not been done.
 

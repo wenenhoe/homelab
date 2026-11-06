@@ -18,6 +18,7 @@ allowed_paths:
   - tools/windows_unattend/**
   - tools/tests/windows_unattend/**
   - docs/topics/infra/vm-provisioning.md
+  - docs/topics/infra/tofu/**
 ---
 
 # Windows VMs

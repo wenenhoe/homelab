@@ -19,7 +19,9 @@ allowed_paths:
   - tofu/tests/tailscale_policy.tftest.hcl
   - tofu/tests/root.tftest.hcl
   - docs/topics/infra/vm-provisioning.md
+  - docs/topics/infra/tofu/**
   - docs/topics/infra/network-infra.md
+  - docs/topics/infra/tailnet-policy.md
   - docs/decisions/0097-how-a-tailscale-node-is-configured/revision-000.md
 ---
 

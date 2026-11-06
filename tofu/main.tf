@@ -72,3 +72,17 @@ module "services" {
   dns_domain      = var.dns_domain
   ssh_public_keys = var.ansible_ssh_public_keys
 }
+
+module "tailscale" {
+  source          = "./modules/proxmox_ubuntu_vm"
+  node_name       = var.proxmox_node
+  vm_id           = 202
+  name            = "tailscale"
+  template_vm_id  = module.ubuntu_template.vm_id
+  cores           = 2
+  memory_mb       = 2048
+  disk_gb         = 16
+  admin_username  = "tsadmin"
+  dns_domain      = var.dns_domain
+  ssh_public_keys = var.ansible_ssh_public_keys
+}

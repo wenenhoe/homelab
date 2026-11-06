@@ -325,6 +325,30 @@ before it.
   deploy, including `dashy`, whose data volume
   [is not backed up](../../ansible/inventory/group_vars/all/app_catalog.yaml).
 
+#### Moving `tailscale`
+
+`tailscale` is the subnet router and runs no Docker, so the cycle changes in
+four places.
+
+- **No apps.** It has no `backup:` entry, so there is nothing to back up on
+  demand or restore, and step 1 is the copy of Tofu's state alone. Step 5 runs
+  `network-infra.yaml`, not `deploy.yaml`, and there is no Beszel agent to
+  re-pin. `rebuild_check.host` skips the two checks that need Docker and adds
+  one for forwarding.
+- **At home.** While VM 202 is gone nothing advertises the lab's subnet, so
+  run the cycle from the LAN. The Proxmox node joined the tailnet by hand and
+  stays reachable over it
+  ([Tailnet policy](../topics/infra/network-infra.md#tailnet-policy)).
+- **The join.** The rebuilt VM is a new device. The tailnet policy already
+  holds the tag and the approval of the route, so the only thing made for the
+  run is a single-use key in the console, as
+  [`network-infra.md`](../topics/infra/network-infra.md#tailscale-node-configuration)
+  describes. Check the device before removing the old one: until then the
+  dump's rollback is the old VM with its node key.
+- **The policy's `hosts` entry.** It names the router by its tailnet address,
+  and a new device gets a new one, so the entry is replaced once the device is
+  in, or the policy's tests for the router test an address nothing holds.
+
 #### Dump storage
 
 `backup` is `lvmthin`, which holds VM disks and not dump files, and the

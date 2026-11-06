@@ -119,6 +119,15 @@ run "declares_the_security_host_on_its_vmid" {
   }
 }
 
+run "declares_the_tailscale_host_on_its_vmid" {
+  command = plan
+
+  assert {
+    condition     = module.tailscale.vm_id == 202 && module.tailscale.hostname == "tailscale"
+    error_message = "the tailscale host must be VMID 202, named tailscale"
+  }
+}
+
 run "declares_the_services_host_on_its_vmid" {
   command = plan
 
@@ -141,7 +150,7 @@ run "publishes_the_hosts_for_the_inventory_generator" {
   command = plan
 
   assert {
-    condition     = length(output.ansible_hosts) == 4
+    condition     = length(output.ansible_hosts) == 5
     error_message = "ansible_hosts must name exactly the VMs the root declares"
   }
 
@@ -163,5 +172,10 @@ run "publishes_the_hosts_for_the_inventory_generator" {
   assert {
     condition     = output.ansible_hosts.services.ip_address == "192.168.20.3" && output.ansible_hosts.services.admin_username == "svcadmin"
     error_message = "the services entry must carry the VMID-derived address and the admin user the inventory used"
+  }
+
+  assert {
+    condition     = output.ansible_hosts.tailscale.ip_address == "192.168.20.2" && output.ansible_hosts.tailscale.admin_username == "tsadmin"
+    error_message = "the tailscale entry must carry the VMID-derived address and the admin user the inventory used"
   }
 }

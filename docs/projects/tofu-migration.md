@@ -211,7 +211,10 @@ arrived since the first.
    `bind9` run flips the record yet. VM 207's SeaweedFS starts empty. Its
    cloud-sync timer reads VM 206 by name, so the two timers relay the same
    archives and `--immutable` makes the second a no-op.
-4. First pass, on VM 207: run the image that `cloud-sync.service` runs, with
+4. First pass, on VM 207:
+   [`bucket_copy.py`](../../tools/rebuild_check/scripts/bucket_copy.py) does what
+   this step describes ([how to run it](../topics/disaster-recovery/rebuild-runbook.md#copying-the-bucket)).
+   By hand, run the image that `cloud-sync.service` runs, with
    its hardening flags, on the `caddy-proxy` network. Its remotes are `old`,
    the `cloud-sync-reader` identity at the name every client uses (which still
    resolves to VM 206), and `new`, the admin identity at
@@ -236,8 +239,11 @@ arrived since the first.
    a forward server for the host and `lan_domain` zones, and add it to any
    alias or rule that names `192.168.20.6`. The gateway forwards to the
    secondary, which VM 206 stops being told about.
-7. Wait out the zone's TTL (3600 s), then run step 4's copy and check again.
-   List the newest object under each `<host>-<app>/` prefix on both sides.
+7. Wait out the zone's TTL (3600 s), then run step 4's copy and check again,
+   with `--add-host <the name every client uses>:192.168.20.6` on the
+   `docker run`. After the flip that name resolves to VM 207, so without it `old`
+   would read the server `new` writes to and every check would pass. List the
+   newest object under each `<host>-<app>/` prefix on both sides.
 8. `deploy.yaml --limit storage,localhost` again, so the bucket play now
    checks VM 207. Take each app host's on-demand backup, confirm it landed on
    VM 207, and run `sudo systemctl start cloud-sync.service` there: it must
@@ -264,10 +270,6 @@ The edits that move `storage` to `192.168.20.7`:
 
 Checks that need the lab and are made before step 4:
 
-- Whether the admin identity (`Admin:homelab-backups`) can write objects.
-  [`backup.md`](../topics/disaster-recovery/backup.md#storage-host) describes
-  it as creating the bucket only. If it cannot, `new` needs an identity with
-  `Write` on the whole bucket for the copy.
 - That VM 207 holds `192.168.20.7` from its cloud-init configuration and not
   from a lease. The Kea reservation made for `play` would hide a missing
   prepared image the same way.

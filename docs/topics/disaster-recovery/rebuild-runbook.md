@@ -53,6 +53,34 @@ deletes that VM's dump, log and notes and runs `fstrim -v` on the dump volume.
 
 The rollback is `qmrestore` of the dump to a 9XX VMID, as the cycle says.
 
+### Copying the bucket
+
+[`bucket_copy.py`](../../../tools/rebuild_check/scripts/bucket_copy.py) copies
+the `homelab-backups` bucket from another S3 endpoint into the SeaweedFS of the
+host it runs on, and proves the copy whole. It runs as root on the rebuilt
+`storage`, piped over SSH, after `cloud_sync` has been deployed there:
+
+```sh
+ssh storage 'sudo python3 - --pin 192.168.20.7' < tools/rebuild_check/scripts/bucket_copy.py
+ssh storage 'sudo python3 - --pin 192.168.20.7 --check-only' < tools/rebuild_check/scripts/bucket_copy.py
+ssh storage 'sudo python3 - --from r2 --bucket <the r2 bucket>' < tools/rebuild_check/scripts/bucket_copy.py
+```
+
+Nothing is typed in. The source is a remote of the deployed cloud-sync
+`rclone.conf`: `seaweedfs`, the reader at the name every client uses, unless
+`--from` names a cloud target, which restores `storage` from the cloud. The
+destination is the host's own SeaweedFS with the admin identity read from the
+running container, and the image is the one `cloud-sync.service` pins. The
+credentials reach rclone in a `0600` env file that is deleted when the run ends,
+and are never printed.
+
+It runs `rclone copy --immutable`, so a repeat adds only what arrived since,
+then `rclone size` on both sides and `rclone check --size-only`, which exits
+non-zero when they differ. `--pin ADDRESS` makes the source's name resolve to
+`ADDRESS` inside the copy: once DNS names the new host, the name would otherwise
+reach the destination and the check would compare a server with itself.
+`--check-only` copies nothing.
+
 ## What the scripts check
 
 **Before (`restore_all.py --check`).** Lists the newest backup of each app on
@@ -111,8 +139,9 @@ agreement only.
   operator's steps between them, then `deploy.yaml`. Its `restore_all.py` run
   skips `step-ca`, which the bootstrap restored.
 - **`storage`** is the exception to the cycle: its SeaweedFS data is in a Docker
-  volume on the VM's own disk, so it is built beside the old VM at VMID 207 and
-  its buckets are copied across before the old one is destroyed
+  volume on the VM's own disk, so it is built beside the old VM and its buckets
+  are copied across, with [`bucket_copy.py`](#copying-the-bucket), before the old
+  one is destroyed
   ([Moving `storage`](../../projects/tofu-migration.md#moving-storage)).
 - **`services`**, **`tailscale`**: not rebuilt yet. Their plan is in
   [`tofu-migration.md`](../../projects/tofu-migration.md#stage-2--cutover), and a

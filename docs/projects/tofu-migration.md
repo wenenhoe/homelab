@@ -54,7 +54,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Build the 5XX block, first `restore.yaml` run | Done | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
-| 2 | Cutover to real VMID ranges, decommission old VMs | In progress | the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old Ubuntu VMs are decommissioned with `storage` up throughout |
+| 2 | Cutover to real VMID ranges, decommission old VMs | Done | the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old Ubuntu VMs are decommissioned with `storage` up throughout |
 | 3 | Move Tofu's state to a remote backend | Not started | the backend's host is decided by an ADR, `tofu init -migrate-state` has moved the state into it, the dev VM's file is no longer the only copy, and [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) describes the backend |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -325,6 +325,30 @@ before it.
   deploy, including `dashy`, whose data volume
   [is not backed up](../../ansible/inventory/group_vars/all/app_catalog.yaml).
 
+#### Moving `tailscale`
+
+`tailscale` is the subnet router and runs no Docker, so the cycle changes in
+four places.
+
+- **No apps.** It has no `backup:` entry, so there is nothing to back up on
+  demand or restore, and step 1 is the copy of Tofu's state alone. Step 5 runs
+  `network-infra.yaml`, not `deploy.yaml`, and there is no Beszel agent to
+  re-pin. `rebuild_check.host` skips the two checks that need Docker and adds
+  one for forwarding.
+- **At home.** While VM 202 is gone nothing advertises the lab's subnet, so
+  run the cycle from the LAN. The Proxmox node joined the tailnet by hand and
+  stays reachable over it
+  ([Tailnet policy](../topics/infra/network-infra.md#tailnet-policy)).
+- **The join.** The rebuilt VM is a new device. The tailnet policy already
+  holds the tag and the approval of the route, so the only thing made for the
+  run is a single-use key in the console, as
+  [`network-infra.md`](../topics/infra/network-infra.md#tailscale-node-configuration)
+  describes. Check the device before removing the old one: until then the
+  dump's rollback is the old VM with its node key.
+- **The policy's `hosts` entry.** It names the router by its tailnet address,
+  and a new device gets a new one, so the entry is replaced once the device is
+  in, or the policy's tests for the router test an address nothing holds.
+
 #### Dump storage
 
 `backup` is `lvmthin`, which holds VM disks and not dump files, and the
@@ -405,16 +429,16 @@ holds the state and a plan against it shows no change.
 
 - [x] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
 - [x] The first `restore.yaml` run against it succeeds, as the restore-path fire drill.
-- [ ] Every Ubuntu VM is rebuilt on the real VMID ranges by Tofu.
-- [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
-- [ ] The old Ubuntu VMs are decommissioned.
-- [ ] The rebuilt `tailscale` VM carries its tag, has its route approved without the console and has no key expiry.
-- [ ] `storage` stayed up throughout.
-- [ ] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
-- [ ] Every rebuilt host's restores are in the fire drill's results.
-- [ ] A copy of Tofu's state was taken after each rebuild's apply.
+- [x] Every Ubuntu VM is rebuilt on the real VMID ranges by Tofu.
+- [x] The generated inventory replaces the hand-written entries, including `tailscale`.
+- [x] The old Ubuntu VMs are decommissioned.
+- [x] The rebuilt `tailscale` VM carries its tag, has its route approved without the console and has no key expiry.
+- [x] `storage` stayed up throughout.
+- [x] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
+- [x] Every rebuilt host's restores are in the fire drill's results.
+- [x] A copy of Tofu's state was taken after each rebuild's apply.
 - [ ] Tofu's state is held by a remote backend, and a plan against it shows no change.
-- [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
+- [x] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Risks
 

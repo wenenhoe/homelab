@@ -115,6 +115,12 @@ lifecycle would read as young.
 | `no_failed_units` | A systemd unit failed |
 | `containers_are_running_and_healthy` | A container exited, restarts, is unhealthy or is still starting |
 
+A host of the `network_infra` group has no Docker, so it skips
+`containers_resolve_the_hosts_name` and `containers_are_running_and_healthy`;
+`tailscale` adds `ip_forwarding_is_on` (IPv4 and IPv6 forwarding are both 1) and
+four read from `tailscale status --self --json`: `tailscale_is_online`,
+`tailscale_carries_its_tag`, `tailscale_routes_are_approved` (what the node
+advertises is what the policy approved) and `tailscale_key_does_not_expire`.
 `security` has four more: `openbao_is_unsealed`, `step_ca_is_healthy`,
 `tinyauth_reaches_ldap` (no LDAP error lines in tinyauth's last ten minutes) and
 `r2_read_watcher_is_running`. A host's address is what the lab's DNS says for its
@@ -158,9 +164,14 @@ agreement only.
   higher than before and equal on both servers. Its only backed-up apps are
   `kms` and `wastebin`, and `dashy` is rebuilt by the deploy
   ([Moving `services`](../../projects/tofu-migration.md#moving-services)).
-- **`tailscale`**: not rebuilt yet. Its plan is in
-  [`tofu-migration.md`](../../projects/tofu-migration.md#stage-2--cutover), and a
-  topic here would describe what has not been done.
+- **`tailscale`** is the subnet router and has no Docker and no backed-up app, so
+  steps 1, 2, 10 and 11 do not apply and step 9 is `network-infra.yaml` with a
+  single-use key made in the console for the run
+  ([`network-infra.md`](../infra/network-infra.md#tailscale-node-configuration)).
+  Run the cycle from the LAN, since nothing advertises the subnet while the VM is
+  gone. The rebuilt node is a new device with a new tailnet address: check it with
+  `rebuild_check.host`, then remove the old device in the console and put the new
+  address in the policy's `hosts` entry for the router.
 
 ## Still done by hand
 

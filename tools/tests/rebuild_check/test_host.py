@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import create_autospec
 
 import pytest
+import yaml
 from _ssh_objects import exec_result
 from rebuild_check import host
 
@@ -143,11 +145,72 @@ class TestSecurityChecks:
         assert host.tinyauth_reaches_ldap(runner({command: (0, count + "\n")}), EXPECTED).ok is ok
 
 
+class TestIpForwarding:
+    COMMAND = "sysctl -n net.ipv4.ip_forward net.ipv6.conf.all.forwarding"
+
+    def test_both_on_passes(self):
+        assert host.ip_forwarding_is_on(runner({self.COMMAND: (0, "1\n1\n")}), EXPECTED).ok
+
+    @pytest.mark.parametrize("output", ["0\n1\n", "1\n0\n", "1\n", ""])
+    def test_either_off_or_missing_fails(self, output):
+        result = host.ip_forwarding_is_on(runner({self.COMMAND: (0, output)}), EXPECTED)
+        assert not result.ok
+        assert "not 1 and 1" in result.detail
+
+    def test_a_failed_sysctl_fails_even_when_it_printed_ones(self):
+        assert not host.ip_forwarding_is_on(runner({self.COMMAND: (1, "1\n1\n")}), EXPECTED).ok
+
+
+TAILSCALE_VARS = yaml.safe_load(host.TAILSCALE_VARS.read_text())
+TAILSCALE_STATUS = "tailscale status --self --json"
+
+
+def self_node(**changes):
+    node = {
+        "Tags": [TAILSCALE_VARS["tailscale_node_tag"]],
+        "PrimaryRoutes": TAILSCALE_VARS["tailscale_node_advertise_routes"],
+        "KeyExpiry": None,
+        "Online": True,
+    }
+    return (0, json.dumps({"Self": node | changes}))
+
+
+class TestTailscaleNode:
+    CHECKS = (host.tailscale_is_online, host.tailscale_carries_its_tag, host.tailscale_routes_are_approved, host.tailscale_key_does_not_expire)
+
+    @pytest.mark.parametrize("check", CHECKS)
+    def test_a_node_as_the_rebuild_leaves_it_passes(self, check):
+        assert check(runner({TAILSCALE_STATUS: self_node()}), EXPECTED).ok
+
+    @pytest.mark.parametrize("check", CHECKS)
+    @pytest.mark.parametrize("answer", [(1, ""), (0, "not json"), (0, json.dumps({"BackendState": "Running"}))])
+    def test_an_answer_with_no_self_node_fails_every_check_and_says_what_came_back(self, check, answer):
+        result = check(runner({TAILSCALE_STATUS: answer}), EXPECTED)
+        assert (result.ok, "tailscale status said" in result.detail) == (False, True)
+
+    def test_an_offline_node_fails(self):
+        assert not host.tailscale_is_online(runner({TAILSCALE_STATUS: self_node(Online=False)}), EXPECTED).ok
+
+    @pytest.mark.parametrize("tags", [None, [], ["tag:other"], ["tag:subnet-router", "tag:other"]])
+    def test_any_tags_but_the_hosts_own_fail(self, tags):
+        result = host.tailscale_carries_its_tag(runner({TAILSCALE_STATUS: self_node(Tags=tags)}), EXPECTED)
+        assert (result.ok, TAILSCALE_VARS["tailscale_node_tag"] in result.detail) == (False, True)
+
+    @pytest.mark.parametrize("routes", [None, [], ["10.0.0.0/8"]])
+    def test_a_route_that_is_not_approved_fails_and_names_both(self, routes):
+        result = host.tailscale_routes_are_approved(runner({TAILSCALE_STATUS: self_node(PrimaryRoutes=routes)}), EXPECTED)
+        assert (result.ok, TAILSCALE_VARS["tailscale_node_advertise_routes"][0] in result.detail) == (False, True)
+
+    def test_a_key_with_an_expiry_fails_and_gives_it(self):
+        result = host.tailscale_key_does_not_expire(runner({TAILSCALE_STATUS: self_node(KeyExpiry="2027-05-06T00:00:00Z")}), EXPECTED)
+        assert (result.ok, "2027-05-06" in result.detail) == (False, True)
+
+
 class TestRunChecks:
     @staticmethod
-    def _everything_passes(expected: host.Expected):
-        outputs = {
-            "ip -4 -o addr show scope global": (0, IP_STATIC),
+    def _outputs(expected: host.Expected):
+        return {
+            "ip -4 -o addr show scope global": (0, IP_STATIC.replace("192.168.20.5", expected.address)),
             "ls /run/systemd/network": (0, "10-netplan-eth0.network\n"),
             f"getent hosts {expected.fqdn}": (0, f"{expected.address}  {expected.fqdn}\n"),
             f"docker run --rm --network caddy-proxy {expected.probe_image} getent hosts {expected.fqdn}": (0, f"{expected.address}  {expected.fqdn}\n"),
@@ -159,7 +222,9 @@ class TestRunChecks:
             "systemctl is-active r2-read-watcher.service r2-read-watcher-heartbeat.timer": (0, "active\nactive\n"),
             "docker logs --since 10m tinyauth 2>&1 | grep -ciE 'ldap.*(error|failed)' || true": (0, "0\n"),
         }
-        return runner(outputs)
+
+    def _everything_passes(self, expected: host.Expected):
+        return runner(self._outputs(expected))
 
     def test_security_runs_the_common_checks_and_its_own(self):
         checks = host.run_checks(self._everything_passes(EXPECTED), EXPECTED)
@@ -170,6 +235,16 @@ class TestRunChecks:
         play = host.Expected("play", "192.168.20.4", "play.internal.example.com", "Asia/Singapore", EXPECTED.probe_image)
         checks = host.run_checks(self._everything_passes(play), play)
         assert [c.name for c in checks] == [fn.__name__ for fn in host.COMMON_CHECKS]
+
+    def test_a_host_without_docker_skips_the_docker_checks_and_runs_its_own(self):
+        router = host.Expected("tailscale", "192.168.20.2", "tailscale.internal.example.com", "Asia/Singapore", EXPECTED.probe_image, runs_docker=False)
+        outputs = {command: answer for command, answer in self._outputs(router).items() if not command.startswith("docker")}
+        run_without_docker = runner(outputs | {TestIpForwarding.COMMAND: (0, "1\n1\n"), TAILSCALE_STATUS: self_node()})
+        checks = host.run_checks(run_without_docker, router)
+        names = [c.name for c in checks]
+        assert names == [fn.__name__ for fn in host.COMMON_CHECKS if fn not in host.DOCKER_CHECKS] + [fn.__name__ for fn in host.HOST_CHECKS["tailscale"]]
+        assert all(c.ok for c in checks)
+        assert not any(call.startswith("docker") for call in run_without_docker.calls)
 
 
 class TestReport:
@@ -203,6 +278,11 @@ class TestSeedImageAndExpected:
         secrets_dir.seed("main-domain", "example.com")
         expected = host.expected_for("play", resolve=lambda name: {"play.internal.example.com": "192.168.20.4"}[name])
         assert (expected.address, expected.fqdn, expected.timezone) == ("192.168.20.4", "play.internal.example.com", "Asia/Singapore")
+
+    @pytest.mark.parametrize(("name", "docker"), [("play", True), ("security", True), ("tailscale", False)])
+    def test_only_a_network_infra_host_is_taken_to_run_no_docker(self, secrets_dir, name, docker):
+        secrets_dir.seed("main-domain", "example.com")
+        assert host.expected_for(name, resolve=lambda _: "192.168.20.9").runs_docker is docker
 
     def test_a_name_that_does_not_resolve_stops_with_a_message(self, secrets_dir):
         secrets_dir.seed("main-domain", "example.com")

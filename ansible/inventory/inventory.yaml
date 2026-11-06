@@ -45,17 +45,14 @@ all:
     # Non-app infrastructure hosts: no Docker, no compose_apps, excluded
     # from deploy.yaml entirely (see managed_hosts above) — only
     # patched_hosts below (maintenance.yaml) and whatever infra-specific
-    # plays that file adds apply here. Addressed the same way as
-    # managed_hosts ("<host>.{{ host_domain }}"), not the static-LAN-IP
-    # fallback. See docs/topics/infra/network-infra.md.
+    # plays that file adds apply here. Addressed by the generated inventory
+    # like managed_hosts, not the static-LAN-IP fallback. See
+    # docs/topics/infra/network-infra.md.
     network_infra:
       hosts:
+        # Built by Tofu: its address and login user come from the generated
+        # tofu-hosts.yaml, so this file keeps only its group membership.
         tailscale:
-          # See docs/topics/infra/network-infra.md for why this entry is interim
-          # (see that doc's "Future: superseded by Tofu" note) rather
-          # than permanent.
-          ansible_host: "tailscale.{{ host_domain }}"
-          ansible_user: tsadmin
 
     # Every real host that gets OS-level patching (apt/fwupd) via
     # maintenance.yaml — managed_hosts and network_infra alike, since

@@ -7,7 +7,9 @@ because the host's own name resolved to loopback inside a container. These
 checks look at what a rebuild is known to get wrong: the address came from
 DHCP, the dracut network file is back, a container resolves the host's name to
 something else, the timezone is wrong, a unit failed, a container is not
-running. `security` has a few more, for what only it runs.
+running. A host without Docker skips the two that need it. `security` has a few
+more, for what only it runs, and `tailscale` checks that it forwards packets and
+that the tailnet holds it under its tag, with its route approved and no key expiry.
 
 Each check is a command run on the host and a judgement on its output; none
 changes anything. The expected address is what the lab's DNS says for the
@@ -22,6 +24,7 @@ Exits 1 when any check fails.
 
 from __future__ import annotations
 
+import json
 import re
 import socket
 import sys
@@ -31,7 +34,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import yaml
-from utils.repo import PROJECT_ROOT, connect_ssh, main_domain, ssh_target
+from utils.repo import INVENTORY_PATH, PROJECT_ROOT, connect_ssh, main_domain, ssh_target
 
 # Per command, not for the run: `docker run` pulls nothing but can still take a moment.
 COMMAND_TIMEOUT_SECONDS = 60
@@ -39,6 +42,7 @@ COMMAND_TIMEOUT_SECONDS = 60
 # The image the compose role seeds volumes with, so every host has it already.
 SEED_TASKS = PROJECT_ROOT / "ansible/roles/compose/tasks/seed_volume.yaml"
 GROUP_VARS = PROJECT_ROOT / "ansible/inventory/group_vars/all/main.yaml"
+TAILSCALE_VARS = PROJECT_ROOT / "ansible/inventory/host_vars/tailscale.yaml"
 
 # What a healthy container looks like next to the others: openbao reports
 # unhealthy whenever it is sealed, which is its own check below.
@@ -66,6 +70,7 @@ class Expected:
     fqdn: str
     timezone: str
     probe_image: str
+    runs_docker: bool = True
 
 
 def _first_address(output: str) -> str:
@@ -171,6 +176,63 @@ def tinyauth_reaches_ldap(run: Runner, expected: Expected) -> Result:
     return Result(True, "no LDAP errors in tinyauth's last 10 minutes of log")
 
 
+def ip_forwarding_is_on(run: Runner, expected: Expected) -> Result:
+    status, out = run("sysctl -n net.ipv4.ip_forward net.ipv6.conf.all.forwarding")
+    values = out.split()
+    if status != 0 or values != ["1", "1"]:
+        got = " and ".join(values) or "unknown"
+        return Result(False, f"net.ipv4.ip_forward and net.ipv6.conf.all.forwarding are {got}, not 1 and 1: the router drops what it should forward")
+    return Result(True, "IPv4 and IPv6 forwarding are on")
+
+
+def _tailscale_self(run: Runner) -> tuple[dict | None, str]:
+    """The `Self` node of `tailscale status --self --json`, or None and what went wrong."""
+    status, out = run("tailscale status --self --json")
+    try:
+        return json.loads(out)["Self"], ""
+    except ValueError, KeyError, TypeError:
+        return None, f"tailscale status said {out.strip()[:120] or 'nothing'} (exit {status})"
+
+
+def tailscale_is_online(run: Runner, expected: Expected) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    if node.get("Online") is not True:
+        return Result(False, "the node is not online in the tailnet")
+    return Result(True, "online in the tailnet")
+
+
+def tailscale_carries_its_tag(run: Runner, expected: Expected, vars_path: Path = TAILSCALE_VARS) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    tag = yaml.safe_load(vars_path.read_text())["tailscale_node_tag"]
+    if node.get("Tags") != [tag]:
+        return Result(False, f"the node's tags are {node.get('Tags')}, not [{tag!r}]: the policy's approval of its route is keyed on the tag")
+    return Result(True, f"tagged {tag}")
+
+
+def tailscale_routes_are_approved(run: Runner, expected: Expected, vars_path: Path = TAILSCALE_VARS) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    routes = sorted(yaml.safe_load(vars_path.read_text())["tailscale_node_advertise_routes"])
+    approved = sorted(node.get("PrimaryRoutes") or [])
+    if approved != routes:
+        return Result(False, f"approved routes are {approved}, not {routes}: the policy has not approved what the node advertises")
+    return Result(True, f"approved: {', '.join(approved)}")
+
+
+def tailscale_key_does_not_expire(run: Runner, expected: Expected) -> Result:
+    node, why = _tailscale_self(run)
+    if node is None:
+        return Result(False, why)
+    if node.get("KeyExpiry") is not None:
+        return Result(False, f"the node key expires at {node['KeyExpiry']}: the router drops off the tailnet then")
+    return Result(True, "the node key does not expire")
+
+
 COMMON_CHECKS = (
     address_is_static,
     no_dracut_network_file,
@@ -181,14 +243,19 @@ COMMON_CHECKS = (
     containers_are_running_and_healthy,
 )
 
+# The checks that run a docker command, which a host without Docker cannot answer.
+DOCKER_CHECKS = (containers_resolve_the_hosts_name, containers_are_running_and_healthy)
+
 HOST_CHECKS = {
     "security": (openbao_is_unsealed, step_ca_is_healthy, tinyauth_reaches_ldap, r2_read_watcher_is_running),
+    "tailscale": (ip_forwarding_is_on, tailscale_is_online, tailscale_carries_its_tag, tailscale_routes_are_approved, tailscale_key_does_not_expire),
 }
 
 
 def run_checks(run: Runner, expected: Expected) -> list[Check]:
     checks = []
-    for check in (*COMMON_CHECKS, *HOST_CHECKS.get(expected.host, ())):
+    common = [check for check in COMMON_CHECKS if expected.runs_docker or check not in DOCKER_CHECKS]
+    for check in (*common, *HOST_CHECKS.get(expected.host, ())):
         result = check(run, expected)
         checks.append(Check(check.__name__, result.ok, result.detail))
     return checks
@@ -209,6 +276,12 @@ def seed_image(tasks: Path = SEED_TASKS) -> str:
     return match.group(1)
 
 
+def runs_docker(host: str, inventory_path: Path = INVENTORY_PATH) -> bool:
+    """False for a host of the `network_infra` group, which has no Docker."""
+    group = yaml.safe_load(inventory_path.read_text())["all"]["children"].get("network_infra") or {}
+    return host not in (group.get("hosts") or {})
+
+
 def expected_for(host: str, resolve: Callable[[str], str] = socket.gethostbyname) -> Expected:
     fqdn = f"{host}.internal.{main_domain()}"
     try:
@@ -216,7 +289,7 @@ def expected_for(host: str, resolve: Callable[[str], str] = socket.gethostbyname
     except OSError as exc:
         raise SystemExit(f"{fqdn} does not resolve from here ({exc}): the lab's DNS has no address to hold the host to") from exc
     timezone = yaml.safe_load(GROUP_VARS.read_text())["server_timezone"]
-    return Expected(host=host, address=address, fqdn=fqdn, timezone=timezone, probe_image=seed_image())
+    return Expected(host=host, address=address, fqdn=fqdn, timezone=timezone, probe_image=seed_image(), runs_docker=runs_docker(host))
 
 
 def report(checks: list[Check]) -> int:

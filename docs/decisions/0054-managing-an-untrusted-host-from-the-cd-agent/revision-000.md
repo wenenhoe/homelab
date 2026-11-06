@@ -70,7 +70,7 @@ sequenceDiagram
 
 - Each start ends with one interactive Claude `/login`, and work not fetched before the next start is gone ([ADR 0050 (Agent changes to production)](../0050-agent-authored-changes-reaching-production/revision-000.md)).
 - A start takes a clone, a first boot, the CD agent's next poll, and a converge, and the host is not usable until that converge finishes.
-- Rebuild-first depends on the Tofu Ubuntu module ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#ubuntu-modules)).
+- Rebuild-first depends on the Tofu Ubuntu module ([`tofu/ubuntu-vms.md`](../../topics/infra/tofu/ubuntu-vms.md#modules)).
 
 ## Invariants
 

@@ -79,8 +79,9 @@ copy exists off-host," not HA for the backup target itself.
   Registered `auth: false` (Tinyauth's forward-auth needs an interactive
   redirect a non-interactive S3 client can't complete). Auth is instead
   the per-identity S3 SigV4 keypairs in
-  `docker/seaweedfs/configs/s3-identity.json.j2` — one broad
-  bucket-admin identity (bucket creation only), one narrow, path-scoped
+  `docker/seaweedfs/configs/s3-identity.json.j2` — one
+  bucket-admin identity (`Admin:<bucket>`, every action on the bucket, held only
+  by `storage`), one narrow, path-scoped
   identity per `backup_agent` host, and one bucket-wide but read-only
   identity for `cloud_sync`'s own relay-outward reads. See
   [`backup-threat-model.md`](backup-threat-model.md) for why, and the [SeaweedFS S3 Configuration

@@ -30,11 +30,16 @@ Machines and what sits beneath the apps: hosts, network, hypervisor, provisionin
 
 | Doc | Covers |
 | :--- | :--- |
-| [`vm-provisioning.md`](infra/vm-provisioning.md) | **Partly implemented.** Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, the Ubuntu and OPNsense VM modules and the Tofu↔Ansible inventory handoff, which are built, and OPNsense day-2 configuration and the remote state backend, which are not. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
-| [`network-infra.md`](infra/network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, and their bootstrap prerequisites. |
+| [`vm-provisioning.md`](infra/vm-provisioning.md) | The scheme OpenTofu-driven Proxmox provisioning rests on (VMID, VLAN, IP and MAC), the Tofu↔Ansible inventory handoff, and how to install and run Tofu. Links to the docs below for what Tofu builds. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
+| [`tofu/ubuntu-vms.md`](infra/tofu/ubuntu-vms.md) | The Ubuntu template and VM modules, the prepared cloud image (initramfs, hosts template, timezone) and the scratch Ubuntu VM. |
+| [`tofu/opnsense-vm.md`](infra/tofu/opnsense-vm.md) | The OPNsense VM module, its image, the seed disk and the first-boot script that answers the importer. |
+| [`tofu/opnsense-gateway.md`](infra/tofu/opnsense-gateway.md) | The Ansible play that writes the gateway's policy, Kea and Unbound configuration through its API. |
+| [`tofu/opnsense-scratch-gateway.md`](infra/tofu/opnsense-scratch-gateway.md) | The scratch gateway for developing the play, and the acceptance run that checks what the play leaves behind. |
+| [`tofu/state-and-credentials.md`](infra/tofu/state-and-credentials.md) | Where Tofu's state lives and the planned remote backend, the credentials file, and the Proxmox API token's privileges. |
+| [`network-infra.md`](infra/network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, what the router VM looks like, how the `tailscale_node` role configures it, and bringing a new host under management. |
+| [`tailnet-policy.md`](infra/tailnet-policy.md) | The tailnet's explicit-grant policy by role: devices, policy sections, DNS, the flows, and how to change the policy or add a grant for a route. |
 | [`host-hardening.md`](infra/host-hardening.md) | The `host_hardening` role: its allow-list of `konstruktoid.hardening` areas, what each sets, where `maintenance.yaml` applies it, and how to verify a host. |
 | [`qemu-guest-agent.md`](infra/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
-| [`netplan-dhcp-identifier.md`](infra/netplan-dhcp-identifier.md) | Current-fleet-only fix for a DHCP dual-lease bug on boot; not Ansible-managed, transitional until the Tofu migration decommissions these hosts. |
 
 ## services/
 
@@ -77,7 +82,9 @@ Backup, offsite copies, and getting data back.
 | [`backup.md`](disaster-recovery/backup.md) | SeaweedFS target, `backup_agent`, GPG encryption, what is backed up and where it goes. |
 | [`backup-threat-model.md`](disaster-recovery/backup-threat-model.md) | The adversary the backup design assumes, the credential-scoping constraints that follow, and the automated coverage for them. |
 | [`restore.md`](disaster-recovery/restore.md) | Restoring an app's volume(s) from a backup archive: the runbook. |
-| [`rebuild-runbook.md`](disaster-recovery/rebuild-runbook.md) | Rebuilding a Tofu-built host: the order of steps, what each is run with, what the before and after checks look at, and what is still done by hand. |
+| [`rebuild-runbook.md`](disaster-recovery/rebuild-runbook.md) | Rebuilding a Tofu-built host: the cycle and its order, what differs per host, and what is still done by hand. |
+| [`rebuild-tools.md`](disaster-recovery/rebuild-tools.md) | The scripts the rebuild runbook calls and what each refuses: `retire_vm.sh`, `bucket_copy.py`, the host and DNS checks, and the dump storage they depend on. |
+| [`rebuild-storage.md`](disaster-recovery/rebuild-storage.md) | Rebuilding `storage`, the one host that cannot take the plain cycle: building beside the old VM, copying the bucket, flipping DNS, and moving back. |
 | [`exercises.md`](disaster-recovery/exercises.md) | The disaster-recovery exercises: the recovery tiers, each exercise and how often it is run, how each is run, and where it is recorded. |
 | [`fire-drill.md`](disaster-recovery/fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
 | [`cloud-sync.md`](disaster-recovery/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |

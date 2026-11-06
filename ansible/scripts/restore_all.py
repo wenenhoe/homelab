@@ -55,7 +55,10 @@ the manifest does not hold is an error before anything is discovered.
 
 --check is the pre-flight before destroying a host: it exits non-zero when an
 app has no source whose newest backup is within the window (30 hours by
-default, one nightly run and some slack).
+default, one nightly run and some slack). It also flags a source whose
+modification time is more than an hour from the instant the archive's name
+stamps, which says the archive was copied without its original time; that is a
+warning and does not change the exit status.
 
 Exit status: 0 if every in-scope app restored successfully, 1 otherwise
 (including an aborted batch).
@@ -70,6 +73,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 ANSIBLE_DIR = PROJECT_ROOT / "ansible"
@@ -89,7 +93,10 @@ INVENTORY_ARGS = ["-i", "inventory/inventory.yaml", "-i", "inventory/tofu-hosts.
 # against offen/docker-volume-backup's own "Encrypting backups" docs —
 # "the backup archive will be ... saved as a .gpg file instead"). <ext>
 # varies by app (tar.gz/tar/tar.zst per BACKUP_COMPRESSION), so this
-# only anchors on the timestamp, not the full filename.
+# only anchors on the timestamp, not the full filename. The agent formats the
+# timestamp in its container's TZ, the host's server_timezone
+# (backup_agent/templates/env.j2), so it is wall-clock time in that zone and
+# the manifest carries the zone per host.
 _TIMESTAMP_RE = r"(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})"
 _TIMESTAMP_FORMAT = "%Y-%m-%dT%H-%M-%S"
 
@@ -105,6 +112,7 @@ class AppManifestEntry:
     seaweedfs_path: str
     volumes: list[str]
     cloud_targets: list[dict[str, str]]
+    timezone: str
 
 
 @dataclass
@@ -144,6 +152,30 @@ class SourceStatus:
     newest: str
     age_hours: float | None
     state: str  # ok, stale, empty or unreachable
+    mtime_skew_hours: float | None = None  # the object's modification time minus the instant its name stamps
+
+
+# Longer than the upload of a nightly archive takes, shorter than any copy that is not the backup itself.
+MODTIME_TOLERANCE_HOURS = 1.0
+
+
+def modtime_skew_hours(objects: list[dict], name: str, stamp: datetime) -> float | None:
+    """How far `name`'s modification time in the listing is from the instant its own name stamps, in hours.
+
+    Age-based rules read the modification time, not the name: the relay's --max-age and a bucket's
+    lifecycle. An object copied without its original time carries the copy time instead, which looks
+    young to both. None means the listing gave no usable time.
+    """
+    for obj in objects:
+        if obj.get("Name") == name:
+            try:
+                modified = datetime.fromisoformat(obj["ModTime"])
+            except KeyError, ValueError, TypeError:
+                return None
+            if modified.tzinfo is None:
+                return None
+            return (modified - stamp).total_seconds() / 3600
+    return None
 
 
 def check_sources(entries: list[AppManifestEntry], seaweedfs_bucket: str, max_age_hours: float, now: datetime) -> list[SourceStatus]:
@@ -156,23 +188,41 @@ def check_sources(entries: list[AppManifestEntry], seaweedfs_bucket: str, max_ag
             if listing is None:
                 rows.append(SourceStatus(entry.app, entry.host, remote, "-", None, "unreachable"))
                 continue
-            latest = pick_latest(listing, entry.host, entry.app)
+            latest = pick_latest(listing, entry.host, entry.app, entry.timezone)
             if latest is None:
                 rows.append(SourceStatus(entry.app, entry.host, remote, "-", None, "empty"))
                 continue
             name, stamp = latest
             age = (now - stamp).total_seconds() / 3600
-            rows.append(SourceStatus(entry.app, entry.host, remote, name, age, "ok" if age <= max_age_hours else "stale"))
+            skew = modtime_skew_hours(listing, name, stamp)
+            rows.append(SourceStatus(entry.app, entry.host, remote, name, age, "ok" if age <= max_age_hours else "stale", skew))
     return rows
+
+
+def _skewed(row: SourceStatus) -> bool:
+    return row.mtime_skew_hours is not None and abs(row.mtime_skew_hours) > MODTIME_TOLERANCE_HOURS
+
+
+def _skew_cell(row: SourceStatus) -> str:
+    if row.mtime_skew_hours is None:
+        return "-"
+    return f"{row.mtime_skew_hours:+.1f}h" if _skewed(row) else "ok"
 
 
 def run_check(entries: list[AppManifestEntry], seaweedfs_bucket: str, max_age_hours: float) -> int:
     rows = check_sources(entries, seaweedfs_bucket, max_age_hours, datetime.now(UTC))
-    table = [("APP", "HOST", "SOURCE", "STATE", "AGE (h)", "NEWEST")]
-    table += [(r.app, r.host, r.source, r.state, "-" if r.age_hours is None else f"{r.age_hours:.1f}", r.newest) for r in rows]
-    widths = [max(len(row[i]) for row in table) for i in range(6)]
+    table = [("APP", "HOST", "SOURCE", "STATE", "AGE (h)", "MTIME", "NEWEST")]
+    table += [(r.app, r.host, r.source, r.state, "-" if r.age_hours is None else f"{r.age_hours:.1f}", _skew_cell(r), r.newest) for r in rows]
+    widths = [max(len(row[i]) for row in table) for i in range(7)]
     for row in table:
         print("  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=True)))
+    skewed = [r for r in rows if _skewed(r)]
+    if skewed:
+        print(
+            f"\nThe modification time differs from the archive's own timestamp by more than {MODTIME_TOLERANCE_HOURS:g} hours on: "
+            + ", ".join(f"{r.app}@{r.source}" for r in skewed)
+            + ".\nThe relay's --max-age and a bucket's lifecycle go by the modification time, so these were copied without it."
+        )
     uncovered = sorted({e.app for e in entries} - {r.app for r in rows if r.state == "ok"})
     if uncovered:
         print(f"\nNo source holds a backup within {max_age_hours:g} hours of: {', '.join(uncovered)}")
@@ -250,15 +300,16 @@ def rclone_lsjson(remote: str, bucket: str, prefix: str) -> list[dict] | None:
         return None
 
 
-def pick_latest(objects: list[dict], host: str, app: str) -> tuple[str, datetime] | None:
+def pick_latest(objects: list[dict], host: str, app: str, timezone: str) -> tuple[str, datetime] | None:
     pattern = re.compile(r"^" + re.escape(f"{host}-{app}-") + _TIMESTAMP_RE + r"\.")
+    zone = ZoneInfo(timezone)
     best: tuple[str, datetime] | None = None
     for obj in objects:
         name = obj.get("Name", "")
         match = pattern.match(name)
         if not match:
             continue
-        timestamp = datetime.strptime(match.group(1), _TIMESTAMP_FORMAT).replace(tzinfo=UTC)
+        timestamp = datetime.strptime(match.group(1), _TIMESTAMP_FORMAT).replace(tzinfo=zone)
         if best is None or timestamp > best[1]:
             best = (name, timestamp)
     return best
@@ -279,7 +330,7 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
     if source is None or bucket is None:
         raise RestoreAllError(f"no objects found under {prefix}/ on any of: {', '.join(outcomes)}")
 
-    latest = pick_latest(objects, entry.host, entry.app)
+    latest = pick_latest(objects, entry.host, entry.app, entry.timezone)
     if latest is None:
         raise RestoreAllError(
             f"none of the {len(objects)} object(s) under {prefix}/ on {source} match the expected '{entry.host}-{entry.app}-<timestamp>.*' filename pattern"

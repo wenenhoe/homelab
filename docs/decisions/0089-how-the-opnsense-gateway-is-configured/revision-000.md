@@ -19,7 +19,7 @@ OPNsense is the lab's gateway, and its configuration is the network boundary tha
 
 ## Context
 
-- Tofu builds the gateway's VM shell with the `proxmox_opnsense_vm` module. The install and the day-2 configuration are manual ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#opnsense)).
+- Tofu builds the gateway's VM shell with the `proxmox_opnsense_vm` module. The install and the day-2 configuration are manual ([`tofu/opnsense-vm.md`](../../topics/infra/tofu/opnsense-vm.md)).
 - Most OPNsense objects are configurable through its API. In the 26.1 series that API cannot assign a VLAN device to an interface or give the interface an address; the 26.7 series adds an assignment API.
 - Tooling follows releases. The Ansible collection `oxlorg.opnsense` states that each of its releases works only with the OPNsense release of the same version. The Tofu provider `browningluke/opnsense` is pre-1.0, changes schemas between releases, and has no resource for interface assignment, system settings or packages.
 - The collection can verify the gateway's TLS certificate against a CA file, but only when the name or address it connects to appears in that certificate. It has a generic call for endpoints it has no module for, and a savepoint action for firewall changes. At its 26.1.11 release it has modules for VLAN devices, firewall rules and aliases, outbound NAT, Kea subnets, Unbound forwards and settings, packages and users. It has none for system settings (its `system` module only powers off, reboots, updates, upgrades and audits) or for the gateway's own certificate, which go through the generic call. Its git tag `26.1.11` carries the metadata of an earlier version, so the pin is a commit.

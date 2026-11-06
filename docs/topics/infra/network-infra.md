@@ -1,118 +1,76 @@
 # Network Infrastructure Hosts
 
-Hosts that support the network itself rather than running Docker/
-compose apps — the `network_infra` inventory group. Currently one
-host: `tailscale` (VM 202), an existing Tailscale subnet router
-brought under Ansible management for
-[`monitoring-host-isolation.md`](../../projects/monitoring-host-isolation.md); see
-[`off-site-monitoring.md`](../../projects/off-site-monitoring.md) for why (offsite
-monitoring's eventual off-site hop reuses this VM's existing route rather
-than a new tunnel).
+Hosts that support the network itself rather than running Docker/compose apps: the
+`network_infra` inventory group. Currently one host, `tailscale` (VM 202), the
+Tailscale subnet router. What the router lets a tailnet device reach is the
+[tailnet policy](tailnet-policy.md).
 
 ## Why its own group, not `managed_hosts`
 
-`managed_hosts` gets Docker, the `compose`/`compose_app` roles, and
-every app-deploy play in `deploy.yaml`. VM 202 runs none of that — it's
-a routing appliance, not an app host — so folding it into
-`managed_hosts` would mean either deploying Docker to a VM that has no
-use for it, or complicating every `deploy.yaml` play with a new
-exclusion. `network_infra` stays out of `deploy.yaml` entirely;
-`patched_hosts` (an alias of `managed_hosts` + `network_infra`, same
-pattern as `app_hosts`) is what `maintenance.yaml` targets instead —
-see [`ansible.md`](../deploy/ansible.md#inventory).
+`managed_hosts` gets Docker, the `compose`/`compose_app` roles, and every app-deploy
+play in `deploy.yaml`. VM 202 runs none of that — it is a routing appliance, not an
+app host — so folding it into `managed_hosts` would mean either deploying Docker to a
+VM that has no use for it, or complicating every `deploy.yaml` play with a new
+exclusion.
 
-## Future: superseded by Tofu
+| Group | Targeted by | Notes |
+| :--- | :--- | :--- |
+| `network_infra` | `network-infra.yaml`, `maintenance.yaml` | Stays out of `deploy.yaml` entirely |
+| `patched_hosts` | `maintenance.yaml` | An alias of `managed_hosts` + `network_infra`, the same pattern as `app_hosts` ([`ansible.md`](../deploy/ansible.md#inventory)) |
 
-The `tailscale` entry is interim: [`tofu-migration.md`](../../projects/tofu-migration.md)
-rebuilds VM 202 as a Tofu-managed VM, and the inventory generator
-([`vm-provisioning.md`](vm-provisioning.md#tofu--ansible-handoff)) then
-produces this host's entry. Remove the hand-written block from
-`inventory.yaml` at that point rather than keeping both.
+## Built by Tofu
 
-## `tailscale` (VM 202) — current state
+`tailscale` is a Tofu-provisioned VM at VMID 202, declared in the root module like the
+app hosts. The inventory generator
+([`vm-provisioning.md`](vm-provisioning.md#tofu--ansible-handoff)) supplies its address
+and login user, so `inventory.yaml` keeps only its group membership, and its host zone
+record is generated from that address ([`bind9.md`](../services/bind9.md#the-host-zone)).
+[Rebuilding it](../disaster-recovery/rebuild-runbook.md#tailscale) needs an auth key
+created out of band, and a rebuilt node is a new device.
 
-Read directly off the host, not assumed:
+## `tailscale` (VM 202)
+
+What the Tofu module and the role leave on the host.
+`rebuild_check.host tailscale` checks the address, forwarding, tag, approved route and
+key expiry ([the checks](../disaster-recovery/rebuild-tools.md#rebuild_checkhost)).
 
 | Field | Value |
 | :--- | :--- |
 | OS | Ubuntu LTS (`resolute`) |
-| Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`) by the vendor's install script, which left a one-line `tailscale.list` and a keyring package; `tailscaled.service` active |
-| Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
-| Host zone name | `tailscale.{{ host_domain }}` — same `<host>.{{ host_domain }}` structure as every `managed_hosts` member, a static record in `host_vars/services.yaml`; this is what `inventory.yaml`'s `ansible_host` actually uses |
-| LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained from a reservation on the gateway (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
-| `qemu-guest-agent` | Already installed and active (pre-dates this being under management) |
+| Tailscale | Installed by the `tailscale_node` role from Tailscale's apt repository ([node configuration](#tailscale-node-configuration)); `tailscaled.service` active |
+| Role | Subnet router: advertises `192.168.20.0/24`, and `PrimaryRoutes` in `tailscale status --self --json` holds it once the policy has approved it |
+| Tag | `tag:subnet-router` (`Tags` of `Self` in `tailscale status --self --json`). The policy's `tagOwners` and `autoApprovers` entries are keyed on it, and a rebuilt node joins under it |
+| Host zone name | `tailscale.{{ host_domain }}`, a record the `bind9` role generates from the host's address |
+| LAN address | `192.168.20.2/24`, static from cloud-init, the address VMID 202 derives ([scheme](vm-provisioning.md#vmid--vlan--ip-scheme)); it needs no reservation on the gateway, and the gateway's flows name it, so a rebuilt VM keeps it. The host is in `sos-inventory.yaml` with that address, the DNS-independent list `reset-network.yaml` uses when DNS itself might be down |
 | SSH admin user | `tsadmin` |
-| Client preferences | From `tailscale debug prefs`: `AdvertiseRoutes` is `192.168.20.0/24`, `CorpDNS` is true, the client's own `AutoUpdate` is on (`Check` and `Apply`), `NoSNAT` is false, `RunSSH` and `ShieldsUp` are false, no exit node, and `AdvertiseTags` is empty |
+| `qemu-guest-agent` | Applied to the group by `maintenance.yaml` |
+| Client preferences | Set by the role: the advertised routes, the accepted DNS setting and the client's auto-update off |
 | Forwarding | `net.ipv4.ip_forward` and `net.ipv6.conf.all.forwarding` are 1 and set in `/etc/sysctl.d/99-tailscale.conf` |
 | Service files | `tailscaled.service` and `/etc/default/tailscaled` are the package's (`PORT="41641"`, `FLAGS=""`) |
-| Key expiry | `tailscale status --self --json` reports none |
+| Key expiry | None: `KeyExpiry` of `Self` in `tailscale status --self --json` is null |
 | Availability | Not always on while spike VMs share the node and VM 401 is in service; always on once the operator host and the laptop replace VM 401, since every operator session then crosses it ([ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)) |
-| Updates | `unattended-upgrades` takes security origins only and its local override only removes unused packages, so Tailscale's repository is outside it. `maintenance.yaml` and the client's own updater (on today) are what upgrade the package |
-| Host firewall | None; `ufw` is not installed. `tailscaled`'s own rules accept everything that arrives on `tailscale0`, so the tailnet policy decides what a tailnet source reaches on the node itself |
-
-`192.168.20.2` matches the `.02` host-octet [`vm-provisioning.md`'s VMID
-scheme](vm-provisioning.md#vmid--vlan--ip-scheme) would predict for
-VMID 202 — but that scheme is written for Tofu-provisioned VMs, VM 202
-predates Tofu, and the interface shows a DHCP-obtained lease rather
-than a static netplan config. The gateway's DHCP server holds a
-reservation for it, as it does for every host, so the address is
-effectively permanent. That is not relevant to `ansible_host` now that
-it resolves through the host zone the same as every other host, but it is
-relevant to whether this host would ever
-belong in `sos-inventory.yaml` (static-IP-only, DNS-independent
-recovery path). Not added there yet: `reset-network.yaml`'s whole
-reason to exist is reaching a host when DNS itself might be down, and
-this host is reachable over its own `tailscale0` interface regardless
-of this repo's DNS — whether that makes `sos-inventory.yaml` coverage
-redundant or still worth having for netplan-reset specifically is an
-open question, not a settled "no."
-
-Per-node Tailscale ACL tags: none found (`tailscale status --self
---json`'s `Self` has no `Tags` key). The tailnet-wide ACL policy itself
-— what any node, tagged or not, is actually allowed to reach — is the
-default allow-all grant (ADR 0058's Context), held only in the
-Tailscale admin console; see
-[ADR 0059 (Tailnet policy)](../../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)
-for where it goes from here.
-
-Re-authenticating this node after a rebuild ([`tofu-migration.md`](../../projects/tofu-migration.md))
-needs an auth key created out of band, and a rebuilt node is a new device.
-[ADR 0097 (Tailscale node configuration)](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)
-decides that the key is single-use, tagged and supplied at run time, and
-that the tag and the route's auto-approval are entries in the policy, which
-[`tailnet-policy-baseline.md`](../../projects/tailnet-policy-baseline.md)
-writes before the join. The role itself is
-[`tailscale-node-role.md`](../../projects/tailscale-node-role.md).
+| Updates | `unattended-upgrades` takes security origins only and its local override only removes unused packages, so Tailscale's repository is outside it. `maintenance.yaml` is what upgrades the package, since the role turns the client's own updater off |
+| Host firewall | `tailscaled`'s own rules accept everything that arrives on `tailscale0`, so the tailnet policy decides what a tailnet source reaches on the node itself |
 
 ## Tailscale node configuration
 
 `playbooks/network-infra.yaml` applies the `tailscale_node` role to the group
-([ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)).
-The role converges, in order:
+([ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)),
+which decides that the join key is single-use, tagged and supplied at run time, and
+that the tag and the route's auto-approval are entries in the
+[policy](tailnet-policy.md), which already holds both. The role converges, in order:
 
-1. **Install.** Tailscale's apt repository as a DEB822 source with its key in
-   `/etc/apt/keyrings/tailscale.gpg`, installed only if the download is the
-   pinned key ([`apt-signing-keys.md`](../deploy/apt-signing-keys.md)), the vendor script's one-line
-   `tailscale.list` removed in the same run, the package installed and never
-   upgraded, and `tailscaled` enabled and started. Only `maintenance.yaml`
-   upgrades the package.
-2. **Forwarding.** `/etc/sysctl.d/99-tailscale.conf` sets IPv4 and IPv6
-   forwarding when the node advertises routes. A node that advertises none has
-   no such file: the role removes one left by an earlier run and turns both
-   forwarding values off in the same run.
-3. **Join**, only when the node is logged out. It needs `tailscale_node_tag`
-   and a key; a logged-out node missing either stops the play before anything
-   changes. A logged-in node needs neither.
-4. **Preferences**, compared against `tailscale debug prefs` and applied with
-   one `tailscale set` for the ones that differ: the advertised routes
-   (`tailscale_node_advertise_routes`), the accepted DNS setting
-   (`tailscale_node_accept_dns`, on by default) and the client's auto-update,
-   which is off on every node. Source NAT is left at the client's default.
+| # | Step | What it does |
+| :-: | :--- | :--- |
+| 1 | Install | Tailscale's apt repository as a DEB822 source with its key in `/etc/apt/keyrings/tailscale.gpg`, installed only if the download is the pinned key ([`apt-signing-keys.md`](../deploy/apt-signing-keys.md)); the vendor script's one-line `tailscale.list` removed in the same run; the package installed and never upgraded; `tailscaled` enabled and started. Only `maintenance.yaml` upgrades the package |
+| 2 | Forwarding | `/etc/sysctl.d/99-tailscale.conf` sets IPv4 and IPv6 forwarding when the node advertises routes. A node that advertises none has no such file: the role removes one left by an earlier run and turns both forwarding values off in the same run |
+| 3 | Join, only when the node is logged out | Needs `tailscale_node_tag` (`tag:subnet-router` in the host's variables) and a key; a logged-out node missing either stops the play before anything changes. A logged-in node needs neither |
+| 4 | Preferences | Compared against `tailscale debug prefs` and applied with one `tailscale set` for the ones that differ: the advertised routes (`tailscale_node_advertise_routes`), the accepted DNS setting (`tailscale_node_accept_dns`, on by default) and the client's auto-update, which is off on every node. Source NAT is left at the client's default |
 
-The join key is single-use, pre-authorized, tagged and valid for hours, made
-in the admin console for the run. It is read from `TAILSCALE_AUTHKEY` on the
-operator's machine, passed as one argument of the join command and kept out of
-the play's output; it is written to no file.
+The join key is single-use, pre-authorized, tagged and valid for hours, made in the
+admin console for the run. It is read from `TAILSCALE_AUTHKEY` on the operator's
+machine, passed as one argument of the join command and kept out of the play's
+output; it is written to no file.
 
 ```sh
 cd ansible
@@ -123,42 +81,30 @@ unset TAILSCALE_AUTHKEY
 ```
 
 A check run changes nothing, and is asked for with `-e network_infra_check=true`
-because `--check` also puts the secrets play in check mode, which fails. It reports the `tailscale set` call a real run
-would make, so a preference changed by hand on the node shows up there. On a
-node installed by the vendor script, the first run replaces its one-line apt
-source and turns the client's auto-update off.
+because `--check` also puts the secrets play in check mode, which fails. It reports
+the `tailscale set` call a real run would make, so a preference changed by hand on the
+node shows up there. On a node installed by the vendor script, the first run replaces
+its one-line apt source and turns the client's auto-update off.
 
-**Adding a route.** Add the CIDR, in the canonical form the node reports it in,
-to `tailscale_node_advertise_routes` in `inventory/host_vars/tailscale.yaml`,
-and add its grant to the tailnet policy. The next run calls `tailscale set`.
+### Adding a route
+
+Add the CIDR, in the canonical form the node reports it in, to
+`tailscale_node_advertise_routes` in `inventory/host_vars/tailscale.yaml`, after
+[its grant and auto-approval](tailnet-policy.md#adding-a-grant-for-a-route) are saved
+in the tailnet policy. The next run calls `tailscale set`.
 
 ## Bringing a new `network_infra` host under management
 
-One-time prerequisites, none of which can be automated
-by the same Ansible run that depends on them (the same
-chicken-and-egg `bootstrap-secrets.yaml`'s own header describes for
-secrets):
+Build it the way `tailscale` is built:
 
-1. **SSH key** — add the public half of `~/.ssh/proxmox_vm_servers`
-   (the key every `managed_hosts` member already trusts) to the
-   admin user's `authorized_keys`.
-2. **Passwordless sudo** — `ansible.cfg` sets `become_ask_pass = False`
-   and nothing in this repo stores a `become` password anywhere, so
-   the admin user needs a `NOPASSWD` sudoers entry before any
-   `become: true` task (Play 0's Gathering Facts included) can
-   succeed.
-3. **Python interpreter** — `inventory.yaml`'s
-   `ansible_python_interpreter: /usr/bin/python3.14` is a global
-   `all.vars` default; confirm it exists on the host (or override it
-   per-host) before the first run.
-4. **Host zone name** — confirm `host_vars/services.yaml`'s host zone holds a
-   record for it (`<host>.{{ host_domain }}`) before assuming a new
-   `network_infra` host needs the static-IP fallback pattern instead;
-   `tailscale` has one and uses it.
+1. Declare its module and `ansible_hosts` entry in the root module.
+2. List it under `network_infra` in `inventory.yaml` with no address.
+3. Run the inventory generator ([`vm-provisioning.md`](vm-provisioning.md#tofu--ansible-handoff)).
 
-`tailscale` needed the first three — `tsadmin`'s sudo currently
-prompts for a password (`sudo -n true` fails with
-"interactive authentication is required"), and not the fourth.
+The host then has a generated address, a generated host zone record and the admin user
+the module sets. `ansible_python_interpreter` is a global default in
+`inventory.yaml`'s `all.vars`; confirm it exists on the host, or override it per host,
+before the first run.
 
 ## Verifying
 
@@ -166,8 +112,6 @@ prompts for a password (`sudo -n true` fails with
 ansible-playbook playbooks/maintenance.yaml --limit patched_hosts,localhost
 ```
 
-Runs `apt`/`fwupd` against every `patched_hosts` member,
-`qemu_guest_agent` against `network_infra` only, and then the
-`host_hardening` baseline against every `patched_hosts` member. No
-`deploy.yaml` equivalent exists for this group — see "Why its own group"
-above.
+Runs `apt`/`fwupd` against every `patched_hosts` member, `qemu_guest_agent` against
+`network_infra` only, and then the `host_hardening` baseline against every
+`patched_hosts` member. No `deploy.yaml` equivalent exists for this group.

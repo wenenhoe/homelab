@@ -11,7 +11,7 @@ A small fleet of Ubuntu hosts running Dockerized services, fully converged by An
 | Identity & secrets | OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth |
 | Data & ops | SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate |
 
-OpenTofu provisioning of the Proxmox VMs is partly built: [`tofu/`](tofu) holds the root module, its modules and their tests. [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) says what exists and what doesn't, and [`project-planning.md`](docs/project-planning.md) lists what remains.
+OpenTofu builds the Ubuntu hosts: [`tofu/`](tofu) holds the root module that declares them, its modules and their tests, and [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) is the entry point to how they are built. The production gateway is still maintained by hand, and Tofu's state is still a local file; [`project-planning.md`](docs/project-planning.md) lists what remains.
 
 Reviewing this repo? [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) maps each claim it makes to the doc that explains it and the check that holds it up.
 
@@ -63,6 +63,7 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 | | Add an app | [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) |
 | | Follow what a `deploy.yaml` run does | [`deployment-flow.md`](docs/topics/deploy/deployment-flow.md) |
 | | Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
+| | Rebuild a host from the repo and its backups | [`rebuild-runbook.md`](docs/topics/disaster-recovery/rebuild-runbook.md) |
 | | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
 | Develop | Run or write tests | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
 | | Know what the pre-commit hooks check | [`pre-commit.md`](docs/topics/engineering/pre-commit.md) |

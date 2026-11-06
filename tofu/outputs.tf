@@ -3,8 +3,11 @@
 output "ansible_hosts" {
   description = "Ansible-managed VMs, keyed by inventory host name."
   value = {
-    play     = module.play.inventory_entry
-    security = module.security.inventory_entry
+    play      = module.play.inventory_entry
+    security  = module.security.inventory_entry
+    storage   = module.storage.inventory_entry
+    services  = module.services.inventory_entry
+    tailscale = module.tailscale.inventory_entry
   }
 }
 

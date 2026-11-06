@@ -23,6 +23,7 @@ allowed_paths:
   - tofu/tests/root.tftest.hcl
   - docs/topics/infra/vm-provisioning.md
   - docs/topics/infra/network-infra.md
+  - docs/decisions/0097-how-a-tailscale-node-is-configured/revision-000.md
 ---
 
 # Tailnet Policy in OpenTofu

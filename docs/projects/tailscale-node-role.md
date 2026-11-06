@@ -61,7 +61,7 @@ The scratch node advertises a documentation-range CIDR and not `192.168.20.0/24`
 
 1. In the console, copy the current policy, then add `"198.51.100.0/24": ["tag:subnet-router"]` under `autoApprovers.routes` and read the preview before saving.
 2. Make a single-use, pre-authorized key tagged `tag:subnet-router`, valid for an hour.
-3. Write an inventory outside the repository and run the play against it, check run first:
+3. Write an inventory outside the repository and run the play against it. A logged-out node stops the play without a key, so the join is the first run and a check run follows it. `-i` replaces the inventory list in `ansible.cfg`, so name all three sources, or `security` loses the address and user the generated inventory gives it and the secrets play cannot reach it:
 
    ```yaml
    all:
@@ -77,15 +77,15 @@ The scratch node advertises a documentation-range CIDR and not `192.168.20.0/24`
 
    ```sh
    cd ansible
-   args=(-i inventory/inventory.yaml -i "$HOME/scratch-vm/inventory.yaml" --limit scratch,localhost)
-   ansible-playbook playbooks/network-infra.yaml "${args[@]}" -e network_infra_check=true --diff
+   args=(-i inventory/inventory.yaml -i inventory/tofu-hosts.yaml -i "$HOME/scratch-vm/inventory.yaml" --limit scratch,localhost)
    read -rs TAILSCALE_AUTHKEY; export TAILSCALE_AUTHKEY
    ansible-playbook playbooks/network-infra.yaml "${args[@]}"
    unset TAILSCALE_AUTHKEY
+   ansible-playbook playbooks/network-infra.yaml "${args[@]}" -e network_infra_check=true --diff
    ansible-playbook playbooks/network-infra.yaml "${args[@]}" --diff
    ```
 
-   The last run reports no change.
+   The check run and the last run report no change.
 4. On the node, `tailscale status --self --json` shows `tag:subnet-router` under `Tags`, the CIDR under `PrimaryRoutes` and no key expiry, and the console lists the route as approved with no pending approval.
 5. Search for the key on the scratch node and on the operator host. The pattern ends in a bracket expression so the search's own command line does not match it, and `grep` exiting 1 is the pass:
 

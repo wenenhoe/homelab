@@ -132,7 +132,7 @@ zone answers some of the lab's queries while the other looks fine.
 
 | Check | What it catches |
 | :--- | :--- |
-| `zones_have_one_serial` | The host zone or the lan zone has a different SOA serial on the two servers, or a server does not answer or holds no such zone |
+| `zones_have_one_serial` | The host zone or the lan zone has a different SOA serial on the two servers, or a server does not answer or holds no such zone. A pass prints each zone's serial, so a run before a rebuild and one after can be compared |
 | `resolves_alike: <name>` | The two servers give different addresses for a host's name; for a host Tofu built, both give another address than the generated inventory's |
 
 With no host named it covers every host in `managed_hosts` and `network_infra`,

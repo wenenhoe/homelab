@@ -84,6 +84,7 @@ def addresses(dig: Dig, server: str, name: str) -> tuple[frozenset[str] | None, 
 
 def zones_have_one_serial(dig: Dig, plan: Plan) -> Result:
     problems = []
+    agreed = []
     for zone in plan.zones:
         serials = {}
         for role, server in plan.servers.both():
@@ -94,9 +95,11 @@ def zones_have_one_serial(dig: Dig, plan: Plan) -> Result:
                 serials[role] = serial
         if len(set(serials.values())) > 1:
             problems.append(f"{zone}: serial {serials['primary']} on the primary, {serials['secondary']} on the secondary: the transfer has not happened")
+        else:
+            agreed.append(f"{zone} {serials['primary']}")
     if problems:
         return Result(False, "; ".join(problems))
-    return Result(True, f"the primary and secondary hold the same serial of {', '.join(plan.zones)}")
+    return Result(True, f"the primary and secondary hold the same serial: {', '.join(agreed)}")
 
 
 def name_resolves_alike(dig: Dig, plan: Plan, name: str) -> Result:

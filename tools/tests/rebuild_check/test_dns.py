@@ -46,8 +46,10 @@ def by_name(checks):
 
 
 class TestSerials:
-    def test_equal_serials_pass(self):
-        assert dns.zones_have_one_serial(dig_from(healthy()), PLAN).ok
+    def test_equal_serials_pass_and_are_printed_for_each_zone(self):
+        result = dns.zones_have_one_serial(dig_from(healthy()), PLAN)
+        assert result.ok
+        assert result.detail.endswith(f": {HOST_ZONE} 7, {LAN_ZONE} 9")
 
     def test_a_secondary_behind_fails_and_says_which_zone_and_how(self):
         answers = healthy()

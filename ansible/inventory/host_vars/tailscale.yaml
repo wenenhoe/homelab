@@ -3,3 +3,7 @@
 # the node's tag (ADR 0097).
 tailscale_node_advertise_routes:
   - 192.168.20.0/24
+
+# The policy's tagOwners and autoApprovers entries are keyed on this tag, and a
+# rebuilt node is logged out, so it joins under it or the play stops.
+tailscale_node_tag: tag:subnet-router

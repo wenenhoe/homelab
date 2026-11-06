@@ -96,6 +96,7 @@ The role converges, in order:
    no such file: the role removes one left by an earlier run and turns both
    forwarding values off in the same run.
 3. **Join**, only when the node is logged out. It needs `tailscale_node_tag`
+   (`tag:subnet-router` in the host's variables)
    and a key; a logged-out node missing either stops the play before anything
    changes. A logged-in node needs neither.
 4. **Preferences**, compared against `tailscale debug prefs` and applied with

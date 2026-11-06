@@ -39,7 +39,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike `tailscale set` on a logged-in scratch node | Done | On a scratch node joined with a one-time key, `tailscale set` changes the advertised routes, the DNS setting and auto-update with no key, the values survive a restart of `tailscaled` and of the VM, and the result is folded into ADR 0097's Context so the revision can be `approved` |
 | 2 | Write the role and show it matches the live router | Done | The role's Molecule scenario passes with its idempotence check, and the role run against the existing VM 202 reports two changes under `--check`, the replacement of the vendor's one-line apt source and the client's auto-update turned off, and no change on the run after a real one |
-| 3 | Prove the tagged join | Not started | With the saved policy carrying the router's tag, a scratch node joined by the role with a one-time tagged key has its route approved without the console, reports no key expiry, and a second run reports no change |
+| 3 | Prove the tagged join | In progress | With the saved policy carrying the router's tag, a scratch node joined by the role with a one-time tagged key has its route approved without the console, reports no key expiry, and a second run reports no change |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -54,6 +54,46 @@ The role's variables are the preferences read off the router: the advertised rou
 ### Stage 3 — the join
 
 The saved policy already holds the tag and its entries. The stage does not wait on the policy moving into Tofu.
+
+Run it on a scratch Ubuntu VM ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#scratch-ubuntu-vm)) in a zone with Internet, since the join and the install need it: VLAN 50 has none, so take an unused 2XX VMID (VLAN 20, host part 02 to 09). Destroy the VM and remove its device from the tailnet afterwards.
+
+The scratch node advertises a documentation-range CIDR and not `192.168.20.0/24`. Two nodes advertising one route make the tailnet pick between them, and a scratch node in VLAN 20 chosen over the router would cut the maintainer's way into the lab for the test. The auto-approval is the same mechanism for any CIDR, and the rebuild of VM 202 proves it for the real one.
+
+1. In the console, copy the current policy, then add `"198.51.100.0/24": ["tag:subnet-router"]` under `autoApprovers.routes` and read the preview before saving.
+2. Make a single-use, pre-authorized key tagged `tag:subnet-router`, valid for an hour.
+3. Write an inventory outside the repository and run the play against it, check run first:
+
+   ```yaml
+   all:
+     children:
+       network_infra:
+         hosts:
+           scratch:
+             ansible_host: <scratch address>
+             ansible_user: <scratch user>
+             tailscale_node_tag: tag:subnet-router
+             tailscale_node_advertise_routes: [198.51.100.0/24]
+   ```
+
+   ```sh
+   cd ansible
+   args=(-i inventory/inventory.yaml -i "$HOME/scratch-vm/inventory.yaml" --limit scratch,localhost)
+   ansible-playbook playbooks/network-infra.yaml "${args[@]}" -e network_infra_check=true --diff
+   read -rs TAILSCALE_AUTHKEY; export TAILSCALE_AUTHKEY
+   ansible-playbook playbooks/network-infra.yaml "${args[@]}"
+   unset TAILSCALE_AUTHKEY
+   ansible-playbook playbooks/network-infra.yaml "${args[@]}" --diff
+   ```
+
+   The last run reports no change.
+4. On the node, `tailscale status --self --json` shows `tag:subnet-router` under `Tags`, the CIDR under `PrimaryRoutes` and no key expiry, and the console lists the route as approved with no pending approval.
+5. Search for the key on the scratch node and on the operator host. The pattern ends in a bracket expression so the search's own command line does not match it, and `grep` exiting 1 is the pass:
+
+   ```sh
+   sudo grep -rIlEs 'tskey-aut[h]' /etc /var/lib /var/log /root /home /tmp /run
+   grep -rIlEs 'tskey-aut[h]' ~/.ansible ~/scratch-vm ~/.bash_history
+   ```
+6. Remove the CIDR's `autoApprovers` entry from the policy, destroy the VM, and remove the device in the console.
 
 ## Acceptance criteria
 

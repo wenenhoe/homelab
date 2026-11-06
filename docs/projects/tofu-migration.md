@@ -97,11 +97,8 @@ pull request, since the role refuses a host named both ways.
 `tailscale`. `play` is a leaf and proves the cycle. `storage` comes before
 `security` and `services` because every restore reads from it. `services`
 comes before `tailscale` because its BIND9 serves the zones every other host
-resolves through. `tailscale` is last because nothing configures a Tailscale
-node yet and the router is the maintainer's route into the lab: its rebuild
-waits on [`tailscale-node-role.md`](tailscale-node-role.md), whose last
-stage proves the tagged join against the tailnet policy that already carries
-the router's tag. The other four
+resolves through. `tailscale` is last because the router is the maintainer's
+route into the lab. The other four
 hosts are reached through the router and do not join the tailnet, so their
 rebuilds do not touch it. Each host keeps its current vCPU and memory, and its disk shrinks
 to what the host uses plus headroom, on `local-lvm` (NVMe) instead of the
@@ -352,8 +349,11 @@ interim Ansible management as the `network_infra` group
 Tofu-managed at its VMID in this stage, last in the host order, and the
 generated inventory then supersedes the hand-written `tailscale` entry
 rather than sitting beside it. The rebuild joins the new VM to the tailnet
-with the role [`tailscale-node-role.md`](tailscale-node-role.md) writes; until
-that role exists, nothing in the repository can rebuild the router.
+with the `tailscale_node` role under `tag:subnet-router`, which the tailnet
+policy already carries with the approval of the router's route, and a
+single-use key made in the console for the run
+([`network-infra.md`](../topics/infra/network-infra.md#tailscale-node-configuration)).
+The old device is removed in the console afterwards.
 
 The live VM takes `192.168.20.2` from a reservation on the current gateway.
 The rebuilt VM carries that address itself, as a static address from
@@ -381,6 +381,7 @@ holds the state and a plan against it shows no change.
 - [ ] Every Ubuntu VM is rebuilt on the real VMID ranges by Tofu.
 - [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
 - [ ] The old Ubuntu VMs are decommissioned.
+- [ ] The rebuilt `tailscale` VM carries its tag, has its route approved without the console and has no key expiry.
 - [ ] `storage` stayed up throughout.
 - [ ] Every rebuilt host was backed up on demand before its old VM was dumped, and the OpenBao snapshot was taken and restored on the rebuilt `security`.
 - [ ] Every rebuilt host's restores are in the fire drill's results.

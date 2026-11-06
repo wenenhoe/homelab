@@ -77,7 +77,7 @@ needs an auth key created out of band, and a rebuilt node is a new device.
 decides that the key is single-use, tagged and supplied at run time, and
 that the tag and the route's auto-approval are entries in the policy, which
 already holds both ([Tailnet policy](#tailnet-policy)). The role itself is
-[`tailscale-node-role.md`](../../projects/tailscale-node-role.md).
+described under [Tailscale node configuration](#tailscale-node-configuration).
 
 ## Tailscale node configuration
 

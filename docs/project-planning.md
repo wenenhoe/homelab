@@ -57,7 +57,6 @@ calls for a project, while a working one still has to be settled.
 | [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
-| [`tailscale-node-role.md`](projects/tailscale-node-role.md) | — | Building | Write the Ansible role that installs, joins and configures a Tailscale node, prove it against the live subnet router with no change, and hand the rebuild of VM 202 a tagged join. |
 | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building | Build the isolated 5XX block and run the first restore.yaml against it, then rebuild the Ubuntu VMs on the real VMID ranges, cut over, decommission the old ones, and move Tofu's state to a remote backend. |
 | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
@@ -97,8 +96,7 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tailnet-policy` | `node` | — | [`tailscale-node-role.md`](projects/tailscale-node-role.md) | — | Building |
-| | `policy` | `2-in-tofu` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [ADR-0059/0](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
+| `tailnet-policy` | `policy` | `2-in-tofu` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [ADR-0059/0](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
 | `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
 | | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |

@@ -127,7 +127,9 @@ hold stops the run before anything is discovered, as does a selection that leave
 nothing. The summary names the hosts in scope before the single `yes`.
 `--check` is the read-only pre-flight: it lists each selected app's newest backup
 on every source with its age, downloads and restores nothing, and exits non-zero
-when an app has no source within `--max-age-hours` (30 by default). `step-ca`
+when an app has no source within `--max-age-hours` (30 by default). It also
+warns, without failing, about a source whose modification time of the newest
+archive is more than an hour from the instant the archive's name stamps. `step-ca`
 gates the rest of the batch only when the run covers it.
 
 Run this on the controller only — same machine/trust requirement as
@@ -142,7 +144,8 @@ What it does, in order:
 1. Renders a controller-local manifest + a read-only `rclone.conf`
    (`ansible/roles/restore_discovery`, via
    `playbooks/restore-discovery-setup.yaml`) — app → host → volumes →
-   cloud fallback target(s), the same `app_catalog`/`host_vars`
+   cloud fallback target(s) → the host's `server_timezone`, in which its archive
+   names are stamped, so an archive's age is read correctly — the same `app_catalog`/`host_vars`
    resolution `cloud_sync` already does for its own upload side, so the
    two can't drift apart. The rclone identities are the SeaweedFS
    `cloud-sync-reader` identity and the six cloud **read**-leaf

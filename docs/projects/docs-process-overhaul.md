@@ -18,6 +18,9 @@ allowed_paths:
   - tools/doc_scripts/**
   - tools/tests/doc_scripts/**
   - .pre-commit-config.yaml
+  - .github/workflows/pr-checks.yml
+  - docs/topics/engineering/pre-commit.md
+  - docs/topics/engineering/ci/pipeline.md
 ---
 
 # Docs process overhaul

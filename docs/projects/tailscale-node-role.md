@@ -25,7 +25,7 @@ Nothing in the repository configures a Tailscale node, so the rebuild of VM 202 
 
 ## Scope
 
-The `tailscale_node` role and the play that applies it to the `network_infra` group, its Molecule scenario, the host variable that lists the routes a node advertises, and the topic doc's description of the result. Not in scope: the tailnet's policy ([`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) writes the router's tag, `tagOwners` and `autoApprovers`; [`tailnet-policy-in-tofu.md`](tailnet-policy-in-tofu.md) moves the policy into Tofu), the rebuild of VM 202 itself ([`tofu-migration.md`](tofu-migration.md)), and the GCP node ([`off-site-monitoring.md`](off-site-monitoring.md)).
+The `tailscale_node` role and the play that applies it to the `network_infra` group, its Molecule scenario, the host variable that lists the routes a node advertises, and the topic doc's description of the result. Not in scope: the tailnet's policy (it already holds the router's tag, `tagOwners` and `autoApprovers`; [`tailnet-policy-in-tofu.md`](tailnet-policy-in-tofu.md) moves the policy into Tofu), the rebuild of VM 202 itself ([`tofu-migration.md`](tofu-migration.md)), and the GCP node ([`off-site-monitoring.md`](off-site-monitoring.md)).
 
 ## Decision
 
@@ -39,7 +39,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike `tailscale set` on a logged-in scratch node | Done | On a scratch node joined with a one-time key, `tailscale set` changes the advertised routes, the DNS setting and auto-update with no key, the values survive a restart of `tailscaled` and of the VM, and the result is folded into ADR 0097's Context so the revision can be `approved` |
 | 2 | Write the role and show it matches the live router | Done | The role's Molecule scenario passes with its idempotence check, and the role run against the existing VM 202 reports two changes under `--check`, the replacement of the vendor's one-line apt source and the client's auto-update turned off, and no change on the run after a real one |
-| 3 | Prove the tagged join | Not started | After the baseline's saved policy carries the router's tag, a scratch node joined by the role with a one-time tagged key has its route approved without the console, reports no key expiry, and a second run reports no change |
+| 3 | Prove the tagged join | Not started | With the saved policy carrying the router's tag, a scratch node joined by the role with a one-time tagged key has its route approved without the console, reports no key expiry, and a second run reports no change |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -53,7 +53,7 @@ The role's variables are the preferences read off the router: the advertised rou
 
 ### Stage 3 — the join
 
-The stage waits on the baseline's Stage 2, which adds the tag and its entries. It does not wait on the policy moving into Tofu.
+The saved policy already holds the tag and its entries. The stage does not wait on the policy moving into Tofu.
 
 ## Acceptance criteria
 
@@ -75,7 +75,7 @@ The stage waits on the baseline's Stage 2, which adds the tag and its entries. I
 
 - VM 202 is the route into the lab away from home, so a real run against it is made from inside the network, with the Proxmox console as the way back.
 - The join cannot be run in Molecule, so Stage 3 is the only test of it, and a flaw in it shows during the rebuild if Stage 3 is skipped.
-- The policy changes hands before this project's Stage 3 and again later. The router's tag and its entries are carried over unchanged, and a route added by hand in between has to be in the saved policy the Tofu template is checked against.
+- The policy moves into Tofu after this project's Stage 3. The router's tag and its entries are carried over unchanged, and a route added by hand in between has to be in the saved policy the Tofu template is checked against.
 
 ## Open items
 

@@ -67,21 +67,16 @@ of this repo's DNS — whether that makes `sos-inventory.yaml` coverage
 redundant or still worth having for netplan-reset specifically is an
 open question, not a settled "no."
 
-Per-node Tailscale ACL tags: none found (`tailscale status --self
---json`'s `Self` has no `Tags` key). The tailnet-wide ACL policy itself
-— what any node, tagged or not, is actually allowed to reach — is the
-default allow-all grant (ADR 0058's Context), held only in the
-Tailscale admin console; see
-[ADR 0059 (Tailnet policy)](../../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)
-for where it goes from here.
+The node carries no tag (`tailscale status --self --json`'s `Self` has
+no `Tags` key). What any node is allowed to reach is the tailnet's policy,
+described in [Tailnet policy](#tailnet-policy).
 
 Re-authenticating this node after a rebuild ([`tofu-migration.md`](../../projects/tofu-migration.md))
 needs an auth key created out of band, and a rebuilt node is a new device.
 [ADR 0097 (Tailscale node configuration)](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)
 decides that the key is single-use, tagged and supplied at run time, and
 that the tag and the route's auto-approval are entries in the policy, which
-[`tailnet-policy-baseline.md`](../../projects/tailnet-policy-baseline.md)
-writes before the join. The role itself is
+already holds both ([Tailnet policy](#tailnet-policy)). The role itself is
 [`tailscale-node-role.md`](../../projects/tailscale-node-role.md).
 
 ## Tailscale node configuration
@@ -130,37 +125,60 @@ source and turns the client's auto-update off.
 
 **Adding a route.** Add the CIDR, in the canonical form the node reports it in,
 to `tailscale_node_advertise_routes` in `inventory/host_vars/tailscale.yaml`,
-and add its grant to the tailnet policy. The next run calls `tailscale set`.
+after [its grant and auto-approval](#adding-a-grant-for-a-route) are saved in
+the tailnet policy. The next run calls `tailscale set`.
 
-## Tailnet inventory
+## Tailnet policy
 
-What the tailnet holds and what is reached over it. It was found by reading the admin console's policy, machines and DNS pages and the router's `tailscale status`, and the flows are the ones the lab's docs record, confirmed by the maintainer. Devices are described by role, never by name or address.
+The policy is edited by hand in the Tailscale admin console and is coded into OpenTofu later ([ADR 0059 (Tailnet policy)](../../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)). It holds explicit grants only: nothing is allowed that no grant names. The saved policy is described here by role, never by device name or address, and its email and tailnet addresses are kept out of the repository.
 
-**Devices.** Every device belongs to the maintainer's one user and carries no tag. No other user's device is on the tailnet.
+**Devices.** Every device belongs to the maintainer's one user. No other user's device is on the tailnet.
 
-| Role | Disposition | Key expiry |
+| Role | Tag | Key expiry |
 | :--- | :--- | :--- |
-| Subnet router (VM 202) | Kept | None today. Joined tagged after a rebuild, so none |
-| Proxmox node | Kept. Joined by hand, untagged, no approved route | Off, since an expired key drops the way to the hypervisor when the router VM is broken |
-| Maintainer laptop | Kept | The domain's default |
-| Maintainer phone and tablet | Kept. Backup clients for when the laptop is out of reach, with the laptop's access | The domain's default |
-| Retired Windows desktop | Remove. Not connected for months | |
-| Retired Linux desktop VM | Remove. Not connected for months | |
+| Subnet router (VM 202) | None until it is rebuilt; then `tag:subnet-router` | None |
+| Proxmox node, joined by hand, no approved route | None | Off, since an expired key drops the way to the hypervisor when the router VM is broken |
+| Maintainer laptop | None | The domain's default |
+| Maintainer phone and tablet, backup clients for when the laptop is out of reach, with the laptop's access | None | The domain's default |
 
-**DNS.** MagicDNS is on. The global nameserver is a public resolver and needs no grant. Split DNS lists the gateway for `host_domain` and for `lan_domain`. The gateway sits inside the route the router advertises, so a client resolves those names only if the policy grants it port 53 there. The gateway forwards to both DNS servers of [ADR 0040](../../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md), and the secondary is not listed beside it: the router's own path to the Internet runs through the gateway, so a second entry would keep no name resolving that the tailnet could still reach.
+**Policy sections.**
 
-**Other policy sections.** The default policy carries a Tailscale SSH rule (members to their own devices, in check mode) and a Funnel attribute for members. No flow below uses either, and [ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) leaves both out, so neither is kept. The policy has no groups, tags, auto-approvers or tests yet.
+- `hosts` names the laptop, phone, tablet, Proxmox node and router by their tailnet addresses, so a grant and a test read by role. Re-adding a device gives it a new address, which is then updated here.
+- `tagOwners` lets the maintainer apply `tag:subnet-router`, and `autoApprovers` approves `192.168.20.0/24` for a node carrying it. No node carries the tag yet; the router's rebuild joins under it.
+- `grants` are the flows below. The router and the Proxmox node are sources of nothing.
+- `tests` assert every grant and every refusal below. The console refuses a save that fails one.
+- There is no `ssh` section and no Funnel attribute, since nothing uses Tailscale SSH or Funnel ([ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) leaves both out).
+
+**DNS.** MagicDNS is on. The global nameserver is a public resolver and needs no grant. Split DNS lists the gateway for `host_domain` and for `lan_domain`. The gateway sits inside the route the router advertises, so a client resolves those names only through the grant on port 53 below. The gateway forwards to both DNS servers of [ADR 0040](../../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md), and the secondary is not listed beside it: the router's own path to the Internet runs through the gateway, so a second entry would keep no name resolving that the tailnet could still reach.
 
 **Flows.** The laptop, phone and tablet are the only sources.
 
-| To | Port | Why | Found by |
-| :--- | :--- | :--- | :--- |
-| VLAN 20 hosts, not the gateway or the router | tcp 22 | SSH to the hosts away from home | The hosts' flow list in [`operator-host.md`](../../projects/operator-host.md), confirmed by the maintainer |
-| VLAN 20 hosts, not the gateway or the router | tcp 443 | The apps behind Caddy | Maintainer |
-| The gateway's address | tcp and udp 53 | Split-DNS lookups | The console's DNS page |
-| The Proxmox node | tcp 8006 and 22 | Its web interface and a shell when the router VM is broken | [ADR 0097](../../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md), confirmed by the maintainer |
+| To | Port | Why |
+| :--- | :--- | :--- |
+| VLAN 20 hosts, not the gateway or the router | tcp 22 | SSH to the hosts away from home |
+| VLAN 20 hosts, not the gateway or the router | tcp 443 | The apps behind Caddy |
+| The gateway's address | tcp and udp 53 | Split-DNS lookups |
+| The Proxmox node | tcp 8006 and 22 | Its web interface and a shell when the router VM is broken |
 
-No source reaches the router's own address, since the host is managed from the operator host through the gateway and not over the tailnet, and none reaches the gateway's management ports. A remote Minecraft player is not a flow: the only player is a VM behind the same gateway as `play`.
+A grant takes a CIDR and no exclusion, so "VLAN 20 hosts, not the gateway or the router" is the subnet split into the CIDRs that cover `.3` to `.255`. No source reaches the router's own address, since the host is managed from the operator host through the gateway and not over the tailnet, and none reaches the gateway's management ports. A remote Minecraft player is not a flow: the only player is a VM behind the same gateway as `play`.
+
+### Changing the policy
+
+The maintainer edits it in the console, and no one else has a way to.
+
+1. Copy the current policy somewhere outside the repository first.
+2. Make the edit and read the console's preview before saving. The policy is tailnet-wide, so an edit that tightens access can lock out access in use. "Reset to default" in the console restores the allow-all grant.
+3. After the save, check from the laptop a flow the edit should allow and one it should refuse.
+
+### Adding a grant for a route
+
+A new route, for a zone the router will reach, needs three entries in the policy before the router advertises it:
+
+1. A grant whose `src` is the intended device or devices alone and whose `dst` is the route's CIDR, limited to the ports in use.
+2. `tests` that accept each port in use at one address of the range and refuse the others, and that refuse every other source. A test cannot take a CIDR, so each address is listed.
+3. An `autoApprovers.routes` entry keyed by the CIDR with `tag:subnet-router`, so the router's advertisement is approved without the console.
+
+Save the policy first, then add the CIDR to the router's `tailscale_node_advertise_routes`. The grant is what makes the route reachable, and only to the sources it names.
 
 ## Bringing a new `network_infra` host under management
 

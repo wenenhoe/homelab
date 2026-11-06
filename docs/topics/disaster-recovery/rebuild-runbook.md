@@ -115,6 +115,9 @@ lifecycle would read as young.
 | `no_failed_units` | A systemd unit failed |
 | `containers_are_running_and_healthy` | A container exited, restarts, is unhealthy or is still starting |
 
+A host of the `network_infra` group has no Docker, so it skips
+`containers_resolve_the_hosts_name` and `containers_are_running_and_healthy`;
+`tailscale` adds `ip_forwarding_is_on` (IPv4 and IPv6 forwarding are both 1).
 `security` has four more: `openbao_is_unsealed`, `step_ca_is_healthy`,
 `tinyauth_reaches_ldap` (no LDAP error lines in tinyauth's last ten minutes) and
 `r2_read_watcher_is_running`. A host's address is what the lab's DNS says for its

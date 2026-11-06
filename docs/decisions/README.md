@@ -205,6 +205,45 @@ number still passes: the name is for the reader. Adding or correcting the
 name in a link's text is editorial, so an agent may do it in an `approved`
 or `accepted` revision.
 
+## Compacting accepted records
+
+An `accepted` revision cannot be edited, so the decision corpus only grows
+unless records are made smaller on purpose. These operations are the
+maintainer's, never an agent's working a project, and a pull request that
+makes one says which it is.
+[`suggest_adr_consolidation.py`](../../tools/doc_scripts/suggest_adr_consolidation.py)
+lists candidates and changes nothing, and with `--report` also prints the
+quarterly report: explorations that have stood still, `working` revisions
+untouched for a long time, and whether too many projects are active.
+
+- **Condense.** Shorten an `accepted` or `superseded` revision in place if
+  what it decided is unchanged. Its title, its one-line `solution`, and its
+  Problem, Decision, Invariants, Non-goals and Reconsideration triggers
+  sections are frozen; Context narration, Consequences and Validation may be
+  cut. [`check_accepted_records.py`](../../tools/doc_scripts/check_accepted_records.py)
+  compares those parts with the base branch and fails a pull request that
+  changes one. A link target, a moved-file note or a short name in a link's
+  text is not a change. A typo or a fact that was wrong at the time inside a
+  frozen section is an editorial fix: a commit of the pull request carries an
+  `Editorial-Fix: <path>` trailer naming the file.
+- **Merge.** Records that are one problem become one new lineage, with a new
+  number. It carries every Decision point, Invariant, Non-goal and trigger of
+  each source, lists their numbers in `former_ids`, and takes over their
+  inbound links and `related:` entries in the same change, since a link to a
+  deleted record fails the drift check and `former_ids` redirects nothing. The
+  source directories are deleted, the NIST mapping that cites a superseded
+  source is re-checked as for any supersession, and the options that lost move
+  into the new record's Alternatives. It is `accepted` from the start only if
+  every source was and no Decision point changed; any change of decision is an
+  ordinary revision first.
+- **Demote.** A record that is an implementation detail moves to a topic doc
+  or the conventions first. Then it is deleted with its inbound links
+  rewritten, and its number is listed with where it went in
+  [`removed.md`](removed.md).
+
+Nothing is renumbered: a number identifies a problem for good, and git holds
+what a deleted record said.
+
 ## Partial supersession
 
 When a later solution replaces only part of an earlier revision's scope,

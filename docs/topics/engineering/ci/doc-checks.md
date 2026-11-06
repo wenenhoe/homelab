@@ -274,6 +274,48 @@ The generator also warns, without failing, when more than
 `ACTIVE_PROJECT_LIMIT` projects (`generate_doc_indexes.py`) are `building` or
 `de-risking` at once.
 
+## Accepted records check
+
+[`tools/doc_scripts/check_accepted_records.py`](../../../../tools/doc_scripts/check_accepted_records.py) holds the rules for
+compacting accepted decisions in
+[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md),
+described for the maintainer in
+[`docs/decisions/README.md#compacting-accepted-records`](../../../decisions/README.md#compacting-accepted-records).
+It enforces two rules:
+
+- **Frozen sections.** A revision that was `accepted` or `superseded` on the
+  base keeps its `title`, its `solution`, and its Problem, Decision,
+  Invariants, Non-goals and Reconsideration triggers sections. Link targets,
+  moved-file notes and short names in link text are ignored, and whitespace is
+  collapsed, so the editorial edits the decisions README allows are not
+  changes. A commit of the pull request with an `Editorial-Fix: <path>` trailer
+  excuses that file.
+- **Removed lineages.** A lineage that held an `accepted` or `superseded`
+  revision on the base and is gone afterwards must be a `former_ids` entry of
+  a lineage that remains, or be listed in
+  [`removed.md`](../../../decisions/removed.md). The drift check also fails a
+  number listed there that a lineage holds, or that is a former id too.
+
+It runs in the same two places as the other project-checks: the
+`project-checks` job over the pull request, which fails on both rules, and the
+`check-accepted-records` hook on the index, which reports a changed frozen
+section as a warning only (the trailer that excuses it is written with the
+commit message, after the hook runs) and still fails on a lineage that leaves
+unaccounted for. It reads the docs as they stand after the change for the
+removal rule, and a doc that does not parse fails the check.
+
+## Consolidation suggestions
+
+[`tools/doc_scripts/suggest_adr_consolidation.py`](../../../../tools/doc_scripts/suggest_adr_consolidation.py)
+runs nowhere in CI and changes nothing. It lists decisions that read like
+implementation detail (an accepted Decision that names many files), lineages
+whose title, summary and Problem share many words, and clusters of three or
+more lineages of one topic that all list one another in `related:`. With
+`--report` it adds the quarterly report: explorations that have stood still,
+`working` revisions untouched for a long time, and whether too many projects
+are active. The limits are constants at the top of the script. What a hit means
+is the maintainer's call.
+
 ## Moved-file check
 
 [`tools/doc_scripts/check_moved_files.py`](../../../../tools/doc_scripts/check_moved_files.py), a local pre-commit hook like the

@@ -27,6 +27,7 @@ from pathlib import Path
 from doc_scripts.doc_explorations import last_commit_date, load_explorations, stale_warnings
 from doc_scripts.doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
+from doc_scripts.doc_removed import LEDGER
 
 # Project status -> display text for the regenerated table.
 STATUS_DISPLAY = {
@@ -454,7 +455,8 @@ def validate_adrs(root: Path = ROOT) -> None:
     number, which would otherwise be indexed side by side.
     """
     for path in docs_in(root / "docs/decisions"):
-        read_frontmatter(path)
+        if path.name != LEDGER:
+            read_frontmatter(path)
     errors = duplicate_lineage_errors(load_lineages(root), root)
     if errors:
         raise SystemExit("\n".join([*errors, "Renumber the lineage a patch series adds with `python3 -m doc_scripts.renumber_adr_patches`."]))

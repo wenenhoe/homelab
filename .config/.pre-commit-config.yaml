@@ -244,3 +244,17 @@ repos:
         additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true
+      - id: check-accepted-records
+        name: check-accepted-records
+        description: >-
+          A commit that shortens an accepted decision revision leaves what it
+          decided unchanged, and a lineage that held one leaves the tree only on
+          the record - see tools/doc_scripts/check_accepted_records.py. Looks only
+          at what is staged and reports a changed section as a warning, since the
+          trailer that excuses an editorial fix is written after the hook runs;
+          the project-checks job judges the whole PR.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_accepted_records --staged' --
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        pass_filenames: false
+        always_run: true

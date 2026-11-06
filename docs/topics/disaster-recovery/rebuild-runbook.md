@@ -132,7 +132,7 @@ zone answers some of the lab's queries while the other looks fine.
 
 | Check | What it catches |
 | :--- | :--- |
-| `zones_have_one_serial` | The host zone or the lan zone has a different SOA serial on the two servers, or a server does not answer or holds no such zone |
+| `zones_have_one_serial` | The host zone or the lan zone has a different SOA serial on the two servers, or a server does not answer or holds no such zone. A pass prints each zone's serial, so a run before a rebuild and one after can be compared |
 | `resolves_alike: <name>` | The two servers give different addresses for a host's name; for a host Tofu built, both give another address than the generated inventory's |
 
 With no host named it covers every host in `managed_hosts` and `network_infra`,
@@ -152,7 +152,13 @@ agreement only.
   are copied across, with [`bucket_copy.py`](#copying-the-bucket), before the old
   one is destroyed
   ([Moving `storage`](../../projects/tofu-migration.md#moving-storage)).
-- **`services`**, **`tailscale`**: not rebuilt yet. Their plan is in
+- **`services`** follows the cycle. It is the DNS primary, so run
+  `python3 -m rebuild_check.dns` before the host is destroyed and again after
+  its deploy: the serial of each zone is printed, and after the rebuild it is
+  higher than before and equal on both servers. Its only backed-up apps are
+  `kms` and `wastebin`, and `dashy` is rebuilt by the deploy
+  ([Moving `services`](../../projects/tofu-migration.md#moving-services)).
+- **`tailscale`**: not rebuilt yet. Its plan is in
   [`tofu-migration.md`](../../projects/tofu-migration.md#stage-2--cutover), and a
   topic here would describe what has not been done.
 

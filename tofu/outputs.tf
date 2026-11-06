@@ -6,6 +6,7 @@ output "ansible_hosts" {
     play     = module.play.inventory_entry
     security = module.security.inventory_entry
     storage  = module.storage.inventory_entry
+    services = module.services.inventory_entry
   }
 }
 

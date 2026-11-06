@@ -37,7 +37,7 @@ def healthy() -> dict[tuple[str, str, str], tuple[int, str]]:
         answers[(server, HOST_ZONE, "SOA")] = (0, soa(7))
         answers[(server, LAN_ZONE, "SOA")] = (0, soa(9))
         answers[(server, f"storage.{HOST_ZONE}", "A")] = (0, "192.168.20.6\n")
-        answers[(server, f"s3.store.{LAN_ZONE}", "A")] = (0, f"storage.{HOST_ZONE}.\n192.168.20.6\n")
+        answers[(server, f"s3.store.{LAN_ZONE}", "A")] = (0, f"storage.{HOST_ZONE}.\n")
     return answers
 
 
@@ -46,8 +46,10 @@ def by_name(checks):
 
 
 class TestSerials:
-    def test_equal_serials_pass(self):
-        assert dns.zones_have_one_serial(dig_from(healthy()), PLAN).ok
+    def test_equal_serials_pass_and_are_printed_for_each_zone(self):
+        result = dns.zones_have_one_serial(dig_from(healthy()), PLAN)
+        assert result.ok
+        assert result.detail.endswith(f": {HOST_ZONE} 7, {LAN_ZONE} 9")
 
     def test_a_secondary_behind_fails_and_says_which_zone_and_how(self):
         answers = healthy()
@@ -92,6 +94,36 @@ class TestNames:
     def test_a_name_with_no_expected_address_needs_only_agreement_and_follows_a_cname(self):
         result = dns.name_resolves_alike(dig_from(healthy()), PLAN, f"s3.store.{LAN_ZONE}")
         assert (result.ok, result.detail) == (True, "192.168.20.6")
+
+    def test_a_cname_answered_with_its_target_in_the_same_reply_is_not_asked_again(self):
+        answers = healthy()
+        for server in (PRIMARY, SECONDARY):
+            answers[(server, f"s3.store.{LAN_ZONE}", "A")] = (0, f"storage.{HOST_ZONE}.\n192.168.20.6\n")
+            del answers[(server, f"storage.{HOST_ZONE}", "A")]
+        result = dns.name_resolves_alike(dig_from(answers), PLAN, f"s3.store.{LAN_ZONE}")
+        assert (result.ok, result.detail) == (True, "192.168.20.6")
+
+    def test_a_chain_of_cnames_is_followed_to_its_address(self):
+        answers = healthy()
+        for server in (PRIMARY, SECONDARY):
+            answers[(server, f"s3.store.{LAN_ZONE}", "A")] = (0, f"alias.{HOST_ZONE}.\n")
+            answers[(server, f"alias.{HOST_ZONE}", "A")] = (0, f"storage.{HOST_ZONE}.\n")
+        result = dns.name_resolves_alike(dig_from(answers), PLAN, f"s3.store.{LAN_ZONE}")
+        assert (result.ok, result.detail) == (True, "192.168.20.6")
+
+    def test_a_cname_whose_target_has_no_address_fails(self):
+        answers = healthy()
+        answers[(SECONDARY, f"storage.{HOST_ZONE}", "A")] = (0, "")
+        result = dns.name_resolves_alike(dig_from(answers), PLAN, f"s3.store.{LAN_ZONE}")
+        assert (result.ok, f"{SECONDARY} has no address for s3.store.{LAN_ZONE}" in result.detail) == (False, True)
+
+    def test_a_cname_loop_fails_instead_of_asking_forever(self):
+        answers = healthy()
+        for server in (PRIMARY, SECONDARY):
+            answers[(server, f"s3.store.{LAN_ZONE}", "A")] = (0, f"a.{LAN_ZONE}.\n")
+            answers[(server, f"a.{LAN_ZONE}", "A")] = (0, f"s3.store.{LAN_ZONE}.\n")
+        result = dns.name_resolves_alike(dig_from(answers), PLAN, f"s3.store.{LAN_ZONE}")
+        assert (result.ok, f"{PRIMARY} has no address for s3.store.{LAN_ZONE}" in result.detail) == (False, True)
 
     def test_a_server_that_answers_nothing_for_the_name_fails(self):
         answers = healthy()

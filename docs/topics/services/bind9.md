@@ -18,9 +18,8 @@ host, `<inventory host name>.<host_domain>.`, set once in
 of `lan_domain`. It holds one `A` record for each host the lab runs, from
 two sources.
 
-A host the inventory addresses by name has a static record: the four app
-hosts and `tailscale` until Tofu rebuilds them, the Proxmox node `pve` and
-the gateway `opnsense`. They are the `extra_records` of a zone declared in
+A host the inventory addresses by name has a static record: `tailscale`
+until Tofu rebuilds it, the Proxmox node `pve` and the gateway `opnsense`. They are the `extra_records` of a zone declared in
 `host_vars/services.yaml`, like any other zone. Each address repeats the
 host's reservation on the gateway, so a reservation that changes there
 needs the same change in that file.

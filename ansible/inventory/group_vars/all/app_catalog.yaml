@@ -78,6 +78,10 @@ app_catalog:
         upstream: "cobalt:9000"
         auth: false   # public API endpoint: clients call it directly with no browser session, so Tinyauth cannot gate it
 
+  # Not backed up: the data volume holds the conf.yml rendered from
+  # conf.yaml.j2 and Dashy's cache, and a deploy to an empty volume recreates
+  # both. Change the dashboard in the template: an edit made in the UI is lost
+  # with the volume.
   dashy:
     volumes:
       - name: data

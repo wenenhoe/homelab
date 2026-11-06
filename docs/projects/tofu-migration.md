@@ -298,6 +298,33 @@ VM, the new one is VMID 206 at `192.168.20.6`, and the edits listed above go bac
   Tofu's state does not keep a VM that is gone. The gateway's forward to
   `192.168.20.7` goes with it.
 
+#### Moving `services`
+
+`services` takes the cycle as written, with three differences from the hosts
+before it.
+
+- **It is the DNS primary.** While VM 203 is gone nothing renders a zone, and
+  `storage` answers from the copy it holds
+  ([`bind9.md`](../topics/services/bind9.md#losing-a-server)). Run
+  `cd tools && python3 -m rebuild_check.dns` before the cycle's step 2 and keep
+  its output: a pass prints the SOA serial of the host zone and of the lan
+  zone, and the two servers must agree before the primary is destroyed. Run it
+  again after the deploy. The new primary renders its serials from the clock,
+  so each must be higher than the one before and equal on both servers. A
+  secondary ignores a transfer from a primary with a lower serial, and the check
+  then fails and names both.
+- **Its name is generated.** The change that declares the VM deletes the static
+  `services` record from `host_vars/services.yaml`, since the `bind9` role
+  refuses a host named both ways. The generated record has the same address,
+  `192.168.20.3`. The `ns1` record in that zone is written by hand, repeats the
+  address and stays.
+- **Its apps.** `kms` and `wastebin` have a `backup` and are restored in step 5
+  from the rebuilt `storage`, the first restore that reads from it, so
+  their row in the fire drill's results is also the first check that an archive
+  comes back from that host. Every other app of the host is rebuilt by the
+  deploy, including `dashy`, whose data volume
+  [is not backed up](../../ansible/inventory/group_vars/all/app_catalog.yaml).
+
 #### Dump storage
 
 `backup` is `lvmthin`, which holds VM disks and not dump files, and the

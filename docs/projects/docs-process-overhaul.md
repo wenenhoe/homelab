@@ -60,7 +60,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Explorations | Done | `docs/explorations/` has a README and template, a check enforces the frontmatter and one-way references, the planning view lists open explorations with their age, and `AGENTS.md` and `docs/README.md` route a change to the right kind of doc. |
 | 2 | Light decisions | Done | A revision may carry `weight: light`, a template exists, and the check holds a light revision to its sections and length. |
-| 3 | Project rules | In progress | The lifecycle table, the close check, the limit on active projects, the removal of `track` and `phase`, and the trimmed template are in place, each with tests and a control that fails without it. |
+| 3 | Project rules | Done | The lifecycle table, the close check, the limit on active projects, the removal of `track` and `phase`, and the trimmed template are in place, each with tests and a control that fails without it. |
 | 4 | Compaction tools | Not started | The frozen-section check, the ledger of removed numbers with its check, the merge rules in the decisions README, the candidate script and the quarterly report exist, with tests. |
 | 5 | Accept the decision | Not started | The corpus project is open, ADR 0037 revision 4 is `accepted`, and this doc is deleted by its closing checklist. |
 

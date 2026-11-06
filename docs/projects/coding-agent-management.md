@@ -7,7 +7,6 @@ blocked: false
 summary: Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else.
 decision: ADR-0054/0
 super_project: coding-agent-host
-track: lifecycle
 depends_on:
   - project: PROJ-cd-agent
     reason: The management job and its separate execution identity run on the CD agent, which does not exist yet

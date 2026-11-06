@@ -7,7 +7,6 @@ blocked: false
 summary: A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs.
 decision: ADR-0044/0-c
 super_project: pull-based-cd
-track: agent
 ---
 
 # CD Agent Host

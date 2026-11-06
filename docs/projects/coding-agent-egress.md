@@ -7,7 +7,6 @@ blocked: false
 summary: A filtering egress proxy for the coding-agent zone and VLAN 30, and canary probes that check the whole boundary from outside the host.
 decision: ADR-0053/0
 super_project: coding-agent-host
-track: egress
 depends_on:
   - project: PROJ-coding-agent-network
     reason: the proxy sits in a zone that already exists, and its design is settled by that project's spikes

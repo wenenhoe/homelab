@@ -8,8 +8,6 @@ blocked_reason: no production credential goes to the GCP host until its hardenin
 summary: Relocate monitoring to a GCP e2-micro so it survives loss of the whole site.
 decision: ADR-0049/0
 super_project: off-site-monitoring
-track: monitoring
-phase: 2-off-site
 depends_on:
   - project: PROJ-gcp-e2-micro-provisioning
     reason: the e2-micro and its provisioning identity must exist before a role or route can target it

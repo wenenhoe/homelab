@@ -23,9 +23,8 @@ projects that wait on that one, directly or through a chain of
 urgency.
 
 **Super Projects** groups every project that belongs to one
-(`super_project:` is set) by build order — tracks by their earliest
-project in the dependency chain, then phases by slug, then projects by
-dependency depth, per
+(`super_project:` is set) by build order — projects by dependency depth,
+then by file name, per
 [`projects/README.md`'s Hierarchy section](projects/README.md#hierarchy).
 A repeated initiative name is blanked after its first row so the table
 reads as one block per initiative.
@@ -77,35 +76,35 @@ calls for a project, while a working one still has to be settled.
 
 ## Super Projects
 
-| Initiative | Track | Phase | Project | Unblocks | Status |
-| :--- | :--- | :--- | :--- | ---: | :--- |
-| `backup-archive-protection` | `authenticity` | — | [`backup-archive-signing.md`](projects/backup-archive-signing.md) | — | Not started — waiting on [ADR-0079/0](decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) |
-| | `retention-lock` | — | [`backup-archive-retention-lock.md`](projects/backup-archive-retention-lock.md) | — | Not started — waiting on [ADR-0081/0](decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) |
-| `coding-agent-host` | `boundary` | `1-network` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking |
-| | `boundary` | `2-host` | [`coding-agent-host.md`](projects/coding-agent-host.md) | 4 | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| | `egress` | — | [`coding-agent-egress.md`](projects/coding-agent-egress.md) | — | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| | `lifecycle` | — | [`coding-agent-management.md`](projects/coding-agent-management.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| `compose-stack-files` | `docker-api` | — | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready |
-| | `mounts` | `1-restart` | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready |
-| | `mounts` | `2-bind-mounts` | [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) |
-| | `role-stacks` | — | [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) |
-| `controller-separation` | `operator` | — | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking |
-| | `operator` | — | [`operator-host-takeover.md`](projects/operator-host-takeover.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
-| | `workstation` | — | [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready |
-| `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building |
-| | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking |
-| | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building |
-| | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
-| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
-| | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tailnet-policy` | `policy` | `2-in-tofu` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [ADR-0059/0](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
-| `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building |
-| | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
-| | `proxmox` | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
-| | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
+| Initiative | Project | Unblocks | Status |
+| :--- | :--- | ---: | :--- |
+| `backup-archive-protection` | [`backup-archive-retention-lock.md`](projects/backup-archive-retention-lock.md) | — | Not started — waiting on [ADR-0081/0](decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) |
+| | [`backup-archive-signing.md`](projects/backup-archive-signing.md) | — | Not started — waiting on [ADR-0079/0](decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) |
+| `coding-agent-host` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking |
+| | [`coding-agent-egress.md`](projects/coding-agent-egress.md) | — | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
+| | [`coding-agent-host.md`](projects/coding-agent-host.md) | 4 | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
+| | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
+| | [`coding-agent-management.md`](projects/coding-agent-management.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
+| | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
+| `compose-stack-files` | [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) |
+| | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready |
+| | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready |
+| | [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) |
+| `controller-separation` | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking |
+| | [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready |
+| | [`operator-host-takeover.md`](projects/operator-host-takeover.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
+| `off-site-monitoring` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking |
+| | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building |
+| | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
+| `pull-based-cd` | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
+| | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building |
+| | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
+| | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
+| `tailnet-policy` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started — waiting on [ADR-0059/0](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
+| `tofu-vm-provisioning` | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building |
+| | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
+| | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building |
+| | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
 
 ## Projects
 

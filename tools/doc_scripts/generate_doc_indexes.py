@@ -233,23 +233,14 @@ def _dependency_depths(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]
 
 
 def render_initiatives_table(root: Path = ROOT) -> str:
-    """Rows are grouped by initiative, then by track in build order (a track sorts by
-    its earliest project in the dependency chain, then by name), then by phase slug,
-    then by dependency depth, then by filename."""
+    """Rows are grouped by initiative, then ordered by dependency depth, then by filename."""
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
     decision_paths = _decision_paths(root)
     depths = _dependency_depths(projects)
     unblocks = _unblocks(projects)
-    entries = [
-        (fm["super_project"], fm.get("track", ""), fm.get("phase", ""), depths[pid], path.name, fm)
-        for pid, (path, fm) in projects.items()
-        if "super_project" in fm
-    ]
-    earliest: dict[tuple[str, str], int] = {}
-    for initiative, track, _, depth, _, _ in entries:
-        earliest[(initiative, track)] = min(earliest.get((initiative, track), depth), depth)
-    labelled = sorted(entries, key=lambda e: (e[0], earliest[(e[0], e[1])], e[1], e[2], e[3], e[4]))
+    entries = [(fm["super_project"], depths[pid], path.name, fm) for pid, (path, fm) in projects.items() if "super_project" in fm]
+    labelled = sorted(entries, key=lambda e: (e[0], e[1], e[2]))
     if not labelled:
         return "No project is grouped into an initiative."
     counts: dict[str, int] = {}
@@ -259,25 +250,21 @@ def render_initiatives_table(root: Path = ROOT) -> str:
         if n == 1:
             print(f"warning: super_project '{initiative}' is used by one project only — a typo, or not yet an initiative", file=sys.stderr)
     # Renders into docs/project-planning.md, one level above docs/projects/ — every link needs that prefix.
-    # Initiative repeats down a run of rows since the sort above already
-    # groups them contiguously; blank it on every row after the first of
-    # a run so the table reads as one block per initiative instead of
-    # repeating the label. Track is left printed every row — see the
-    # Track/Phase columns' own grouping instead. A blank cell renders as
-    # a single space between its pipes ("| |"), not the two spaces a
-    # populated cell's padding would otherwise leave — MD060's compact
-    # table style (.config/.markdownlint.yaml) flags the latter.
+    # The sort above already groups an initiative's rows; blank its label on every row after the
+    # first of a run so the table reads as one block per initiative. A blank cell renders as a
+    # single space between its pipes ("| |"), not the two spaces a populated cell's padding
+    # would otherwise leave — MD060's compact table style (.config/.markdownlint.yaml) flags the latter.
     rows = []
     prev_initiative: str | None = None
-    for initiative, track, phase, _, name, fm in labelled:
+    for initiative, _, name, fm in labelled:
         initiative_cell = f" `{initiative}` " if initiative != prev_initiative else " "
         prev_initiative = initiative
         rows.append(
-            f"|{initiative_cell}| {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`](projects/{name}) "
+            f"|{initiative_cell}| [`{name}`](projects/{name}) "
             f"| {_unblocks_cell(unblocks[fm['id']])} "
             f"| {_status_cell(fm, projects, decisions, decision_paths, project_prefix='projects/', decision_prefix='decisions/')} |"
         )
-    header = "| Initiative | Track | Phase | Project | Unblocks | Status |\n| :--- | :--- | :--- | :--- | ---: | :--- |"
+    header = "| Initiative | Project | Unblocks | Status |\n| :--- | :--- | ---: | :--- |"
     return "\n".join([header, *rows])
 
 

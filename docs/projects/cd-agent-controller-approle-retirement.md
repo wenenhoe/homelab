@@ -7,7 +7,6 @@ blocked: false
 summary: Delete controller's AppRole; admin access mints short-lived tokens on demand.
 decision: ADR-0047/0
 super_project: pull-based-cd
-track: credentials
 depends_on:
   - project: PROJ-cd-agent
     reason: the AppRole is retired only once the agent host runs the jobs

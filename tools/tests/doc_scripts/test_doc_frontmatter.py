@@ -254,22 +254,15 @@ class TestProjectValidation:
         with pytest.raises(SystemExit):
             fm_mod.read_frontmatter(project(root, "b", depends_on=value))
 
-    def test_track_and_phase_need_their_parent_label(self, root):
-        ok = project(root, "ok", super_project="cd", track="security", phase="bootstrap")
-        assert fm_mod.read_frontmatter(ok)["phase"] == "bootstrap"
+    def test_super_project_must_be_a_slug(self, root):
+        assert fm_mod.read_frontmatter(project(root, "ok", super_project="cd"))["super_project"] == "cd"
+        with pytest.raises(SystemExit, match="super_project"):
+            fm_mod.read_frontmatter(project(root, "bad", super_project="Not A Slug"))
 
-    @pytest.mark.parametrize(
-        "overrides",
-        [
-            pytest.param({"track": "security"}, id="track without super_project"),
-            pytest.param({"super_project": "cd", "phase": "bootstrap"}, id="phase without track"),
-            pytest.param({"super_project": "cd", "track": "Security Track"}, id="track isn't a slug"),
-            pytest.param({"super_project": "cd", "track": "t", "phase": 1}, id="phase isn't a slug"),
-        ],
-    )
-    def test_a_track_or_phase_without_its_parent_label_is_rejected(self, root, overrides):
-        with pytest.raises(SystemExit):
-            fm_mod.read_frontmatter(project(root, "b", **overrides))
+    @pytest.mark.parametrize("field", ["track", "phase"])
+    def test_track_and_phase_are_no_longer_fields(self, root, field):
+        with pytest.raises(SystemExit, match=f"'{field}' is no longer a field"):
+            fm_mod.read_frontmatter(project(root, "b", super_project="cd", **{field: "x"}))
 
     def test_allowed_paths_shape(self, root):
         ok = project(root, "ok", allowed_paths=["src/**", "tools/doc_scripts/doc_*.py", "README.md"])

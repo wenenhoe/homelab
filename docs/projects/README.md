@@ -24,25 +24,20 @@ gates it.
 - **Super-project** — a large initiative that needs several projects. A
   label (`super_project:`), not a document; see
   [Super Projects](../project-planning.md#super-projects).
-- **Track** — an independent stream of work within a super-project
-  (`track:`).
-- **Phase** — an ordered grouping within a track (`phase:`).
 - **Project** — the smallest independently manageable and closable unit;
   one doc.
 - **Stage** — a sequential build step inside one project. Numbering is
   local to that doc.
 
-A `track` needs a `super_project`, and a `phase` needs a `track`. No
-level is required; don't add one for naming's sake. Decompose a broad
+No level is required; don't add one for naming's sake. Decompose a broad
 initiative top-down, or add a `super_project` label once existing
 projects turn out to be coupled — both are fine.
 
-The generated [Super Projects](../project-planning.md#super-projects) view reads in build order:
-tracks by their earliest project in the dependency chain, then phases by
-slug, then projects by dependency depth. Where an order isn't a
-dependency (two stages that merely go one after the other), make them
-phases of one track and number the slugs (`1-…`, `2-…`); the view can't
-infer it.
+The generated [Super Projects](../project-planning.md#super-projects) view
+groups an initiative's projects and reads them by dependency depth, then by
+file name. An order that is not a dependency is not recorded: if one project
+cannot start until another is done, declare it; if it merely goes first, say
+so in the stage prose.
 
 Hierarchy says where work belongs; dependency says what must finish
 first. Declare `depends_on` (`project:` and `reason:`) only when work

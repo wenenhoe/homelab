@@ -7,9 +7,7 @@ blocked: false              # true only for an impediment that isn't another pro
 # blocked_reason: "<the current impediment>"
 summary: "<one line; feeds the generated index>"
 # decision: ADR-NNNN/N      # the one revision this implements (its label: 0, or 0-b); omit if no ADR is needed
-# super_project: <slug>     # optional grouping; a track needs it, a phase needs a track
-# track: <slug>
-# phase: <slug>
+# super_project: <slug>     # optional grouping of projects into an initiative
 # allowed_paths:          # optional; the globs this work may change (see README.md#choosing-the-scope)
 #   - path/to/thing/**
 # depends_on:

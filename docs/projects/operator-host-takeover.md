@@ -7,7 +7,6 @@ blocked: false
 summary: The egress allowlist for VLAN 30, then the controller's toolchain and credentials moved onto the operator host.
 decision: ADR-0058/0
 super_project: controller-separation
-track: operator
 depends_on:
   - project: PROJ-operator-host
     reason: the host, its rules and its role have to exist before the controller can move onto it

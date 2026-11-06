@@ -23,7 +23,7 @@ The backup and restore mechanics are in [`backup.md`](backup.md) and
 | 9 | Deploy | `deploy.yaml --limit <host>,localhost`; `security` first needs [the bootstrap](../secrets/openbao-backup-restore.md#rebuilding-security) | yes |
 | 10 | Restore the host's apps | `python3 ansible/scripts/restore_all.py --host <host>` (`--skip step-ca` on `security`) | yes |
 | 11 | Set the host's new Beszel agent fingerprint in the hub | [`beszel.md`](../monitoring/beszel.md#rebuilding-a-host) | no |
-| 12 | Check the host | `cd tools && python3 -m rebuild_check.host <host>` | yes |
+| 12 | Check the host, then that both DNS servers agree on it | `cd tools && python3 -m rebuild_check.host <host>`; `python3 -m rebuild_check.dns <host>` | yes |
 | 13 | Record the restore in the fire drill, then delete the dump and `fstrim` the pool | [`fire-drill.md`](fire-drill.md#results); [`retire_vm.sh`](#on-the-node) `drop-dump` | partly |
 
 Steps 1 to 5 change nothing on the host being rebuilt, so run them first and stop
@@ -87,6 +87,20 @@ Add a check for what only another host runs to `HOST_CHECKS` in
 
 `containers_resolve_the_hosts_name` is the one `docker ps` cannot stand in for:
 tinyauth and lldap were both healthy while tinyauth could not reach lldap.
+
+**DNS (`rebuild_check.dns`).** Asks `services` (primary) and `storage`
+(secondary) directly with `dig`, from the machine it runs on, and changes
+nothing. The gateway forwards to both, so a server that came back with an older
+zone answers some of the lab's queries while the other looks fine.
+
+| Check | What it catches |
+| :--- | :--- |
+| `zones_have_one_serial` | The host zone or the lan zone has a different SOA serial on the two servers, or a server does not answer or holds no such zone |
+| `resolves_alike: <name>` | The two servers give different addresses for a host's name; for a host Tofu built, both give another address than the generated inventory's |
+
+With no host named it covers every host in `managed_hosts` and `network_infra`,
+and `s3.store` in the lan zone, which has no expected address and is checked for
+agreement only.
 
 ## Per host
 

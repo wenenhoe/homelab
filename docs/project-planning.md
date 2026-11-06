@@ -1,6 +1,6 @@
 # Project Planning
 
-Four generated, cross-cutting views; none is a rules doc. For what a
+Five generated, cross-cutting views; none is a rules doc. For what a
 project is and its lifecycle, see [`projects/README.md`](projects/README.md);
 for what an ADR is and its revision states, see
 [`decisions/README.md`](decisions/README.md).
@@ -35,6 +35,10 @@ of the view above, in the same shape as
 [`projects/README.md`'s own Index](projects/README.md#index), filtered
 down to the ones not part of any initiative.
 
+**Open explorations** lists every question in
+[`explorations/`](explorations/README.md) with the date it last changed, oldest
+first, so one that has stood still is the first row.
+
 **Decisions awaiting a project** lists every ADR lineage with an open
 (`working`/`approved`) revision that appears in no project's
 `decision:` or `also_implements:` — see
@@ -54,6 +58,7 @@ calls for a project, while a working one still has to be settled.
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
 | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
+| [`docs-process-overhaul.md`](projects/docs-process-overhaul.md) | — | Building | Add the explorations tier and the light decision weight, make projects follow approved decisions, and give accepted records a way to be condensed, merged and demoted, as ADR 0037 revision 4 decides. |
 | [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
@@ -65,7 +70,6 @@ calls for a project, while a working one still has to be settled.
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
-| [`docs-process-overhaul.md`](projects/docs-process-overhaul.md) | — | Not started — ready | Add the explorations tier and the light decision weight, make projects follow approved decisions, and give accepted records a way to be condensed, merged and demoted, as ADR 0037 revision 4 decides. |
 | [`integration-records.md`](projects/integration-records.md) | — | Not started — ready | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
 | [`molecule-container-hardening.md`](projects/molecule-container-hardening.md) | — | Not started — ready | Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
@@ -108,7 +112,7 @@ calls for a project, while a working one still has to be settled.
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
 | [`automated-pr-review.md`](projects/automated-pr-review.md) | — | Not started — waiting on [ADR-0061/1](decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md) | Review a pull request from the private repository's CI when the maintainer labels it, describe the practice here, try it against the local CodeRabbit run, and accept the decision. |
-| [`docs-process-overhaul.md`](projects/docs-process-overhaul.md) | — | Not started — ready | Add the explorations tier and the light decision weight, make projects follow approved decisions, and give accepted records a way to be condensed, merged and demoted, as ADR 0037 revision 4 decides. |
+| [`docs-process-overhaul.md`](projects/docs-process-overhaul.md) | — | Building | Add the explorations tier and the light decision weight, make projects follow approved decisions, and give accepted records a way to be condensed, merged and demoted, as ADR 0037 revision 4 decides. |
 | [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`integration-records.md`](projects/integration-records.md) | — | Not started — ready | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
@@ -119,6 +123,10 @@ calls for a project, while a working one still has to be settled.
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`tofu-plan-guard.md`](projects/tofu-plan-guard.md) | — | Not started — waiting on [ADR-0102/0](decisions/0102-knowing-what-a-tofu-change-will-do/revision-000.md) | Build the guard that checks a saved Tofu plan against a committed allow-list of destructive actions, the wrapper that applies the checked plan, and the pull request check that fails an address removed without one, then accept the decision. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
+
+## Open explorations
+
+No exploration is open.
 
 ## Decisions awaiting a project
 

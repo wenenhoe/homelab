@@ -2,7 +2,7 @@
 id: PROJ-docs-process-overhaul
 title: "Docs process overhaul"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Add the explorations tier and the light decision weight, make projects follow approved decisions, and give accepted records a way to be condensed, merged and demoted, as ADR 0037 revision 4 decides."
 decision: ADR-0037/4
@@ -58,7 +58,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Explorations | Not started | `docs/explorations/` has a README and template, a check enforces the frontmatter and one-way references, the planning view lists open explorations with their age, and `AGENTS.md` and `docs/README.md` route a change to the right kind of doc. |
+| 1 | Explorations | Done | `docs/explorations/` has a README and template, a check enforces the frontmatter and one-way references, the planning view lists open explorations with their age, and `AGENTS.md` and `docs/README.md` route a change to the right kind of doc. |
 | 2 | Light decisions | Not started | A revision may carry `weight: light`, a template exists, and the check holds a light revision to its sections and length. |
 | 3 | Project rules | Not started | The lifecycle table, the close check, the limit on active projects, the removal of `track` and `phase`, and the trimmed template are in place, each with tests and a control that fails without it. |
 | 4 | Compaction tools | Not started | The frozen-section check, the ledger of removed numbers with its check, the merge rules in the decisions README, the candidate script and the quarterly report exist, with tests. |

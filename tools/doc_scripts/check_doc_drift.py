@@ -16,6 +16,7 @@ from pathlib import Path
 
 import yaml
 
+from doc_scripts.doc_explorations import exploration_errors
 from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import heading_errors, lineage_errors, open_assumption_errors, project_errors
 
@@ -399,6 +400,7 @@ def main() -> int:
     errors.extend(heading_errors(ROOT))
     errors.extend(open_assumption_errors(ROOT))
     errors.extend(project_errors(ROOT))
+    errors.extend(exploration_errors(ROOT))
 
     if errors:
         for e in errors:

@@ -4,7 +4,7 @@ every time a project or decision lineage is added or changes status:
 
 - docs/projects/README.md: `## Index` (always).
 - docs/project-planning.md: `## Next up`, `## Super Projects`, `## Projects`,
-  and `## Decisions awaiting a project` (always).
+  `## Open explorations`, and `## Decisions awaiting a project` (always).
 - docs/decisions/README.md: `## Lineages`, grouped by topic (only if
   that heading exists).
 
@@ -21,8 +21,10 @@ from __future__ import annotations
 
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
+from doc_scripts.doc_explorations import last_commit_date, load_explorations, stale_warnings
 from doc_scripts.doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
 
@@ -428,6 +430,21 @@ def render_needs_project_table(root: Path = ROOT) -> str:
     return "\n".join([header, *rows])
 
 
+def render_explorations_table(root: Path = ROOT) -> str:
+    """Every open exploration with the date of its newest commit, oldest change first so a
+    stale one leads. The one place that links an exploration: nothing else may (see
+    doc_explorations.py). Renders into docs/project-planning.md, so links need the prefix."""
+    entries = []
+    for path, fm in load_explorations(root):
+        changed = last_commit_date(root, path)
+        entries.append((changed.isoformat() if changed else "", path.name, fm))
+    if not entries:
+        return "No exploration is open."
+    rows = [f"| [`{name}`](explorations/{name}) | {_cell(fm['title'])} | {changed or '—'} |" for changed, name, fm in sorted(entries)]
+    header = "| Exploration | Question | Last changed |\n| :--- | :--- | :--- |"
+    return "\n".join([header, *rows])
+
+
 def validate_adrs(root: Path = ROOT) -> None:
     """Lineage revisions are validated by load_lineages(). Reading any
     file sitting directly under docs/decisions/ fails: only lineage
@@ -475,7 +492,10 @@ def main() -> int:
     regenerate(ROOT / "docs/project-planning.md", "Next up", render_next_up_table())
     regenerate(ROOT / "docs/project-planning.md", "Super Projects", render_initiatives_table())
     regenerate(ROOT / "docs/project-planning.md", "Projects", render_standalone_projects_table())
+    regenerate(ROOT / "docs/project-planning.md", "Open explorations", render_explorations_table())
     regenerate(ROOT / "docs/project-planning.md", "Decisions awaiting a project", render_needs_project_table())
+    for warning in stale_warnings(ROOT, date.today()):
+        print(warning, file=sys.stderr)
     touched.append("docs/project-planning.md")
     if regenerate(ROOT / "docs/decisions/README.md", "Lineages", render_lineages_index(), optional=True):
         touched.append("docs/decisions/README.md")

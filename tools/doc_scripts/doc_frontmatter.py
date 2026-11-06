@@ -35,11 +35,14 @@ ADR_REVISION_STATUS = {"working", "approved", "accepted", "superseded", "abandon
 PROJECT_LIFECYCLE_STATUS = {"not-started", "de-risking", "building", "done"}
 
 # Kinds are decided by path: a lineage revision or a project.
+EXPLORATION_STATUS = {"open"}
+
 VALID_STATUS = {
     "adr-revision": ADR_REVISION_STATUS,
     "project": PROJECT_LIFECYCLE_STATUS,
+    "exploration": EXPLORATION_STATUS,
 }
-KIND_TYPE = {"adr-revision": "adr", "project": "project"}
+KIND_TYPE = {"adr-revision": "adr", "project": "project", "exploration": "exploration"}
 
 REVISION_PATH_RE = re.compile(r"docs/decisions/(\d{4})-[a-z0-9-]+/revision-(\d{3})(?:-([a-z]))?\.md$")
 LINEAGE_DIR_RE = re.compile(r"^\d{4}-[a-z0-9-]+$")
@@ -51,6 +54,7 @@ SHORT_NAME_MAX = 40
 REVISION_LABEL = r"(?:0|[1-9]\d*)(?:-[a-z])?"
 REVISION_REF_RE = re.compile(rf"^(ADR-\d{{4}})/({REVISION_LABEL})$")
 PROJECT_ID_RE = re.compile(r"^PROJ-[a-z0-9-]+$")
+EXPLORATION_ID_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)$")
 SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 # Patterns that match every file: an allowed_paths made of them bounds nothing.
 BLANKET_PATHS = {"*", "**", "**/*", "*/**", "./**", "./*"}
@@ -64,7 +68,9 @@ def doc_kind(path: Path) -> str:
         raise SystemExit(f"{path}: docs/decisions/ holds lineage directories (NNNN-slug/revision-NNN.md) only")
     if "docs/projects/" in posix:
         return "project"
-    raise SystemExit(f"{path}: not under docs/decisions/ or docs/projects/")
+    if "docs/explorations/" in posix:
+        return "exploration"
+    raise SystemExit(f"{path}: not under docs/decisions/, docs/projects/ or docs/explorations/")
 
 
 def _fail(path: Path, msg: str) -> None:
@@ -166,6 +172,16 @@ def _validate_project(path: Path, data: dict) -> None:
             _fail(path, f"'depends_on' entry for {dep['project']} needs a 'reason' naming the concrete prerequisite")
 
 
+def _validate_exploration(path: Path, data: dict) -> None:
+    m = EXPLORATION_ID_RE.match(str(data["id"]))
+    if not m or m.group(1) != path.stem:
+        _fail(path, f"id '{data['id']}' must be EXP- followed by the file name without .md (expected EXP-{path.stem})")
+    _require_text(path, data, "summary")
+    if data.get("topic") not in TOPICS:
+        _fail(path, f"topic '{data.get('topic')}' isn't one of {sorted(TOPICS)}")
+    _id_list(path, data, "related")
+
+
 def read_frontmatter(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
@@ -184,6 +200,8 @@ def read_frontmatter(path: Path) -> dict:
         _validate_revision(path, data)
     elif kind == "project":
         _validate_project(path, data)
+    elif kind == "exploration":
+        _validate_exploration(path, data)
     return data
 
 

@@ -8,6 +8,11 @@ Docs are grouped by artifact type, one directory each:
   duplicated — if you're about to explain the same gotcha in a second
   place, link to the first instead. A topic doc describes what is true
   on `main` at every commit, not what a project is still building.
+- **[`explorations/`](explorations/README.md)** — a question with no chosen
+  solution yet: the facts, the options and what each costs. Deleted when it
+  becomes a decision, becomes a project or is dropped; nothing durable links
+  to one, and the generated [`project-planning.md`](project-planning.md#open-explorations)
+  lists the open ones.
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
   when the reasoning isn't obvious from the code. One lineage per
   problem, one revision per solution tried for it; an `accepted`

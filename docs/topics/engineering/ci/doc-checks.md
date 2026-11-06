@@ -226,8 +226,11 @@ revision it named on the base, in `decision:` or `also_implements:`, is
 `accepted` afterwards, or another project doc that remains names it in
 either field (`also_implements:` still gates no project's status). So the
 last project to close either accepts the revision or leaves a
-`not-started` successor naming it for whatever is unfinished. A change that deletes no project doc isn't
-checked.
+`not-started` successor naming it for whatever is unfinished. A doc that
+names only `working` revisions is withdrawn rather than closed and may be
+deleted: it has built nothing, and the revision shows in
+[Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project).
+A change that deletes no project doc isn't checked.
 
 It runs in the same two places as the scope check, with the same
 merge-base diff and the same staged-changes behavior:
@@ -250,6 +253,26 @@ Two PRs that each leave the other's project in place can both pass and
 together leave a revision `approved` with no project. The generated
 [Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project)
 view lists it, so the gap is visible but not blocked.
+
+## Project start check
+
+[`tools/doc_scripts/check_project_start.py`](../../../../tools/doc_scripts/check_project_start.py) enforces the start rule in
+[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md):
+a project doc that a change adds is `not-started` only when its `decision:`
+revision is `approved`, or it names none. A project on a `working` revision
+starts as `de-risking`, limited to spikes and reading code. The rule reads
+only the docs the change adds (a rename counts as one), so a project that was
+already waiting on a `working` revision is not re-judged.
+
+It runs where the close check runs, with the same merge-base diff and the same
+staged-changes behavior: the `project-checks` job in CI, and the
+`check-project-start` hook on the index, which passes trivially under
+`--all-files`. It reads the docs as they stand after the change, and a doc that
+does not parse fails the check.
+
+The generator also warns, without failing, when more than
+`ACTIVE_PROJECT_LIMIT` projects (`generate_doc_indexes.py`) are `building` or
+`de-risking` at once.
 
 ## Moved-file check
 

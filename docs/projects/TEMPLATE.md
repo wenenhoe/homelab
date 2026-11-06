@@ -63,7 +63,7 @@ without being restated here.
 
 ## Risks
 
-Could cause rework or delay but blocks nothing now — no live
+Omit if there are none. Could cause rework or delay but blocks nothing now — no live
 vulnerability, incident, or exposure window
 ([`docs/README.md#public-repo`](../README.md#public-repo)).
 

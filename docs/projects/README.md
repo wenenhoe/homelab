@@ -56,7 +56,7 @@ dangling one.
 
 | Status | Meaning | Linked `decision:` revision must be |
 | :--- | :--- | :--- |
-| `not-started` | Nothing underway. | `working` or `approved` |
+| `not-started` | Nothing underway. | `approved` for a new project; `working` or `approved` for one already waiting |
 | `de-risking` | Resolving an open assumption — only throwaway spikes or reading code. | `working` |
 | `building` | Production implementation is authorized. | `approved` |
 | `done` | Everything implemented and merged. | `accepted`, or `approved` while another project still names it |
@@ -66,6 +66,20 @@ back to `working` stops any project `building` on it. A project without
 `decision:` isn't gated. Several projects may name one revision; it stays
 `approved` until the last of them closes (see
 [When a project finishes](#when-a-project-finishes)).
+
+A project starts on a decision that is settled. A new project is
+`not-started` only when its `decision:` revision is `approved`, or it names
+none; one whose revision is still `working` starts as `de-risking`, limited to
+spikes and reading code, or does not exist yet, and the question stays in a
+decision or an [exploration](../explorations/README.md) until it is approved.
+[`check_project_start.py`](../../tools/doc_scripts/check_project_start.py)
+fails a change that adds one otherwise; it reads only the docs the change
+adds, so a project already waiting on a `working` revision is left alone until
+that revision is approved or the project is withdrawn
+([When a project finishes](#when-a-project-finishes)). More than the limit in
+[`generate_doc_indexes.py`](../../tools/doc_scripts/generate_doc_indexes.py)
+of projects at `building` or `de-risking` at once draws a warning from the
+generator: finished work comes before new work.
 
 `blocked: true` with a `blocked_reason` is a flag, not a status: a
 current impediment that isn't another project (hardware, an external
@@ -220,6 +234,13 @@ doc rather than trimming it to a pointer or archiving it — what's left is
 either current-state fact (which belongs in a topic doc) or build
 narrative (which git and the PRs already hold). Run the checklist first;
 skipping it is how a real fact gets lost instead of promoted.
+
+A project that names only `working` revisions is withdrawn, not closed:
+delete the doc, with no checklist, since it built nothing and its stage plan
+is only a draft. The revision then shows in
+[Decisions awaiting a project](../project-planning.md#decisions-awaiting-a-project)
+until a project is opened for it again. A doc that names any other revision
+closes as described below.
 
 A revision that other projects still name in `decision:` stays
 `approved`: this project isn't the last, so it closes without touching

@@ -70,6 +70,7 @@ locales. The security series uses `S0001a`.
 - `check-moved-files` (local) — no file names a file that git history shows was renamed or removed, except the noted first mention in a decision revision; it reads the whole history and the whole tree, so it needs a full clone — see [`tools/doc_scripts/check_moved_files.py`](../../../tools/doc_scripts/check_moved_files.py)
 - `check-project-scope` (local) — a commit that works a project doc (its frontmatter or a stage status) stays inside that project's `allowed_paths`, read from `HEAD`; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_scope.py`](../../../tools/doc_scripts/check_project_scope.py)
 - `check-project-close` (local) — a commit that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project, judged on what is staged; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_close.py`](../../../tools/doc_scripts/check_project_close.py)
+- `check-project-start` (local) — a commit that adds a `not-started` project names an `approved` decision or none, judged on what is staged; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_start.py`](../../../tools/doc_scripts/check_project_start.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
 All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)

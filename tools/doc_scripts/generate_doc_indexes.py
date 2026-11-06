@@ -447,6 +447,19 @@ def render_explorations_table(root: Path = ROOT) -> str:
     return "\n".join([header, *rows])
 
 
+# More projects than this at `building` or `de-risking` at once is reported (ADR 0037 revision 4).
+ACTIVE_PROJECT_LIMIT = 8
+
+
+def active_project_warnings(root: Path = ROOT) -> list[str]:
+    active = sorted(fm["id"] for _, fm in _load_projects(root).values() if fm["status"] in ("building", "de-risking"))
+    if len(active) <= ACTIVE_PROJECT_LIMIT:
+        return []
+    return [
+        f"warning: {len(active)} projects are building or de-risking, over the limit of {ACTIVE_PROJECT_LIMIT} — finish or pause one before starting another"
+    ]
+
+
 def validate_adrs(root: Path = ROOT) -> None:
     """Lineage revisions are validated by load_lineages(). Reading any
     file sitting directly under docs/decisions/ fails: only lineage
@@ -496,7 +509,7 @@ def main() -> int:
     regenerate(ROOT / "docs/project-planning.md", "Projects", render_standalone_projects_table())
     regenerate(ROOT / "docs/project-planning.md", "Open explorations", render_explorations_table())
     regenerate(ROOT / "docs/project-planning.md", "Decisions awaiting a project", render_needs_project_table())
-    for warning in stale_warnings(ROOT, date.today()):
+    for warning in [*active_project_warnings(ROOT), *stale_warnings(ROOT, date.today())]:
         print(warning, file=sys.stderr)
     touched.append("docs/project-planning.md")
     if regenerate(ROOT / "docs/decisions/README.md", "Lineages", render_lineages_index(), optional=True):

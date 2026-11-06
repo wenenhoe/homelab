@@ -602,3 +602,23 @@ class TestSectionReplacement:
         path.write_text("# T\n\n## Lineages\n\nold\n", encoding="utf-8")
         assert gen.regenerate(path, "Lineages", "new", optional=True)
         assert path.read_text(encoding="utf-8") == "# T\n\n## Lineages\n\nnew\n"
+
+
+class TestActiveProjectWarnings:
+    def make(self, root, n, status):
+        for i in range(n):
+            project(root, f"{status}-{i}", status=status)
+
+    def test_at_the_limit_is_quiet(self, root):
+        self.make(root, gen.ACTIVE_PROJECT_LIMIT, "building")
+        assert gen.active_project_warnings(root) == []
+
+    def test_building_and_de_risking_both_count(self, root):
+        self.make(root, gen.ACTIVE_PROJECT_LIMIT - 1, "building")
+        self.make(root, 2, "de-risking")
+        [warning] = gen.active_project_warnings(root)
+        assert f"{gen.ACTIVE_PROJECT_LIMIT + 1} projects" in warning
+
+    def test_not_started_and_done_projects_do_not_count(self, root):
+        self.make(root, gen.ACTIVE_PROJECT_LIMIT + 5, "not-started")
+        assert gen.active_project_warnings(root) == []

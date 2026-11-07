@@ -49,6 +49,11 @@ old one, with the note that
 describes. [`check_moved_files.py`](../tools/doc_scripts/check_moved_files.py)
 fails on any other mention of a renamed or removed file.
 
+A doc likewise names a decision by its current number. A number merged into
+another lineage or listed in `decisions/removed.md` is retired, and
+[`check_retired_numbers.py`](../tools/doc_scripts/check_retired_numbers.py)
+fails on it in prose, a comment or the text of a link.
+
 **Every doc's source of truth is the code/config it describes, checked
 by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
 the handful of places that check mechanically (every directory's own

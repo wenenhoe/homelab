@@ -133,7 +133,7 @@ def _validate_revision(path: Path, data: dict) -> None:
     if "superseded_by" in data and data["status"] != "superseded":
         _fail(path, "'superseded_by' is only valid with status: superseded")
     if "narrows" in data and not (isinstance(data["narrows"], str) and ADR_ID_RE.match(data["narrows"])):
-        _fail(path, "'narrows' must be a single ADR id like ADR-0015")
+        _fail(path, "'narrows' must be a single ADR id: ADR- and four digits")
     _id_list(path, data, "related")
     _id_list(path, data, "former_ids")
     if "weight" in data and data["weight"] not in WEIGHTS:

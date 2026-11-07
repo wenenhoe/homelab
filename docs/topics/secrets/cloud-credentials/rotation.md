@@ -76,7 +76,7 @@ follow production's request sequence. boto3 sends a different one (no
 HEAD around the write, a v2 listing) and needs different settings per
 provider, so a key could pass a boto3 check and still fail under rclone.
 The comparison is in
-[ADR 0046 (S3 client)](../../../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md).
+[ADR 0104 (Python client libraries)](../../../decisions/0104-which-client-library-each-external-service-uses/revision-000.md).
 
 **rclone config requirements verification depends on, each confirmed
 against a real failure, not assumed:**

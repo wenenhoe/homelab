@@ -1,5 +1,5 @@
 """Backblaze B2 leaf-key create/rotate logic, via b2sdk
-(docs/decisions/0029-cloud-provider-api-client-library/revision-000.md) -
+(docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md) -
 not raw requests calls against B2's HTTP API directly.
 """
 

@@ -114,7 +114,7 @@ customer-secret-key and Apps-lookup calls (`AppClientSecretRegenerator`
 has no SDK method and stays on raw `requests` regardless). `b2sdk`
 covers B2's leaf/rotation key create/delete/list calls. The choices
 are in
-[ADR 0029 (Cloud API client library)](../../../decisions/0029-cloud-provider-api-client-library/revision-000.md).
+[ADR 0104 (Python client libraries)](../../../decisions/0104-which-client-library-each-external-service-uses/revision-000.md).
 
 `openbao_utils/audit.py`'s B2 and OCI listings use the same SDKs
 (`b2sdk`'s `list_keys`, `IdentityDomainsClient.list_customer_secret_keys`).

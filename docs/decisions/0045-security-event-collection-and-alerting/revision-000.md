@@ -177,7 +177,7 @@ wired up turn out to be narrower than that.
 This isn't a library swap like most of the drafts in this repo — it's
 a new piece of infrastructure with its own resource footprint,
 operational surface, and maintenance burden. It doesn't belong under
-[ADR 0030 (OpenBao Python client)](../0030-openbao-client-implementation-in-repo-python/revision-000.md) (that's about
+[ADR 0104 (Python client libraries)](../0104-which-client-library-each-external-service-uses/revision-000.md) (that's about
 which Python client talks to OpenBao, not what watches for suspicious
 access) or
 `ansible-collections-audit.md` (removed) (that's about existing roles' task

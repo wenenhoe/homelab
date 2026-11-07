@@ -6,7 +6,7 @@ openbao_utils/bootstrap.py prompts for, not just OpenBao's own
 role-id/secret-id; security_ssh_target()/fetch_root_cert() are plain
 "SSH to security, read step-ca's shared root cert" - nothing in either
 one touches OpenBao's API. See
-docs/decisions/0031-where-repo-tooling-lives/revision-000.md.
+docs/decisions/0105-where-repo-tooling-lives/revision-000.md.
 """
 
 from __future__ import annotations
@@ -132,7 +132,7 @@ def connect_ssh(user: str, host: str, key_path: str) -> paramiko.SSHClient:
     # transport still raises BadHostKeyException on a mismatch against
     # an already-known host regardless of this policy - fail-closed on
     # a changed key, not blanket trust. Confirmed live against a real
-    # host - see docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md.
+    # host - see docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md.
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         client.connect(host, username=user, key_filename=key_path, timeout=TIMEOUT_SECONDS)

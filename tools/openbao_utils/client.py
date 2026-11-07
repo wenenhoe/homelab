@@ -7,7 +7,7 @@ None of this is cloud-credential business, so it lives here rather than
 in cloud_credentials/secret_store.py. The generic repo-navigation and
 SSH/root-cert-fetching helpers live in tools/utils/repo.py instead:
 they aren't OpenBao-specific either. See
-docs/decisions/0031-where-repo-tooling-lives/revision-000.md.
+docs/decisions/0105-where-repo-tooling-lives/revision-000.md.
 
 r2_read_watcher.py deliberately does NOT import this: it's
 hand-installed via scp as a single file onto security's system
@@ -17,7 +17,7 @@ alongside a script whose whole point is staying one file. It keeps
 its own independent copy of the same login/read logic instead.
 
 Uses hvac for the OpenBao client - see
-docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md.
+docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md.
 """
 
 from __future__ import annotations

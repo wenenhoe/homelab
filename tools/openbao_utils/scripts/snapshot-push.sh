@@ -1,10 +1,10 @@
 #!/bin/sh
 # Save an OpenBao raft snapshot, encrypt it, and push it to R2 and B2 -
 # one process on `controller`, over the network, using the native
-# `bao` CLI (ADR 0034 - decisions/0034-operator-access-to-the-openbao-cli/revision-000.md).
+# `bao` CLI (ADR 0034 - decisions/0106-operator-access-to-the-openbao-cli/revision-000.md).
 # `bao operator raft snapshot save` is a plain client-side download
 # (confirmed live - see
-# docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md's
+# docs/decisions/0106-operator-access-to-the-openbao-cli/revision-000.md's
 # Context), so nothing runs inside the OpenBao container or on `security`.
 # rclone runs as a throwaway container (`rclone/rclone:1.75`, same pin as
 # every other rclone caller in this repo), not a native binary -

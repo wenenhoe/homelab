@@ -30,8 +30,8 @@ is left untouched. To rotate a value, see docs/topics/secrets/secrets-rotation.m
 Uses hvac for the OpenBao client and paramiko for the SSH root-cert
 fetch, via the shared primitives in tools/openbao_utils/client.py -
 this script has no SSH/paramiko code of its own left. See
-docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md and
-docs/decisions/0031-where-repo-tooling-lives/revision-000.md.
+docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md and
+docs/decisions/0105-where-repo-tooling-lives/revision-000.md.
 
 Usage:
     cd tools && python3 -m openbao_utils.bootstrap

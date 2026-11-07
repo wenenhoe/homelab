@@ -58,7 +58,7 @@ root cert; [`openbao.md`](openbao.md) covers init and unseal, the one
 place that doesn't use it. `-tls-server-name` is required:
 the leaf cert has no IP SAN, so dialing `127.0.0.1` needs the real SAN
 supplied explicitly (see
-[ADR 0034 (Operator bao CLI access)](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md#context)).
+[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md#context)).
 
 1. **Enable the KV v2 engine**, if not already present (`bao secrets
    list` shows nothing at `secret/` on a fresh Vault):

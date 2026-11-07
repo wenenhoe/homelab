@@ -13,8 +13,8 @@ frontmatter and regenerates `docs/projects/README.md`'s Index,
 `docs/project-planning.md`'s Super Projects, Projects, Decisions awaiting a
 project and Open explorations views, and `docs/decisions/README.md`'s
 Lineages index in place, validating each doc's frontmatter as it goes.
-The Unblocks counts, the Status and Blocker cells, and the
-approved-first order of the decisions table are computed from that
+The Unblocks counts, the Status and Blocker cells, the order of the
+project tables, and the approved-first order of the decisions table are computed from that
 frontmatter alone, with nothing stored for them
 ([ADR 0082 (Choosing the next project)](../../../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)). Same
 auto-fix pattern as the `ruff --fix` and `dclint-docker` hooks: a stale table

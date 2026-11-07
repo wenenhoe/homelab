@@ -8,6 +8,13 @@ summary: "Clean up the existing decisions and placeholder projects with the comp
 allowed_paths:
   - docs/**
   - SECURITY.md
+  - README.md
+  - AGENTS.md
+  - pyproject.toml
+  - .github/**
+  - ansible/**
+  - docker/**
+  - tools/**
 ---
 
 # Docs corpus compaction
@@ -34,6 +41,10 @@ Decision point cannot be told from a clean one by a check.
 - The secrets and Tofu clusters are reviewed for the same three outcomes.
 - Projects that wait on a `working` revision are withdrawn or kept as spikes,
   one at a time.
+
+A merge or demotion changes the record numbers and links that code comments,
+configuration and tests mention, so those files are in the allowed paths for
+that reference text alone; no behaviour changes in them.
 
 Not in scope: changing what any accepted decision decided. That is an ordinary
 revision first. New checks or tools: the compaction tools already exist, and a

@@ -13,8 +13,8 @@ urgency.
 **Status and Blocker**, in every table of projects, are two cells. Status is the
 lifecycle status. Blocker says what stands in the way: `blocked:` and the
 reason, `waiting on` the projects it depends on that still exist, or `waiting
-on` its decision revision when that is not yet approved; more than one are
-joined with a semicolon. `—` means nothing does, so a not-started project with
+on` its decision revision, named by its short name, when that is not yet
+approved; more than one are joined with a semicolon. `—` means nothing does, so a not-started project with
 `—` can be started. Neither cell is stored, per
 [ADR 0082 (Choosing the next project)](decisions/0082-choosing-which-project-to-take-up-next/revision-001.md).
 
@@ -28,7 +28,8 @@ reads as one block per initiative.
 **Projects** is every project with no `super_project` — the complement
 of the view above, in the same shape as
 [`projects/README.md`'s own Index](projects/README.md#index), filtered
-down to the ones not part of any initiative.
+down to the ones not part of any initiative. Both tables list building projects
+first, then de-risking, not started and done, each by file name.
 
 **Decisions awaiting a project** lists every ADR lineage with an open
 (`working`/`approved`) revision that appears in no project's

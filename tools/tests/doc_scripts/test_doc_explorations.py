@@ -117,6 +117,78 @@ class TestStale:
         assert explorations.stale_warnings(root, date(2999, 1, 1)) == []
 
 
+class TestLastChanged:
+    """An uncommitted change is dated today: the hooks that regenerate the planning view
+    run before the commit that holds the file exists."""
+
+    PATH = "docs/explorations/where-state-lives.md"
+    OLD = date(2020, 1, 2)
+
+    def repo(self, root, monkeypatch):
+        repo = GitRepo(root, generator)
+        repo.git("init", "-q", "-b", "main")
+        exploration(root)
+        monkeypatch.setenv("GIT_COMMITTER_DATE", "2020-01-02T12:00:00+0000")
+        repo.commit("add")
+        monkeypatch.delenv("GIT_COMMITTER_DATE")
+        return repo
+
+    def changed(self, root, today=date(2030, 6, 7)):
+        return explorations.last_commit_date(root, root / self.PATH, today)
+
+    def test_a_committed_file_has_its_commit_date(self, root, monkeypatch):
+        self.repo(root, monkeypatch)
+        assert self.changed(root) == self.OLD
+
+    def test_an_untracked_file_is_dated_today(self, root):
+        GitRepo(root, generator).git("init", "-q", "-b", "main")
+        exploration(root)
+        assert self.changed(root) == date(2030, 6, 7)
+
+    def test_a_staged_new_file_is_dated_today(self, root):
+        repo = GitRepo(root, generator)
+        repo.git("init", "-q", "-b", "main")
+        exploration(root)
+        repo.git("add", "-A")
+        assert self.changed(root) == date(2030, 6, 7)
+
+    @pytest.mark.parametrize("staged", [False, True], ids=["unstaged", "staged"])
+    def test_an_edit_not_committed_yet_is_dated_today(self, root, monkeypatch, staged):
+        repo = self.repo(root, monkeypatch)
+        exploration(root, summary="Reworded.")
+        if staged:
+            repo.git("add", "-A")
+        assert self.changed(root) == date(2030, 6, 7)
+
+    def test_a_file_whose_change_is_committed_is_dated_by_that_commit(self, root, monkeypatch):
+        repo = self.repo(root, monkeypatch)
+        exploration(root, summary="Reworded.")
+        repo.commit("edit")
+        assert self.changed(root) == date.today()
+
+    def test_another_files_change_does_not_date_this_one(self, root, monkeypatch):
+        self.repo(root, monkeypatch)
+        exploration(root, slug="other")
+        assert self.changed(root) == self.OLD
+
+    def test_without_git_the_date_is_unknown(self, root):
+        exploration(root)
+        assert self.changed(root) is None
+
+    def test_an_uncommitted_file_is_not_stale(self, root):
+        GitRepo(root, generator).git("init", "-q", "-b", "main")
+        exploration(root)
+        assert explorations.stale_warnings(root, date(2999, 1, 1)) == []
+
+    def test_the_planning_view_dates_a_new_file_and_sorts_it_last(self, root, monkeypatch):
+        repo = self.repo(root, monkeypatch)
+        exploration(root, slug="b-new")
+        lines = generator.render_explorations_table(root).splitlines()
+        assert lines[2].endswith("| 2020-01-02 |")
+        assert lines[3].endswith(f"| {date.today().isoformat()} |")
+        assert repo.git("status", "--porcelain").strip() == "?? docs/explorations/b-new.md"
+
+
 class TestPlanningView:
     def test_no_exploration_says_so(self, root):
         assert generator.render_explorations_table(root) == "No exploration is open."

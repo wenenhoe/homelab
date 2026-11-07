@@ -12,9 +12,12 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
+from _doc_fixtures import write_doc
 
 REPO = Path(__file__).resolve().parents[3]
 VIEWS = ("docs/projects/README.md", "docs/project-planning.md", "docs/decisions/README.md")
@@ -185,6 +188,80 @@ class TestApplypatchHooks:
         result = sandbox.am(sandbox.project_patch("alpha"))
         assert result.returncode != 0
         assert "pre-commit hook is not installed" in result.stderr
+
+
+RENDER = """import sys
+from pathlib import Path
+{before}
+from doc_scripts.generate_doc_indexes import render_explorations_table
+print(render_explorations_table(Path.cwd()))
+"""
+# What last_commit_date did before it dated an uncommitted file: ask git about commits only.
+LOG_ONLY = """import subprocess
+from datetime import date
+from doc_scripts import generate_doc_indexes
+def log_only(root, path, today=None):
+    cmd = ["git", "-C", str(root), "log", "-1", "--format=%cs", "--", str(path.relative_to(root))]
+    out = subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
+    return date.fromisoformat(out) if out else None
+generate_doc_indexes.last_commit_date = log_only
+"""
+PLANNING_PRE_COMMIT = """#!/usr/bin/env bash
+here="$(dirname "$0")"
+. "$here/stash"
+regenerate() { PYTHONPATH="@TOOLS@" "@PYTHON@" "$here/render.py" > docs/project-planning.md; }
+if [ "$1" = run ] && [ "$2" = generate-doc-indexes ]; then
+  with_unstaged_stashed regenerate
+fi
+"""
+
+
+class TestPlanningViewDates:
+    """The planning view dates an exploration by the commit that adds it, and the hooks
+    regenerate it before that commit exists. Real `git am`, real hooks, the real generator."""
+
+    def planning(self, sandbox: Sandbox, log_only: bool = False) -> None:
+        render = RENDER.format(before=LOG_ONLY if log_only else "")
+        (sandbox.bin / "render.py").write_text(render)
+        (sandbox.bin / "pre-commit").write_text(PLANNING_PRE_COMMIT.replace("@TOOLS@", str(REPO / "tools")).replace("@PYTHON@", sys.executable))
+        (sandbox.hooks / "pre-commit").write_text("#!/usr/bin/env bash\nexit 0\n")
+        sandbox.install("pre-applypatch", "post-applypatch")
+
+    def exploration_patch(self, sandbox: Sandbox, slug: str) -> Path:
+        git(sandbox.repo, "checkout", "-q", "-b", slug, sandbox.base)
+        fm = {"id": f"EXP-{slug}", "title": "Which one?", "type": "exploration", "status": "open", "summary": "Weighing.", "topic": "deployment-platform"}
+        write_doc(sandbox.repo, f"docs/explorations/{slug}.md", fm)
+        git(sandbox.repo, "add", "-A")
+        git(sandbox.repo, "commit", "-q", "--no-verify", "-m", f"docs: open {slug}")
+        out = git(sandbox.repo, "format-patch", "-1", "-o", str(sandbox.patches)).stdout.strip()
+        git(sandbox.repo, "checkout", "-q", "main")
+        return Path(out)
+
+    def regenerated(self, sandbox: Sandbox) -> str:
+        """What CI regenerates from the committed tree."""
+        script = sandbox.bin / "render_now.py"
+        script.write_text(RENDER.format(before=""))
+        env = {**os.environ, "PYTHONPATH": str(REPO / "tools")}
+        return subprocess.run([sys.executable, str(script)], cwd=sandbox.repo, check=True, capture_output=True, text=True, env=env).stdout
+
+    def test_the_view_committed_by_git_am_dates_a_new_exploration_and_matches_what_ci_regenerates(self, sandbox: Sandbox) -> None:
+        self.planning(sandbox)
+        patch = self.exploration_patch(sandbox, "spike")
+        before = date.today()
+        result = sandbox.am(patch)
+        after = date.today()
+        assert result.returncode == 0, result.stderr
+        view = sandbox.committed("docs/project-planning.md")
+        assert view.splitlines()[-1] in {f"| [`spike.md`](explorations/spike.md) | Which one? | {d.isoformat()} |" for d in (before, after)}
+        assert view.rstrip("\n") == self.regenerated(sandbox).rstrip("\n")
+
+    def test_control_asking_git_about_commits_only_leaves_a_dash_that_ci_then_changes(self, sandbox: Sandbox) -> None:
+        self.planning(sandbox, log_only=True)
+        result = sandbox.am(self.exploration_patch(sandbox, "spike"))
+        assert result.returncode == 0, result.stderr
+        view = sandbox.committed("docs/project-planning.md")
+        assert view.splitlines()[-1] == "| [`spike.md`](explorations/spike.md) | Which one? | \u2014 |"
+        assert view.rstrip("\n") != self.regenerated(sandbox).rstrip("\n")
 
 
 def test_views_named_by_the_hooks_exist_in_the_repo() -> None:

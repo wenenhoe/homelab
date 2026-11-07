@@ -339,6 +339,39 @@ caught by the next one and no scheduled sweep is needed. That needs history:
 `pre-commit-checks` fetches it (`fetch-depth: 0`), and in a shallow clone
 the check says so and passes, so a local `--depth` clone is not blocked.
 
+## Retired-number check
+
+[`tools/doc_scripts/check_retired_numbers.py`](../../../../tools/doc_scripts/check_retired_numbers.py), a local pre-commit hook like the
+drift check, so CI runs it in `pre-commit-checks`. A decision number is
+retired when its lineage was merged into another (it is that lineage's
+`former_ids`) or demoted or dropped (it is listed in
+[`removed.md`](../../../decisions/removed.md)). Nothing redirects it, and the
+drift check reads link targets and `related:` entries, not text, so a stale
+number written as text passed it. This reads every tracked or new text file,
+code, workflows and config included, and fails on:
+
+- `ADR NNNN` or `ADR-NNNN` for a retired number, and each number of a list or
+  range after `ADRs` (`ADRs NNNN, NNNN and NNNN`, `ADRs NNNN through NNNN`);
+- a link whose visible number is retired, bare (`[NNNN](...)`) or with a name,
+  whatever it points to.
+
+The error gives the line and the number to use, or says the record was
+demoted or dropped. A bare number with no `ADR` before it is not read.
+
+Left out: `removed.md`, a `former_ids` field, the `Formerly ADR-...` the
+generated indexes print, the hyphenated id inside a markdown fence (a schema
+example uses arbitrary ids), and `tools/tests/doc_scripts/`, whose fixtures
+use arbitrary numbers.
+
+A reference inside a frozen section of an `accepted` or `superseded` revision
+(see the [accepted records check](#accepted-records-check)) is fixed like any
+other, but the commit that fixes it carries an `Editorial-Fix: <path>` trailer
+or the `project-checks` job fails the pull request. The error says so. The
+hook cannot tell that the trailer is there, and does not need to: it fails
+until the number is fixed.
+
+It reads the working tree only, so it works in a shallow clone.
+
 ## Mermaid render check
 
 [`tools/doc_scripts/check_mermaid.py`](../../../../tools/doc_scripts/check_mermaid.py) renders

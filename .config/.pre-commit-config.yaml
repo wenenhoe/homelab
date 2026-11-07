@@ -219,6 +219,17 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
+      - id: check-retired-numbers
+        name: check-retired-numbers
+        description: >-
+          No tracked file names a decision number that was merged into another
+          lineage or listed in removed.md, as prose, a comment or the text of a
+          link - see tools/doc_scripts/check_retired_numbers.py. Needs no history.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_retired_numbers' --
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        pass_filenames: false
+        always_run: true
       - id: check-project-close
         name: check-project-close
         description: >-

@@ -241,6 +241,24 @@ untouched for a long time, and whether too many projects are active.
   rewritten, and its number is listed with where it went in
   [`removed.md`](removed.md).
 
+### Records the report lists that stay separate
+
+The report is advisory, and these pairs and clusters are read and kept apart.
+Re-read one when a record in it changes status.
+
+| Records | Why they stay separate |
+| :--- | :--- |
+| ADR 0001 and 0002; 0001 and 0057 | The first two have the same shape but decide different things, host configuration through Ansible and proxy configuration through a checked-in Caddyfile, and each is a reason on its own. 0057 is abandoned. |
+| ADR 0053, 0055, 0056 | Network reach of the coding-agent host, the maintainer's access to it, and the credentials the workstation holds are three boundaries with different owners. 0053 is `working`; 0055 and 0056 are `approved` and cannot merge into an accepted lineage. |
+| ADR 0056 and 0058 | The credentials the workstation holds, and where operator work runs. 0058 is `working`. |
+| ADR 0044, 0050, 0058 | How prod automation is triggered, how agent-written changes reach it, and where operator work runs are separate problems that cite one another. None is accepted. |
+| ADR 0065 and 0068 | Where an app's definition merges with host intent, and where backup settings meet shared defaults. Each has its own resolver and its own invariants. |
+| ADR 0107 and 0108 | Whether a pinned artifact is the publisher's, and which image a deploy runs and from where. The second states provenance as a non-goal and relies on the first. |
+| ADR 0096 and 0108 | Hook pinning is `working` and has open assumptions. Re-read it once accepted. |
+| ADR 0018 and 0023 | Unsealing OpenBao after a restart, and how credential code stores its output. 0018 is `working`. |
+| ADR 0023, 0109, 0110 | Storage and rotation cadence, expiry, and the R2 admin token. They share a topic and link one another, but each states a different choice with its own triggers. |
+| ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. 0080 is `working`. |
+
 Nothing is renumbered: a number identifies a problem for good, and git holds
 what a deleted record said.
 

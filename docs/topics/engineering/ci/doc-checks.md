@@ -382,9 +382,7 @@ runs nowhere in CI and changes nothing. It lists decisions that read like
 implementation detail (an accepted Decision that names many files), lineages
 whose title, summary and Problem share many words, and clusters of three or
 more lineages of one topic that all list one another in `related:`. With
-`--report` it adds the quarterly report: explorations that have stood still,
-`working` revisions untouched for a long time, and whether too many projects
-are active. The limits are constants at the top of the script. What a hit means
+`--report` it adds whether too many projects are active. The limits are constants at the top of the script. What a hit means
 is the maintainer's call.
 
 A pair or cluster the maintainer has read and kept apart is recorded in the

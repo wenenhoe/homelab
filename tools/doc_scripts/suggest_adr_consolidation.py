@@ -29,11 +29,9 @@ import argparse
 import re
 import sys
 from dataclasses import dataclass
-from datetime import date
 from itertools import combinations
 from pathlib import Path
 
-from doc_scripts.doc_explorations import last_commit_date, stale_warnings
 from doc_scripts.doc_frontmatter import ROOT, Lineage, load_lineages
 from doc_scripts.doc_frozen import split
 from doc_scripts.generate_doc_indexes import active_project_warnings
@@ -43,8 +41,6 @@ FILE_REFERENCE_LIMIT = 8
 # Two records whose title, summary and Problem share at least this fraction of their words are reported as similar.
 # Older records have no Problem section, so the title and summary carry them.
 SIMILARITY_LIMIT = 0.19
-# A `working` revision untouched for this many days is reported in the quarterly report.
-WORKING_STALE_DAYS = 90
 
 DECISIONS_README = "docs/decisions/README.md"
 KEPT_HEADING = "Records the report lists that stay separate"
@@ -177,17 +173,7 @@ def tight_clusters(lineages: list[Lineage]) -> list[list[str]]:
     return clusters
 
 
-def aging_working(root: Path, lineages: list[Lineage], today: date) -> list[str]:
-    found = []
-    for lineage in lineages:
-        for rev in lineage.revisions:
-            changed = last_commit_date(root, rev.path)
-            if rev.status == "working" and changed is not None and (today - changed).days > WORKING_STALE_DAYS:
-                found.append(f"{lineage.id} revision {rev.label}: working, unchanged for {(today - changed).days} days")
-    return found
-
-
-def render(root: Path, report: bool, today: date) -> str:
+def render(root: Path, report: bool) -> str:
     lineages = load_lineages(root)
     current = {lineage.id: record_status(lineage) for lineage in lineages}
     kept, unread = kept_separate(root)
@@ -209,11 +195,7 @@ def render(root: Path, report: bool, today: date) -> str:
     out += ["", "## Kept apart, to read again (a record changed status or is gone)"]
     out += again + [f"- {line}" for line in unread] or ["- none"]
     if report:
-        out += ["", "# Quarterly report", "", "## Explorations that have stood still"]
-        out += [f"- {w.removeprefix('warning: ')}" for w in stale_warnings(root, today)] or ["- none"]
-        out += ["", "## Working revisions untouched for a long time"]
-        out += [f"- {line}" for line in aging_working(root, lineages, today)] or ["- none"]
-        out += ["", "## Active projects"]
+        out += ["", "# Quarterly report", "", "## Active projects"]
         out += [f"- {w.removeprefix('warning: ')}" for w in active_project_warnings(root)] or ["- within the limit"]
         out += ["", 'Approved revisions that no project names are listed in the planning view\'s "Decisions awaiting a project".']
     return "\n".join(out) + "\n"
@@ -224,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--report", action="store_true", help="also print the quarterly report")
     ap.add_argument("--root", type=Path, default=ROOT, help="repository root (tests point this at a temp repo)")
     args = ap.parse_args(argv)
-    print(render(args.root, args.report, date.today()), end="")
+    print(render(args.root, args.report), end="")
     return 0
 
 

@@ -62,11 +62,7 @@ calls for a project, while a working one still has to be settled.
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
 | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building | Move Tofu's state off the dev VM into a remote backend, so Tofu's record of what it built no longer depends on one VM. |
-| [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
-| [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
-| [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | De-risking | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
-| [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
 | [`integration-records.md`](projects/integration-records.md) | — | Not started — ready | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
@@ -80,7 +76,7 @@ calls for a project, while a working one still has to be settled.
 | :--- | :--- | ---: | :--- |
 | `backup-archive-protection` | [`backup-archive-retention-lock.md`](projects/backup-archive-retention-lock.md) | — | Not started — waiting on [ADR-0081/0](decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) |
 | | [`backup-archive-signing.md`](projects/backup-archive-signing.md) | — | Not started — waiting on [ADR-0079/0](decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) |
-| `coding-agent-host` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking |
+| `coding-agent-host` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | Not started — waiting on [ADR-0053/0](decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md) |
 | | [`coding-agent-egress.md`](projects/coding-agent-egress.md) | — | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
 | | [`coding-agent-host.md`](projects/coding-agent-host.md) | 4 | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
 | | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
@@ -93,9 +89,9 @@ calls for a project, while a working one still has to be settled.
 | `controller-separation` | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking |
 | | [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready |
 | | [`operator-host-takeover.md`](projects/operator-host-takeover.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
-| `off-site-monitoring` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking |
+| `off-site-monitoring` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | Not started — waiting on [ADR-0073/0](decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) |
 | | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building |
-| | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
+| | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | Not started — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
 | `pull-based-cd` | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building |
 | | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
@@ -118,8 +114,8 @@ calls for a project, while a working one still has to be settled.
 | [`kms-image.md`](projects/kms-image.md) | — | Not started — waiting on [ADR-0091/0](decisions/0091-where-the-activation-hosts-image-comes-from/revision-000.md) | Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app. |
 | [`licence-check.md`](projects/licence-check.md) | — | Not started — waiting on [ADR-0090/0](decisions/0090-licences-of-adopted-software/revision-000.md) | A registry of every pinned dependency's licence, a check when a pin changes, and a weekly check of each upstream's default-branch licence file, as ADR 0090 decides. |
 | [`molecule-container-hardening.md`](projects/molecule-container-hardening.md) | — | Not started — ready | Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them. |
-| [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | De-risking | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
-| [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
+| [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | Not started — waiting on [ADR-0094/0](decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md) | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
+| [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | Not started — waiting on [ADR-0018/1](decisions/0018-unsealing-the-secrets-store-after-restart/revision-001.md) | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`tofu-plan-guard.md`](projects/tofu-plan-guard.md) | — | Not started — waiting on [ADR-0102/0](decisions/0102-knowing-what-a-tofu-change-will-do/revision-000.md) | Build the guard that checks a saved Tofu plan against a committed allow-list of destructive actions, the wrapper that applies the checked plan, and the pull request check that fails an address removed without one, then accept the decision. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
 

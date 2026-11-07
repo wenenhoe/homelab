@@ -2,7 +2,7 @@
 id: PROJ-openbao-auto-unseal
 title: "OpenBao Auto-Unseal"
 type: project
-status: de-risking
+status: not-started
 blocked: false
 summary: Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again.
 decision: ADR-0018/1
@@ -27,7 +27,7 @@ Not in scope: a multi-node cluster, an HSM, and the snapshot path of
 ## Decision
 
 Implements [ADR 0018 revision 1 (Secrets store unsealing)](../decisions/0018-unsealing-the-secrets-store-after-restart/revision-001.md),
-still `working`, so this project is `de-risking` and only throwaway spikes
+still `working`, so this project is `not-started` until its first spike begins and then `de-risking` and only throwaway spikes
 are allowed until its assumptions are resolved.
 
 ## Execution plan

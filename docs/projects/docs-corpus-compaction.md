@@ -66,7 +66,7 @@ Update at the start and end of each PR that works a stage.
 | 2 | Implementation-detail records | Done | The OpenBao client, tooling-layout and CLI-access records are merged into three lineages that carry every decision of their sources, their numbers are former ids, and no link into a removed number remains. |
 | 3 | Supply-chain family | Done | The accepted records on pinned-artifact trust are two lineages, provenance and image pinning with registry choice, that carry every Decision point, Invariant, Non-goal and trigger of their sources, list their numbers in `former_ids`, and have taken over their inbound links. The hooks-pinning record stays apart while it is `working`; re-run `suggest_adr_consolidation` once it is accepted. |
 | 4 | Secrets and Tofu clusters | Done | Each cluster has been read, and every record in it is kept, condensed, merged or demoted. Merged: the expiry and OCI creation records, the R2 rotation-credential and admin-token records, and the recovery and snapshot-path records. Kept, each holding a separate choice: the path layout, catalog and ensure-module records, the host rebuild record, the re-init record, the Tofu credentials and DNS records, and the secret-storage root record. Approved and `working` records stay as they are until they are accepted. |
-| 5 | Placeholder projects | Not started | Each project that waits on a `working` revision is withdrawn or kept as a spike, and the number of active projects is at or under the limit the planning view warns on. |
+| 5 | Placeholder projects | Done | Each project that waits on a `working` revision is withdrawn or kept as a spike. Five whose spikes have not begun are `not-started`, waiting on their revision, and none is withdrawn because most are the only project naming theirs. The operator-host project stays `de-risking`, since its first stage is done. Eight projects are building and one is de-risking, so the planning view warns at nine until this project closes. |
 
 Stage status is `Not started`, `In progress`, or `Done`. A stage is one pull
 request per cluster, so a long run lands between clusters.
@@ -104,8 +104,8 @@ for a cluster and stops for review; it never merges the cluster itself.
 
 ## Open items
 
-- Which of the projects that wait on a `working` revision are withdrawn and
-  which stay as spikes.
+- Which kept pairs `suggest_adr_consolidation` still lists need a note saying why,
+  before this project closes.
 
 ## Closing checklist
 

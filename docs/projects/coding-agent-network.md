@@ -2,7 +2,7 @@
 id: PROJ-coding-agent-network
 title: Coding-Agent Network Zone
 type: project
-status: de-risking
+status: not-started
 blocked: false
 summary: A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions.
 decision: ADR-0053/0
@@ -21,7 +21,7 @@ The VLAN and subnet, OPNsense interface and rules, the resolver for the zone, an
 
 ## Decision
 
-Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), `working`, so this project is `de-risking` until its three assumptions are resolved. [`coding-agent-egress.md`](coding-agent-egress.md) names the same revision; it closes last and accepts it.
+Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), `working`, so this project is `not-started` until its first spike begins and then `de-risking` until its three assumptions are resolved. [`coding-agent-egress.md`](coding-agent-egress.md) names the same revision; it closes last and accepts it.
 
 ## Execution plan
 

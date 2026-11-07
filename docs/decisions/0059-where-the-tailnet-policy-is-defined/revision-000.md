@@ -50,7 +50,7 @@ Coding it now, rather than after the first hand-edit, has four costs:
   decides for Tofu's own credentials.
 - **Expiry.** Tailscale recommends an OAuth or federated credential for
   this because it is tied to the tailnet rather than a user and does
-  not expire on its own. ADR 0015's principle is that every credential
+  not expire on its own. ADR 0109's principle is that every credential
   expires and something notices; a standing OAuth credential either
   needs an exception or a rotation scheme layered on top.
 - **Lockout.** Tofu applying this policy would run from the operator
@@ -81,7 +81,7 @@ and device IPs are supplied at apply time the way `main-domain` is.
 
 - **Code it before Tofu has a skeleton.** Needs the state backend and
   the credentials file ADR 0048 decides to exist first, and stands up a
-  standing OAuth credential before ADR 0015's expiry principle has an
+  standing OAuth credential before ADR 0109's expiry principle has an
   answer for it. Rejected.
 - **Never code it.** Leaves the security boundary three other ADRs
   depend on with no review history or drift detection. Rejected.

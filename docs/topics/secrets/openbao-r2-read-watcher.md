@@ -1,6 +1,6 @@
 # OpenBao's R2 Read-Watcher
 
-ADR 0024's per-read alert requirement, and the last piece of
+ADR 0110's per-read alert requirement, and the last piece of
 [ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 that wasn't already live (the audit device and its logging cap were —
 see [`openbao.md`](openbao.md)). Tails `docker logs -f openbao` on

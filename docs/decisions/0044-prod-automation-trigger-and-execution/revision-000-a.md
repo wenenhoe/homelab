@@ -167,7 +167,7 @@ CD agent instead of a CD *runner*:
 - Which cloud credentials get rotation/freshness automation, and
   whether "rotation" means alert-only freshness checks or full
   automated rotate-and-revoke for each, isn't fully scoped yet —
-  [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md)/[0024](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)
+  [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md)/[0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)
   cover B2/R2/OCI specifically; any other credential in
   `secrets_registry.yaml` (renamed: `secret_catalog.yaml`) needs the same scoping before it's assumed
   to follow the same pattern.

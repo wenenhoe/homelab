@@ -91,7 +91,7 @@ all, at the cost of running or borrowing an issuer GCP can verify.
   [`gcp-e2-micro-provisioning.md`](../../projects/gcp-e2-micro-provisioning.md).
 - **Claim:** an account without a Google Cloud organization can still
   limit a service-account key's lifetime.
-  **Breaks if wrong:** Option A has no native expiry, and ADR 0015's
+  **Breaks if wrong:** Option A has no native expiry, and ADR 0109's
   self-tracking pattern would have to be extended to a fourth provider.
   **Checked by:** reading Google's documentation for the org policy
   that governs key lifetime, then attempting it in the spike project.

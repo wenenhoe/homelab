@@ -47,7 +47,7 @@ Migrating to an actual secrets manager is intentionally deferred as a
 separate, not-yet-scoped project — nothing in the current design
 blocks it later. R2's cached admin token specifically won't reach
 parity with B2's/OCI's rotation keys even after that migration (see
-[0014](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)) — a
+[0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)) — a
 secrets manager narrows *who/what can reach* that token, not *what it
 can do* once reached.
 

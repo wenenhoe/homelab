@@ -47,7 +47,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   `openbao-snapshot-write` leaf — and flags any not matching the
   access key currently in Vault as an orphan — e.g. a key from an
   interrupted rotation never cleaned up on the provider's side. The one
-  exception: ADR 0017's break-glass `openbao-snapshot-readonly`
+  exception: ADR 0111's break-glass `openbao-snapshot-readonly`
   credential is never cached anywhere by design, so it's matched by its
   known provider-side name instead of a cache lookup — a weaker check,
   but this tool only ever flags, never deletes. Flags only; deleting

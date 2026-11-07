@@ -27,8 +27,8 @@ made that untenable as the repo grew:
   across more hosts and apps.
 - Centralized rotation and audit weren't achievable within a flat file
   cache in practice, not just in principle —
-  [0015](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)/
-  [0016](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md) show
+  [0109](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)/
+  [0109](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md) show
   this directly: credential expiry needed a mix of native provider
   expiry and self-tracked cache-file timestamps, checked by a systemd
   user timer on `controller` — a workaround for the lack of any real
@@ -50,7 +50,7 @@ not just to avoid committing it in plaintext.
 Adopt OpenBao — a standing, network-reachable secrets store — instead
 of any git-committed encrypted-file approach or a continued file
 cache. See ADRs
-[0017](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md) through
+[0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md) through
 [0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md) for the
 implementation this decision was built from, in sequence.
 
@@ -58,9 +58,9 @@ implementation this decision was built from, in sequence.
 
 Every secret this repo manages now depends on OpenBao being reachable
 — a new operational dependency the file cache didn't have, addressed
-by 0017's bootstrap-secret split and
+by ADR 0111's bootstrap-secret split and
 [`openbao-backup-restore.md`](../../topics/secrets/openbao-backup-restore.md)'s backup
 mechanism. [0013](revision-000.md)
 is superseded by this decision. Implementation detail —
 bootstrapping, auth, backup/restore, migration — lives in ADRs
-0017–0026 and the `openbao-*.md` topic docs, not repeated here.
+0111 and 0018–0026 and the `openbao-*.md` topic docs, not repeated here.

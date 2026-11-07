@@ -2,7 +2,7 @@
 id: PROJ-network-boundary-checks
 title: Network Boundary Checks
 type: project
-status: de-risking
+status: not-started
 blocked: false
 summary: A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects.
 decision: ADR-0094/0
@@ -18,7 +18,7 @@ The flow list and its loader and rule checks, the probe module and runner, the c
 
 ## Decision
 
-Implements [ADR 0094 (Network boundary checks)](../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md), `working`, so this project is `de-risking` until that revision's two open assumptions are resolved.
+Implements [ADR 0094 (Network boundary checks)](../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md), `working`, so this project is `not-started` until its first spike begins and then `de-risking` until that revision's two open assumptions are resolved.
 
 ## Execution plan
 

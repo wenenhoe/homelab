@@ -12,7 +12,7 @@ its own doc too: [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 Single-node, integrated raft storage, on `security` — same trust tier
 as `step-ca`/`tinyauth`/`lldap`
-([0017](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
+([0111](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
 `docker/openbao/configs/openbao.hcl.j2` renders the raft/listener
 config; `app_catalog.yaml`'s `openbao` entry seeds it into a `config`
 named volume the same way `dashy` seeds its `conf.yml`
@@ -283,7 +283,7 @@ The command prints 3 unseal key shares and an initial root token,
    permanent bootstrap exceptions now (`main-domain`,
    `openbao-controller-role-id`/`-secret-id`).
 
-The root token is not one of 0017's two recovery-critical items, but
+The root token is not one of ADR 0111's two recovery-critical items, but
 treat it with the same discipline for now: it's the only credential
 that can configure anything in a freshly-initialized, empty Vault.
 [`openbao-auth.md`](openbao-auth.md) is what gives

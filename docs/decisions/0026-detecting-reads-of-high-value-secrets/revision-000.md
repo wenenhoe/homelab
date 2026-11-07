@@ -15,7 +15,7 @@ related: [ADR-0020, ADR-0110]
 
 ## Context
 
-[0024](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md) requires an alert on every
+[0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md) requires an alert on every
 read of the R2 admin token's Vault path, calling the audit log "the
 natural source" but leaving the exact mechanism to this stage.
 OpenBao currently has no audit device configured at all
@@ -131,7 +131,7 @@ silently going dark.
   `cloud_credentials`. If a scheduled poll of the log file ever proves
   simpler than a live-tail, that's a legitimate future revisit — the
   live-tail choice here follows from
-  [0024](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md) explicitly wanting
+  [0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md) explicitly wanting
   event-driven alerting, not from polling being ruled out on the
   merits.
 - No mechanism exists to reduce what OpenBao itself logs; accepted as

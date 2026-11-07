@@ -95,7 +95,7 @@ stale, the credential has already stopped authenticating and
 `cloud_sync` is already broken. A single threshold would still buy
 lead time, but two grades of urgency (heads-up at a month out, urgent
 at two weeks) means the reminder actually escalates as the deadline
-gets closer instead of one flat repeated ping — see ADR 0015 for why
+gets closer instead of one flat repeated ping — see ADR 0109 for why
 past-window alone wasn't enough.
 
 ```sh
@@ -121,5 +121,5 @@ systemctl --user enable --now check-freshness.timer
 ```
 
 `Persistent=true` on the timer catches up on a missed weekly run once
-the machine's next on — see ADR 0015's Consequences for the real limit
+the machine's next on — see ADR 0109's Consequences for the real limit
 this still has on a machine that's off for longer than that.

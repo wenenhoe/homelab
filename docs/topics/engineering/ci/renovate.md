@@ -28,7 +28,7 @@ A failed realignment fails the job before the Renovate step, which has no condit
 
 ## Image digests
 
-Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0083 (Images a deploy runs)](../../../decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)). The `docker:pinDigests` preset adds a digest where one is missing and moves it when a tag is rebuilt or a version changes.
+Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0108 (Images a deploy runs)](../../../decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)). The `docker:pinDigests` preset adds a digest where one is missing and moves it when a tag is rebuilt or a version changes.
 
 - The docker-compose, dockerfile and ansible managers handle the digest themselves. Each custom regex manager for a docker image needs two things: a `currentDigest` group, `(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?`, and an `autoReplaceStringTemplate` that ends in `{{#if newDigest}}@{{{newDigest}}}{{/if}}`. Without the group Renovate reads no digest; without the template it writes none, or drops the one a bump should keep.
 - A manager's tag group must not match `@`: `[^"@]+`, not `[^"]+`, or the tag swallows the digest.

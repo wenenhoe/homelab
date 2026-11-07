@@ -282,7 +282,7 @@ which hold a package-write token.
 - **`check-image-digests`** (`ci.images.digests check`, also a pre-commit hook,
   so it runs in `pre-commit-checks` on every PR) fails on an image reference
   with no `@sha256` digest, on one `name:tag` pinned to two digests, and on
-  a malformed digest ([ADR 0083 (Images a deploy runs)](../../../decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)).
+  a malformed digest ([ADR 0108 (Images a deploy runs)](../../../decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)).
   It reads the same references as the weekly
   [image tag check](image-tag-check.md), so compose files, Ansible YAML,
   Dockerfiles and the pins Renovate's regex managers track are all judged.

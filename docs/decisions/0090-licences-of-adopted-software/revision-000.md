@@ -8,7 +8,7 @@ solution: The repository adopts software only under an OSI-approved licence, cop
 summary: Which licences the images, binaries, libraries, collections, hooks and actions the repository deploys or runs may carry, and how a change of licence is caught before it is adopted.
 topic: repository-tooling
 status: working
-related: [ADR-0077, ADR-0084]
+related: [ADR-0107]
 ---
 
 # 0090. Licences of the software the repository adopts
@@ -54,10 +54,8 @@ version carrying it is adopted.
 - **Where a licence can be read.** An image's own label is whatever its
   publisher set. The upstream source repository's licence file is the
   publisher's statement, and the repository already keeps a registry of
-  every pin for the checksum check ([ADR 0077 (Pinned checksum
-  verification)](../0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md))
-  and the image provenance check ([ADR 0084 (Image digest
-  provenance)](../0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md)),
+  every pin for the checksum check ([ADR 0107 (Pinned artifact provenance)](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md))
+  and the image provenance check ([ADR 0107 (Pinned artifact provenance)](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md)),
   with a test that fails when a pin has no entry.
 
 ## Decision
@@ -159,8 +157,8 @@ version carrying it is adopted.
 - Software inside an image beyond what its pin names, and software the
   repository's operator installs on a machine for their own use.
 - Whether a pinned artifact is the publisher's, which
-  [ADR 0077](../0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md)
-  and [ADR 0084](../0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md)
+  [ADR 0107](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md)
+  and [ADR 0107](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md)
   cover.
 - Vulnerabilities in what is adopted.
 

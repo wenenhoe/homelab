@@ -6,7 +6,7 @@ Each downloaded release this repo pins by sha256 (uv, rclone, the OpenBao CLI
 and the CodeRabbit CLI) is checked against the publisher: the pinned hash must
 be the one the publisher signed, attested or lists, whoever copied it into the
 file. The decision is
-[ADR 0077 (Pinned checksum verification)](../../../decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md).
+[ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md).
 It runs in two places: the `release-checksums` job of `pr-checks.yml`, when a
 PR changes the verifier and its keys or one of the files holding a pin, and
 `check-release-checksums.yml`, once a week and on demand,

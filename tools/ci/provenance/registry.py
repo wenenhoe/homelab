@@ -3,7 +3,7 @@
 One entry per image repository the tree pins. An entry fixes everything a
 verifier is allowed to trust, and none of it is read from the registry or from
 the image being checked
-(docs/decisions/0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md):
+(docs/decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md):
 
 - Attested: the publisher's workflow attests the digests it pushes. Each pinned
   digest must pass `gh attestation verify` for the repository the entry names,

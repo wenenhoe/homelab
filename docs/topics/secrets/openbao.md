@@ -238,7 +238,7 @@ them, not work around them:
 
 Both scripts keep driving `docker exec` against the live
 container, permanently, by necessity — see
-[ADR 0034 (Operator bao CLI access)](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md)'s
+[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md)'s
 Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
 but the container crash-loops until `step_ca_cert` issues its leaf
 cert, so there's no trustworthy network path to it during that window.
@@ -246,7 +246,7 @@ This is the one place in the whole OpenBao CLI surface that stays
 `docker exec`-based — everywhere else now uses the native `bao`
 binary directly (`security` or `controller`, whichever you're on), or
 `shell.py` (`controller` only — see
-[ADR 0033 (Interactive bao session)](../../decisions/0033-where-the-interactive-bao-session-runs/revision-000.md))
+[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md))
 when starting from an AppRole login; see
 [`openbao-auth.md`](openbao-auth.md#runbook).
 

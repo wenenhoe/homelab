@@ -2,9 +2,9 @@
 """Log in to OpenBao and hand off to a real interactive shell with the
 native `bao` CLI already wired up, on `controller`, which has the native
 `bao` binary. See
-docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md's
+docs/decisions/0106-operator-access-to-the-openbao-cli/revision-000.md's
 Decision for the full reasoning this module implements, and
-docs/decisions/0033-where-the-interactive-bao-session-runs/revision-000.md
+docs/decisions/0106-operator-access-to-the-openbao-cli/revision-000.md
 for why this only ever runs on `controller`: the repo isn't checked out
 on `security`.
 

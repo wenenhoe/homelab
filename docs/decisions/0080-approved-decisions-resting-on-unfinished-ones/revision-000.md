@@ -7,7 +7,7 @@ short: Reliance on working decisions
 solution: A declared reliance between decisions, checked as a warning that names every approved or accepted revision whose boundary still rests on a working one
 summary: How an approved decision's dependence on a decision that is still being worked out is recorded and surfaced, so the boundary it presupposes cannot change unnoticed.
 topic: documentation-process
-status: working
+status: approved
 related: [ADR-0037, ADR-0044, ADR-0053, ADR-0058]
 ---
 

@@ -195,19 +195,6 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
-      - id: check-project-scope
-        name: check-project-scope
-        description: >-
-          A commit that works a project doc (frontmatter or a stage status) stays inside that project's
-          allowed_paths, read from HEAD - see
-          tools/doc_scripts/check_project_scope.py. Looks only at what is
-          staged, so it passes trivially under `--all-files` in CI, where
-          the project-checks job checks the whole PR instead.
-        entry: bash -c 'cd tools && python3 -m doc_scripts.check_project_scope --staged' --
-        language: python
-        additional_dependencies: [pyyaml==6.0.3]
-        pass_filenames: false
-        always_run: true
       - id: check-moved-files
         name: check-moved-files
         description: >-
@@ -230,57 +217,30 @@ repos:
         additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true
-      - id: check-pr-range
-        name: check-pr-range
+      - id: check-doc-change
+        name: check-doc-change
+        description: >-
+          The project scope, close and start checks and the accepted-records
+          check on what is staged - see tools/doc_scripts/check_doc_change.py.
+          Looks only at what is staged, so it passes trivially under
+          `--all-files` in CI, where the project-checks job checks the whole PR
+          instead. A changed frozen section is a warning here, since the
+          trailer that excuses an editorial fix is written after the hook runs.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_doc_change --staged' --
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        pass_filenames: false
+        always_run: true
+      - id: check-doc-change-push
+        name: check-doc-change-push
         stages: [pre-push]
         description: >-
-          The pull-request forms of check-project-scope, check-project-close,
-          check-project-start and check-accepted-records, over the commits the
-          push adds against the default branch - see
-          tools/doc_scripts/check_pr_range.py. The commit-time forms see one
-          commit and warn about a frozen section, so this is where a stray file
-          or a missing Editorial-Fix trailer shows before CI. Skips, saying so,
-          when the clone has no default branch or shares no history with it.
-        entry: bash -c 'cd tools && python3 -m doc_scripts.check_pr_range' --
-        language: python
-        additional_dependencies: [pyyaml==6.0.3]
-        pass_filenames: false
-        always_run: true
-      - id: check-project-close
-        name: check-project-close
-        description: >-
-          A commit that deletes a project doc leaves the revision its
-          decision: names accepted or still named by another project - see
-          tools/doc_scripts/check_project_close.py. Looks only at what is
-          staged, so it passes trivially under `--all-files` in CI, where
-          the project-checks job checks the whole PR instead.
-        entry: bash -c 'cd tools && python3 -m doc_scripts.check_project_close --staged' --
-        language: python
-        additional_dependencies: [pyyaml==6.0.3]
-        pass_filenames: false
-        always_run: true
-      - id: check-project-start
-        name: check-project-start
-        description: >-
-          A commit that adds a not-started project names an approved decision
-          or none - see tools/doc_scripts/check_project_start.py. Looks only at
-          what is staged, so it passes trivially under `--all-files` in CI,
-          where the project-checks job checks the whole PR instead.
-        entry: bash -c 'cd tools && python3 -m doc_scripts.check_project_start --staged' --
-        language: python
-        additional_dependencies: [pyyaml==6.0.3]
-        pass_filenames: false
-        always_run: true
-      - id: check-accepted-records
-        name: check-accepted-records
-        description: >-
-          A commit that shortens an accepted decision revision leaves what it
-          decided unchanged, and a lineage that held one leaves the tree only on
-          the record - see tools/doc_scripts/check_accepted_records.py. Looks only
-          at what is staged and reports a changed section as a warning, since the
-          trailer that excuses an editorial fix is written after the hook runs;
-          the project-checks job judges the whole PR.
-        entry: bash -c 'cd tools && python3 -m doc_scripts.check_accepted_records --staged' --
+          The same four checks over the commits the push adds against the
+          default branch - see tools/doc_scripts/check_doc_change.py. The
+          commit-time form sees one commit, so this is where a stray file or a
+          missing Editorial-Fix trailer shows before CI. Skips, saying so, when
+          the clone has no default branch or shares no history with it.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_doc_change --push' --
         language: python
         additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false

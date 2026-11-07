@@ -228,40 +228,11 @@ jobs:
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
 
-      # A PR that touches a project doc must stay inside that project's
-      # allowed_paths - see docs/topics/engineering/ci/doc-checks.md#project-scope-check.
-      - name: Check the PR stays inside its project's allowed_paths
+      # The scope, close, start and accepted-records checks over the PR - see
+      # docs/topics/engineering/ci/doc-checks.md.
+      - name: Check the PR's changes to projects and accepted decisions
         run: >-
-          uv run python -m doc_scripts.check_project_scope
-          --base "${{ github.event.pull_request.base.sha }}"
-          --head "${{ github.event.pull_request.head.sha }}"
-        working-directory: tools
-
-      # A PR that deletes a project doc must leave the revision its decision:
-      # names accepted or still named by another project - see
-      # docs/topics/engineering/ci/doc-checks.md#project-close-check.
-      - name: Check the PR doesn't orphan a deleted project's decision
-        run: >-
-          uv run python -m doc_scripts.check_project_close
-          --base "${{ github.event.pull_request.base.sha }}"
-          --head "${{ github.event.pull_request.head.sha }}"
-        working-directory: tools
-
-      # A PR that adds a not-started project names an approved decision, or none -
-      # see docs/topics/engineering/ci/doc-checks.md#project-start-check.
-      - name: Check a new project starts on an approved decision
-        run: >-
-          uv run python -m doc_scripts.check_project_start
-          --base "${{ github.event.pull_request.base.sha }}"
-          --head "${{ github.event.pull_request.head.sha }}"
-        working-directory: tools
-
-      # A PR that shortens an accepted decision keeps what it decided, and one that removes
-      # a lineage says where it went - see
-      # docs/topics/engineering/ci/doc-checks.md#accepted-records-check.
-      - name: Check the PR keeps accepted decisions and accounts for removed ones
-        run: >-
-          uv run python -m doc_scripts.check_accepted_records
+          uv run python -m doc_scripts.check_doc_change
           --base "${{ github.event.pull_request.base.sha }}"
           --head "${{ github.event.pull_request.head.sha }}"
         working-directory: tools

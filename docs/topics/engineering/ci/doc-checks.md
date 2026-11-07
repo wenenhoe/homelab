@@ -1,6 +1,6 @@
 # CI Doc Checks
 
-The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, the push-time run of them, and the Mermaid render check, plus the helpers that suggest a project's scope and renumber the lineages a patch series adds. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
+The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope, close, start and accepted-records checks, the one command that runs them, and the Mermaid render check, plus the helpers that suggest a project's scope and renumber the lineages a patch series adds. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Doc index generation
 
@@ -134,7 +134,7 @@ and why). It runs in two places:
   not the base tip, so a branch that is behind doesn't see main's newer
   commits as its own changes. The repo's other diff-based jobs diff
   `$BASE $HEAD` directly; this one deliberately doesn't.
-- **pre-commit** — the `check-project-scope` hook, on what is staged,
+- **pre-commit** — the `check-doc-change` hook, on what is staged,
   against `HEAD`. It sees only the current commit, so it is early
   feedback; CI is the authority, since it sees the whole PR. Under
   `pre-commit-checks`' `--all-files` run nothing is staged and it passes
@@ -237,7 +237,7 @@ merge-base diff and the same staged-changes behavior:
 
 - **CI** — the close step of the `project-checks` job, on every pull request, judging the
   PR's head.
-- **pre-commit** — the `check-project-close` hook, judging the index
+- **pre-commit** — the `check-doc-change` hook, judging the index
   against `HEAD`. It is early feedback; CI is the authority. Under
   `pre-commit-checks`' `--all-files` run nothing is staged and it passes
   trivially.
@@ -266,7 +266,7 @@ already waiting on a `working` revision is not re-judged.
 
 It runs where the close check runs, with the same merge-base diff and the same
 staged-changes behavior: the `project-checks` job in CI, and the
-`check-project-start` hook on the index, which passes trivially under
+`check-doc-change` hook on the index, which passes trivially under
 `--all-files`. It reads the docs as they stand after the change, and a doc that
 does not parse fails the check.
 
@@ -298,24 +298,31 @@ It enforces two rules:
 
 It runs in the same two places as the other project-checks: the
 `project-checks` job over the pull request, which fails on both rules, and the
-`check-accepted-records` hook on the index, which reports a changed frozen
+`check-doc-change` hook on the index, which reports a changed frozen
 section as a warning only (the trailer that excuses it is written with the
 commit message, after the hook runs) and still fails on a lineage that leaves
 unaccounted for. It reads the docs as they stand after the change for the
 removal rule, and a doc that does not parse fails the check.
 
-## Push-time pull-request checks
+## The four project and record checks as one command
 
-[`tools/doc_scripts/check_pr_range.py`](../../../../tools/doc_scripts/check_pr_range.py),
-the `check-pr-range` hook at the `pre-push` stage. The project scope, close
-and start checks and the accepted records check each have a `--staged` form
-that runs at commit time and a `--base` form that the `project-checks` job runs
-over the whole pull request. The staged forms see one commit, so a stray file in
-an earlier commit of the branch passes them, and the accepted records check can
-only warn about a frozen section because the `Editorial-Fix:` trailer is written
-after the hook runs. This runs the four `--base` forms, in order and all of
-them even if one fails, over the commits being pushed against the default
-branch.
+[`tools/doc_scripts/check_doc_change.py`](../../../../tools/doc_scripts/check_doc_change.py)
+runs the project scope, close and start checks and the accepted records check
+above, in that order and all of them even if one fails. Each check is still its
+own module with its own tests; this is the one entry point the hooks and CI
+call, so a rule added to the list runs everywhere at once. It has three forms:
+
+- **`--staged`**, the `check-doc-change` hook at commit time. It sees one
+  commit, so a stray file in an earlier commit of the branch passes it, and the
+  accepted records check can only warn about a frozen section because the
+  `Editorial-Fix:` trailer is written after the hook runs.
+- **`--base REF --head REF`**, the one step of the `project-checks` job, over
+  the whole pull request.
+- **`--push`**, the `check-doc-change-push` hook at the `pre-push` stage, the
+  `--base` form over the commits being pushed against the default branch, so
+  what the staged form cannot see shows before CI.
+
+For `--push`:
 
 - **The base** is the remote's HEAD (`origin/HEAD`), else `origin/main`,
   `origin/master`, `main` or `master`. It is not fetched: the checks read the

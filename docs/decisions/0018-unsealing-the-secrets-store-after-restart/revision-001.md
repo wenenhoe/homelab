@@ -9,7 +9,7 @@ summary: How OpenBao is unsealed after a restart when reboots of its host can ha
 topic: secrets-store
 status: working
 supersedes: 0
-related: [ADR-0017, ADR-0019, ADR-0043, ADR-0044, ADR-0077]
+related: [ADR-0017, ADR-0019, ADR-0043, ADR-0044, ADR-0107]
 ---
 
 # 0018. Auto-unseal through a cloud KMS key
@@ -121,7 +121,7 @@ flowchart LR
   the container without building an image of our own.
   **Breaks if wrong:** The plugin has to be built and distributed by this
   repo, which adds a supply-chain decision of the kind
-  [ADR 0077 (Pinned checksum verification)](../0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md)
+  [ADR 0107 (Pinned artifact provenance)](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md)
   makes.
   **Checked by:** reading the plugin's release assets and the 2.7 plugin
   documentation, then a spike.

@@ -2,7 +2,7 @@
 
 One entry per checksum pin in the repository. An entry says where the pin and
 its version live, and carries what its tier needs
-(docs/decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md):
+(docs/decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md):
 
 - Signed: the publisher signs a manifest. The manifest and signature are
   fetched and verified against the key committed under keys/, and the pinned

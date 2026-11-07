@@ -9,7 +9,7 @@ summary: Containers that need the Docker API get only the calls they make, so a 
 topic: deployment-platform
 status: accepted
 supersedes: 0
-related: [ADR-0009, ADR-0043, ADR-0083]
+related: [ADR-0009, ADR-0043, ADR-0108]
 ---
 
 # 0004. Docker API access by the calls a consumer makes
@@ -192,6 +192,6 @@ revision; see Consequences.
 ## Revision notes
 
 `diun` is removed from the consumers this revision leaves on capability flags:
-[ADR 0083 (Images a deploy runs)](../0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)
+[ADR 0108 (Images a deploy runs)](../0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)
 retires it, and its proxy sidecar goes with it. Revision 0 still describes it as
 it was when that revision was written.

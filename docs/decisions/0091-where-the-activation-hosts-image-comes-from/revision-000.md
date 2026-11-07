@@ -8,7 +8,7 @@ solution: Build a server-only image from the upstream organisation's py-kms at a
 summary: Whose code and whose build the Windows activation host runs, and what state and surface it carries.
 topic: deployment-platform
 status: working
-related: [ADR-0063, ADR-0083, ADR-0084, ADR-0090]
+related: [ADR-0063, ADR-0108, ADR-0107, ADR-0090]
 ---
 
 # 0091. Where the Windows activation host's code and image come from
@@ -45,7 +45,7 @@ does not need.
   that the fork's `v1.0.3` lacks, and it fixed Windows Server 2019 activation
   in January 2026.
 - **Provenance today.** The repository's registry records both images as
-  unsigned ([ADR 0084 (Image digest provenance)](../0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md)):
+  unsigned ([ADR 0107 (Pinned artifact provenance)](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md)):
   the `kms` workflow requests an attestation and GitHub holds none for the
   pinned digest, and `kms-gui` states nothing.
 - **What the server needs.** Its only third-party dependencies are `dnspython`
@@ -58,7 +58,7 @@ does not need.
   from the Dockerfile, the provenance registry lists it as attested, and a
   weekly rebuild picks up base-image patches
   ([ADR 0063 (Review image build)](../0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md),
-  [ADR 0083 (Images a deploy runs)](../0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)).
+  [ADR 0108 (Images a deploy runs)](../0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)).
 
 ## Decision
 

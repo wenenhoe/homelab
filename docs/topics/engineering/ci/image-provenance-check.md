@@ -10,7 +10,7 @@ publisher built: Renovate records whatever the registry served. The check
 verifies each pinned digest against a statement its publisher made, with the
 signer fixed in this repository, so a pull request that moves a pin to someone
 else's image fails whatever opened it. The decision is
-[ADR 0084 (Image digest provenance)](../../../decisions/0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md).
+[ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md).
 It runs in two places: the `provenance` job of `pr-checks.yml`, when a PR changes
 the checker, its registry or keys, or a file that can hold a pinned image
 reference, and `check-image-provenance.yml`, once a week and on demand, so a

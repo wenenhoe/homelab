@@ -8,7 +8,7 @@ solution: "Bats tests under tools/tests/shell, run by a CI job on bats-core, bat
 summary: How the branching and failure handling of the repo's shell scripts is unit-tested, given that only a linter reads them today and Molecule exercises only some of them against real services.
 topic: repository-tooling
 status: accepted
-related: [ADR-0064, ADR-0069, ADR-0070, ADR-0077, ADR-0083, ADR-0084, ADR-0085]
+related: [ADR-0064, ADR-0069, ADR-0070, ADR-0107, ADR-0108]
 ---
 
 # 0086. Testing the control flow of shell scripts
@@ -39,7 +39,7 @@ The hosts run Ubuntu and the CI jobs run on `ubuntu-26.04`, both with GNU coreut
 
 A script that is a Jinja2 template has to be rendered before it runs. Jinja2 is already in `uv.lock` through Ansible.
 
-[ADR 0077 (Pinned checksum verification)](../0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md) and [ADR 0084 (Image digest provenance)](../0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md) require a pin to be shown to be the publisher's, with the signer's identity fixed in the repo; [ADR 0083 (Images a deploy runs)](../0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md) pins every image by digest; [ADR 0085 (Image registry choice)](../0085-choosing-the-registry-an-image-is-pulled-from/revision-000.md) pulls a new image from the registry its publisher signs on.
+[ADR 0107 (Pinned artifact provenance)](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md) and [ADR 0107 (Pinned artifact provenance)](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md) require a pin to be shown to be the publisher's, with the signer's identity fixed in the repo; [ADR 0108 (Images a deploy runs)](../0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md) pins every image by digest; [ADR 0108 (Images a deploy runs)](../0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md) pulls a new image from the registry its publisher signs on.
 
 ## Decision
 
@@ -47,7 +47,7 @@ Shell tests are Bats files under `tools/tests/shell/`, one per script, beside th
 
 - **Which scripts.** A script gets a test file when it has a branch that decides an outcome worth protecting: a failure path, a cleanup guarantee, a confirmation, an exit status others rely on. A script that only assembles one `docker run` or `docker exec` invocation does not. The first set is `run_restore.sh`, `snapshot-push.sh`, `molecule-test-all.sh`, `run_upgrade.sh` and the two templated checks; the others are decided script by script.
 - **Install.** The runner and its two libraries are cloned from GitHub at full commit SHAs recorded in one committed file, each fetched by SHA and refused unless `HEAD` equals the pin. The pin file names a release tag beside each SHA. No image, npm package or distribution package is used, and no git submodule is added.
-- **Provenance.** Each entry names a release tag, and a check resolves that tag on GitHub and requires it to point at the pinned SHA. That catches a SHA copied wrongly and a tag that moved, and no more: it is the *listed* tier of [ADR 0077 (Pinned checksum verification)](../0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md), because no current key is published to verify the signed tags against. The entries say so.
+- **Provenance.** Each entry names a release tag, and a check resolves that tag on GitHub and requires it to point at the pinned SHA. That catches a SHA copied wrongly and a tag that moved, and no more: it is the *listed* tier of [ADR 0107 (Pinned artifact provenance)](../0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md), because no current key is published to verify the signed tags against. The entries say so.
 - **Bumps.** A regex manager in `renovate.json5` reads the pin file, where a tag and its SHA share one line. Renovate proposes a bump where its datasource supplies the SHA of the new tag, and a bump is otherwise made by hand. Either way the check decides, as in ADR 0077 and ADR 0084.
 - **Isolation.** The harness puts a directory of stubs first on `PATH`, and installs a stub that fails loudly for every external tool a script under test calls, before any test runs. A test replaces the stubs it needs. A test that forgets one therefore fails instead of running the real `docker`, `ssh` or `bao`. A stub appends its argv to a log and exits as the test directs. A test writes only under its own temporary directory.
 - **Templates.** A `.sh.j2` script is rendered by Jinja2 with strict undefined variables and the test's own variables, and the result is run. Molecule stays the authority on how Ansible renders it.

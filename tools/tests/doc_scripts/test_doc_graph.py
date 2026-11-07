@@ -214,6 +214,42 @@ DECISION_GATE_ALLOWED = {
 DECISION_GATE_REVISION_STATUSES = ["working", "approved", "accepted", "abandoned", "retired"]
 
 
+def plan(*statuses: str) -> str:
+    rows = "\n".join(f"| {i} | Stage {i} | {status} | done |" for i, status in enumerate(statuses, 1))
+    return f"# t\n\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n{rows}\n"
+
+
+class TestStageTable:
+    def errors(self, root, status, *stages):
+        path = project(root, "p", status=status)
+        path.write_text(path.read_text(encoding="utf-8") + "\n" + plan(*stages), encoding="utf-8")
+        return graph.project_errors(root)
+
+    @pytest.mark.parametrize("stage", ["In progress", "Done"])
+    def test_not_started_with_a_started_stage_fails(self, root, stage):
+        assert_one_error(self.errors(root, "not-started", "Not started", stage), "not-started", stage)
+
+    @pytest.mark.parametrize("status", ["de-risking", "building"])
+    def test_an_active_status_with_no_stage_started_fails(self, root, status):
+        assert_one_error(self.errors(root, status, "Not started", "Not started"), status, "no stage has started")
+
+    @pytest.mark.parametrize(
+        ("status", "stages"),
+        [
+            ("not-started", ("Not started", "Not started")),
+            ("de-risking", ("In progress", "Not started")),
+            ("building", ("Done", "Not started")),
+            ("building", ("Done", "Done")),
+        ],
+    )
+    def test_a_status_that_matches_the_table_passes(self, root, status, stages):
+        assert self.errors(root, status, *stages) == []
+
+    def test_a_doc_with_no_stage_rows_is_not_judged(self, root):
+        project(root, "p", status="building")
+        assert graph.project_errors(root) == []
+
+
 class TestProjectErrors:
     def test_no_projects_is_clean(self, root):
         assert graph.project_errors(root) == []

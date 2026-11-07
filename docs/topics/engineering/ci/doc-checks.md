@@ -102,6 +102,9 @@ these narrow, structural things:
   that is `building` on it. Projects without a `decision:` are never
   gated. `depends_on` entries name existing project docs, never
   themselves, and form no cycle.
+- A project's status must agree with its stage table: `not-started` fails with
+  a stage `In progress` or `Done`, and `de-risking` or `building` fails with
+  every stage `Not started`. A doc with no stage rows is not judged.
 - A revision's `weight` is `full` or `light`. A `light` revision has no
   `Invariants`, `Non-goals` or `Validation` section and a body of at most
   `LIGHT_MAX_WORDS` words (`doc_graph.py`); a full one is not limited. See

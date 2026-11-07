@@ -86,21 +86,20 @@ generator: finished work comes before new work.
 `blocked: true` with a `blocked_reason` is a flag, not a status: a
 current impediment that isn't another project (hardware, an external
 service). Waiting on a project is derived from `depends_on`, and so is
-"ready": the index marks a `not-started` project ready when its decision
-revision is `approved` (or it has no `decision:`), it is not blocked, and
-no project it depends on remains. Neither is a status, so neither needs
+"ready": the index's Blocker cell is `—` for a `not-started` project when its
+decision revision is `approved` (or it has no `decision:`), it is not blocked,
+and no project it depends on remains. Neither is a status, so neither needs
 an edit when it changes. A `not-started` project that is not blocked and
 waits on no project, but whose decision revision is not yet `approved`,
 reads "waiting on" that revision, derived the same way. A risk —
 something that could cause rework but blocks nothing now — goes in the
 doc's Risks list instead.
 
-The generated views derive two more things from the same fields.
+The generated views derive one more thing from the same fields.
 **Unblocks** is the number of existing projects that wait on a project,
-directly or through a chain of `depends_on`. [Next up](../project-planning.md#next-up)
-lists what can be started now, ordered by status and then by Unblocks.
-Neither is stored, and no field carries a priority
-([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)).
+directly or through a chain of `depends_on`. It is not stored, and no field
+carries a priority
+([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-001.md)).
 
 ## What goes in one
 

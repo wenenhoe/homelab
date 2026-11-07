@@ -1,26 +1,22 @@
 # Project Planning
 
-Five generated, cross-cutting views; none is a rules doc. For what a
+Four generated, cross-cutting views; none is a rules doc. For what a
 project is and its lifecycle, see [`projects/README.md`](projects/README.md);
 for what an ADR is and its revision states, see
 [`decisions/README.md`](decisions/README.md).
-
-**Next up** lists the projects that can be worked on now: not done, not
-blocked, waiting on no existing project, and, if not started, ready.
-Building projects come first, so started work finishes before new work
-opens, then de-risking ones, then ready ones; within each, the project
-with more waiting behind it comes first, then the file name. It orders
-what can be started and ranks nothing by importance: no field stores a
-priority, per
-[ADR 0082 (Choosing the next project)](decisions/0082-choosing-which-project-to-take-up-next/revision-000.md).
-A not-started project whose decision is still being worked out is not
-listed, since it is not ready; in the other tables its status names the
-decision revision it is waiting on.
 
 **Unblocks**, in every table of projects, is the number of existing
 projects that wait on that one, directly or through a chain of
 `depends_on`; `—` means none does. It counts projects, not effort or
 urgency.
+
+**Status and Blocker**, in every table of projects, are two cells. Status is the
+lifecycle status. Blocker says what stands in the way: `blocked:` and the
+reason, `waiting on` the projects it depends on that still exist, or `waiting
+on` its decision revision when that is not yet approved; more than one are
+joined with a semicolon. `—` means nothing does, so a not-started project with
+`—` can be started. Neither cell is stored, per
+[ADR 0082 (Choosing the next project)](decisions/0082-choosing-which-project-to-take-up-next/revision-001.md).
 
 **Super Projects** groups every project that belongs to one
 (`super_project:` is set) by build order — projects by dependency depth,
@@ -34,10 +30,6 @@ of the view above, in the same shape as
 [`projects/README.md`'s own Index](projects/README.md#index), filtered
 down to the ones not part of any initiative.
 
-**Open explorations** lists every question in
-[`explorations/`](explorations/README.md) with the date it last changed, oldest
-first, so one that has stood still is the first row.
-
 **Decisions awaiting a project** lists every ADR lineage with an open
 (`working`/`approved`) revision that appears in no project's
 `decision:` or `also_implements:` — see
@@ -50,25 +42,9 @@ set. It narrows where to look; it doesn't replace looking. Approved
 revisions are listed first: one that no project names is the gap that
 calls for a project, while a working one still has to be settled.
 
-## Next up
-
-| Project | Unblocks | Status | Covers |
-| :--- | ---: | :--- | :--- |
-| [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
-| [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
-| [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
-| [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
-| [`integration-records.md`](projects/integration-records.md) | — | Building | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
-| [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
-| [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
-| [`tofu-migration.md`](projects/tofu-migration.md) | — | Building | Move Tofu's state off the dev VM into a remote backend, so Tofu's record of what it built no longer depends on one VM. |
-| [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
-| [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
-| [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
-| [`molecule-container-hardening.md`](projects/molecule-container-hardening.md) | — | Not started — ready | Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them. |
-| [`reliance-declaration.md`](projects/reliance-declaration.md) | — | Not started — ready | A declared reliance between decisions, checked as a warning that names every approved or accepted revision whose boundary still rests on a working one, as ADR 0080 decides. |
-| [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
-| [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it. |
+**Open explorations** lists every question in
+[`explorations/`](explorations/README.md) with the date it last changed, oldest
+first, so one that has stood still is the first row.
 
 ## Super Projects
 
@@ -119,14 +95,6 @@ calls for a project, while a working one still has to be settled.
 | [`tofu-plan-guard.md`](projects/tofu-plan-guard.md) | — | Not started | waiting on [ADR-0102/0](decisions/0102-knowing-what-a-tofu-change-will-do/revision-000.md) | Build the guard that checks a saved Tofu plan against a committed allow-list of destructive actions, the wrapper that applies the checked plan, and the pull request check that fails an address removed without one, then accept the decision. |
 | [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started | — | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
 
-## Open explorations
-
-| Exploration | Question | Last changed |
-| :--- | :--- | :--- |
-| [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? | 2026-11-07 |
-| [`molecule-runtime-without-host-privilege.md`](explorations/molecule-runtime-without-host-privilege.md) | Which container runtime can run the Molecule scenarios on the coding-agent host without giving the agent root there? | 2026-11-07 |
-| [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-07 |
-
 ## Decisions awaiting a project
 
 | ADR | Problem | Current solution | Status |
@@ -138,3 +106,11 @@ calls for a project, while a working one still has to be settled.
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
 | [0096](decisions/0096-knowing-the-pre-commit-hooks-that-run-are-the-reviewed-ones/revision-000.md) | **Knowing the pre-commit hooks that run are the ones that were reviewed** — How the pre-commit hook code and the images hooks pull are made to be the ones a commit names, so they change only in a pull request that shows the change. | Each hook repository is pinned to a full commit SHA with its tag in a comment, each docker hook's image is pinned by digest in the config, and Renovate moves both in a reviewed pull request | Working |
 | [0103](decisions/0103-where-tofus-state-is-held/revision-000.md) | **Where Tofu's state is held** — Where OpenTofu's state lives so that the record of what Tofu built depends on neither one machine nor a machine Tofu builds. | An encrypted state bucket in the R2 and B2 accounts the lab already uses, with a credential of its own, one provider live and the other holding a write-only copy | Working |
+
+## Open explorations
+
+| Exploration | Question | Last changed |
+| :--- | :--- | :--- |
+| [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? | 2026-11-07 |
+| [`molecule-runtime-without-host-privilege.md`](explorations/molecule-runtime-without-host-privilege.md) | Which container runtime can run the Molecule scenarios on the coding-agent host without giving the agent root there? | 2026-11-07 |
+| [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-07 |

@@ -50,7 +50,7 @@ not just to avoid committing it in plaintext.
 Adopt OpenBao — a standing, network-reachable secrets store — instead
 of any git-committed encrypted-file approach or a continued file
 cache. See ADRs
-[0017](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md) through
+[0017](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md) through
 [0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md) for the
 implementation this decision was built from, in sequence.
 

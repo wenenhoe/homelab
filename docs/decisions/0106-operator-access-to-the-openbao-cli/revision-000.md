@@ -8,14 +8,14 @@ solution: A native bao binary on security and controller, with the interactive s
 summary: How operators reach the bao CLI, replacing four overlapping docker-exec and alias patterns, and where the interactive session runs.
 topic: repository-tooling
 status: accepted
-narrows: ADR-0019
+narrows: ADR-0111
 related: [ADR-0020, ADR-0022, ADR-0104, ADR-0105]
 former_ids: [ADR-0033, ADR-0034]
 ---
 
 # 0106. Operator access to the OpenBao CLI
 
-Narrows [ADR 0019 (OpenBao offsite snapshot)](../0019-openbao-offsite-snapshot-path/revision-000.md)
+Narrows [ADR 0111 (Secrets store recovery)](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
 on one point: the snapshot push no longer runs "directly from `security`". The
 whole script (login, snapshot save, encrypt, push) runs on `controller`, reading
 the same snapshot-write leaf through `controller`'s existing AppRole grant

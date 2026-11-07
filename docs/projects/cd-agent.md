@@ -15,7 +15,7 @@ Replaces manual `ansible-playbook` deploys and rotation runs with a
 dedicated, pull-based automation host. The second half of the
 OpenBao+CD-agent migration this repo originally scoped together —
 OpenBao itself is done; see ADRs
-[0017](../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md) through
+[0111](../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md) and 0018 through
 [0026](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 and the `openbao-*.md` docs for that half.
 

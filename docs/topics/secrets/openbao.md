@@ -12,7 +12,7 @@ its own doc too: [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 Single-node, integrated raft storage, on `security` — same trust tier
 as `step-ca`/`tinyauth`/`lldap`
-([0017](../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
+([0017](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
 `docker/openbao/configs/openbao.hcl.j2` renders the raft/listener
 config; `app_catalog.yaml`'s `openbao` entry seeds it into a `config`
 named volume the same way `dashy` seeds its `conf.yml`

@@ -8,14 +8,14 @@ solution: Manual Shamir key shares
 summary: How OpenBao is unsealed after a restart without adding a second offline recovery credential.
 topic: secrets-store
 status: accepted
-related: [ADR-0017]
+related: [ADR-0111]
 ---
 
 # 0018. Unsealing the secrets store after restart
 
 ## Context
 
-[0017](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md) left the unseal method
+[0017](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md) left the unseal method
 itself open, noting cloud auto-unseal's own credential would need the
 same offline handling it exists to avoid. The remaining question was
 practical, not architectural: does `security` reboot often enough that
@@ -41,7 +41,7 @@ prompt would appear.
 Use manual Shamir key shares for OpenBao's unseal, not cloud
 auto-unseal. No new external cloud-KMS dependency, no second offline
 recovery credential beyond what
-[0017](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md) already introduces.
+[0017](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md) already introduces.
 
 ## Consequences
 

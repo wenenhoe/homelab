@@ -22,7 +22,7 @@ KMS key and its restricted IAM user, the `init.py` and `unseal.py`
 tooling, the offline handling of the new credential, and the topic docs
 that describe the seal. The CI and Molecule OpenBao targets stay on Shamir.
 Not in scope: a multi-node cluster, an HSM, and the snapshot path of
-[ADR 0019 (OpenBao offsite snapshot)](../decisions/0019-openbao-offsite-snapshot-path/revision-000.md).
+[ADR 0111 (Secrets store recovery)](../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md).
 
 ## Decision
 

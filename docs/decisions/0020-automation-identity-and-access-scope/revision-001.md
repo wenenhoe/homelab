@@ -9,7 +9,7 @@ summary: Which identities may read and write which secret paths, once unattended
 topic: secrets-store
 status: approved
 supersedes: 0
-related: [ADR-0017, ADR-0023, ADR-0025, ADR-0044, ADR-0047]
+related: [ADR-0111, ADR-0023, ADR-0025, ADR-0044, ADR-0047]
 ---
 
 # Four CIDR-bound AppRoles for the CD agent, replacing controller's broad grant
@@ -136,7 +136,7 @@ drill), narrowly scoped and short-lived, never persisted to disk.
   root-equivalent and would let its user read every other job's
   credentials ([ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 - Until the snapshot job exists, the manual script keeps using
-  `controller`'s AppRole ([ADR 0019 (OpenBao offsite snapshot)](../0019-openbao-offsite-snapshot-path/revision-000.md)),
+  `controller`'s AppRole ([ADR 0111 (Secrets store recovery)](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)),
   so that AppRole cannot be deleted before this one is live.
 - Token lifetime (`token_ttl`) per `cd_agent` invocation is a project
   decision, bounded below by the longest job run and kept short enough

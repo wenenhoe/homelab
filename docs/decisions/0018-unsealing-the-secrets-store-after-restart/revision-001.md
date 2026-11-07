@@ -9,7 +9,7 @@ summary: How OpenBao is unsealed after a restart when reboots of its host can ha
 topic: secrets-store
 status: working
 supersedes: 0
-related: [ADR-0017, ADR-0019, ADR-0043, ADR-0044, ADR-0107]
+related: [ADR-0111, ADR-0043, ADR-0044, ADR-0107]
 ---
 
 # 0018. Auto-unseal through a cloud KMS key
@@ -57,7 +57,7 @@ and authenticates with a service account key file.
 **Threat model.** The asset is the root key that protects everything in
 OpenBao. The adversary has the `security` VM's disk or a copy of it (a
 Proxmox backup, a stolen drive), or has taken the OpenBao snapshot that
-[ADR 0019 (OpenBao offsite snapshot)](../0019-openbao-offsite-snapshot-path/revision-000.md)
+[ADR 0111 (Secrets store recovery)](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
 sends off-site. With Shamir, a disk copy is useless without a threshold
 of shares kept off the host. With auto-unseal, a disk copy that includes
 the KMS credential unseals until that credential is revoked, and a
@@ -77,7 +77,7 @@ Seal OpenBao with an OCI KMS key through the `ocikms` plugin.
   that mints the leaf and rotation credentials, and cannot manage or
   delete keys.
 - **Recovery-critical secrets.** The credential becomes a third class of
-  secret that [ADR 0017 (Secrets store recovery)](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md)
+  secret that [ADR 0111 (Secrets store recovery)](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
   keeps outside OpenBao: kept offline as the Shamir shares and the GPG
   key are. The old Shamir shares are kept as the recovery keys, with the
   same handling.
@@ -157,7 +157,7 @@ flowchart LR
   be exported, so losing the key or the tenancy makes the barrier, and
   every snapshot, undecryptable: the recovery keys cannot stand in for it.
   Revision 0's offline shares had no such dependency, and
-  [ADR 0017](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md)
+  [ADR 0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
   split its snapshot credentials across two providers to avoid exactly
   this. Accepted here against the cost of manual reboots, and tracked as
   a reconsideration trigger.

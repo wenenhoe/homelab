@@ -4,8 +4,9 @@
 
 `pre-commit install` installs both the `pre-commit` and `pre-push` git
 hooks in one step (`default_install_hook_types` in the config): most
-hooks run at commit time, and `ansible-lint` runs at push time since it
-always re-lints the whole `ansible/` tree rather than just what changed.
+hooks run at commit time. `ansible-lint` runs at push time since it
+always re-lints the whole `ansible/` tree rather than just what changed,
+and so does `check-pr-range`, which needs the commits a push adds.
 `.pre-commit-config.yaml` at the repo root is a symlink to
 `.config/.pre-commit-config.yaml` (config lives under `.config/`, but
 `pre-commit` only ever looks for its own config at the repo root by
@@ -73,11 +74,13 @@ locales. The security series uses `S0001a`.
 - `check-project-close` (local) — a commit that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project, judged on what is staged; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_close.py`](../../../tools/doc_scripts/check_project_close.py)
 - `check-project-start` (local) — a commit that adds a `not-started` project names an `approved` decision or none, judged on what is staged; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_start.py`](../../../tools/doc_scripts/check_project_start.py)
 - `check-accepted-records` (local) — a commit that shortens an `accepted` decision revision leaves its frozen sections unchanged (reported as a warning here, since the trailer that excuses an editorial fix is written with the commit message), and a removed lineage that held one is merged or listed; CI judges the whole PR — see [`tools/doc_scripts/check_accepted_records.py`](../../../tools/doc_scripts/check_accepted_records.py)
+- `check-pr-range` (local, push time) — runs the pull-request forms of the four project and accepted-record checks above (`--base` against the default branch, as the `project-checks` job does) over the commits being pushed, so a stray file in an earlier commit or a missing `Editorial-Fix:` trailer shows before CI; it skips and says so when the clone has no default branch or shares no history with it — see [`tools/doc_scripts/check_pr_range.py`](../../../tools/doc_scripts/check_pr_range.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
-All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
+All of the above run at commit time except `check-pr-range`, which runs at
+push time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
 (lints `ansible/`; `docker/` excluded, it's Compose files not playbooks)
-runs at **push** time instead — it always re-lints the whole `ansible/`
+runs at **push** time too — it always re-lints the whole `ansible/`
 tree regardless of what changed, so it's too slow to pay on every commit.
 
 All tool configs live under `.config/` (each hook is passed an explicit

@@ -2,8 +2,10 @@
 
 Run via `uv run pytest ansible/tests/ -v`. The module runs under the real
 AnsibleModule, fed its arguments the way Ansible's own tests do
-(`patch_module_args`), so what it prints is what a task would receive. The
-module imports its shared code as ansible.module_utils.openbao_kv, a name that
+(`patch_module_args`). Masking a secret out of a result is Ansible's job and
+moved from the module process to the controller in ansible-core 2.22, so the
+tests assert what the module declares as secret, which holds in either place.
+The module imports its shared code as ansible.module_utils.openbao_kv, a name that
 only resolves inside an Ansible run, so the fixture binds it to the file.
 """
 
@@ -23,7 +25,6 @@ import requests
 from ansible.module_utils.testing import patch_module_args
 
 TOKEN = "s.example-token"
-REDACTED = "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER"
 
 
 def _args(*, drop: tuple[str, ...] = (), **overrides) -> dict:
@@ -65,6 +66,20 @@ def module(monkeypatch: pytest.MonkeyPatch, hvac_client: hvac.Client):
     mod = importlib.import_module("ensure_vault_secret")
     monkeypatch.setattr(mod, "new_client", create_autospec(openbao_kv.new_client, return_value=hvac_client))
     return mod
+
+
+@pytest.fixture
+def built(monkeypatch: pytest.MonkeyPatch, module) -> list:
+    """Every real AnsibleModule the module under test builds, in order."""
+
+    class Recording(module.AnsibleModule):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            instances.append(self)
+
+    instances: list = []
+    monkeypatch.setattr(module, "AnsibleModule", Recording)
+    return instances
 
 
 def _run(module, capsys, args: dict) -> tuple[int, dict]:
@@ -159,23 +174,22 @@ class TestSecretsStayOutOfTheOutput:
 
         assert TOKEN not in capsys.readouterr().out
 
-    def test_the_returned_value_is_the_secret_not_a_redaction_marker(self, module, hvac_client, capsys):
+    def test_the_returned_value_is_the_secret_and_is_not_declared_a_secret(self, module, hvac_client, capsys, built):
         _read(hvac_client).return_value = _stored("the-real-secret")
 
         _, result = _run(module, capsys, _args())
 
         assert result["value"] == "the-real-secret"
-        assert REDACTED not in json.dumps(result)
+        assert "the-real-secret" not in built[0].no_log_values
 
-    def test_an_error_message_that_quotes_the_token_is_redacted(self, module, hvac_client, capsys):
+    def test_the_token_is_declared_a_secret_so_an_error_that_quotes_it_is_masked(self, module, hvac_client, capsys, built):
         _missing(hvac_client)
         _write(hvac_client).side_effect = hvac.exceptions.Forbidden(f"permission denied for token {TOKEN}")
-        with patch_module_args(_args()), pytest.raises(SystemExit):
-            module.main()
-        printed = capsys.readouterr().out
 
-        assert TOKEN not in printed
-        assert "permission denied for token" in json.loads(printed)["msg"]
+        _, result = _run(module, capsys, _args())
+
+        assert TOKEN in built[0].no_log_values
+        assert "permission denied for token" in result["msg"]
 
 
 class TestFailures:

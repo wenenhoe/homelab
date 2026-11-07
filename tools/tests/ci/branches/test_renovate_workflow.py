@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -105,9 +106,9 @@ class TestAppToken:
         assert "RENOVATE_TOKEN" not in text
         assert "secrets.RENOVATE_TOKEN" not in text
 
-    def test_the_commit_author_stays_the_maintainer(self, config):
-        # Renovate treats a branch as edited when a commit has another author, so changing who pushes must not change who authors.
-        assert config["gitAuthor"] == "wenenhoe <33289235+wenenhoe@users.noreply.github.com>"
+    def test_the_global_author_equals_the_repository_one(self, steps, config):
+        renovate = steps[_index(steps, "renovatebot/github-action")]
+        assert renovate["env"]["RENOVATE_GIT_AUTHOR"] == config["gitAuthor"]
 
     def test_the_workflow_never_forces_a_push(self):
         assert not re.search(r"--force|--mirror|push\s+\S+\s+\+", WORKFLOW.read_text())
@@ -126,4 +127,71 @@ class TestConfigTargetsMaintenance:
         assert config["rebaseWhen"] == "behind-base-branch"
 
     def test_control_the_parser_sees_real_keys(self, config):
-        assert json.dumps(config["gitAuthor"]).startswith('"wenenhoe')
+        assert json.dumps(config["gitAuthor"]).startswith('"wenenhoe-renovate')
+
+
+# What GitHub records for a commit Renovate makes through the API as the app.
+BOT_EMAIL = "347765362+wenenhoe-renovate[bot]@users.noreply.github.com"
+GITHUB_EMAIL = "noreply@github.com"
+MAINTAINER_EMAIL = "33289235+wenenhoe@users.noreply.github.com"
+
+
+def _git(cwd: Path, *args: str, env: dict[str, str] | None = None) -> str:
+    result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True, env=env)
+    return result.stdout.strip()
+
+
+def _commit(repo: Path, name: str, author: str, committer: str) -> None:
+    (repo / name).write_text(name)
+    _git(repo, "add", name)
+    env = {
+        "PATH": "/usr/bin:/bin",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_AUTHOR_NAME": "a",
+        "GIT_AUTHOR_EMAIL": author,
+        "GIT_COMMITTER_NAME": "c",
+        "GIT_COMMITTER_EMAIL": committer,
+    }
+    _git(repo, "commit", "--quiet", "-m", name, env=env)
+
+
+def _is_edited(repo: Path, git_author_email: str) -> bool:
+    """Renovate's `isBranchModified`: any author or committer in `base..branch` other than `gitAuthor` and GitHub's own."""
+    emails = set(_git(repo, "log", "--format=%ae%n%ce", "maintenance..renovate/dep").split())
+    return bool(emails - {git_author_email, GITHUB_EMAIL})
+
+
+@pytest.fixture
+def renovate_branch(tmp_path):
+    """A Renovate branch of one API-made commit, cut from `maintenance`."""
+    _git(tmp_path, "init", "--quiet", "--initial-branch=maintenance", ".")
+    _commit(tmp_path, "base", MAINTAINER_EMAIL, MAINTAINER_EMAIL)
+    _git(tmp_path, "checkout", "--quiet", "-b", "renovate/dep")
+    _commit(tmp_path, "bump", BOT_EMAIL, GITHUB_EMAIL)
+    _git(tmp_path, "checkout", "--quiet", "maintenance")
+    return tmp_path
+
+
+class TestOpenPullRequestsStayUpdatable:
+    @pytest.fixture
+    def configured_email(self, config) -> str:
+        return re.search(r"<([^>]+)>", config["gitAuthor"]).group(1)
+
+    def test_a_bot_commit_is_not_an_edit(self, renovate_branch, configured_email):
+        assert not _is_edited(renovate_branch, configured_email)
+
+    def test_maintenance_moving_on_does_not_make_it_an_edit(self, renovate_branch, configured_email, subtests):
+        for step in ("main-1", "main-2", "main-3"):
+            _commit(renovate_branch, step, MAINTAINER_EMAIL, GITHUB_EMAIL)
+        with subtests.test("after a fast-forward over several commits"):
+            assert not _is_edited(renovate_branch, configured_email)
+        _git(renovate_branch, "checkout", "--quiet", "-b", "side", "maintenance~3")
+        _commit(renovate_branch, "side", MAINTAINER_EMAIL, MAINTAINER_EMAIL)
+        _git(renovate_branch, "checkout", "--quiet", "maintenance")
+        _git(renovate_branch, "-c", f"user.email={MAINTAINER_EMAIL}", "-c", "user.name=m", "merge", "--quiet", "--no-ff", "-m", "merge", "side")
+        with subtests.test("after a merge commit"):
+            assert not _is_edited(renovate_branch, configured_email)
+
+    def test_control_the_maintainer_as_author_reads_every_branch_as_edited(self, renovate_branch):
+        assert _is_edited(renovate_branch, MAINTAINER_EMAIL)

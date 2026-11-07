@@ -15,7 +15,10 @@
     // badges. No extra token needed: badges load client-side in the browser.
     "mergeConfidence:all-badges",
   ],
-  gitAuthor: "wenenhoe <33289235+wenenhoe@users.noreply.github.com>",
+  // Authenticated as a GitHub App, Renovate commits through the API, so GitHub
+  // sets every commit's author to the app's bot. A branch whose commits have any
+  // other author reads as edited, and Renovate then stops updating its PR.
+  gitAuthor: "wenenhoe-renovate[bot] <347765362+wenenhoe-renovate[bot]@users.noreply.github.com>",
 
   // Renovate's branches and pull requests are based on maintenance, not main
   // (ADR 0076); promoting maintenance to main is the maintainer's pull request.

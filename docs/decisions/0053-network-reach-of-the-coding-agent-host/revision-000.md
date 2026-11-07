@@ -8,7 +8,7 @@ solution: Its own VLAN, default-deny both ways at OPNsense, egress through a dom
 summary: What the coding-agent host can reach and be reached from, enforced at the firewall rather than on the host.
 topic: security-hardening
 status: working
-related: [ADR-0020, ADR-0039, ADR-0040, ADR-0058, ADR-0089]
+related: [ADR-0020, ADR-0040, ADR-0058, ADR-0089]
 ---
 
 # 0053. Network reach of the coding-agent host
@@ -88,7 +88,7 @@ flowchart LR
 ## Non-goals
 
 - Preventing exfiltration through allowed destinations.
-- TLS inspection ([ADR 0039 (Intrusion detection scope)](../0039-intrusion-detection-scope/revision-000.md) keeps the lab's TLS uninspected). The proxy filters on the requested host name only.
+- TLS inspection: the lab's TLS stays uninspected. The proxy filters on the requested host name only.
 
 ## Validation
 

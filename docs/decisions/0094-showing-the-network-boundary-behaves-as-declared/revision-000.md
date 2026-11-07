@@ -103,7 +103,7 @@ The list says what is intended. It is not the source of the gateway's rules, whi
 - Throughput, latency and the gateway's state.
 - How `--check --diff` output is read as drift on the gateway. That depends on the collection's real output and is its own lineage.
 - The tailnet policy's own `tests` ([ADR 0059 (Tailnet policy)](../0059-where-the-tailnet-policy-is-defined/revision-000.md)), which assert grants, not gateway behaviour.
-- Inspecting traffic content ([ADR 0039 (Intrusion detection scope)](../0039-intrusion-detection-scope/revision-000.md)).
+- Inspecting traffic content.
 
 ## Validation
 

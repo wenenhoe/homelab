@@ -230,7 +230,11 @@ untouched for a long time, and whether too many projects are active.
   number. It carries every Decision point, Invariant, Non-goal and trigger of
   each source, lists their numbers in `former_ids`, and takes over their
   inbound links and `related:` entries in the same change, since a link to a
-  deleted record fails the drift check and `former_ids` redirects nothing. The
+  deleted record fails the drift check and `former_ids` redirects nothing.
+  [`merge_adr_links.py`](../../tools/doc_scripts/merge_adr_links.py) does that
+  rewriting once the new record exists and prints the frozen sections it
+  touched, which need `Editorial-Fix:` trailers; it deletes and commits
+  nothing. The
   source directories are deleted, the NIST mapping that cites a superseded
   source is re-checked as for any supersession, and the options that lost move
   into the new record's Alternatives. It is `accepted` from the start only if

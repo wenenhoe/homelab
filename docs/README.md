@@ -63,11 +63,10 @@ play numbering; `ci/pipeline.md`'s job table; every cross-file `#anchor`
 reference repo-wide; every `docs/decisions/` or `docs/projects/` path
 written anywhere, comments included; and the decision-lineage and
 project rules in [`decisions/README.md`](decisions/README.md) and
-[`projects/README.md`](projects/README.md)). What a change is allowed to
-touch is checked separately, by
-[`check_project_scope.py`](../tools/doc_scripts/check_project_scope.py);
-deleting a project doc without settling its decision is checked by
-[`check_project_close.py`](../tools/doc_scripts/check_project_close.py).
+[`projects/README.md`](projects/README.md)). What a change to a project or an
+accepted decision may do is checked separately, by
+[`check_doc_change.py`](../tools/doc_scripts/check_doc_change.py); the rules
+are in [`topics/engineering/ci/doc-checks.md`](topics/engineering/ci/doc-checks.md).
 Nothing here enforces the rest by tooling — that's still on whoever's
 making the change to keep current in the same PR, the same way a
 diagram's topology should change alongside the topology it shows (see

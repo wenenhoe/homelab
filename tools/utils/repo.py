@@ -6,7 +6,7 @@ openbao_utils/bootstrap.py prompts for, not just OpenBao's own
 role-id/secret-id; security_ssh_target()/fetch_root_cert() are plain
 "SSH to security, read step-ca's shared root cert" - nothing in either
 one touches OpenBao's API. See
-docs/decisions/0031-where-repo-tooling-lives/revision-000.md.
+docs/decisions/0105-where-repo-tooling-lives/revision-000.md.
 """
 
 from __future__ import annotations

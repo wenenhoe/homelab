@@ -227,6 +227,42 @@ class TestEachRule:
     def test_any_other_recovery_tier_is_refused(self, tier):
         assert broken({"recovery_tier": tier}) == ["recovery-tier"]
 
+    @pytest.mark.parametrize(
+        "doc",
+        [
+            pytest.param("docs/topics/secrets/openbao.md", id="grouped"),
+            pytest.param("docs/topics/infra/dns/bind9.md", id="nested"),
+            pytest.param("docs/topics/services/my-app_2.md", id="underscore-and-digit"),
+        ],
+    )
+    def test_a_doc_path_under_topics_is_accepted(self, doc):
+        assert broken({"doc": doc}) == []
+
+    @pytest.mark.parametrize(
+        "doc",
+        [
+            pytest.param("docs/README.md", id="other-docs-directory"),
+            pytest.param("docs/topics/openbao.md", id="not-in-a-group"),
+            pytest.param("docs/topics/secrets/openbao", id="no-extension"),
+            pytest.param("docs/topics/secrets/openbao.txt", id="wrong-extension"),
+            pytest.param("topics/secrets/openbao.md", id="not-repo-relative"),
+            pytest.param("/docs/topics/secrets/openbao.md", id="absolute"),
+            pytest.param("docs/topics/../decisions/x.md", id="dotdot"),
+            pytest.param("docs/topics/secrets/../../x/a.md", id="dotdot-deeper"),
+            pytest.param("docs/topics/secrets/open bao.md", id="space"),
+            pytest.param("", id="empty"),
+            pytest.param(None, id="null"),
+            pytest.param(["docs/topics/secrets/openbao.md"], id="list"),
+            pytest.param(True, id="true"),
+        ],
+    )
+    def test_any_other_doc_is_refused(self, doc):
+        assert broken({"doc": doc}) == ["doc-shape"]
+
+    def test_several_apps_may_name_one_record(self):
+        shared = "docs/topics/monitoring/beszel.md"
+        assert rules.validate({"hub": {"doc": shared}, "agent": {"doc": shared}}) == []
+
 
 ALPHA_VARS = inventory().host_vars["alpha"]
 

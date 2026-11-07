@@ -16,6 +16,9 @@ own SeaweedFS secret pair and host variables, or the deploy fails late on an
 undefined variable. Each violation is reported with the app's (or host's) name
 and the rule it breaks; any violation fails the check.
 
+A `doc` key names the app's service record: a path under `docs/topics/` ending in `.md` (ADR 0100). Whether the file
+exists and has its sections is the doc-drift check's business.
+
 A `recovery_tier` key is `1` or absent: it marks a system every other restore depends on, and every other
 system's tier is derived from whether it has a `backup` (ADR 0101).
 
@@ -28,6 +31,7 @@ Usage (from tools/): python -m ci.gates.app_catalog_rules
 from __future__ import annotations
 
 import difflib
+import re
 import sys
 from dataclasses import dataclass
 
@@ -38,6 +42,10 @@ LEGACY_ROUTES_KEY = "caddy"
 CLOUD_TARGETS_KEY = "cloud_targets"
 LEGACY_CLOUD_TARGETS_KEY = "extra_cloud_targets"
 RECOVERY_TIER_KEY = "recovery_tier"
+DOC_KEY = "doc"
+# A record is a topic doc named by its repo-relative path; that the file exists and holds the required sections is
+# check_doc_drift.py's to say.
+DOC_PATH_RE = re.compile(r"docs/topics/(?:[\w-]+/)+[\w.-]+\.md")
 DEFAULTS_NAME = "backup_defaults"
 # The keys of an app's `backup:` block that have a default, which are the keys of backup_defaults. The
 # backup_plan filter in ansible/filter_plugins/ keeps the same list; a test holds the two equal.
@@ -127,6 +135,11 @@ def _check_app(name: str, app: dict[str, object]) -> list[Violation]:
         tier = app[RECOVERY_TIER_KEY]
         if tier != 1 or isinstance(tier, bool):
             fail("recovery-tier", f"`{RECOVERY_TIER_KEY}` must be 1 or left out; any other system's tier is derived from its `backup`")
+
+    if DOC_KEY in app:
+        doc = app[DOC_KEY]
+        if not (isinstance(doc, str) and DOC_PATH_RE.fullmatch(doc) and ".." not in doc.split("/")):
+            fail("doc-shape", f"`{DOC_KEY}` must be the repo-relative path of a markdown file under docs/topics/, such as docs/topics/secrets/openbao.md")
 
     legacy = app.get(LEGACY_ROUTES_KEY)
     if isinstance(legacy, dict) and legacy and all(isinstance(route, dict) for route in legacy.values()):

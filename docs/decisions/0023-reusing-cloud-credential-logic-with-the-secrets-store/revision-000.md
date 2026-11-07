@@ -8,7 +8,7 @@ solution: Repoint the existing scripts at OpenBao KV v2; no native plugin
 summary: How the existing per-provider credential logic persists its output in OpenBao without being rebuilt.
 topic: cloud-credentials
 status: accepted
-related: [ADR-0016, ADR-0014]
+related: [ADR-0109, ADR-0110]
 ---
 
 # 0023. Reusing cloud-credential logic with the secrets store
@@ -19,9 +19,9 @@ related: [ADR-0016, ADR-0014]
 per-provider logic that has nothing to do with where the result is
 stored: B2's `validDurationInSeconds` and `readFiles`-for-`HeadObject`
 requirement, OCI's Identity Domains SCIM/Confidential-Application model
-([0016](../0016-oci-credential-creation-and-expiry/revision-000.md)), and
+([0016](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)), and
 R2's hard no-sub-token-delegation ceiling
-([0014](../0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)).
+([0014](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)).
 Moving to OpenBao means deciding what changes: only the storage target,
 or the mechanism doing the minting/rotating too.
 
@@ -71,7 +71,7 @@ exists to run it unattended — the cadence itself is a policy decision,
 independent of what triggers it. Rotation moves to a schedule: **leaf
 credentials** (all 6, across B2/R2/OCI) rotate every 30 days — a third
 of their 90-day expiry window
-([0015](../0015-cloud-credential-expiry/revision-000.md)),
+([0015](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)),
 so a leaf credential is never within `check_freshness.py`'s own
 WARNING threshold under normal operation; its alerting becomes a
 safety net for a missed run, not the primary trigger. **Rotation/master
@@ -80,12 +80,12 @@ window rather than tightening it further — kept at parity because
 master-tier rotation already carries more risk per credential than a
 leaf rotation (OCI's Confidential Application secret has no
 verify-before-revoke at all, per
-[0016](../0016-oci-credential-creation-and-expiry/revision-000.md)), and
+[0016](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)), and
 a shorter cycle would multiply that risk without a clear benefit. For
 B2 and OCI, `create_rotation_keys.py --rotate {write,read,both}`'s
 existing mint-verify-revoke flow implements each rotation; R2 is a
 structural exception — see
-[0024](../0024-r2-admin-token-custody/revision-000.md) for why its master token
+[0024](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md) for why its master token
 can't be minted the same way.
 
 Today, both the freshness check and rotation itself are
@@ -121,7 +121,7 @@ work.
   question for that work, not decided here.
 - OCI's Confidential Application secret regenerating automatically
   every 90 days with no rollback (per
-  [0016](../0016-oci-credential-creation-and-expiry/revision-000.md))
+  [0016](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md))
   needs a tested failure path before this goes live — verified in a
   restore drill (during the backup/restore proving stage, or again at
   the later cutover stage), not assumed safe by analogy to B2/R2.

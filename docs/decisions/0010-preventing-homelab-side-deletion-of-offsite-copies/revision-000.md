@@ -47,7 +47,7 @@ it, can delete or overwrite an object that's already landed in the
 cloud — even with `cloud_sync`'s own credentials fully compromised.
 This is the actual mechanism (not IAM narrowing) that gives the
 offsite copies their compromise-resistance; see
-[ADR 0014 (R2 rotation credential)](../0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
+[ADR 0110 (R2 admin token custody)](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)
 for where that matters most (R2, where credential scoping alone can't
 carry the same guarantee).
 

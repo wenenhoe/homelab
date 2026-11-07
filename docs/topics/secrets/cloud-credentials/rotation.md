@@ -9,7 +9,7 @@ How the leaf and rotation credentials are rotated, per provider: the `--rotate` 
 `openbao_utils/audit.py --local` flags anything under
 `ansible/files/secrets/` that doesn't match current config, whatever its vintage. It has no
 visibility into Console-side IAM objects, so the cleanup from the OCI SCIM migration
-([ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)) stays manual if you
+([ADR 0109 (Cloud credential expiry)](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)) stays manual if you
 never did it: delete the unused `homelab-key-rotation` identity — its API signing key first, then the policy,
 then the group membership, then the user itself.
 
@@ -161,7 +161,7 @@ operation.
 
 **R2** has no verify-then-revoke equivalent — Cloudflare's API
 structurally can't mint a delegate credential for this at all (see
-[ADR 0014 (R2 rotation credential)](../../../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)) —
+[ADR 0110 (R2 admin token custody)](../../../decisions/0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)) —
 but it does have the same `--rotate` entry point now, closing a real
 gap: create a new Custom Token in the Console first, then
 

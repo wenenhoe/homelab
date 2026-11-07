@@ -27,8 +27,8 @@ made that untenable as the repo grew:
   across more hosts and apps.
 - Centralized rotation and audit weren't achievable within a flat file
   cache in practice, not just in principle —
-  [0015](../0015-cloud-credential-expiry/revision-000.md)/
-  [0016](../0016-oci-credential-creation-and-expiry/revision-000.md) show
+  [0015](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)/
+  [0016](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md) show
   this directly: credential expiry needed a mix of native provider
   expiry and self-tracked cache-file timestamps, checked by a systemd
   user timer on `controller` — a workaround for the lack of any real

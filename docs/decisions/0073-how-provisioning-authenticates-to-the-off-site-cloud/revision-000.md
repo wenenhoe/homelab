@@ -8,7 +8,7 @@ solution: 'Undecided: a service-account key, service-account impersonation, or w
 summary: How Tofu proves itself to the GCP account that hosts the off-site monitor, without a standing credential that outlives its use or reaches the host it creates.
 topic: cloud-credentials
 status: working
-related: [ADR-0015, ADR-0047, ADR-0048, ADR-0049, ADR-0056, ADR-0058]
+related: [ADR-0109, ADR-0047, ADR-0048, ADR-0049, ADR-0056, ADR-0058]
 ---
 
 # 0073. How provisioning authenticates to the off-site cloud account

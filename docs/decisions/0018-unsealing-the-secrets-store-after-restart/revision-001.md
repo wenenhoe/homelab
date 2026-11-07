@@ -45,7 +45,7 @@ the recovery keys, and needs both seals available
 
 **Candidate keys.** OCI KMS software-protected keys in the default vault
 cost nothing, and the tenancy already holds this repo's OCI credentials
-([ADR 0016 (OCI credential creation)](../0016-oci-credential-creation-and-expiry/revision-000.md)).
+([ADR 0109 (Cloud credential expiry)](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)).
 The `ocikms` seal authenticates as the compute instance or with an API
 key from the OCI SDK config; a Proxmox VM has no instance identity, so
 the API key is the only form available. GCP Cloud KMS costs about $0.06

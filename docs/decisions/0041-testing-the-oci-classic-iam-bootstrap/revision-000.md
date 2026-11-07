@@ -8,7 +8,7 @@ solution: floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocke
 summary: How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks.
 topic: repository-tooling
 status: working
-related: [ADR-0016]
+related: [ADR-0109]
 ---
 
 # 0041. Testing the OCI classic-IAM bootstrap

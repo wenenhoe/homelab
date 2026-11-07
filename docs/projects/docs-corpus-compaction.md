@@ -7,6 +7,7 @@ blocked: false
 summary: "Clean up the existing decisions and placeholder projects with the compaction rules: move unsettled questions to explorations, demote implementation-detail records, merge records that are one problem, and withdraw projects that wait on an unsettled revision."
 allowed_paths:
   - docs/**
+  - SECURITY.md
 ---
 
 # Docs corpus compaction

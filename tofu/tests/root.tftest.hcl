@@ -146,6 +146,24 @@ run "declares_the_storage_host_on_its_vmid" {
   }
 }
 
+run "puts_the_storage_hosts_disk_on_the_backup_datastore" {
+  command = plan
+
+  assert {
+    condition     = module.storage.datastore_id == "backup"
+    error_message = "the storage host's disk must sit on the backup datastore, not on the disk of the hosts it protects"
+  }
+}
+
+run "keeps_the_other_hosts_off_the_backup_datastore" {
+  command = plan
+
+  assert {
+    condition     = module.play.datastore_id == "local-lvm" && module.security.datastore_id == "local-lvm" && module.tailscale.datastore_id == "local-lvm" && module.services.datastore_id == "local-lvm"
+    error_message = "only the storage host's disk may sit on the backup datastore"
+  }
+}
+
 run "publishes_the_hosts_for_the_inventory_generator" {
   command = plan
 

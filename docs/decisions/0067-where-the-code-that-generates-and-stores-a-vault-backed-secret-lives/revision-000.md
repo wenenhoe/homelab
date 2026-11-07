@@ -7,7 +7,8 @@ short: Vault-backed secret module
 solution: "A custom Ansible module under ansible/module_utils/ + a role's library/, calling hvac directly, replacing the task-based read/generate/write/reread sequence"
 summary: "Where the logic that generates, reads and CAS-writes a Vault-backed secret lives, replacing five correlated uri tasks with one module."
 topic: secrets-store
-status: accepted
+status: superseded
+superseded_by: 1
 related: [ADR-0021, ADR-0104, ADR-0105, ADR-0066]
 ---
 

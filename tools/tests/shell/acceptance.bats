@@ -15,6 +15,7 @@ setup() {
   cat > "$TEST_ROOT/tofu/scratch/opnsense/scratch_gateway.sh" <<'BODY'
 #!/usr/bin/env bash
 printf 'scratch_gateway %s WANT_VERSION=%s\n' "$1" "$WANT_VERSION" >> "$CALLS"
+[ "$1" != down ] || [ -z "${DOWN_FAIL:-}" ] || exit 1
 if [ "$1" = up ]; then
   mkdir -p "$2/first-boot"
   : > "$2/scratch.env"
@@ -112,6 +113,19 @@ teardown() {
   assert_output --partial "CHECK(S) FAILED"
   run calls_to scratch_gateway
   assert_line "scratch_gateway down WANT_VERSION=26.1.11"
+}
+
+@test "a gateway that cannot be removed fails the run, and the summary does not claim every check passed" {
+  DOWN_FAIL=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
+  assert_output --partial "CHECK the scratch gateway is removed: FAIL"
+  assert_output --partial "1 CHECK(S) FAILED"
+  refute_output --partial "ALL CHECKS PASSED"
+}
+
+@test "a gateway that cannot be removed after an earlier failure is tried once" {
+  PLAY_FAIL=1 DOWN_FAIL=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
+  run calls_to scratch_gateway
+  assert_equal "$(grep -c '^scratch_gateway down' <<< "$output")" 1
 }
 
 @test "KEEP=1 leaves the gateway up and says how to remove it" {

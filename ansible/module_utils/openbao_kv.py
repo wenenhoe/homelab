@@ -6,7 +6,7 @@ ansible.cfg's module_utils setting makes resolvable.
 tools/openbao_utils/client.py makes the same hvac calls and is a separate
 implementation on purpose: a module cannot import it, and neither tree
 depends on the other. A change to KV v2 behaviour needs applying to both.
-See docs/decisions/0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md.
+See docs/decisions/0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-001.md.
 """
 
 from __future__ import annotations

@@ -24,25 +24,20 @@ gates it.
 - **Super-project** — a large initiative that needs several projects. A
   label (`super_project:`), not a document; see
   [Super Projects](../project-planning.md#super-projects).
-- **Track** — an independent stream of work within a super-project
-  (`track:`).
-- **Phase** — an ordered grouping within a track (`phase:`).
 - **Project** — the smallest independently manageable and closable unit;
   one doc.
 - **Stage** — a sequential build step inside one project. Numbering is
   local to that doc.
 
-A `track` needs a `super_project`, and a `phase` needs a `track`. No
-level is required; don't add one for naming's sake. Decompose a broad
+No level is required; don't add one for naming's sake. Decompose a broad
 initiative top-down, or add a `super_project` label once existing
 projects turn out to be coupled — both are fine.
 
-The generated [Super Projects](../project-planning.md#super-projects) view reads in build order:
-tracks by their earliest project in the dependency chain, then phases by
-slug, then projects by dependency depth. Where an order isn't a
-dependency (two stages that merely go one after the other), make them
-phases of one track and number the slugs (`1-…`, `2-…`); the view can't
-infer it.
+The generated [Super Projects](../project-planning.md#super-projects) view
+groups an initiative's projects and reads them by dependency depth, then by
+file name. An order that is not a dependency is not recorded: if one project
+cannot start until another is done, declare it; if it merely goes first, say
+so in the stage prose.
 
 Hierarchy says where work belongs; dependency says what must finish
 first. Declare `depends_on` (`project:` and `reason:`) only when work
@@ -56,35 +51,55 @@ dangling one.
 
 | Status | Meaning | Linked `decision:` revision must be |
 | :--- | :--- | :--- |
-| `not-started` | Nothing underway. | `working` or `approved` |
+| `not-started` | Nothing underway. | `approved` for a new project; `working` or `approved` for one already waiting |
 | `de-risking` | Resolving an open assumption — only throwaway spikes or reading code. | `working` |
 | `building` | Production implementation is authorized. | `approved` |
 | `done` | Everything implemented and merged. | `accepted`, or `approved` while another project still names it |
 
 `check_doc_drift.py` enforces the last column, so a revision that drops
-back to `working` stops any project `building` on it. A project without
+back to `working` stops any project `building` on it. It also checks the
+status against the stage table: `not-started` with a stage `In progress` or
+`Done`, or `de-risking` or `building` with every stage `Not started`, fails. A
+doc with no stage rows is not judged. A stage named `Spike` that is not `Done` fails when the
+decision is `approved` or `accepted`: finish it, or name the stage for what it
+builds. A project without
 `decision:` isn't gated. Several projects may name one revision; it stays
 `approved` until the last of them closes (see
 [When a project finishes](#when-a-project-finishes)).
 
+A project starts on a decision that is settled. A new project is
+`not-started` only when its `decision:` revision is `approved`, or it names
+none; one whose revision is still `working` starts as `de-risking`, limited to
+spikes and reading code, or does not exist yet, and the question stays in a
+decision or an [exploration](../explorations/README.md) until it is approved. A spike
+for a question no decision covers yet is a project without `decision:`: it states
+the question in its scope and ends by writing the decision.
+[`check_project_start.py`](../../tools/doc_scripts/check_project_start.py)
+fails a change that adds one otherwise; it reads only the docs the change
+adds, so a project already waiting on a `working` revision is left alone until
+that revision is approved or the project is withdrawn
+([When a project finishes](#when-a-project-finishes)). More than the limit in
+[`generate_doc_indexes.py`](../../tools/doc_scripts/generate_doc_indexes.py)
+of projects at `building` or `de-risking` at once draws a warning from the
+generator: finished work comes before new work.
+
 `blocked: true` with a `blocked_reason` is a flag, not a status: a
 current impediment that isn't another project (hardware, an external
 service). Waiting on a project is derived from `depends_on`, and so is
-"ready": the index marks a `not-started` project ready when its decision
-revision is `approved` (or it has no `decision:`), it is not blocked, and
-no project it depends on remains. Neither is a status, so neither needs
+"ready": the index's Blocker cell is `—` for a `not-started` project when its
+decision revision is `approved` (or it has no `decision:`), it is not blocked,
+and no project it depends on remains. Neither is a status, so neither needs
 an edit when it changes. A `not-started` project that is not blocked and
 waits on no project, but whose decision revision is not yet `approved`,
 reads "waiting on" that revision, derived the same way. A risk —
 something that could cause rework but blocks nothing now — goes in the
 doc's Risks list instead.
 
-The generated views derive two more things from the same fields.
+The generated views derive one more thing from the same fields.
 **Unblocks** is the number of existing projects that wait on a project,
-directly or through a chain of `depends_on`. [Next up](../project-planning.md#next-up)
-lists what can be started now, ordered by status and then by Unblocks.
-Neither is stored, and no field carries a priority
-([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)).
+directly or through a chain of `depends_on`. It is not stored, and no field
+carries a priority
+([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-001.md)).
 
 ## What goes in one
 
@@ -221,6 +236,13 @@ either current-state fact (which belongs in a topic doc) or build
 narrative (which git and the PRs already hold). Run the checklist first;
 skipping it is how a real fact gets lost instead of promoted.
 
+A project that names only `working` revisions is withdrawn, not closed:
+delete the doc, with no checklist, since it built nothing and its stage plan
+is only a draft. The revision then shows in
+[Decisions awaiting a project](../project-planning.md#decisions-awaiting-a-project)
+until a project is opened for it again. A doc that names any other revision
+closes as described below.
+
 A revision that other projects still name in `decision:` stays
 `approved`: this project isn't the last, so it closes without touching
 the revision. The last project to name a revision sets it `accepted` in
@@ -272,43 +294,44 @@ here.
 
 ## Index
 
-| Project | Unblocks | Status | Covers |
-| :--- | ---: | :--- | :--- |
-| [`automated-pr-review.md`](automated-pr-review.md) | — | Not started — waiting on [ADR-0061/1](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md) | Review a pull request from the private repository's CI when the maintainer labels it, describe the practice here, try it against the local CodeRabbit run, and accept the decision. |
-| [`backup-agent-compose-app.md`](backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](../decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) | Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app. |
-| [`backup-archive-retention-lock.md`](backup-archive-retention-lock.md) | — | Not started — waiting on [ADR-0081/0](../decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) | Lock the on-site backup bucket in compliance mode so the host that wrote an archive cannot delete it, and expire superseded versions once their lock ends, as ADR 0081 decides. |
-| [`backup-archive-signing.md`](backup-archive-signing.md) | — | Not started — waiting on [ADR-0079/0](../decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) | Sign each backup archive with a per-host key and make a restore refuse any archive whose signature does not verify against a key pinned in the repository, as ADR 0079 decides. |
-| [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
-| [`bind-mounted-config-files.md`](bind-mounted-config-files.md) | — | Not started — waiting on [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
-| [`cd-agent-approles.md`](cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
-| [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
-| [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
-| [`cd-agent.md`](cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
-| [`coding-agent-access-path.md`](coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
-| [`coding-agent-egress.md`](coding-agent-egress.md) | — | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | A filtering egress proxy for the coding-agent zone and VLAN 30, and canary probes that check the whole boundary from outside the host. |
-| [`coding-agent-host.md`](coding-agent-host.md) | 4 | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
-| [`coding-agent-management.md`](coding-agent-management.md) | — | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else. |
-| [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
-| [`coding-agent-network.md`](coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
-| [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
-| [`dr-exercises.md`](dr-exercises.md) | — | Building | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
-| [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
-| [`host-hardening-remaining-hosts.md`](host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
-| [`integration-records.md`](integration-records.md) | — | Not started — ready | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
-| [`kms-image.md`](kms-image.md) | — | Not started — waiting on [ADR-0091/0](../decisions/0091-where-the-activation-hosts-image-comes-from/revision-000.md) | Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app. |
-| [`licence-check.md`](licence-check.md) | — | Not started — waiting on [ADR-0090/0](../decisions/0090-licences-of-adopted-software/revision-000.md) | A registry of every pinned dependency's licence, a check when a pin changes, and a weekly check of each upstream's default-branch licence file, as ADR 0090 decides. |
-| [`molecule-container-hardening.md`](molecule-container-hardening.md) | — | Not started — ready | Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them. |
-| [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
-| [`network-boundary-checks.md`](network-boundary-checks.md) | — | De-risking | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
-| [`off-site-monitoring.md`](off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
-| [`openbao-auto-unseal.md`](openbao-auto-unseal.md) | — | De-risking | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
-| [`operator-host-takeover.md`](operator-host-takeover.md) | — | Not started — waiting on [`operator-host.md`](operator-host.md) | The egress allowlist for VLAN 30, then the controller's toolchain and credentials moved onto the operator host. |
-| [`operator-host.md`](operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
-| [`opnsense-config.md`](opnsense-config.md) | — | Building | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
-| [`proxmox-node-install.md`](proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](../decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) | The Proxmox node reinstalled from an ISO with an embedded answer file and brought to the state OpenTofu needs by an idempotent Ansible role, tested on a nested Proxmox VM. |
-| [`tailnet-policy-in-tofu.md`](tailnet-policy-in-tofu.md) | — | Not started — waiting on [ADR-0059/0](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides. |
-| [`tofu-migration.md`](tofu-migration.md) | — | Building | Move Tofu's state off the dev VM into a remote backend, so Tofu's record of what it built no longer depends on one VM. |
-| [`tofu-plan-guard.md`](tofu-plan-guard.md) | — | Not started — waiting on [ADR-0102/0](../decisions/0102-knowing-what-a-tofu-change-will-do/revision-000.md) | Build the guard that checks a saved Tofu plan against a committed allow-list of destructive actions, the wrapper that applies the checked plan, and the pull request check that fails an address removed without one, then accept the decision. |
-| [`watch-all-rotation-credentials.md`](watch-all-rotation-credentials.md) | — | Not started — ready | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
-| [`windows-vms.md`](windows-vms.md) | — | Not started — waiting on [ADR-0092/0](../decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) | Windows machines created by OpenTofu from their install media with an unattended answer file rendered in this repository, starting with the desktops and the one with a GPU. |
-| [`workstation-management.md`](workstation-management.md) | — | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it. |
+| Project | Unblocks | Status | Blocker | Covers |
+| :--- | ---: | :--- | :--- | :--- |
+| [`cd-agent-approles.md`](cd-agent-approles.md) | 1 | Building | — | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
+| [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md) | — | Building | — | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
+| [`cd-agent.md`](cd-agent.md) | 3 | Building | — | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
+| [`dr-exercises.md`](dr-exercises.md) | — | Building | — | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
+| [`integration-records.md`](integration-records.md) | — | Building | — | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
+| [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | — | Building | — | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
+| [`opnsense-config.md`](opnsense-config.md) | — | Building | — | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
+| [`tofu-migration.md`](tofu-migration.md) | — | Building | — | Move Tofu's state off the dev VM into a remote backend, so Tofu's record of what it built no longer depends on one VM. |
+| [`operator-host.md`](operator-host.md) | 2 | De-risking | — | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
+| [`automated-pr-review.md`](automated-pr-review.md) | — | Not started | waiting on [ADR-0061/1 (Automated code review)](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md) | Review a pull request from the private repository's CI when the maintainer labels it, describe the practice here, try it against the local CodeRabbit run, and accept the decision. |
+| [`backup-agent-compose-app.md`](backup-agent-compose-app.md) | — | Not started | waiting on [ADR-0088/0 (Role-deployed stack compose)](../decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) | Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app. |
+| [`backup-archive-retention-lock.md`](backup-archive-retention-lock.md) | — | Not started | waiting on [ADR-0081/0 (On-site archive deletion)](../decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) | Lock the on-site backup bucket in compliance mode so the host that wrote an archive cannot delete it, and expire superseded versions once their lock ends, as ADR 0081 decides. |
+| [`backup-archive-signing.md`](backup-archive-signing.md) | — | Not started | waiting on [ADR-0079/0 (Backup archive authenticity)](../decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) | Sign each backup archive with a per-host key and make a restore refuse any archive whose signature does not verify against a key pinned in the repository, as ADR 0079 decides. |
+| [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) | — | Not started | — | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
+| [`bind-mounted-config-files.md`](bind-mounted-config-files.md) | — | Not started | waiting on [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
+| [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | — | Not started | waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
+| [`coding-agent-access-path.md`](coding-agent-access-path.md) | — | Not started | waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
+| [`coding-agent-egress.md`](coding-agent-egress.md) | — | Not started | waiting on [`coding-agent-network.md`](coding-agent-network.md) | A filtering egress proxy for the coding-agent zone and VLAN 30, and canary probes that check the whole boundary from outside the host. |
+| [`coding-agent-host.md`](coding-agent-host.md) | 4 | Not started | waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
+| [`coding-agent-management.md`](coding-agent-management.md) | — | Not started | waiting on [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else. |
+| [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | — | Not started | waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
+| [`coding-agent-network.md`](coding-agent-network.md) | 6 | Not started | waiting on [ADR-0053/0 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md) | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
+| [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) | 1 | Not started | — | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
+| [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | 1 | Not started | waiting on [ADR-0073/0 (Off-site cloud auth)](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
+| [`host-hardening-remaining-hosts.md`](host-hardening-remaining-hosts.md) | — | Not started | waiting on [`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
+| [`kms-image.md`](kms-image.md) | — | Not started | waiting on [ADR-0091/0 (Activation host image)](../decisions/0091-where-the-activation-hosts-image-comes-from/revision-000.md) | Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app. |
+| [`licence-check.md`](licence-check.md) | — | Not started | waiting on [ADR-0090/0 (Adopted software licences)](../decisions/0090-licences-of-adopted-software/revision-000.md) | A registry of every pinned dependency's licence, a check when a pin changes, and a weekly check of each upstream's default-branch licence file, as ADR 0090 decides. |
+| [`molecule-container-hardening.md`](molecule-container-hardening.md) | — | Not started | — | Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them. |
+| [`network-boundary-checks.md`](network-boundary-checks.md) | — | Not started | waiting on [ADR-0094/0 (Network boundary checks)](../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md) | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
+| [`off-site-monitoring.md`](off-site-monitoring.md) | — | Not started | blocked: no production credential goes to the GCP host until its hardening pass is scoped and done; waiting on [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
+| [`openbao-auto-unseal.md`](openbao-auto-unseal.md) | — | Not started | waiting on [ADR-0018/1 (Secrets store unsealing)](../decisions/0018-unsealing-the-secrets-store-after-restart/revision-001.md) | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
+| [`operator-host-takeover.md`](operator-host-takeover.md) | — | Not started | waiting on [`operator-host.md`](operator-host.md) | The egress allowlist for VLAN 30, then the controller's toolchain and credentials moved onto the operator host. |
+| [`proxmox-node-install.md`](proxmox-node-install.md) | — | Not started | waiting on [ADR-0093/0 (Proxmox node install)](../decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) | The Proxmox node reinstalled from an ISO with an embedded answer file and brought to the state OpenTofu needs by an idempotent Ansible role, tested on a nested Proxmox VM. |
+| [`reliance-declaration.md`](reliance-declaration.md) | — | Not started | — | A declared reliance between decisions, checked as a warning that names every approved or accepted revision whose boundary still rests on a working one, as ADR 0080 decides. |
+| [`tailnet-policy-in-tofu.md`](tailnet-policy-in-tofu.md) | — | Not started | waiting on [ADR-0059/0 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides. |
+| [`tofu-plan-guard.md`](tofu-plan-guard.md) | — | Not started | waiting on [ADR-0102/0 (Tofu change review)](../decisions/0102-knowing-what-a-tofu-change-will-do/revision-000.md) | Build the guard that checks a saved Tofu plan against a committed allow-list of destructive actions, the wrapper that applies the checked plan, and the pull request check that fails an address removed without one, then accept the decision. |
+| [`watch-all-rotation-credentials.md`](watch-all-rotation-credentials.md) | — | Not started | — | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
+| [`windows-vms.md`](windows-vms.md) | — | Not started | waiting on [ADR-0092/0 (Windows VM builds)](../decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) | Windows machines created by OpenTofu from their install media with an unattended answer file rendered in this repository, starting with the desktops and the one with a GPU. |
+| [`workstation-management.md`](workstation-management.md) | — | Not started | — | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it. |

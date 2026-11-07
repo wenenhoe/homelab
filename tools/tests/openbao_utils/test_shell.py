@@ -6,7 +6,7 @@ call is mocked; nothing here spawns a real shell, touches a real
 from utils.repo/openbao_utils.client - tested once, directly, in their
 own test files. This file only tests shell.py's own remaining
 logic: the version check, session spawning, main()'s wiring, and
-SIGHUP-triggered cleanup (ADR 0033).
+SIGHUP-triggered cleanup (ADR 0106).
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ class TestSpawnSession:
 class TestRevoke:
     """_revoke's own idempotency guard, isolated from main()'s wiring -
     both the finally block and the SIGHUP handler can reach it for the
-    same session (ADR 0033)."""
+    same session (ADR 0106)."""
 
     def test_clears_the_token_after_revoking(self, hvac_client):
         hvac_client.token = "fake-token"
@@ -265,7 +265,7 @@ class TestMain:
     def test_sighup_mid_session_still_revokes_and_removes_the_ca_file(self, mocks, hvac_client):
         # Actually raises real SIGHUP against this test process while
         # spawn_session is "running", rather than calling the internal
-        # handler directly - the whole point (ADR 0033) is that
+        # handler directly - the whole point (ADR 0106) is that
         # Python's own signal delivery interrupts a blocking call and
         # still runs cleanup, which a direct call wouldn't exercise.
         captured = {}

@@ -7,8 +7,6 @@ blocked: false
 summary: The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox.
 decision: ADR-0051/0
 super_project: coding-agent-host
-track: boundary
-phase: 2-host
 depends_on:
   - project: PROJ-coding-agent-network
     reason: The host's NIC must land in a VLAN whose default-deny policy already exists, so the agent is never run on an open segment

@@ -35,11 +35,16 @@ ADR_REVISION_STATUS = {"working", "approved", "accepted", "superseded", "abandon
 PROJECT_LIFECYCLE_STATUS = {"not-started", "de-risking", "building", "done"}
 
 # Kinds are decided by path: a lineage revision or a project.
+EXPLORATION_STATUS = {"open"}
+# How much record a decision carries (ADR 0037 revision 4); a revision without `weight:` is full.
+WEIGHTS = {"full", "light"}
+
 VALID_STATUS = {
     "adr-revision": ADR_REVISION_STATUS,
     "project": PROJECT_LIFECYCLE_STATUS,
+    "exploration": EXPLORATION_STATUS,
 }
-KIND_TYPE = {"adr-revision": "adr", "project": "project"}
+KIND_TYPE = {"adr-revision": "adr", "project": "project", "exploration": "exploration"}
 
 REVISION_PATH_RE = re.compile(r"docs/decisions/(\d{4})-[a-z0-9-]+/revision-(\d{3})(?:-([a-z]))?\.md$")
 LINEAGE_DIR_RE = re.compile(r"^\d{4}-[a-z0-9-]+$")
@@ -51,6 +56,7 @@ SHORT_NAME_MAX = 40
 REVISION_LABEL = r"(?:0|[1-9]\d*)(?:-[a-z])?"
 REVISION_REF_RE = re.compile(rf"^(ADR-\d{{4}})/({REVISION_LABEL})$")
 PROJECT_ID_RE = re.compile(r"^PROJ-[a-z0-9-]+$")
+EXPLORATION_ID_RE = re.compile(r"^EXP-([a-z0-9]+(?:-[a-z0-9]+)*)$")
 SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 # Patterns that match every file: an allowed_paths made of them bounds nothing.
 BLANKET_PATHS = {"*", "**", "**/*", "*/**", "./**", "./*"}
@@ -64,7 +70,9 @@ def doc_kind(path: Path) -> str:
         raise SystemExit(f"{path}: docs/decisions/ holds lineage directories (NNNN-slug/revision-NNN.md) only")
     if "docs/projects/" in posix:
         return "project"
-    raise SystemExit(f"{path}: not under docs/decisions/ or docs/projects/")
+    if "docs/explorations/" in posix:
+        return "exploration"
+    raise SystemExit(f"{path}: not under docs/decisions/, docs/projects/ or docs/explorations/")
 
 
 def _fail(path: Path, msg: str) -> None:
@@ -125,9 +133,11 @@ def _validate_revision(path: Path, data: dict) -> None:
     if "superseded_by" in data and data["status"] != "superseded":
         _fail(path, "'superseded_by' is only valid with status: superseded")
     if "narrows" in data and not (isinstance(data["narrows"], str) and ADR_ID_RE.match(data["narrows"])):
-        _fail(path, "'narrows' must be a single ADR id like ADR-0015")
+        _fail(path, "'narrows' must be a single ADR id: ADR- and four digits")
     _id_list(path, data, "related")
     _id_list(path, data, "former_ids")
+    if "weight" in data and data["weight"] not in WEIGHTS:
+        _fail(path, f"'weight' must be one of {sorted(WEIGHTS)}, not {data['weight']!r}")
 
 
 def _validate_project(path: Path, data: dict) -> None:
@@ -136,11 +146,11 @@ def _validate_project(path: Path, data: dict) -> None:
         _fail(path, "'blocked' must be true or false")
     if data.get("blocked") is True and not data.get("blocked_reason"):
         _fail(path, "blocked: true needs a 'blocked_reason' field")
-    for field, parent in (("super_project", None), ("track", "super_project"), ("phase", "track")):
-        if field in data and not (isinstance(data[field], str) and SLUG_RE.match(data[field])):
-            _fail(path, f"'{field}' must be a lowercase-hyphen slug")
-        if field in data and parent and parent not in data:
-            _fail(path, f"'{field}' needs '{parent}': a {field} belongs to one")
+    if "super_project" in data and not (isinstance(data["super_project"], str) and SLUG_RE.match(data["super_project"])):
+        _fail(path, "'super_project' must be a lowercase-hyphen slug")
+    for removed in ("track", "phase"):
+        if removed in data:
+            _fail(path, f"'{removed}' is no longer a field: an order between projects is a depends_on, or it is not recorded")
     if "decision" in data and not (isinstance(data["decision"], str) and REVISION_REF_RE.match(data["decision"])):
         _fail(path, "'decision' must be a single revision reference like ADR-0013/2")
     if "also_implements" in data:
@@ -166,6 +176,16 @@ def _validate_project(path: Path, data: dict) -> None:
             _fail(path, f"'depends_on' entry for {dep['project']} needs a 'reason' naming the concrete prerequisite")
 
 
+def _validate_exploration(path: Path, data: dict) -> None:
+    m = EXPLORATION_ID_RE.match(str(data["id"]))
+    if not m or m.group(1) != path.stem:
+        _fail(path, f"id '{data['id']}' must be EXP- followed by the file name without .md (expected EXP-{path.stem})")
+    _require_text(path, data, "summary")
+    if data.get("topic") not in TOPICS:
+        _fail(path, f"topic '{data.get('topic')}' isn't one of {sorted(TOPICS)}")
+    _id_list(path, data, "related")
+
+
 def read_frontmatter(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
@@ -184,11 +204,18 @@ def read_frontmatter(path: Path) -> dict:
         _validate_revision(path, data)
     elif kind == "project":
         _validate_project(path, data)
+    elif kind == "exploration":
+        _validate_exploration(path, data)
     return data
 
 
+def is_template(name: str) -> bool:
+    """TEMPLATE.md, or a variant of it such as TEMPLATE-light.md."""
+    return name == "TEMPLATE.md" or (name.startswith("TEMPLATE-") and name.endswith(".md"))
+
+
 def docs_in(dir_path: Path) -> list[Path]:
-    return sorted(p for p in dir_path.glob("*.md") if p.name not in ("README.md", "TEMPLATE.md"))
+    return sorted(p for p in dir_path.glob("*.md") if p.name != "README.md" and not is_template(p.name))
 
 
 @dataclass(frozen=True)
@@ -205,6 +232,10 @@ class Revision:
     @property
     def label(self) -> str:
         return f"{self.number}-{self.candidate}" if self.candidate else str(self.number)
+
+    @property
+    def weight(self) -> str:
+        return self.fm.get("weight", "full")
 
 
 @dataclass(frozen=True)

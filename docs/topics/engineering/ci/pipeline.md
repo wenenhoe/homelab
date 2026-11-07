@@ -45,9 +45,10 @@ pre-commit hook can import it. `tools/utils/app_catalog.py` does the same for
 
 `tools/doc_scripts/` is the documentation-workflow checks and generators
 of [ADR 0037 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-003.md):
-`generate_doc_indexes`, `check_doc_drift`, `check_project_scope` and
-`check_project_close`, with the helpers they share (`doc_frontmatter`,
-`doc_graph`, `doc_scope`, `doc_close`, `doc_git`). The pre-commit hooks run
+`generate_doc_indexes`, `check_doc_drift` and `check_doc_change` (which runs `check_project_scope`,
+`check_project_close`, `check_project_start` and `check_accepted_records`), with
+the helpers they share (`doc_frontmatter`, `doc_graph`, `doc_explorations`,
+`doc_scope`, `doc_close`, `doc_start`, `doc_frozen`, `doc_removed`, `doc_git`). The pre-commit hooks run
 them as `bash -c 'cd tools && python3 -m doc_scripts.<module>'`, in the
 hook's own environment with PyYAML, and the `project-checks` job runs
 them through `uv run`. They read `docs/` from the
@@ -55,9 +56,11 @@ repository root, not the working directory. `check_mermaid`, the
 [Mermaid render check](doc-checks.md#mermaid-render-check) of
 [ADR 0078 (Diagram render check)](../../../decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md),
 has no hook: the `mermaid-check` job runs it on the runner's own `python3`.
-`suggest_project_scope` is no check and runs nowhere in CI: it prints what a
-project's `allowed_paths` is missing, as
-[Scope suggestions](doc-checks.md#scope-suggestions) describes.
+`suggest_project_scope` and `suggest_adr_consolidation` are no checks and run
+nowhere in CI: the first prints what a project's `allowed_paths` is missing, as
+[Scope suggestions](doc-checks.md#scope-suggestions) describes, and the second
+lists decision records worth condensing, merging or demoting, as
+[Consolidation suggestions](doc-checks.md#consolidation-suggestions) describes.
 
 What stays in workflow YAML or `.github/scripts/` is what needs Actions
 (`uses:` steps, caches, registry login) or is a plain command sequence
@@ -81,9 +84,9 @@ parse on an older Python than the repo's own. The rest run through
 | `warm-uv-cache` | always | Populates the shared uv package cache. See [Cache warming](#cache-warming). |
 | `warm-galaxy-cache` | always | Populates the shared Ansible Galaxy collections cache. See [Cache warming](#cache-warming). |
 | `warm-pre-commit-cache` | always | Populates the shared pre-commit hook-environment cache. See [Cache warming](#cache-warming). |
-| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file, then gitleaks over the PR's commits (the hook itself is skipped here: it only scans staged changes). |
-| `project-checks` | always | Two steps over the PR's merge-base diff. A PR that works a project doc (its frontmatter or a stage status, not a prose edit) stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](doc-checks.md#project-scope-check). A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](doc-checks.md#project-close-check). |
-| `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
+| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except the push-stage `ansible-lint` and `check-doc-change-push`) against every file, then gitleaks over the PR's commits (the hook itself is skipped here: it only scans staged changes). |
+| `project-checks` | always | One step, `check_doc_change`, over the PR's merge-base diff: the project scope, close and start checks and the accepted records check. What each rule enforces is in [doc-checks.md](doc-checks.md#the-four-project-and-record-checks-as-one-command). |
+| `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The push-stage hook that lints — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | deploy inputs changed (the `deploy_ordering` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | Runs the real `deploy.yaml` and `restore.yaml` against a CI inventory and checks the `ansible_host` resolution chain. See [Deploy-ordering-check](gates.md#deploy-ordering-check). |

@@ -8,7 +8,7 @@ solution: Start OpenBao first on a short-lived self-signed certificate, restore 
 summary: How a new `security` VM gets OpenBao and step-ca back when each needs something only the other holds, and the playbooks that deploy them need both.
 topic: secrets-store
 status: accepted
-related: [ADR-0034]
+related: [ADR-0106]
 ---
 
 # 0099. Rebuilding the security host when OpenBao and step-ca are lost with it

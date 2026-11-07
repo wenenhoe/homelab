@@ -12,7 +12,7 @@ its own doc too: [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 Single-node, integrated raft storage, on `security` — same trust tier
 as `step-ca`/`tinyauth`/`lldap`
-([0017](../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
+([0111](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
 `docker/openbao/configs/openbao.hcl.j2` renders the raft/listener
 config; `app_catalog.yaml`'s `openbao` entry seeds it into a `config`
 named volume the same way `dashy` seeds its `conf.yml`
@@ -238,7 +238,7 @@ them, not work around them:
 
 Both scripts keep driving `docker exec` against the live
 container, permanently, by necessity — see
-[ADR 0034 (Operator bao CLI access)](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md)'s
+[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md)'s
 Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
 but the container crash-loops until `step_ca_cert` issues its leaf
 cert, so there's no trustworthy network path to it during that window.
@@ -246,7 +246,7 @@ This is the one place in the whole OpenBao CLI surface that stays
 `docker exec`-based — everywhere else now uses the native `bao`
 binary directly (`security` or `controller`, whichever you're on), or
 `shell.py` (`controller` only — see
-[ADR 0033 (Interactive bao session)](../../decisions/0033-where-the-interactive-bao-session-runs/revision-000.md))
+[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md))
 when starting from an AppRole login; see
 [`openbao-auth.md`](openbao-auth.md#runbook).
 
@@ -283,7 +283,7 @@ The command prints 3 unseal key shares and an initial root token,
    permanent bootstrap exceptions now (`main-domain`,
    `openbao-controller-role-id`/`-secret-id`).
 
-The root token is not one of 0017's two recovery-critical items, but
+The root token is not one of ADR 0111's two recovery-critical items, but
 treat it with the same discipline for now: it's the only credential
 that can configure anything in a freshly-initialized, empty Vault.
 [`openbao-auth.md`](openbao-auth.md) is what gives

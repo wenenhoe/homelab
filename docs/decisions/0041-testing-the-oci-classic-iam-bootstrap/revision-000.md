@@ -8,7 +8,7 @@ solution: floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocke
 summary: How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks.
 topic: repository-tooling
 status: working
-related: [ADR-0016]
+related: [ADR-0109]
 ---
 
 # 0041. Testing the OCI classic-IAM bootstrap
@@ -17,7 +17,7 @@ related: [ADR-0016]
 
 `tools/cloud_credentials/` talks to OCI through two unrelated auth
 surfaces (see `rotation_keys/oci_scim.py`'s own header comment and ADR
-0016):
+0109):
 
 - **Classic Signature V1** (`rotation_keys/oci_iam.py`,
   `rotation_keys/oci_bootstrap.py`) — a `requests.Session` signed by

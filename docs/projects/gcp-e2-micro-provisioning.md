@@ -2,13 +2,11 @@
 id: PROJ-gcp-e2-micro-provisioning
 title: GCP e2-micro Provisioning
 type: project
-status: de-risking
+status: not-started
 blocked: false
 summary: Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host.
 decision: ADR-0073/0
 super_project: off-site-monitoring
-track: monitoring
-phase: 2-off-site
 ---
 
 # GCP e2-micro Provisioning
@@ -41,7 +39,7 @@ which keeps Tofu's credentials in a file on the Tofu host.
 ## Decision
 
 Implements [ADR 0073 (Off-site cloud auth)](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md),
-still `working`, so this project is `de-risking` and only throwaway
+still `working`, so this project is `not-started` until its first spike begins and then `de-risking` and only throwaway
 spikes are allowed until its assumptions are resolved.
 
 ## Execution plan

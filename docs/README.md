@@ -8,6 +8,11 @@ Docs are grouped by artifact type, one directory each:
   duplicated — if you're about to explain the same gotcha in a second
   place, link to the first instead. A topic doc describes what is true
   on `main` at every commit, not what a project is still building.
+- **[`explorations/`](explorations/README.md)** — a question with no chosen
+  solution yet: the facts, the options and what each costs. Deleted when it
+  becomes a decision, becomes a project or is dropped; nothing durable links
+  to one, and the generated [`project-planning.md`](project-planning.md#open-explorations)
+  lists the open ones.
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
   when the reasoning isn't obvious from the code. One lineage per
   problem, one revision per solution tried for it; an `accepted`
@@ -44,6 +49,11 @@ old one, with the note that
 describes. [`check_moved_files.py`](../tools/doc_scripts/check_moved_files.py)
 fails on any other mention of a renamed or removed file.
 
+A doc likewise names a decision by its current number. A number merged into
+another lineage or listed in `decisions/removed.md` is retired, and
+[`check_retired_numbers.py`](../tools/doc_scripts/check_retired_numbers.py)
+fails on it in prose, a comment or the text of a link.
+
 **Every doc's source of truth is the code/config it describes, checked
 by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
 the handful of places that check mechanically (every directory's own
@@ -53,11 +63,10 @@ play numbering; `ci/pipeline.md`'s job table; every cross-file `#anchor`
 reference repo-wide; every `docs/decisions/` or `docs/projects/` path
 written anywhere, comments included; and the decision-lineage and
 project rules in [`decisions/README.md`](decisions/README.md) and
-[`projects/README.md`](projects/README.md)). What a change is allowed to
-touch is checked separately, by
-[`check_project_scope.py`](../tools/doc_scripts/check_project_scope.py);
-deleting a project doc without settling its decision is checked by
-[`check_project_close.py`](../tools/doc_scripts/check_project_close.py).
+[`projects/README.md`](projects/README.md)). What a change to a project or an
+accepted decision may do is checked separately, by
+[`check_doc_change.py`](../tools/doc_scripts/check_doc_change.py); the rules
+are in [`topics/engineering/ci/doc-checks.md`](topics/engineering/ci/doc-checks.md).
 Nothing here enforces the rest by tooling — that's still on whoever's
 making the change to keep current in the same PR, the same way a
 diagram's topology should change alongside the topology it shows (see

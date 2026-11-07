@@ -70,7 +70,7 @@ failure.
 
 [ADR 0010 (Offsite copy deletion)](../../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) (`cloud_sync`
 relays encrypted backups offsite) and
-[ADR 0019 (OpenBao offsite snapshot)](../../decisions/0019-openbao-offsite-snapshot-path/revision-000.md)
+[ADR 0111 (Secrets store recovery)](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
 (OpenBao's own raft-snapshot push, kept standalone from the app-backup
 path) are the two mechanisms that exist specifically to answer "is
 there a copy of this data somewhere else."

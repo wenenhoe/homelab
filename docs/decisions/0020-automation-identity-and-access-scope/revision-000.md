@@ -8,7 +8,7 @@ solution: One broad AppRole for controller
 summary: Which identities may read and write which secret paths, given one automation consumer today.
 topic: secrets-store
 status: accepted
-related: [ADR-0017, ADR-0023]
+related: [ADR-0111, ADR-0023]
 ---
 
 # 0020. Automation identity and access scope
@@ -30,7 +30,7 @@ it actually has to do right now.
 One more consumer surfaced once this was actually
 built: `openbao-backup-restore.md`'s snapshot-push script currently
 needs a human to export the root token by hand
-([0019](../0019-openbao-offsite-snapshot-path/revision-000.md)'s "Why manual"
+([0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s "Why manual"
 section explains what eventually fixes that), but that script runs on
 `security` itself, not from `controller`. Since this design has exactly one
 automation identity, giving the snapshot job its own AppRole would
@@ -52,7 +52,7 @@ stable address.
 
 One AppRole, `controller`, with one policy covering everything except
 recovery-critical material (which never enters Vault at all, per
-[0017](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md)): read/write on
+[0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)): read/write on
 `secret/data/hosts/*` (mirroring the `security`/`services`/`storage`/
 `play` `host_vars` split) and on both
 `secret/data/cloud_credentials/leaf/*` and

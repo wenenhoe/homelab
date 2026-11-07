@@ -37,10 +37,23 @@ class TestCloseErrors:
         revision(root, "0001-x", 0, status="accepted")
         assert errors_for(decision="ADR-0001/0") == []
 
-    @pytest.mark.parametrize("status", ["approved", "working"])
-    def test_the_last_project_naming_an_unaccepted_revision_cannot_close(self, root, errors_for, status):
-        revision(root, "0001-x", 0, status=status)
-        assert_one_error(errors_for(decision="ADR-0001/0"), DOC, "ADR-0001/0", f"is {status}", "no remaining project doc names it")
+    def test_a_project_that_names_only_working_revisions_can_be_withdrawn(self, root, errors_for):
+        revision(root, "0001-x", 0, status="working")
+        assert errors_for(decision="ADR-0001/0") == []
+
+    def test_withdrawal_needs_every_named_revision_to_be_working(self, root, errors_for):
+        revision(root, "0001-x", 0, status="working")
+        revision(root, "0002-y", 0, status="approved")
+        errors = errors_for(decision="ADR-0001/0", also_implements=["ADR-0002/0"])
+        assert len(errors) == 2, errors
+        assert any("ADR-0002/0 is approved" in e for e in errors)
+
+    def test_a_missing_revision_is_not_a_withdrawal(self, root, errors_for):
+        assert_one_error(errors_for(decision="ADR-0001/0"), "ADR-0001/0 is absent")
+
+    def test_the_last_project_naming_an_approved_revision_cannot_close(self, root, errors_for):
+        revision(root, "0001-x", 0, status="approved")
+        assert_one_error(errors_for(decision="ADR-0001/0"), DOC, "ADR-0001/0", "is approved", "no remaining project doc names it")
 
     @pytest.mark.parametrize("sibling_status", ["not-started", "building"])
     def test_a_sibling_still_naming_the_revision_lets_a_project_close(self, root, errors_for, sibling_status):

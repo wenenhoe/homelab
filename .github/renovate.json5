@@ -4,7 +4,7 @@
     "config:recommended",
     "helpers:pinGitHubActionDigests",
     // Pins every docker-datasource image to `name:tag@sha256:...` and moves the
-    // digest with the tag (ADR 0083). The regex managers below opt in with a
+    // digest with the tag (ADR 0108). The regex managers below opt in with a
     // `currentDigest` group and an `autoReplaceStringTemplate`; without both,
     // Renovate can neither read the digest nor write one back.
     "docker:pinDigests",
@@ -15,7 +15,10 @@
     // badges. No extra token needed: badges load client-side in the browser.
     "mergeConfidence:all-badges",
   ],
-  gitAuthor: "wenenhoe <33289235+wenenhoe@users.noreply.github.com>",
+  // Authenticated as a GitHub App, Renovate commits through the API, so GitHub
+  // sets every commit's author to the app's bot. A branch whose commits have any
+  // other author reads as edited, and Renovate then stops updating its PR.
+  gitAuthor: "wenenhoe-renovate[bot] <347765362+wenenhoe-renovate[bot]@users.noreply.github.com>",
 
   // Renovate's branches and pull requests are based on maintenance, not main
   // (ADR 0076); promoting maintenance to main is the maintainer's pull request.
@@ -756,7 +759,7 @@
       enabled: false,
     },
 
-    // Digest pins (ADR 0083), placed after every per-image group above so they
+    // Digest pins (ADR 0108), placed after every per-image group above so they
     // win: the first run turns every tag into tag@digest in one PR, and a tag
     // its publisher rebuilt later moves only that digest. Neither is
     // automerged. The initial digest is the one the registry serves when

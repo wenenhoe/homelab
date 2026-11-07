@@ -8,7 +8,7 @@ solution: 'Undecided: a service-account key, service-account impersonation, or w
 summary: How Tofu proves itself to the GCP account that hosts the off-site monitor, without a standing credential that outlives its use or reaches the host it creates.
 topic: cloud-credentials
 status: working
-related: [ADR-0015, ADR-0047, ADR-0048, ADR-0049, ADR-0056, ADR-0058]
+related: [ADR-0109, ADR-0047, ADR-0048, ADR-0049, ADR-0056, ADR-0058]
 ---
 
 # 0073. How provisioning authenticates to the off-site cloud account
@@ -91,7 +91,7 @@ all, at the cost of running or borrowing an issuer GCP can verify.
   [`gcp-e2-micro-provisioning.md`](../../projects/gcp-e2-micro-provisioning.md).
 - **Claim:** an account without a Google Cloud organization can still
   limit a service-account key's lifetime.
-  **Breaks if wrong:** Option A has no native expiry, and ADR 0015's
+  **Breaks if wrong:** Option A has no native expiry, and ADR 0109's
   self-tracking pattern would have to be extended to a fourth provider.
   **Checked by:** reading Google's documentation for the org policy
   that governs key lifetime, then attempting it in the spike project.

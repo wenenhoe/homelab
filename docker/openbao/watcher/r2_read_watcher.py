@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR 0026's dedicated R2 per-read watcher (ADR 0024's own
+"""ADR 0026's dedicated R2 per-read watcher (ADR 0110's own
 requirement). Tails `docker logs -f openbao` (the audit device's
 stdout, per ADR 0026), alerts on any read of the R2 rotation token's
 Vault path, and does nothing else - no cloud_credentials access, no
@@ -33,7 +33,7 @@ Requires Python >=3.14 for the unparenthesized `except A, B:` below
 earlier versions.
 
 Uses hvac for the OpenBao client - see
-docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md. No
+docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md. No
 paramiko/SSH involved here, unlike secret_store.py/openbao_utils/bootstrap.py:
 this runs directly on `security` itself (see OPENBAO_BASE_URL below),
 so there's no remote root-cert fetch to make - `verify=False` is the

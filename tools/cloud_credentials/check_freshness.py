@@ -5,7 +5,7 @@ where it doesn't - and alert on Telegram once anything is expiring
 soon, already past its window, or couldn't be checked at all.
 
 Runs unattended, on a schedule. Four checked-fine outcomes, not two -
-see ADR 0015's Consequences for why a binary fresh/stale split isn't
+see ADR 0109's Consequences for why a binary fresh/stale split isn't
 enough: B2/R2 enforce their own expiry server-side, so by the time a
 credential is STALE there, cloud_sync is already broken. WARNING and
 URGENT are the two outcomes that buy any lead time - 30 days and 14
@@ -115,9 +115,9 @@ def _b2_key_result(label: str, key) -> tuple[str, str, str]:
 
 def check_oci() -> list[tuple[str, str, str]]:
     """Leaf keys are checked live via SCIM `expiresOn` - native, same as
-    B2/R2 (see ADR 0016). The rotation credential (a Confidential
+    B2/R2 (see ADR 0109). The rotation credential (a Confidential
     Application's client secret) has no native expiry of its own, so it
-    stays self-tracked, same mechanism as before ADR 0016 just for a
+    stays self-tracked, same mechanism as before ADR 0109 just for a
     different underlying credential."""
     try:
         client = oci_identity_domains_client()
@@ -250,7 +250,7 @@ def _send_telegram_alert(lines: list[str]) -> None:
     `telegram_notify` (ansible/roles/telegram_notify) already makes for
     every other consumer in this repo - just not through that role,
     since it's Ansible-templated and deployed to `managed_hosts`, and
-    `controller` (where this actually runs - see ADR 0015) deliberately
+    `controller` (where this actually runs - see ADR 0109) deliberately
     isn't one. Also not that role's parse_mode: this call uses HTML,
     not legacy Markdown - see _escape_telegram_html for why. See
     docs/topics/monitoring/telegram-notifications.md for the shared conventions (topic

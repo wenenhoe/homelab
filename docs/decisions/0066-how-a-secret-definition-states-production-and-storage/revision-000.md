@@ -8,7 +8,7 @@ solution: "Flat source, store and scope fields, read through one loader and chec
 summary: "How a secret's definition says how its value is produced and where it is kept, so no tool has to infer either."
 topic: secrets-store
 status: accepted
-related: [ADR-0013, ADR-0021, ADR-0031, ADR-0064]
+related: [ADR-0013, ADR-0021, ADR-0105, ADR-0064]
 ---
 
 # 0066. How a secret definition states production and storage

@@ -1,5 +1,5 @@
 """OCI Object Storage leaf-key create/rotate logic, via Identity
-Domains SCIM (see ADR 0016) - not oci.signer.Signer / the classic
+Domains SCIM (see ADR 0109) - not oci.signer.Signer / the classic
 Identity API this repo used before. Every call below goes through
 oci.identity_domains.IdentityDomainsClient, authenticated with a
 Bearer token from OAuth2 client-credentials (oci_scim.py) via a custom
@@ -67,7 +67,7 @@ def create_oci() -> None:
     # Deliberately does NOT create the homelab-cloud-sync-write/read
     # users, groups, or policies — create_rotation_keys.py does that
     # once, using your personal admin identity. That part is unrelated
-    # classic-IAM policy scoping and unaffected by ADR 0016 — only the
+    # classic-IAM policy scoping and unaffected by ADR 0109 — only the
     # secret-key material itself now comes from SCIM.
     client = oci_identity_domains_client()
 
@@ -82,7 +82,7 @@ def create_oci() -> None:
         # The SCIM resource id, not the access key itself — needed
         # later to GET/DELETE this exact key (rotation, freshness
         # checks). expiresOn is native, so there is no companion
-        # -created-at secret to write. See ADR 0016.
+        # -created-at secret to write. See ADR 0109.
         write_secret(f"oci-{leaf}-scim-id", key.id)
         print(f"oci {leaf}: cached")
 

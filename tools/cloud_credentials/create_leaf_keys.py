@@ -57,7 +57,7 @@ from cloud_credentials.leaf_keys.r2 import create_r2, rotate_r2
 
 # Each provider raises its own client's error type rather than a
 # uniform requests.HTTPError (oci.identity_domains, b2sdk -
-# docs/decisions/0029-cloud-provider-api-client-library/revision-000.md). Only requests.HTTPError
+# docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md). Only requests.HTTPError
 # carries a separate .response with a status code/body worth pulling
 # apart; str() on the SDK exceptions already includes the equivalent
 # detail (oci.exceptions.ServiceError's own __str__, b2sdk.B2Error

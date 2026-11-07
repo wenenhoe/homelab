@@ -4,8 +4,9 @@
 
 `pre-commit install` installs both the `pre-commit` and `pre-push` git
 hooks in one step (`default_install_hook_types` in the config): most
-hooks run at commit time, and `ansible-lint` runs at push time since it
-always re-lints the whole `ansible/` tree rather than just what changed.
+hooks run at commit time. `ansible-lint` runs at push time since it
+always re-lints the whole `ansible/` tree rather than just what changed,
+and so does `check-doc-change-push`, which needs the commits a push adds.
 `.pre-commit-config.yaml` at the repo root is a symlink to
 `.config/.pre-commit-config.yaml` (config lives under `.config/`, but
 `pre-commit` only ever looks for its own config at the repo root by
@@ -68,13 +69,15 @@ locales. The security series uses `S0001a`.
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
 - `check-doc-drift` (local) — keeps `ansible.md`, `molecule-testing.md`, `deployment-flow.md` and `ci/pipeline.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`tools/doc_scripts/check_doc_drift.py`](../../../tools/doc_scripts/check_doc_drift.py)
 - `check-moved-files` (local) — no file names a file that git history shows was renamed or removed, except the noted first mention in a decision revision; it reads the whole history and the whole tree, so it needs a full clone — see [`tools/doc_scripts/check_moved_files.py`](../../../tools/doc_scripts/check_moved_files.py)
-- `check-project-scope` (local) — a commit that works a project doc (its frontmatter or a stage status) stays inside that project's `allowed_paths`, read from `HEAD`; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_scope.py`](../../../tools/doc_scripts/check_project_scope.py)
-- `check-project-close` (local) — a commit that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project, judged on what is staged; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_close.py`](../../../tools/doc_scripts/check_project_close.py)
+- `check-retired-numbers` (local) — no file names a decision number that was merged into another lineage or listed in `removed.md`, as `ADR NNNN` in prose or a comment, or as the visible number of a link to another record; it reads the whole tree and needs no history — see [`tools/doc_scripts/check_retired_numbers.py`](../../../tools/doc_scripts/check_retired_numbers.py)
+- `check-doc-change` (local) — the project scope, close and start checks and the accepted-records check, on what is staged; CI runs the same over the whole PR. The rules are in [the doc checks](ci/doc-checks.md#the-four-project-and-record-checks-as-one-command) — see [`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
+- `check-doc-change-push` (local, push time) — the same four checks over the commits being pushed, against the default branch as the `project-checks` job does, so a stray file in an earlier commit or a missing `Editorial-Fix:` trailer shows before CI; it skips and says so when the clone has no default branch or shares no history with it — see [`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
-All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
+All of the above run at commit time except `check-doc-change-push`, which runs at
+push time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
 (lints `ansible/`; `docker/` excluded, it's Compose files not playbooks)
-runs at **push** time instead — it always re-lints the whole `ansible/`
+runs at **push** time too — it always re-lints the whole `ansible/`
 tree regardless of what changed, so it's too slow to pay on every commit.
 
 All tool configs live under `.config/` (each hook is passed an explicit

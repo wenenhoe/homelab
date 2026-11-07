@@ -8,8 +8,6 @@ summary: Terminal-only access to the coding-agent host and the fetch-review-push
 decision: ADR-0055/0
 also_implements: [ADR-0050/0]
 super_project: coding-agent-host
-track: workflow
-phase: 1-access-path
 depends_on:
   - project: PROJ-coding-agent-host
     reason: The maintainer's key is installed on the host, which must exist first

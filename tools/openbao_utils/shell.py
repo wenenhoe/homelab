@@ -2,9 +2,9 @@
 """Log in to OpenBao and hand off to a real interactive shell with the
 native `bao` CLI already wired up, on `controller`, which has the native
 `bao` binary. See
-docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md's
+docs/decisions/0106-operator-access-to-the-openbao-cli/revision-000.md's
 Decision for the full reasoning this module implements, and
-docs/decisions/0033-where-the-interactive-bao-session-runs/revision-000.md
+docs/decisions/0106-operator-access-to-the-openbao-cli/revision-000.md
 for why this only ever runs on `controller`: the repo isn't checked out
 on `security`.
 
@@ -48,7 +48,7 @@ from utils.repo import TIMEOUT_SECONDS, fetch_root_cert
 from openbao_utils.client import openbao_base_url, openbao_hostname, vault_login
 
 # Matches `bao version`'s own reported shape, confirmed live during
-# ADR 0034's own de-risking spike ("OpenBao v2.6.2 (dd9c19c...)") -
+# ADR 0106's own de-risking spike ("OpenBao v2.6.2 (dd9c19c...)") -
 # pulls out just the dotted version, the same form /sys/health's own
 # "version" field uses (openbao.org's API docs), so the two are
 # comparable directly.
@@ -102,7 +102,7 @@ def spawn_session(env: dict[str, str]) -> int:
         return subprocess.call([shell], env=env)
     except KeyboardInterrupt:
         # Ctrl-C reaches this process and the child shell at once (same
-        # foreground process group) - confirmed live, see ADR 0034's
+        # foreground process group) - confirmed live, see ADR 0106's
         # Decision. Caught here so main()'s own finally-block cleanup
         # still runs without an uncaught traceback printing after it.
         return 130
@@ -110,7 +110,7 @@ def spawn_session(env: dict[str, str]) -> int:
 
 def _revoke(client: hvac.Client | None) -> None:
     """Idempotent - both the SIGHUP handler and main()'s own finally
-    block can reach this for the same session (ADR 0033); clearing
+    block can reach this for the same session (ADR 0106); clearing
     client.token after a first attempt makes a second call a no-op
     instead of a duplicate revoke warning."""
     if client is not None and client.token:
@@ -150,7 +150,7 @@ def main() -> int:
             # sshd sends SIGHUP to this whole process group on an
             # unclean disconnect; Python's default disposition for it
             # is immediate termination, which bypasses the finally
-            # block below entirely - confirmed live, see ADR 0033.
+            # block below entirely - confirmed live, see ADR 0106.
             _cleanup(client, ca_path)
             raise SystemExit(1)
 

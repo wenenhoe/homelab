@@ -1,5 +1,5 @@
 """Backblaze B2 leaf-key create/rotate logic, via b2sdk
-(docs/decisions/0029-cloud-provider-api-client-library/revision-000.md) -
+(docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md) -
 not raw requests calls against B2's HTTP API directly.
 """
 
@@ -80,7 +80,7 @@ def b2_lookup_bucket_id(api: B2Api, bucket_name: str = B2_BUCKET) -> str:
 def b2_create_leaf_key(api: B2Api, bucket_id: str, leaf: str):
     # Returns a FullApplicationKey - read its key id back via .id_, not
     # .application_key_id, despite that being the constructor's own
-    # parameter name (confirmed live; see ADR 0029).
+    # parameter name (confirmed live; see ADR 0104).
     return api.create_key(
         capabilities=B2_LEAF_CAPABILITIES[leaf],
         key_name=f"homelab-cloud-sync-{leaf}",

@@ -7,7 +7,6 @@ blocked: false
 summary: Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it.
 decision: ADR-0056/0
 super_project: controller-separation
-track: workstation
 ---
 
 # Maintainer Workstation and VM 401 Retirement

@@ -5,9 +5,9 @@ How the cloud credentials expire and how `check_freshness.py` warns before they 
 ## Credential expiry
 
 Every credential (leaf and rotation) expires after 90 days now — see
-[ADR 0015 (Cloud credential expiry)](../../../decisions/0015-cloud-credential-expiry/revision-000.md)
+[ADR 0109 (Cloud credential expiry)](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)
 for B2/R2's native provider-side expiry, and
-[ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)
+[ADR 0109 (Cloud credential expiry)](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)
 for OCI's leaf keys, which are native too now (via SCIM `expiresOn`) —
 only OCI's rotation credential (the Confidential Application's client
 secret) stays self-tracked, since that specific resource has no native
@@ -95,7 +95,7 @@ stale, the credential has already stopped authenticating and
 `cloud_sync` is already broken. A single threshold would still buy
 lead time, but two grades of urgency (heads-up at a month out, urgent
 at two weeks) means the reminder actually escalates as the deadline
-gets closer instead of one flat repeated ping — see ADR 0015 for why
+gets closer instead of one flat repeated ping — see ADR 0109 for why
 past-window alone wasn't enough.
 
 ```sh
@@ -121,5 +121,5 @@ systemctl --user enable --now check-freshness.timer
 ```
 
 `Persistent=true` on the timer catches up on a missed weekly run once
-the machine's next on — see ADR 0015's Consequences for the real limit
+the machine's next on — see ADR 0109's Consequences for the real limit
 this still has on a machine that's off for longer than that.

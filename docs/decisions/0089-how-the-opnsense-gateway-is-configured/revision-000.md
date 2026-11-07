@@ -120,7 +120,7 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 ## Non-goals
 
 - The firewall rules themselves: the flows come from the decisions that need them.
-- Intrusion detection ([ADR 0039 (Intrusion detection scope)](../0039-intrusion-detection-scope/revision-000.md)).
+- Intrusion detection, which no decision covers yet.
 - Where the egress proxy runs, and the tailnet policy.
 
 ## Validation

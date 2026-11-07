@@ -8,7 +8,6 @@ summary: The CD agent's four CIDR-bound AppRoles, and the delivery and rotation 
 decision: ADR-0020/1
 also_implements: [ADR-0022/1]
 super_project: pull-based-cd
-track: credentials
 ---
 
 # CD Agent Credentials

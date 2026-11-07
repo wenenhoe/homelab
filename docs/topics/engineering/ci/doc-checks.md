@@ -1,6 +1,6 @@
 # CI Doc Checks
 
-The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, and the Mermaid render check, plus the helpers that suggest a project's scope and renumber the lineages a patch series adds. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
+The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope, close, start and accepted-records checks, the one command that runs them, and the Mermaid render check, plus the helpers that suggest a project's scope and renumber the lineages a patch series adds. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Doc index generation
 
@@ -10,11 +10,11 @@ markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
 hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
 frontmatter and regenerates `docs/projects/README.md`'s Index,
-`docs/project-planning.md`'s Next up, Super Projects, Projects and
-Decisions awaiting a project views, and `docs/decisions/README.md`'s
+`docs/project-planning.md`'s Super Projects, Projects, Decisions awaiting a
+project and Open explorations views, and `docs/decisions/README.md`'s
 Lineages index in place, validating each doc's frontmatter as it goes.
-The Unblocks counts, who is in Next up and in what order, and the
-approved-first order of the decisions table are computed from that
+The Unblocks counts, the Status and Blocker cells, the order of the
+project tables, and the approved-first order of the decisions table are computed from that
 frontmatter alone, with nothing stored for them
 ([ADR 0082 (Choosing the next project)](../../../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)). Same
 auto-fix pattern as the `ruff --fix` and `dclint-docker` hooks: a stale table
@@ -102,6 +102,25 @@ these narrow, structural things:
   that is `building` on it. Projects without a `decision:` are never
   gated. `depends_on` entries name existing project docs, never
   themselves, and form no cycle.
+- A project's status must agree with its stage table: `not-started` fails with
+  a stage `In progress` or `Done`, and `de-risking` or `building` fails with
+  every stage `Not started`. A doc with no stage rows is not judged.
+- A stage named `Spike` or `Spikes` that is not `Done` fails when the project's
+  `decision:` revision is `approved` or `accepted`: the revision was approved
+  before the assumption was resolved, or the spike is build work under another
+  name. A finished spike stays as history.
+- A revision's `weight` is `full` or `light`. A `light` revision has no
+  `Invariants`, `Non-goals` or `Validation` section and a body of at most
+  `LIGHT_MAX_WORDS` words (`doc_graph.py`); a full one is not limited. See
+  [`docs/decisions/README.md#weights`](../../../decisions/README.md#weights).
+- Explorations (`docs/explorations/<slug>.md`): the frontmatter has
+  `type: exploration`, `status: open`, a `topic`, and an `id` of `EXP-` plus
+  the file name; `related` entries name real lineages. No file outside
+  `docs/explorations/` names an exploration's path, apart from the generated
+  `project-planning.md`, since an exploration is deleted when it ends. See
+  [`docs/explorations/README.md`](../../../explorations/README.md). The
+  generator also warns about an open exploration whose newest commit is older
+  than `EXPLORATION_STALE_DAYS` in `doc_explorations.py`; a warning never fails.
 - Relative links (`./`, `../`) from a `.md` file to a config, script, or
   data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
   way `.md` links do.
@@ -122,7 +141,7 @@ and why). It runs in two places:
   not the base tip, so a branch that is behind doesn't see main's newer
   commits as its own changes. The repo's other diff-based jobs diff
   `$BASE $HEAD` directly; this one deliberately doesn't.
-- **pre-commit** — the `check-project-scope` hook, on what is staged,
+- **pre-commit** — the `check-doc-change` hook, on what is staged,
   against `HEAD`. It sees only the current commit, so it is early
   feedback; CI is the authority, since it sees the whole PR. Under
   `pre-commit-checks`' `--all-files` run nothing is staged and it passes
@@ -214,15 +233,18 @@ revision it named on the base, in `decision:` or `also_implements:`, is
 `accepted` afterwards, or another project doc that remains names it in
 either field (`also_implements:` still gates no project's status). So the
 last project to close either accepts the revision or leaves a
-`not-started` successor naming it for whatever is unfinished. A change that deletes no project doc isn't
-checked.
+`not-started` successor naming it for whatever is unfinished. A doc that
+names only `working` revisions is withdrawn rather than closed and may be
+deleted: it has built nothing, and the revision shows in
+[Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project).
+A change that deletes no project doc isn't checked.
 
 It runs in the same two places as the scope check, with the same
 merge-base diff and the same staged-changes behavior:
 
 - **CI** — the close step of the `project-checks` job, on every pull request, judging the
   PR's head.
-- **pre-commit** — the `check-project-close` hook, judging the index
+- **pre-commit** — the `check-doc-change` hook, judging the index
   against `HEAD`. It is early feedback; CI is the authority. Under
   `pre-commit-checks`' `--all-files` run nothing is staged and it passes
   trivially.
@@ -238,6 +260,149 @@ Two PRs that each leave the other's project in place can both pass and
 together leave a revision `approved` with no project. The generated
 [Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project)
 view lists it, so the gap is visible but not blocked.
+
+## Project start check
+
+[`tools/doc_scripts/check_project_start.py`](../../../../tools/doc_scripts/check_project_start.py) enforces the start rule in
+[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md):
+a project doc that a change adds is `not-started` only when its `decision:`
+revision is `approved`, or it names none. A project on a `working` revision
+starts as `de-risking`, limited to spikes and reading code. The rule reads
+only the docs the change adds (a rename counts as one), so a project that was
+already waiting on a `working` revision is not re-judged.
+
+It runs where the close check runs, with the same merge-base diff and the same
+staged-changes behavior: the `project-checks` job in CI, and the
+`check-doc-change` hook on the index, which passes trivially under
+`--all-files`. It reads the docs as they stand after the change, and a doc that
+does not parse fails the check.
+
+The generator also warns, without failing, when more than
+`ACTIVE_PROJECT_LIMIT` projects (`generate_doc_indexes.py`) are `building` or
+`de-risking` at once.
+
+## Accepted records check
+
+[`tools/doc_scripts/check_accepted_records.py`](../../../../tools/doc_scripts/check_accepted_records.py) holds the rules for
+compacting accepted decisions in
+[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md),
+described for the maintainer in
+[`docs/decisions/README.md#compacting-accepted-records`](../../../decisions/README.md#compacting-accepted-records).
+It enforces two rules:
+
+- **Frozen sections.** A revision that was `accepted` or `superseded` on the
+  base keeps its `title`, its `solution`, and its Problem, Decision,
+  Invariants, Non-goals and Reconsideration triggers sections. Link targets,
+  moved-file notes and short names in link text are ignored, and whitespace is
+  collapsed, so the editorial edits the decisions README allows are not
+  changes. A commit of the pull request with an `Editorial-Fix: <path>` trailer
+  excuses that file.
+- **Removed lineages.** A lineage that held an `accepted` or `superseded`
+  revision on the base and is gone afterwards must be a `former_ids` entry of
+  a lineage that remains, or be listed in
+  [`removed.md`](../../../decisions/removed.md). The drift check also fails a
+  number listed there that a lineage holds, or that is a former id too.
+
+It runs in the same two places as the other project-checks: the
+`project-checks` job over the pull request, which fails on both rules, and the
+`check-doc-change` hook on the index, which reports a changed frozen
+section as a warning only (the trailer that excuses it is written with the
+commit message, after the hook runs) and still fails on a lineage that leaves
+unaccounted for. It reads the docs as they stand after the change for the
+removal rule, and a doc that does not parse fails the check.
+
+## The four project and record checks as one command
+
+[`tools/doc_scripts/check_doc_change.py`](../../../../tools/doc_scripts/check_doc_change.py)
+runs the project scope, close and start checks and the accepted records check
+above, in that order and all of them even if one fails. Each check is still its
+own module with its own tests; this is the one entry point the hooks and CI
+call, so a rule added to the list runs everywhere at once. It has three forms:
+
+- **`--staged`**, the `check-doc-change` hook at commit time. It sees one
+  commit, so a stray file in an earlier commit of the branch passes it, and the
+  accepted records check can only warn about a frozen section because the
+  `Editorial-Fix:` trailer is written after the hook runs.
+- **`--base REF --head REF`**, the one step of the `project-checks` job, over
+  the whole pull request.
+- **`--push`**, the `check-doc-change-push` hook at the `pre-push` stage, the
+  `--base` form over the commits being pushed against the default branch, so
+  what the staged form cannot see shows before CI.
+
+For `--push`:
+
+- **The base** is the remote's HEAD (`origin/HEAD`), else `origin/main`,
+  `origin/master`, `main` or `master`. It is not fetched: the checks read the
+  merge-base, so a stale base still gives the branch's own commits.
+- **The head** is the commit being pushed (`PRE_COMMIT_TO_REF`), else `HEAD`.
+- **Skipped**, with a message and a pass, when there is no default branch in the
+  clone, when the head shares no history with it (a shallow clone), when the
+  push adds no commit, or when it deletes a ref. The `ansible-lint` job runs
+  every push-stage hook against all files in a shallow checkout, so this
+  skips there; the `project-checks` job is where the pull request is judged.
+
+The error output is each check's own, followed by the names of the checks that
+failed.
+
+## Merge preparation
+
+[`tools/doc_scripts/merge_adr_links.py`](../../../../tools/doc_scripts/merge_adr_links.py)
+runs nowhere in CI and is never run by an agent working a project: merging
+decision records is the maintainer's operation
+([ADR 0037 revision 4](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md)),
+and this only prepares the inbound side of one. The maintainer writes the new
+lineage first, listing every source's id in its `former_ids`; then
+`python3 -m doc_scripts.merge_adr_links NEW SOURCE [SOURCE ...]` (`--dry-run` to
+read the report first) rewrites, in every tracked or new text file except the
+sources, the new lineage and the generated views:
+
+- a link to any revision of a source, which now goes to the new lineage's
+  revision 0;
+- `ADR NNNN` and `ADR-NNNN` for a source number, in prose, comments and link
+  text, and the short name in a link to the new lineage;
+- `ADR-NNNN/LABEL` in a project's `decision:` and `also_implements:`, which now
+  name revision 0 of the new lineage;
+- `related:` and `narrows:` of other records, with each id once.
+
+It does not delete the sources, regenerate the views or commit. It prints what
+is left for a person, which is what used to be found late:
+
+- the revisions whose frozen sections changed, as `Editorial-Fix: <path>` lines
+  to put on a commit of the change, since the accepted-records check fails the
+  pull request without them;
+- the project docs whose frontmatter or stage table changed, which makes the
+  change work that project, so every changed file must be inside its
+  `allowed_paths` on the base branch (widen them in an earlier change);
+- lists and ranges (`ADRs A through B`) where a number was replaced, which can
+  now read wrong;
+- references left in the new lineage, which is never edited, and any other
+  mention of a source directory.
+
+Once the source directories are deleted and the views regenerated, the
+[retired-number check](#retired-number-check) passes. The scan it shares with
+this tool is `doc_retired.py`.
+
+## Consolidation suggestions
+
+[`tools/doc_scripts/suggest_adr_consolidation.py`](../../../../tools/doc_scripts/suggest_adr_consolidation.py)
+runs nowhere in CI and changes nothing. It lists decisions that read like
+implementation detail (an accepted Decision that names many files), lineages
+whose title, summary and Problem share many words, and clusters of three or
+more lineages of one topic that all list one another in `related:`. With
+`--report` it adds whether too many projects are active. The limits are constants at the top of the script. What a hit means
+is the maintainer's call.
+
+A pair or cluster the maintainer has read and kept apart is recorded in the
+decisions README's table
+[Records the report lists that stay separate](../../../decisions/README.md#records-the-report-lists-that-stay-separate),
+with a reason and, in its last column, each record's status when the row was
+written (the status of its newest revision, so a pending `working` revision
+counts). The report leaves a similar pair or tight cluster out when a row
+covers it and none of its records has changed status. A row with a record that
+changed status, is gone, or has no status recorded is listed under "Kept apart,
+to read again" with the reason on file, whether or not the pair would be
+reported now; a row the report cannot read is listed there too. Updating the
+column is how a row is marked read again.
 
 ## Moved-file check
 
@@ -261,6 +426,39 @@ the files a change touches, so a reference that went stale outside a PR is
 caught by the next one and no scheduled sweep is needed. That needs history:
 `pre-commit-checks` fetches it (`fetch-depth: 0`), and in a shallow clone
 the check says so and passes, so a local `--depth` clone is not blocked.
+
+## Retired-number check
+
+[`tools/doc_scripts/check_retired_numbers.py`](../../../../tools/doc_scripts/check_retired_numbers.py), a local pre-commit hook like the
+drift check, so CI runs it in `pre-commit-checks`. A decision number is
+retired when its lineage was merged into another (it is that lineage's
+`former_ids`) or demoted or dropped (it is listed in
+[`removed.md`](../../../decisions/removed.md)). Nothing redirects it, and the
+drift check reads link targets and `related:` entries, not text, so a stale
+number written as text passed it. This reads every tracked or new text file,
+code, workflows and config included, and fails on:
+
+- `ADR NNNN` or `ADR-NNNN` for a retired number, and each number of a list or
+  range after `ADRs` (`ADRs NNNN, NNNN and NNNN`, `ADRs NNNN through NNNN`);
+- a link whose visible number is retired, bare (`[NNNN](...)`) or with a name,
+  whatever it points to.
+
+The error gives the line and the number to use, or says the record was
+demoted or dropped. A bare number with no `ADR` before it is not read.
+
+Left out: `removed.md`, a `former_ids` field, the `Formerly ADR-...` the
+generated indexes print, the hyphenated id inside a markdown fence (a schema
+example uses arbitrary ids), and `tools/tests/doc_scripts/`, whose fixtures
+use arbitrary numbers.
+
+A reference inside a frozen section of an `accepted` or `superseded` revision
+(see the [accepted records check](#accepted-records-check)) is fixed like any
+other, but the commit that fixes it carries an `Editorial-Fix: <path>` trailer
+or the `project-checks` job fails the pull request. The error says so. The
+hook cannot tell that the trailer is there, and does not need to: it fails
+until the number is fixed.
+
+It reads the working tree only, so it works in a shallow clone.
 
 ## Mermaid render check
 

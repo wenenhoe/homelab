@@ -99,7 +99,10 @@ jobs:
         uses: renovatebot/github-action@1c0cf989c02653fba0efe7ca5772338860ca71dc # v46.3.12
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
-          RENOVATE_GIT_AUTHOR: "${{ github.repository_owner }} <${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com>"
+          # Platform start-up reads only global config, so the address is set here
+          # as well as in renovate.json5, and must equal it. Without one there,
+          # Renovate warns about its default Mend address.
+          RENOVATE_GIT_AUTHOR: "wenenhoe-renovate[bot] <347765362+wenenhoe-renovate[bot]@users.noreply.github.com>"
           # The custom datasources in renovate.json5 that read GitHub's release
           # API are not given the platform token, and unauthenticated calls
           # share GitHub's 60-an-hour limit with every other runner on the IP.

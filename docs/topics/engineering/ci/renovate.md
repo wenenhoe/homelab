@@ -28,7 +28,7 @@ A failed realignment fails the job before the Renovate step, which has no condit
 
 ## Image digests
 
-Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0083 (Images a deploy runs)](../../../decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)). The `docker:pinDigests` preset adds a digest where one is missing and moves it when a tag is rebuilt or a version changes.
+Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0108 (Images a deploy runs)](../../../decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)). The `docker:pinDigests` preset adds a digest where one is missing and moves it when a tag is rebuilt or a version changes.
 
 - The docker-compose, dockerfile and ansible managers handle the digest themselves. Each custom regex manager for a docker image needs two things: a `currentDigest` group, `(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?`, and an `autoReplaceStringTemplate` that ends in `{{#if newDigest}}@{{{newDigest}}}{{/if}}`. Without the group Renovate reads no digest; without the template it writes none, or drops the one a bump should keep.
 - A manager's tag group must not match `@`: `[^"@]+`, not `[^"]+`, or the tag swallows the digest.
@@ -38,7 +38,7 @@ Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0083 (I
 
 ## The GitHub App
 
-Renovate authenticates as its own **GitHub App**, installed on this repository alone and used for nothing else ([ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). Each run mints an installation token from the app's private key with `actions/create-github-app-token`; the token lasts an hour and is revoked when the job ends. The same token is the platform token, the `api.github.com` host rule and the credential for [realigning `maintenance`](#realigning-maintenance). `renovate.json5`'s `gitAuthor` stays the maintainer's no-reply address: Renovate treats a branch as edited when a commit has another author, so who pushes can change without who authors.
+Renovate authenticates as its own **GitHub App**, installed on this repository alone and used for nothing else ([ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). Each run mints an installation token from the app's private key with `actions/create-github-app-token`; the token lasts an hour and is revoked when the job ends. The same token is the platform token, the `api.github.com` host rule and the credential for [realigning `maintenance`](#realigning-maintenance). With an app token Renovate commits through the GitHub API, so every commit is authored by the app's bot (`wenenhoe-renovate[bot]`) and committed by GitHub. Renovate treats a branch as edited when a commit in `maintenance..branch` has an author other than `gitAuthor` (GitHub's own `noreply@github.com` committer is ignored), and then neither rebases it nor updates its pull request until the rebase/retry box is ticked. So `renovate.json5`'s `gitAuthor` is the bot's no-reply address. The workflow sets the same address as `RENOVATE_GIT_AUTHOR`, because Renovate's start-up reads only global config and warns about its default Mend address when it finds none there; a test holds the two equal. Changing the app means changing both.
 
 | Setting | Holds |
 | :--- | :--- |

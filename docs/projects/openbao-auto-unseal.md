@@ -2,7 +2,7 @@
 id: PROJ-openbao-auto-unseal
 title: "OpenBao Auto-Unseal"
 type: project
-status: de-risking
+status: not-started
 blocked: false
 summary: Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again.
 decision: ADR-0018/1
@@ -22,12 +22,12 @@ KMS key and its restricted IAM user, the `init.py` and `unseal.py`
 tooling, the offline handling of the new credential, and the topic docs
 that describe the seal. The CI and Molecule OpenBao targets stay on Shamir.
 Not in scope: a multi-node cluster, an HSM, and the snapshot path of
-[ADR 0019 (OpenBao offsite snapshot)](../decisions/0019-openbao-offsite-snapshot-path/revision-000.md).
+[ADR 0111 (Secrets store recovery)](../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md).
 
 ## Decision
 
 Implements [ADR 0018 revision 1 (Secrets store unsealing)](../decisions/0018-unsealing-the-secrets-store-after-restart/revision-001.md),
-still `working`, so this project is `de-risking` and only throwaway spikes
+still `working`, so this project is `not-started` until its first spike begins and then `de-risking` and only throwaway spikes
 are allowed until its assumptions are resolved.
 
 ## Execution plan

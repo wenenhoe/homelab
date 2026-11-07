@@ -7,9 +7,7 @@ blocked: false              # true only for an impediment that isn't another pro
 # blocked_reason: "<the current impediment>"
 summary: "<one line; feeds the generated index>"
 # decision: ADR-NNNN/N      # the one revision this implements (its label: 0, or 0-b); omit if no ADR is needed
-# super_project: <slug>     # optional grouping; a track needs it, a phase needs a track
-# track: <slug>
-# phase: <slug>
+# super_project: <slug>     # optional grouping of projects into an initiative
 # allowed_paths:          # optional; the globs this work may change (see README.md#choosing-the-scope)
 #   - path/to/thing/**
 # depends_on:
@@ -41,7 +39,9 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | ... | Not started | ... |
 
-Stage status is `Not started`, `In progress`, or `Done`. Add detail
+Stage status is `Not started`, `In progress`, or `Done`. A stage that answers an
+open question by running something starts with `Spike`, and is finished or
+renamed before its decision is approved. Add detail
 below only for a stage that needs more than its row to orient someone.
 
 ## Acceptance criteria
@@ -63,7 +63,7 @@ without being restated here.
 
 ## Risks
 
-Could cause rework or delay but blocks nothing now — no live
+Omit if there are none. Could cause rework or delay but blocks nothing now — no live
 vulnerability, incident, or exposure window
 ([`docs/README.md#public-repo`](../README.md#public-repo)).
 

@@ -8,7 +8,7 @@ solution: "A scheduled job generates markdown from main's first-parent history a
 summary: "Where the weekly and monthly record of work comes from, where it is stored, and how it is kept current without adding to main's history."
 topic: repository-tooling
 status: accepted
-related: [ADR-0031, ADR-0064, ADR-0076]
+related: [ADR-0105, ADR-0064, ADR-0076]
 ---
 
 # 0095. Recording what was worked on each week and month
@@ -64,7 +64,7 @@ Four constraints shape the design.
 
 - **Generator.** A stdlib-only Python package, `tools/progress_log/`,
   unit-tested
-  ([ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md),
+  ([ADR 0105 (Repo tooling location)](../0105-where-repo-tooling-lives/revision-000.md),
   [ADR 0069 (Python test style)](../0069-how-python-unit-tests-are-written-and-run/revision-000.md)).
   It reads the first-parent history of `main` and records, for each change,
   its date, title, pull request number, kind, and the project, decision and

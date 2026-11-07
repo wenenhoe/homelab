@@ -68,6 +68,6 @@ own survives; see [`molecule-testing.md`](../engineering/molecule-testing.md).
 The role installs `docker-compose-plugin` from Docker's apt repository and
 then fails the play if `docker compose version` is older than 2.22. The
 compose and backup-agent roles pull with `policy: missing`
-([ADR 0083 (Images a deploy runs)](../../decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)),
+([ADR 0108 (Images a deploy runs)](../../decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)),
 which that Compose version added. The Molecule scenario asserts the same
 floor.

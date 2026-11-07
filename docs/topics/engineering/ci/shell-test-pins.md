@@ -22,7 +22,7 @@ It reports every entry before it exits non-zero, each failure as an `::error::` 
 
 ## What the check proves
 
-Every entry is at the *listed* tier of [ADR 0077 (Pinned checksum verification)](../../../decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md). The check catches a SHA copied wrongly and a tag that was moved. It does not show the commit to be the maintainers': every published copy of the key that signed the `bats-core` and `bats-assert` tags has expired, and `bats-support`'s tag is not signed. A commit the publisher did not intend, behind a tag moved with it, would pass.
+Every entry is at the *listed* tier of [ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md). The check catches a SHA copied wrongly and a tag that was moved. It does not show the commit to be the maintainers': every published copy of the key that signed the `bats-core` and `bats-assert` tags has expired, and `bats-support`'s tag is not signed. A commit the publisher did not intend, behind a tag moved with it, would pass.
 
 ## Where it runs
 

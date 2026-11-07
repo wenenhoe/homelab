@@ -2,7 +2,7 @@
 """Does every image reference the repo names carry a digest?
 
 A deploy runs the image a commit names only if the commit names it by digest
-(ADR 0083). This collects every reference the weekly tag check collects
+(ADR 0108). This collects every reference the weekly tag check collects
 (ci.images.remote: compose files, Ansible YAML, Dockerfiles, and the pins
 Renovate's regex managers track) and fails on:
 

@@ -51,7 +51,7 @@ python_unit_tests:
   # below; this one catches changes to the script itself.
   # The OpenBao scripts (bootstrap, audit, restore, dump, diff) live in
   # tools/openbao_utils/ (docs/decisions/
-  # 0032-where-openbao-utility-scripts-live/revision-000.md), covered by
+  # 0105-where-repo-tooling-lives/revision-000.md), covered by
   # the tools/openbao_utils/** trigger below.
   - 'ansible/scripts/*.py'
   - 'tools/cloud_credentials/**'

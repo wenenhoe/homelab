@@ -135,7 +135,7 @@ admin-capable credential.
   > replacement, covering the same `LEGACY_CACHE_KEYS` convention)
   > didn't exist yet at this ADR's decision time. Both tools later
   > moved into one *file* -
-  > [ADR 0032 (OpenBao utility scripts)](../0032-where-openbao-utility-scripts-live/revision-000.md) -
+  > [ADR 0105 (Repo tooling location)](../0105-where-repo-tooling-lives/revision-000.md) -
   > but the two source-of-truth conventions this bullet actually
   > reasons about stay fully distinct internally, as two separate
   > phases with two separate access patterns. That's a narrower kind

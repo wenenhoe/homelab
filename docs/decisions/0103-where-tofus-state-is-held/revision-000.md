@@ -8,7 +8,7 @@ solution: An encrypted state bucket in the R2 and B2 accounts the lab already us
 summary: Where OpenTofu's state lives so that the record of what Tofu built depends on neither one machine nor a machine Tofu builds.
 topic: deployment-platform
 status: working
-related: [ADR-0017, ADR-0019, ADR-0048, ADR-0058, ADR-0102]
+related: [ADR-0111, ADR-0048, ADR-0058, ADR-0102]
 ---
 
 # 0103. Where Tofu's state is held
@@ -38,8 +38,8 @@ recovering it needs nothing that Tofu itself has to rebuild first.
   ([ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md)).
 - **The pattern exists.** The secrets store's snapshots go to a bucket on both R2 and B2,
   so that recovery does not depend on one vendor
-  ([ADR 0017](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md),
-  [ADR 0019](../0019-openbao-offsite-snapshot-path/revision-000.md)). Those buckets are
+  ([ADR 0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md),
+  [ADR 0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)). Those buckets are
   made by hand, and the operator host's Internet allowlist already names both providers.
 - **That bucket cannot be shared.** Its write credential is deliberately unable to delete,
   and its bucket takes retention rules. Tofu's backend overwrites the state and creates
@@ -120,7 +120,7 @@ flowchart LR
 
 - The state leaves the LAN, encrypted. Reading it needs the credential and the key, and
   recovering from the copy needs the offline GPG key and a read credential minted for the
-  occasion, as ADR 0017 does for snapshots.
+  occasion, as ADR 0111 does for snapshots.
 - Two credentials and one key are added to the operator's custody, and the key's offline
   copy joins the yearly custody check
   ([`exercises.md`](../../topics/disaster-recovery/exercises.md)).

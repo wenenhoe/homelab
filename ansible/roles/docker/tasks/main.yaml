@@ -114,7 +114,7 @@
 - name: Merge the daemon defaults into daemon.json
   ansible.builtin.import_tasks: daemon_config.yaml
 
-# The compose pull tasks use `policy: missing` (ADR 0083), which needs Docker
+# The compose pull tasks use `policy: missing` (ADR 0108), which needs Docker
 # Compose 2.22. The plugin comes from Docker's own apt repository, so this
 # fails only on a host whose repository stopped updating.
 - name: Read the installed Docker Compose version

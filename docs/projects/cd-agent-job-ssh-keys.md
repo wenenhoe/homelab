@@ -8,7 +8,6 @@ summary: Chained jobs on the CD agent, the monthly leaf-credential rotation that
 decision: ADR-0074/0
 also_implements: [ADR-0075/0]
 super_project: pull-based-cd
-track: agent
 ---
 
 # CD Agent Chained Jobs, Rotation and Job SSH Keys

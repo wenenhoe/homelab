@@ -7,8 +7,6 @@ blocked: false
 summary: Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides.
 decision: ADR-0059/0
 super_project: tailnet-policy
-track: policy
-phase: 2-in-tofu
 allowed_paths:
   - tofu/modules/tailscale_policy/**
   - tofu/main.tf
@@ -86,7 +84,7 @@ The policy's own `tests` block is what catches a bad apply before it saves, and 
 
 ## Open items
 
-- How the OAuth client's expiry is tracked, since [ADR 0015 (Cloud credential expiry)](../decisions/0015-cloud-credential-expiry/revision-000.md) expects every credential to expire and something to notice, ADR 0059 expects the credential to follow Tofu's credentials file, and [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md) states no expiry cadence for that file.
+- How the OAuth client's expiry is tracked, since [ADR 0109 (Cloud credential expiry)](../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md) expects every credential to expire and something to notice, ADR 0059 expects the credential to follow Tofu's credentials file, and [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md) states no expiry cadence for that file.
 - Whether the rendered policy, with its private values, is written to Tofu's state, and if so whether the state's existing handling is enough.
 
 ## Closing checklist

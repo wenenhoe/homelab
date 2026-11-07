@@ -25,7 +25,29 @@ IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/decisions/README.md", "docs/pro
 
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+STAGE_STATUSES = ("Not started", "In progress", "Done")
 EXECUTION_PLAN_RE = re.compile(r"^## Execution plan[ \t]*\n(.*?)(?=^## |\Z)", re.DOTALL | re.MULTILINE)
+
+
+def stages(text: str) -> list[tuple[str, str]]:
+    """The (stage, status) cells of each row of a project doc's Execution plan table, in order."""
+    plan = EXECUTION_PLAN_RE.search(text)
+    rows = []
+    for line in plan.group(1).splitlines() if plan else ():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if line.startswith("|") and len(cells) >= 3 and cells[2] in STAGE_STATUSES:
+            rows.append((cells[1], cells[2]))
+    return rows
+
+
+def stage_statuses(text: str) -> list[str]:
+    """The status cell of each row of a project doc's Execution plan table, in order."""
+    return [status for _, status in stages(text)]
+
+
+# A stage that answers an open question by running something is named so, and only for as long as
+# the decision it serves is still working.
+SPIKE_STAGE_RE = re.compile(r"Spikes?\b")
 
 
 def project_state(text: str | None) -> tuple[str, tuple[str, ...]] | None:

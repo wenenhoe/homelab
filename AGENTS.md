@@ -16,6 +16,18 @@ pointed to instead.
   Python unit test conventions (style, fixtures, test doubles,
   assertions). Read it before writing or changing a test.
 
+## Which kind of doc
+
+| The change is | It goes in |
+| :--- | :--- |
+| A question with no chosen solution yet | [`docs/explorations/`](docs/explorations/README.md) |
+| A choice made, with its reasons | [`docs/decisions/`](docs/decisions/README.md) |
+| What remains of multi-stage work | [`docs/projects/`](docs/projects/README.md) |
+| How the system behaves on `main` now | [`docs/topics/`](docs/topics/README.md) |
+
+A choice that would not surprise a reader of the code is not a decision; it
+goes in a topic doc or the conventions.
+
 Before implementing a project, open its `decision:` revision.
 `approved` means proceed; anything else means stop and ask.
 

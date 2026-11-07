@@ -214,6 +214,72 @@ DECISION_GATE_ALLOWED = {
 DECISION_GATE_REVISION_STATUSES = ["working", "approved", "accepted", "abandoned", "retired"]
 
 
+def plan(*statuses: str) -> str:
+    rows = "\n".join(f"| {i} | Stage {i} | {status} | done |" for i, status in enumerate(statuses, 1))
+    return f"# t\n\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n{rows}\n"
+
+
+class TestStageTable:
+    def errors(self, root, status, *stages):
+        path = project(root, "p", status=status)
+        path.write_text(path.read_text(encoding="utf-8") + "\n" + plan(*stages), encoding="utf-8")
+        return graph.project_errors(root)
+
+    @pytest.mark.parametrize("stage", ["In progress", "Done"])
+    def test_not_started_with_a_started_stage_fails(self, root, stage):
+        assert_one_error(self.errors(root, "not-started", "Not started", stage), "not-started", stage)
+
+    @pytest.mark.parametrize("status", ["de-risking", "building"])
+    def test_an_active_status_with_no_stage_started_fails(self, root, status):
+        assert_one_error(self.errors(root, status, "Not started", "Not started"), status, "no stage has started")
+
+    @pytest.mark.parametrize(
+        ("status", "stages"),
+        [
+            ("not-started", ("Not started", "Not started")),
+            ("de-risking", ("In progress", "Not started")),
+            ("building", ("Done", "Not started")),
+            ("building", ("Done", "Done")),
+        ],
+    )
+    def test_a_status_that_matches_the_table_passes(self, root, status, stages):
+        assert self.errors(root, status, *stages) == []
+
+    def test_a_doc_with_no_stage_rows_is_not_judged(self, root):
+        project(root, "p", status="building")
+        assert graph.project_errors(root) == []
+
+
+class TestSpikeStage:
+    def errors(self, root, revision_status, *stages):
+        revision(root, "0001-a", 0, status=revision_status)
+        path = project(root, "p", status={"working": "not-started", "approved": "building", "accepted": "done"}[revision_status], decision="ADR-0001/0")
+        rows = "\n".join(f"| {i} | {title} | {status} | done |" for i, (title, status) in enumerate(stages, 1))
+        table = f"\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n{rows}\n"
+        path.write_text(path.read_text(encoding="utf-8") + table, encoding="utf-8")
+        return graph.project_errors(root)
+
+    @pytest.mark.parametrize("revision_status", ["approved", "accepted"])
+    def test_an_unfinished_spike_under_a_settled_decision_fails(self, root, revision_status):
+        errors = self.errors(root, revision_status, ("Spike: the proxy", "In progress"), ("Build it", "Done"))
+        assert_one_error(errors, "Spike: the proxy", revision_status, "name the stage for what it builds")
+
+    def test_a_spike_under_a_working_decision_passes(self, root):
+        assert self.errors(root, "working", ("Spike: the proxy", "Not started")) == []
+
+    def test_a_finished_spike_stays_as_history(self, root):
+        assert self.errors(root, "approved", ("Spike: the proxy", "Done"), ("Build it", "In progress")) == []
+
+    def test_only_a_stage_named_a_spike_counts(self, root):
+        assert self.errors(root, "approved", ("Trial the proxy", "In progress")) == []
+
+    def test_a_stage_that_only_mentions_a_spike_is_not_one(self, root):
+        assert self.errors(root, "approved", ("Build it, after the spike", "In progress")) == []
+
+    def test_the_plural_names_a_spike_too(self, root):
+        assert_one_error(self.errors(root, "approved", ("Spikes: proxy and bridge", "Not started"), ("Build it", "In progress")), "Spikes")
+
+
 class TestProjectErrors:
     def test_no_projects_is_clean(self, root):
         assert graph.project_errors(root) == []
@@ -380,3 +446,30 @@ class TestHeadingErrors:
     def test_status_wording_inside_prose_is_not_a_status_line(self, root):
         revision(root, "0013-secret-storage", 0, body="# 0013. Secret storage\n\nThe **Status:** field is not repeated here.\n")
         assert graph.heading_errors(root) == []
+
+
+class TestWeightErrors:
+    def light(self, root, body, **overrides):
+        return revision(root, "0013-secret-storage", 0, body=body, weight="light", **overrides)
+
+    def test_a_short_light_revision_with_the_allowed_sections_is_clean(self, root):
+        self.light(root, "# 0013. Secret storage\n\n## Problem\n\nx\n\n## Decision\n\ny\n\n## Reconsideration triggers\n\nz\n")
+        assert graph.weight_errors(root) == []
+
+    @pytest.mark.parametrize("heading", graph.LIGHT_FORBIDDEN_SECTIONS)
+    def test_a_light_revision_cannot_carry_a_full_section(self, root, heading):
+        self.light(root, f"# 0013. Secret storage\n\n## {heading}\n\nx\n")
+        assert_one_error(graph.weight_errors(root), "weight: light", f"## {heading}")
+
+    def test_a_light_revision_over_the_length_is_refused(self, root):
+        self.light(root, "# 0013. Secret storage\n\n" + "word " * (graph.LIGHT_MAX_WORDS + 1))
+        assert_one_error(graph.weight_errors(root), "words")
+
+    def test_a_light_revision_at_the_length_is_clean(self, root):
+        self.light(root, "word " * graph.LIGHT_MAX_WORDS)
+        assert graph.weight_errors(root) == []
+
+    def test_a_full_revision_may_be_long_and_carry_every_section(self, root):
+        revision(root, "0013-secret-storage", 0, body="## Invariants\n\n## Non-goals\n\n## Validation\n\n" + "word " * 2000)
+        revision(root, "0014-other", 0, weight="full", body="## Invariants\n\nx\n")
+        assert graph.weight_errors(root) == []

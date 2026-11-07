@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter, ref_label
+from doc_scripts.doc_scope import SPIKE_STAGE_RE, stages
 
 # A project's status fixes which state its linked decision revision must
 # be in. The gate is what stops production work when a revision drops
@@ -27,6 +28,11 @@ PROJECT_DECISION_GATE = {
 # another project not at `done` still names it (ADR 0037 revision 2).
 SHARED_DONE_STATUS = "approved"
 _DONE_NEEDED = f"accepted, or {SHARED_DONE_STATUS} while another project not at done names it"
+
+# A light revision is a short record: it has none of these sections and stays under this many words
+# of body, so a decision that needs more is a full one (ADR 0037 revision 4).
+LIGHT_MAX_WORDS = 500
+LIGHT_FORBIDDEN_SECTIONS = ("Invariants", "Non-goals", "Validation")
 
 _ASSUMPTIONS_RE = re.compile(r"^## Assumptions\n\n(.*?)(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
 _BULLET_RE = re.compile(r"^- ", re.MULTILINE)
@@ -183,6 +189,25 @@ def open_assumption_errors(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def weight_errors(root: Path = ROOT) -> list[str]:
+    errors = []
+    for lineage in load_lineages(root):
+        for rev in lineage.revisions:
+            if rev.weight != "light":
+                continue
+            rel = rev.path.relative_to(root)
+            body = rev.path.read_text(encoding="utf-8").split("\n---\n", 1)[-1]
+            for heading in LIGHT_FORBIDDEN_SECTIONS:
+                if re.search(rf"^## {re.escape(heading)}\s*$", body, re.MULTILINE):
+                    errors.append(f"{rel}: weight: light has a '## {heading}' section — a decision that needs one is a full revision")
+            words = len(body.split())
+            if words > LIGHT_MAX_WORDS:
+                errors.append(
+                    f"{rel}: weight: light runs to {words} words, over the {LIGHT_MAX_WORDS} a light revision may hold — make it a full revision or cut it"
+                )
+    return errors
+
+
 def _cycle_errors(graph: dict[str, list[str]]) -> list[str]:
     errors = []
     state: dict[str, int] = {}  # 1 = on the current path, 2 = done
@@ -200,6 +225,32 @@ def _cycle_errors(graph: dict[str, list[str]]) -> list[str]:
         if node not in state:
             visit(node, [node])
     return errors
+
+
+def stage_table_errors(rel: Path, status: str, stages: list[str]) -> list[str]:
+    """A project's status against its stage table. A doc with no stage rows is not judged: the
+    status is the author's statement of intent, and this only catches it drifting from the table."""
+    started = [s for s in stages if s != "Not started"]
+    if not stages:
+        return []
+    if status == "not-started" and started:
+        return [f"{rel}: status: not-started, but a stage is {started[0]} — move the status on, or the stage back to Not started"]
+    if status in ("de-risking", "building") and not started:
+        return [f"{rel}: status: {status}, but no stage has started — start one, or set the status back to not-started"]
+    return []
+
+
+def spike_stage_errors(rel: Path, rows: list[tuple[str, str]], revision_status: str) -> list[str]:
+    """A spike stage that has not finished, in a project whose decision revision is settled. The
+    revision was approved before the assumption the spike answers was resolved, or the spike is
+    build work under another name; a finished spike is history and stays."""
+    if revision_status not in ("approved", "accepted"):
+        return []
+    return [
+        f"{rel}: stage '{title}' is a spike ({status}), but the decision is {revision_status} — finish it, or name the stage for what it builds"
+        for title, status in rows
+        if SPIKE_STAGE_RE.match(title) and status != "Done"
+    ]
 
 
 def project_errors(root: Path = ROOT) -> list[str]:
@@ -221,6 +272,8 @@ def project_errors(root: Path = ROOT) -> list[str]:
     graph: dict[str, list[str]] = {}
     for pid, (path, fm) in projects.items():
         rel = path.relative_to(root)
+        rows = stages(path.read_text(encoding="utf-8"))
+        errors.extend(stage_table_errors(rel, fm["status"], [status for _, status in rows]))
         graph[pid] = []
         for dep in fm.get("depends_on", []):
             target = dep["project"]
@@ -248,7 +301,9 @@ def project_errors(root: Path = ROOT) -> list[str]:
             allowed = allowed | {SHARED_DONE_STATUS}
         if rev is None:
             errors.append(f"{rel}: decision {fm['decision']} doesn't resolve to a lineage revision")
-        elif rev.status not in allowed:
+            continue
+        errors.extend(spike_stage_errors(rel, rows, rev.status))
+        if rev.status not in allowed:
             needed = _DONE_NEEDED if fm["status"] == "done" else " or ".join(sorted(allowed))
             errors.append(f"{rel}: status: {fm['status']} needs decision {fm['decision']} to be {needed}, but it is {rev.status}")
     errors.extend(_cycle_errors(graph))

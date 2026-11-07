@@ -47,14 +47,14 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   `openbao-snapshot-write` leaf — and flags any not matching the
   access key currently in Vault as an orphan — e.g. a key from an
   interrupted rotation never cleaned up on the provider's side. The one
-  exception: ADR 0017's break-glass `openbao-snapshot-readonly`
+  exception: ADR 0111's break-glass `openbao-snapshot-readonly`
   credential is never cached anywhere by design, so it's matched by its
   known provider-side name instead of a cache lookup — a weaker check,
   but this tool only ever flags, never deletes. Flags only; deleting
   anything it finds is a separate, deliberate step.
 - **`tools/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
-  credentials [ADR 0017 (Secrets store recovery)](../../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)
+  credentials [ADR 0111 (Secrets store recovery)](../../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
   calls for — OpenBao's own break-glass snapshot-restore credential,
   not a `cloud_sync` leaf. Verifies each one via a real `rclone lsjson`
   against its actual bucket before printing it — same discipline
@@ -114,7 +114,7 @@ customer-secret-key and Apps-lookup calls (`AppClientSecretRegenerator`
 has no SDK method and stays on raw `requests` regardless). `b2sdk`
 covers B2's leaf/rotation key create/delete/list calls. The choices
 are in
-[ADR 0029 (Cloud API client library)](../../../decisions/0029-cloud-provider-api-client-library/revision-000.md).
+[ADR 0104 (Python client libraries)](../../../decisions/0104-which-client-library-each-external-service-uses/revision-000.md).
 
 `openbao_utils/audit.py`'s B2 and OCI listings use the same SDKs
 (`b2sdk`'s `list_keys`, `IdentityDomainsClient.list_customer_secret_keys`).

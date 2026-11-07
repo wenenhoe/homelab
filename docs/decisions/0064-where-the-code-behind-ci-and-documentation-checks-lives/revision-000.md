@@ -8,7 +8,7 @@ solution: "Code that decides a check's outcome is unit-tested Python under tools
 summary: "Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows."
 topic: repository-tooling
 status: accepted
-related: [ADR-0031, ADR-0037]
+related: [ADR-0105, ADR-0037]
 ---
 
 # 0064. Where the code behind CI and documentation checks lives
@@ -23,7 +23,7 @@ place, not buried in workflow YAML.
 
 ## Context
 
-[ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md) put
+[ADR 0105 (Repo tooling location)](../0105-where-repo-tooling-lives/revision-000.md) put
 controller-side utilities under `tools/`, split by domain. It doesn't cover
 CI or the documentation checks, and those had grown up in three places:
 
@@ -55,7 +55,7 @@ assumed:
   them widens what a compromised package could reach;
 - `tools/` shares one `sys.path` convention (a package under `tools/`, run
   from there as `python -m`), and a package named like a standard-library
-  module shadows it, as [ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md)
+  module shadows it, as [ADR 0105 (Repo tooling location)](../0105-where-repo-tooling-lives/revision-000.md)
   found for `secrets`.
 
 ## Decision
@@ -111,7 +111,7 @@ change that makes it.
 - **Leave the logic inline in the workflows.** Untestable, and already
   duplicated three times.
 - **A second top-level directory for CI code.** Repeats the scatter that
-  ADR 0031 fixed; `tools/` is already the place.
+  ADR 0105 fixed; `tools/` is already the place.
 
 ## Consequences
 
@@ -142,7 +142,7 @@ change that makes it.
 ## Non-goals
 
 - The Ansible-side controller scripts that
-  [ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md) and its
+  [ADR 0105 (Repo tooling location)](../0105-where-repo-tooling-lives/revision-000.md) and its
   successors placed. Those decisions stand.
 - Converting shell that only sequences commands.
 - Changing what any check enforces. The documentation scripts' rules are

@@ -10,10 +10,10 @@ markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
 hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
 frontmatter and regenerates `docs/projects/README.md`'s Index,
-`docs/project-planning.md`'s Next up, Super Projects, Projects and
-Decisions awaiting a project views, and `docs/decisions/README.md`'s
+`docs/project-planning.md`'s Super Projects, Projects, Decisions awaiting a
+project and Open explorations views, and `docs/decisions/README.md`'s
 Lineages index in place, validating each doc's frontmatter as it goes.
-The Unblocks counts, who is in Next up and in what order, and the
+The Unblocks counts, the Status and Blocker cells, and the
 approved-first order of the decisions table are computed from that
 frontmatter alone, with nothing stored for them
 ([ADR 0082 (Choosing the next project)](../../../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)). Same

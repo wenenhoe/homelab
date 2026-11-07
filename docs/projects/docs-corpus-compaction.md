@@ -32,9 +32,10 @@ Decision point cannot be told from a clean one by a check.
   chosen. Candidates: the intrusion-detection and security-event-collection
   records, and the open revisions of the certificate-issuance and
   certificate-lifetime records. Each is read before it moves.
-- Records that are implementation detail are demoted: the group on where
-  OpenBao scripts, tooling and client code live and how the CLI is reached.
-  Their content goes to a topic doc or the conventions first.
+- Records that are implementation detail are merged or demoted: the group on
+  where OpenBao scripts, tooling and client code live and how the CLI is
+  reached. A record whose content a topic doc already holds is demoted; one
+  that holds a real choice is merged.
 - Records that are one problem are merged into one lineage: the family on
   knowing that a pinned release, image digest, registry or hook is the one the
   publisher or reviewer meant.
@@ -62,7 +63,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Unsettled questions | Done | Each candidate is read and is an exploration, a decision or dropped, and no `working` revision with no chosen solution remains unless a project is spiking it. |
-| 2 | Implementation-detail records | Not started | The OpenBao placement records are demoted or condensed, their content is in a topic doc, their numbers are in the ledger of removed numbers, and no link into them remains. |
+| 2 | Implementation-detail records | Done | The OpenBao client, tooling-layout and CLI-access records are merged into three lineages that carry every decision of their sources, their numbers are former ids, and no link into a removed number remains. |
 | 3 | Supply-chain family | Not started | The records on pinned-artifact trust are one lineage that carries every Decision point, Invariant, Non-goal and trigger of its sources, lists their numbers in `former_ids`, and has taken over their inbound links. |
 | 4 | Secrets and Tofu clusters | Not started | Each cluster has been read, and every record in it is kept, condensed, merged or demoted, with the outcome recorded in the pull request. |
 | 5 | Placeholder projects | Not started | Each project that waits on a `working` revision is withdrawn or kept as a spike, and the number of active projects is at or under the limit the planning view warns on. |

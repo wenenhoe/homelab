@@ -17,7 +17,7 @@ alongside a script whose whole point is staying one file. It keeps
 its own independent copy of the same login/read logic instead.
 
 Uses hvac for the OpenBao client - see
-docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md.
+docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md.
 """
 
 from __future__ import annotations

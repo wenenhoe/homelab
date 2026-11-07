@@ -9,7 +9,7 @@ summary: How operators reach the bao CLI, replacing four overlapping docker-exec
 topic: repository-tooling
 status: accepted
 narrows: ADR-0019
-related: [ADR-0033, ADR-0022, ADR-0030]
+related: [ADR-0033, ADR-0022, ADR-0104]
 ---
 
 # 0034. Operator access to the OpenBao CLI
@@ -107,7 +107,7 @@ Facts established on `security` against the pinned `2.6.2` image:
   one-time manual step.
 - **SSH hops** (root-cert fetch, or driving `docker exec` for init/unseal) use
   `paramiko` directly, matching
-  [ADR 0030 (OpenBao Python client)](../0030-openbao-client-implementation-in-repo-python/revision-000.md),
+  [ADR 0104 (Python client libraries)](../0104-which-client-library-each-external-service-uses/revision-000.md),
   not the Docker SDK's transport.
 - **Init/unseal stays security-local and `docker exec`-based**, permanently and
   by necessity (the crash-loop before cert issuance), documented as the one

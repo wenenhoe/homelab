@@ -8,7 +8,7 @@ solution: A root tools/ directory split by domain
 summary: Controller-side utilities live where their domain says, not where they happened to be written.
 topic: repository-tooling
 status: accepted
-related: [ADR-0030]
+related: [ADR-0104]
 ---
 
 # 0031. Where repo tooling lives
@@ -27,7 +27,7 @@ duplicating `cache.py`'s Vault-client logic, and
 location for the same domain again. This scatter is what let the
 identical missing-SSH-timeout bug exist independently in two files
 without anyone noticing the duplication
-([0030](../0030-openbao-client-implementation-in-repo-python/revision-000.md)) — a structural
+([0030](../0104-which-client-library-each-external-service-uses/revision-000.md)) — a structural
 symptom, not just a naming complaint. Concrete evidence beyond that:
 `docker/openbao/scripts/bao-*.sh` and
 `restore_hosts_scope_from_backup.py` (renamed: `restore.py`) were already reaching sideways

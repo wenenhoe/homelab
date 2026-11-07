@@ -29,7 +29,7 @@ How the first credential reaches a process that needs it, without a human typing
 - `tools/utils/repo.py`'s `fetch_root_cert()` uses an SSH key to reach `security`.
 - Beszel's KEY and TOKEN and [ADR 0036 (Beszel notifications)](../0036-beszel-notification-configuration/revision-000.md)'s Telegram webhook are typed into a web UI and live only in Beszel's own database.
 
-[ADR 0046 (S3 client)](../0046-python-client-for-s3-compatible-storage/revision-000.md) met the same problem from another side: swapping `rclone` for `boto3` and `hvac` relocates which secret sits on disk and does not remove one.
+[ADR 0104 (Python client libraries)](../0104-which-client-library-each-external-service-uses/revision-000.md) met the same problem from another side: swapping `rclone` for `boto3` and `hvac` relocates which secret sits on disk and does not remove one.
 
 **What is planned.** The CD agent gets its own CIDR-bound AppRoles ([ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)), and [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md) deletes `controller`'s standing AppRole. Neither says how the operator host then authenticates to mint a short-lived token.
 

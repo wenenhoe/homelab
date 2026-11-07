@@ -330,6 +330,44 @@ branch.
 The error output is each check's own, followed by the names of the checks that
 failed.
 
+## Merge preparation
+
+[`tools/doc_scripts/merge_adr_links.py`](../../../../tools/doc_scripts/merge_adr_links.py)
+runs nowhere in CI and is never run by an agent working a project: merging
+decision records is the maintainer's operation
+([ADR 0037 revision 4](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md)),
+and this only prepares the inbound side of one. The maintainer writes the new
+lineage first, listing every source's id in its `former_ids`; then
+`python3 -m doc_scripts.merge_adr_links NEW SOURCE [SOURCE ...]` (`--dry-run` to
+read the report first) rewrites, in every tracked or new text file except the
+sources, the new lineage and the generated views:
+
+- a link to any revision of a source, which now goes to the new lineage's
+  revision 0;
+- `ADR NNNN` and `ADR-NNNN` for a source number, in prose, comments and link
+  text, and the short name in a link to the new lineage;
+- `ADR-NNNN/LABEL` in a project's `decision:` and `also_implements:`, which now
+  name revision 0 of the new lineage;
+- `related:` and `narrows:` of other records, with each id once.
+
+It does not delete the sources, regenerate the views or commit. It prints what
+is left for a person, which is what used to be found late:
+
+- the revisions whose frozen sections changed, as `Editorial-Fix: <path>` lines
+  to put on a commit of the change, since the accepted-records check fails the
+  pull request without them;
+- the project docs whose frontmatter or stage table changed, which makes the
+  change work that project, so every changed file must be inside its
+  `allowed_paths` on the base branch (widen them in an earlier change);
+- lists and ranges (`ADRs A through B`) where a number was replaced, which can
+  now read wrong;
+- references left in the new lineage, which is never edited, and any other
+  mention of a source directory.
+
+Once the source directories are deleted and the views regenerated, the
+[retired-number check](#retired-number-check) passes. The scan it shares with
+this tool is `doc_retired.py`.
+
 ## Consolidation suggestions
 
 [`tools/doc_scripts/suggest_adr_consolidation.py`](../../../../tools/doc_scripts/suggest_adr_consolidation.py)

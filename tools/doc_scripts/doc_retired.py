@@ -51,6 +51,7 @@ class Hit:
     line: int
     message: str
     frozen: bool = False
+    listed: bool = False  # one of several numbers after `ADRs`, so a rewrite can leave the list reading wrong
 
 
 def retired_numbers(root: Path = ROOT) -> dict[str, tuple[str, str | None]]:
@@ -107,22 +108,25 @@ def find_hits(rel: str, text: str, retired: dict[str, tuple[str, str | None]]) -
     frozen = _frozen_spans(rel, text)
     found: dict[int, Hit] = {}
 
-    def add(offset: int, number: str, message: str) -> None:
+    def add(offset: int, number: str, message: str, listed: bool = False) -> None:
         if number in retired and offset not in found and not _inside(offset, skip):
-            found[offset] = Hit(offset, number, text.count("\n", 0, offset) + 1, message, _inside(offset, frozen))
+            found[offset] = Hit(offset, number, text.count("\n", 0, offset) + 1, message, _inside(offset, frozen), listed)
 
     for m in _LINK_RE.finditer(text):
         for t in _LINK_TEXT_NUMBER_RE.finditer(m.group(1)):
             add(m.start(1) + t.start(1), t.group(1), f"link text names ADR {t.group(1)}, which was {{fate}}; the link goes to ADR {m.group(3)}")
     for m in _PROSE_RE.finditer(text):
-        in_fence = _inside(m.start(), fences)
+        numbers = [(m.start(2), m.group(2), not (m.group(1) == "-" and _inside(m.start(), fences)))]
         pos = m.end(2)
-        if not (m.group(1) == "-" and in_fence):
-            add(m.start(2), m.group(2), f"names ADR {m.group(2)}, which was {{fate}}")
         while n := _NEXT_RE.match(text, pos):
-            add(n.start(1), n.group(1), f"names ADR {n.group(1)}, which was {{fate}}")
+            numbers.append((n.start(1), n.group(1), True))
             pos = n.end(1)
-    return [Hit(h.offset, h.number, h.line, h.message.format(fate=retired[h.number][0]), h.frozen) for h in sorted(found.values(), key=lambda h: h.offset)]
+        for offset, number, reported in numbers:
+            if reported:
+                add(offset, number, f"names ADR {number}, which was {{fate}}", listed=len(numbers) > 1)
+    return [
+        Hit(h.offset, h.number, h.line, h.message.format(fate=retired[h.number][0]), h.frozen, h.listed) for h in sorted(found.values(), key=lambda h: h.offset)
+    ]
 
 
 def advice(number: str, retired: dict[str, tuple[str, str | None]]) -> str:

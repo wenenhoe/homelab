@@ -7,7 +7,8 @@ short: Decision and project workflow
 solution: "A project doc may be deleted when each revision it names, in decision: or also_implements:, is accepted or still named by a remaining project"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended so a project that implements a second decision on the side can be merged without losing track of that decision."
 topic: documentation-process
-status: accepted
+status: superseded
+superseded_by: 4
 supersedes: 2
 related: [ADR-0061]
 ---

@@ -7,7 +7,7 @@ short: Decision and project workflow
 solution: "Open questions live in explorations until a choice is made, decisions come in two weights, a project starts only on an approved decision, and accepted records are kept small by condensing, merging and demoting"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended with a home for unsettled questions, a lighter record for small decisions, and a way to compact accepted records."
 topic: documentation-process
-status: approved
+status: accepted
 supersedes: 3
 related: [ADR-0061, ADR-0080, ADR-0082]
 ---
@@ -143,7 +143,7 @@ agent working a project.
 ## Consequences
 
 - A new directory, a new frontmatter type, a lifecycle-table change and
-  several checks. The overhaul is a project of its own.
+  several checks.
 - Projects that wait on a `working` revision today are withdrawn or kept as
   spikes as their decisions come up, one at a time, because the stage plan in
   such a doc is lost on deletion until the revision is approved again.
@@ -177,7 +177,7 @@ agent working a project.
   the project limits are tests under `tools/tests/doc_scripts/`, each with a
   control that fails without the rule.
 - The quarterly report shows stale explorations, aging `working` revisions,
-  approved revisions that no project names, and consolidation candidates.
+  the number of active projects, and consolidation candidates.
 
 ## Reconsideration triggers
 

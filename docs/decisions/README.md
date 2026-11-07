@@ -248,20 +248,22 @@ untouched for a long time, and whether too many projects are active.
 ### Records the report lists that stay separate
 
 The report is advisory, and these pairs and clusters are read and kept apart.
-Re-read one when a record in it changes status.
+The last column is each record's status when the row was written. The report
+leaves a row out until one of its records changes status or goes, and then
+lists it to read again; update the column when you have.
 
-| Records | Why they stay separate |
-| :--- | :--- |
-| ADR 0001 and 0002; 0001 and 0057 | The first two have the same shape but decide different things, host configuration through Ansible and proxy configuration through a checked-in Caddyfile, and each is a reason on its own. 0057 is abandoned. |
-| ADR 0053, 0055, 0056 | Network reach of the coding-agent host, the maintainer's access to it, and the credentials the workstation holds are three boundaries with different owners. 0053 is `working`; 0055 and 0056 are `approved` and cannot merge into an accepted lineage. |
-| ADR 0056 and 0058 | The credentials the workstation holds, and where operator work runs. 0058 is `working`. |
-| ADR 0044, 0050, 0058 | How prod automation is triggered, how agent-written changes reach it, and where operator work runs are separate problems that cite one another. None is accepted. |
-| ADR 0065 and 0068 | Where an app's definition merges with host intent, and where backup settings meet shared defaults. Each has its own resolver and its own invariants. |
-| ADR 0107 and 0108 | Whether a pinned artifact is the publisher's, and which image a deploy runs and from where. The second states provenance as a non-goal and relies on the first. |
-| ADR 0096 and 0108 | Hook pinning is `working` and has open assumptions. Re-read it once accepted. |
-| ADR 0018 and 0023 | Unsealing OpenBao after a restart, and how credential code stores its output. 0018 is `working`. |
-| ADR 0023, 0109, 0110 | Storage and rotation cadence, expiry, and the R2 admin token. They share a topic and link one another, but each states a different choice with its own triggers. |
-| ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. 0080 is `working`. |
+| Records | Why they stay separate | Status when read |
+| :--- | :--- | :--- |
+| ADR 0001 and 0002; 0001 and 0057 | The first two have the same shape but decide different things, host configuration through Ansible and proxy configuration through a checked-in Caddyfile, and each is a reason on its own. 0057 is abandoned. | 0001 accepted, 0002 accepted, 0057 abandoned |
+| ADR 0053, 0055, 0056 | Network reach of the coding-agent host, the maintainer's access to it, and the credentials the workstation holds are three boundaries with different owners. 0053 is `working`; 0055 and 0056 are `approved` and cannot merge into an accepted lineage. | 0053 working, 0055 approved, 0056 approved |
+| ADR 0056 and 0058 | The credentials the workstation holds, and where operator work runs. 0058 is `working`. | 0056 approved, 0058 working |
+| ADR 0044, 0050, 0058 | How prod automation is triggered, how agent-written changes reach it, and where operator work runs are separate problems that cite one another. None is accepted. | 0044 approved, 0050 approved, 0058 working |
+| ADR 0065 and 0068 | Where an app's definition merges with host intent, and where backup settings meet shared defaults. Each has its own resolver and its own invariants. | 0065 accepted, 0068 accepted |
+| ADR 0107 and 0108 | Whether a pinned artifact is the publisher's, and which image a deploy runs and from where. The second states provenance as a non-goal and relies on the first. | 0107 accepted, 0108 accepted |
+| ADR 0096 and 0108 | Hook pinning is `working` and has open assumptions. Re-read it once accepted. | 0096 working, 0108 accepted |
+| ADR 0018 and 0023 | Unsealing OpenBao after a restart, and how credential code stores its output. 0018 is `working`. | 0018 working, 0023 accepted |
+| ADR 0023, 0109, 0110 | Storage and rotation cadence, expiry, and the R2 admin token. They share a topic and link one another, but each states a different choice with its own triggers. | 0023 accepted, 0109 accepted, 0110 accepted |
+| ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. 0080 is `working`. | 0037 accepted, 0080 working, 0082 accepted |
 
 Nothing is renumbered: a number identifies a problem for good, and git holds
 what a deleted record said.

@@ -28,6 +28,11 @@ PROJECT_DECISION_GATE = {
 SHARED_DONE_STATUS = "approved"
 _DONE_NEEDED = f"accepted, or {SHARED_DONE_STATUS} while another project not at done names it"
 
+# A light revision is a short record: it has none of these sections and stays under this many words
+# of body, so a decision that needs more is a full one (ADR 0037 revision 4).
+LIGHT_MAX_WORDS = 500
+LIGHT_FORBIDDEN_SECTIONS = ("Invariants", "Non-goals", "Validation")
+
 _ASSUMPTIONS_RE = re.compile(r"^## Assumptions\n\n(.*?)(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
 _BULLET_RE = re.compile(r"^- ", re.MULTILINE)
 
@@ -179,6 +184,25 @@ def open_assumption_errors(root: Path = ROOT) -> list[str]:
                 errors.append(
                     f"{rev.path.relative_to(root)}: status: {rev.status} but still has an open Assumptions entry — "
                     "resolve every entry (fold into Context or revise the Decision) before approving"
+                )
+    return errors
+
+
+def weight_errors(root: Path = ROOT) -> list[str]:
+    errors = []
+    for lineage in load_lineages(root):
+        for rev in lineage.revisions:
+            if rev.weight != "light":
+                continue
+            rel = rev.path.relative_to(root)
+            body = rev.path.read_text(encoding="utf-8").split("\n---\n", 1)[-1]
+            for heading in LIGHT_FORBIDDEN_SECTIONS:
+                if re.search(rf"^## {re.escape(heading)}\s*$", body, re.MULTILINE):
+                    errors.append(f"{rel}: weight: light has a '## {heading}' section — a decision that needs one is a full revision")
+            words = len(body.split())
+            if words > LIGHT_MAX_WORDS:
+                errors.append(
+                    f"{rel}: weight: light runs to {words} words, over the {LIGHT_MAX_WORDS} a light revision may hold — make it a full revision or cut it"
                 )
     return errors
 

@@ -102,6 +102,18 @@ these narrow, structural things:
   that is `building` on it. Projects without a `decision:` are never
   gated. `depends_on` entries name existing project docs, never
   themselves, and form no cycle.
+- A revision's `weight` is `full` or `light`. A `light` revision has no
+  `Invariants`, `Non-goals` or `Validation` section and a body of at most
+  `LIGHT_MAX_WORDS` words (`doc_graph.py`); a full one is not limited. See
+  [`docs/decisions/README.md#weights`](../../../decisions/README.md#weights).
+- Explorations (`docs/explorations/<slug>.md`): the frontmatter has
+  `type: exploration`, `status: open`, a `topic`, and an `id` of `EXP-` plus
+  the file name; `related` entries name real lineages. No file outside
+  `docs/explorations/` names an exploration's path, apart from the generated
+  `project-planning.md`, since an exploration is deleted when it ends. See
+  [`docs/explorations/README.md`](../../../explorations/README.md). The
+  generator also warns about an open exploration whose newest commit is older
+  than `EXPLORATION_STALE_DAYS` in `doc_explorations.py`; a warning never fails.
 - Relative links (`./`, `../`) from a `.md` file to a config, script, or
   data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
   way `.md` links do.
@@ -214,8 +226,11 @@ revision it named on the base, in `decision:` or `also_implements:`, is
 `accepted` afterwards, or another project doc that remains names it in
 either field (`also_implements:` still gates no project's status). So the
 last project to close either accepts the revision or leaves a
-`not-started` successor naming it for whatever is unfinished. A change that deletes no project doc isn't
-checked.
+`not-started` successor naming it for whatever is unfinished. A doc that
+names only `working` revisions is withdrawn rather than closed and may be
+deleted: it has built nothing, and the revision shows in
+[Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project).
+A change that deletes no project doc isn't checked.
 
 It runs in the same two places as the scope check, with the same
 merge-base diff and the same staged-changes behavior:
@@ -238,6 +253,68 @@ Two PRs that each leave the other's project in place can both pass and
 together leave a revision `approved` with no project. The generated
 [Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project)
 view lists it, so the gap is visible but not blocked.
+
+## Project start check
+
+[`tools/doc_scripts/check_project_start.py`](../../../../tools/doc_scripts/check_project_start.py) enforces the start rule in
+[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md):
+a project doc that a change adds is `not-started` only when its `decision:`
+revision is `approved`, or it names none. A project on a `working` revision
+starts as `de-risking`, limited to spikes and reading code. The rule reads
+only the docs the change adds (a rename counts as one), so a project that was
+already waiting on a `working` revision is not re-judged.
+
+It runs where the close check runs, with the same merge-base diff and the same
+staged-changes behavior: the `project-checks` job in CI, and the
+`check-project-start` hook on the index, which passes trivially under
+`--all-files`. It reads the docs as they stand after the change, and a doc that
+does not parse fails the check.
+
+The generator also warns, without failing, when more than
+`ACTIVE_PROJECT_LIMIT` projects (`generate_doc_indexes.py`) are `building` or
+`de-risking` at once.
+
+## Accepted records check
+
+[`tools/doc_scripts/check_accepted_records.py`](../../../../tools/doc_scripts/check_accepted_records.py) holds the rules for
+compacting accepted decisions in
+[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md),
+described for the maintainer in
+[`docs/decisions/README.md#compacting-accepted-records`](../../../decisions/README.md#compacting-accepted-records).
+It enforces two rules:
+
+- **Frozen sections.** A revision that was `accepted` or `superseded` on the
+  base keeps its `title`, its `solution`, and its Problem, Decision,
+  Invariants, Non-goals and Reconsideration triggers sections. Link targets,
+  moved-file notes and short names in link text are ignored, and whitespace is
+  collapsed, so the editorial edits the decisions README allows are not
+  changes. A commit of the pull request with an `Editorial-Fix: <path>` trailer
+  excuses that file.
+- **Removed lineages.** A lineage that held an `accepted` or `superseded`
+  revision on the base and is gone afterwards must be a `former_ids` entry of
+  a lineage that remains, or be listed in
+  [`removed.md`](../../../decisions/removed.md). The drift check also fails a
+  number listed there that a lineage holds, or that is a former id too.
+
+It runs in the same two places as the other project-checks: the
+`project-checks` job over the pull request, which fails on both rules, and the
+`check-accepted-records` hook on the index, which reports a changed frozen
+section as a warning only (the trailer that excuses it is written with the
+commit message, after the hook runs) and still fails on a lineage that leaves
+unaccounted for. It reads the docs as they stand after the change for the
+removal rule, and a doc that does not parse fails the check.
+
+## Consolidation suggestions
+
+[`tools/doc_scripts/suggest_adr_consolidation.py`](../../../../tools/doc_scripts/suggest_adr_consolidation.py)
+runs nowhere in CI and changes nothing. It lists decisions that read like
+implementation detail (an accepted Decision that names many files), lineages
+whose title, summary and Problem share many words, and clusters of three or
+more lineages of one topic that all list one another in `related:`. With
+`--report` it adds the quarterly report: explorations that have stood still,
+`working` revisions untouched for a long time, and whether too many projects
+are active. The limits are constants at the top of the script. What a hit means
+is the maintainer's call.
 
 ## Moved-file check
 

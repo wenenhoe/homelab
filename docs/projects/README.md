@@ -24,25 +24,20 @@ gates it.
 - **Super-project** — a large initiative that needs several projects. A
   label (`super_project:`), not a document; see
   [Super Projects](../project-planning.md#super-projects).
-- **Track** — an independent stream of work within a super-project
-  (`track:`).
-- **Phase** — an ordered grouping within a track (`phase:`).
 - **Project** — the smallest independently manageable and closable unit;
   one doc.
 - **Stage** — a sequential build step inside one project. Numbering is
   local to that doc.
 
-A `track` needs a `super_project`, and a `phase` needs a `track`. No
-level is required; don't add one for naming's sake. Decompose a broad
+No level is required; don't add one for naming's sake. Decompose a broad
 initiative top-down, or add a `super_project` label once existing
 projects turn out to be coupled — both are fine.
 
-The generated [Super Projects](../project-planning.md#super-projects) view reads in build order:
-tracks by their earliest project in the dependency chain, then phases by
-slug, then projects by dependency depth. Where an order isn't a
-dependency (two stages that merely go one after the other), make them
-phases of one track and number the slugs (`1-…`, `2-…`); the view can't
-infer it.
+The generated [Super Projects](../project-planning.md#super-projects) view
+groups an initiative's projects and reads them by dependency depth, then by
+file name. An order that is not a dependency is not recorded: if one project
+cannot start until another is done, declare it; if it merely goes first, say
+so in the stage prose.
 
 Hierarchy says where work belongs; dependency says what must finish
 first. Declare `depends_on` (`project:` and `reason:`) only when work
@@ -56,7 +51,7 @@ dangling one.
 
 | Status | Meaning | Linked `decision:` revision must be |
 | :--- | :--- | :--- |
-| `not-started` | Nothing underway. | `working` or `approved` |
+| `not-started` | Nothing underway. | `approved` for a new project; `working` or `approved` for one already waiting |
 | `de-risking` | Resolving an open assumption — only throwaway spikes or reading code. | `working` |
 | `building` | Production implementation is authorized. | `approved` |
 | `done` | Everything implemented and merged. | `accepted`, or `approved` while another project still names it |
@@ -66,6 +61,20 @@ back to `working` stops any project `building` on it. A project without
 `decision:` isn't gated. Several projects may name one revision; it stays
 `approved` until the last of them closes (see
 [When a project finishes](#when-a-project-finishes)).
+
+A project starts on a decision that is settled. A new project is
+`not-started` only when its `decision:` revision is `approved`, or it names
+none; one whose revision is still `working` starts as `de-risking`, limited to
+spikes and reading code, or does not exist yet, and the question stays in a
+decision or an [exploration](../explorations/README.md) until it is approved.
+[`check_project_start.py`](../../tools/doc_scripts/check_project_start.py)
+fails a change that adds one otherwise; it reads only the docs the change
+adds, so a project already waiting on a `working` revision is left alone until
+that revision is approved or the project is withdrawn
+([When a project finishes](#when-a-project-finishes)). More than the limit in
+[`generate_doc_indexes.py`](../../tools/doc_scripts/generate_doc_indexes.py)
+of projects at `building` or `de-risking` at once draws a warning from the
+generator: finished work comes before new work.
 
 `blocked: true` with a `blocked_reason` is a flag, not a status: a
 current impediment that isn't another project (hardware, an external
@@ -221,6 +230,13 @@ either current-state fact (which belongs in a topic doc) or build
 narrative (which git and the PRs already hold). Run the checklist first;
 skipping it is how a real fact gets lost instead of promoted.
 
+A project that names only `working` revisions is withdrawn, not closed:
+delete the doc, with no checklist, since it built nothing and its stage plan
+is only a draft. The revision then shows in
+[Decisions awaiting a project](../project-planning.md#decisions-awaiting-a-project)
+until a project is opened for it again. A doc that names any other revision
+closes as described below.
+
 A revision that other projects still name in `decision:` stays
 `approved`: this project isn't the last, so it closes without touching
 the revision. The last project to name a revision sets it `accepted` in
@@ -291,7 +307,7 @@ here.
 | [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
 | [`coding-agent-network.md`](coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
 | [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
-| [`docs-process-overhaul.md`](docs-process-overhaul.md) | — | Not started — ready | Add the explorations tier and the light decision weight, make projects follow approved decisions, and give accepted records a way to be condensed, merged and demoted, as ADR 0037 revision 4 decides. |
+| [`docs-corpus-compaction.md`](docs-corpus-compaction.md) | — | Not started — ready | Clean up the existing decisions and placeholder projects with the compaction rules: move unsettled questions to explorations, demote implementation-detail records, merge records that are one problem, and withdraw projects that wait on an unsettled revision. |
 | [`dr-exercises.md`](dr-exercises.md) | — | Building | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
 | [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
 | [`host-hardening-remaining-hosts.md`](host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |

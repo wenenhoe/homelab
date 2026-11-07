@@ -6,7 +6,6 @@ status: building
 blocked: false
 summary: Move Tofu's state off the dev VM into a remote backend, so Tofu's record of what it built no longer depends on one VM.
 super_project: tofu-vm-provisioning
-track: migration
 ---
 
 # Tofu Migration

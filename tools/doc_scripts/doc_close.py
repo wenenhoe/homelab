@@ -4,6 +4,11 @@ remaining project (ADR 0037 revision 3). Pure functions, shared by
 check_project_close.py. Field
 validation lives in doc_frontmatter.py.
 
+A doc that names only `working` revisions is withdrawn, not closed: it has built
+nothing, and its decision is still being worked out, so the deletion is allowed
+and the revision shows in the planning view as awaiting a project (ADR 0037
+revision 4).
+
 A finished project's doc is deleted, so the rule can't read a `done` status
 off the tree; it has to see the deletion. It needs three things: which docs
 the change deletes, what those docs said on the base, and what the tree
@@ -54,7 +59,10 @@ def close_errors(deleted: list[str], base_project: Callable[[str], dict | None],
         fm = base_project(path)
         if not fm:
             continue  # a doc the base did not have; the drift check reports a malformed one
-        for key in _revision_keys(fm):
+        keys = _revision_keys(fm)
+        if keys and all(revisions.get(key) is not None and revisions[key].status == "working" for key in keys):
+            continue  # withdrawn
+        for key in keys:
             rev = revisions.get(key)
             if (rev is not None and rev.status == "accepted") or key in still_named:
                 continue

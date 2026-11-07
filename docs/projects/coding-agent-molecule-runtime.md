@@ -7,8 +7,6 @@ blocked: false
 summary: Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host.
 decision: ADR-0052/0
 super_project: coding-agent-host
-track: workflow
-phase: 2-molecule-runtime
 depends_on:
   - project: PROJ-coding-agent-host
     reason: The runtime must be validated on the isolated host it will run on, not a stand-in

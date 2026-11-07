@@ -16,8 +16,10 @@ from pathlib import Path
 
 import yaml
 
-from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, load_lineages, read_frontmatter
-from doc_scripts.doc_graph import heading_errors, lineage_errors, open_assumption_errors, project_errors
+from doc_scripts.doc_explorations import exploration_errors
+from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, is_template, load_lineages, read_frontmatter
+from doc_scripts.doc_graph import heading_errors, lineage_errors, open_assumption_errors, project_errors, weight_errors
+from doc_scripts.doc_removed import ledger_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -70,7 +72,7 @@ def check_doc_indexes() -> None:
         index = read(index_path)
 
         for doc in sorted(base.rglob("*.md") if recursive else base.glob("*.md")):
-            if doc.name in ("README.md", "TEMPLATE.md"):
+            if doc.name == "README.md" or is_template(doc.name):
                 continue
             rel = doc.relative_to(base).as_posix()
             if rel not in index:
@@ -82,7 +84,7 @@ def check_doc_indexes() -> None:
                     fail(f"{label}/README.md: lineage {lineage_dir.name}/ exists but isn't linked in its index")
 
         for link in re.findall(r"\]\(([\w-]+\.md)\)", index):
-            if link == "TEMPLATE.md":
+            if is_template(link):
                 continue
             if not (index_path.parent / link).is_file():
                 fail(f"{label}/README.md: links {link}, which doesn't exist")
@@ -296,12 +298,12 @@ def check_no_stale_anchors() -> None:
                     fail(f"{rel_f}: references #{anchor} (same-file), but has no heading that slugs to '{anchor}'")
 
         for rel in PLAIN_MD_LINK_RE.findall(text):
-            if f.name == "TEMPLATE.md":
+            if is_template(f.name):
                 continue  # placeholder syntax (e.g. NNNN-slug.md), not a real link
             if _resolve_anchor_target(f, rel) is None:
                 fail(f"{rel_f}: links {rel}, which doesn't exist")
 
-        if f.suffix == ".md" and f.name != "TEMPLATE.md":
+        if f.suffix == ".md" and not is_template(f.name):
             for rel in REPO_FILE_LINK_RE.findall(text):
                 if not (f.parent / rel).is_file():
                     fail(f"{rel_f}: links {rel}, which doesn't exist")
@@ -367,7 +369,7 @@ def check_nist_alignment_currency() -> None:
         target = _resolve_anchor_target(doc, rel)
         if target is None:
             continue  # already reported by check_no_stale_anchors
-        if target.name in ("README.md", "TEMPLATE.md"):
+        if target.name == "README.md" or is_template(target.name):
             continue  # index/template links, not an ADR doc itself
         try:
             kind = doc_kind(target)
@@ -398,7 +400,10 @@ def main() -> int:
     errors.extend(lineage_errors(ROOT))
     errors.extend(heading_errors(ROOT))
     errors.extend(open_assumption_errors(ROOT))
+    errors.extend(weight_errors(ROOT))
     errors.extend(project_errors(ROOT))
+    errors.extend(exploration_errors(ROOT))
+    errors.extend(ledger_errors(ROOT))
 
     if errors:
         for e in errors:

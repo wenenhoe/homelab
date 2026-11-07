@@ -161,7 +161,7 @@ class TestInitiativesTable:
         def _order() -> list[str]:
             with contextlib.redirect_stderr(io.StringIO()):
                 table = gen.render_initiatives_table(root)
-            return [line.split("|")[4].strip().split("`")[1] for line in table.splitlines()[2:]]
+            return [line.split("|")[2].strip().split("`")[1] for line in table.splitlines()[2:]]
 
         return _order
 
@@ -175,28 +175,17 @@ class TestInitiativesTable:
             # Second row's initiative cell is blank: it's the same
             # initiative as the row above, and rows in one initiative
             # always sort contiguously.
-            "| `pull-based-cd` | — | — | [`a.md`](projects/a.md) | — | Building |",
+            "| `pull-based-cd` | [`a.md`](projects/a.md) | — | Building |",
             # Blank cell renders as one space between its pipes, not
             # two — MD060's compact table style flags "|  |".
-            "| | — | — | [`b.md`](projects/b.md) | — | Not started — ready |",
+            "| | [`b.md`](projects/b.md) | — | Not started — ready |",
         ]
         assert err.getvalue() == ""
 
-    def test_track_and_phase_columns_and_ordering(self, root):
-        project(root, "late", super_project="cd", track="security", phase="hardening")
-        project(root, "early", super_project="cd", track="security", phase="bootstrap")
-        project(root, "infra", super_project="cd", track="agent")
-        project(root, "loose", super_project="cd")
-        table = gen.render_initiatives_table(root)
-        assert [line.split("|")[4].strip() for line in table.splitlines()[2:]] == [
-            "[`loose.md`](projects/loose.md)",
-            "[`infra.md`](projects/infra.md)",
-            "[`early.md`](projects/early.md)",
-            "[`late.md`](projects/late.md)",
-        ]
-        # `early` isn't the first row of the `cd` initiative, so its
-        # initiative cell is blank even though Track/Phase print every row.
-        assert "| | `security` | `bootstrap` | [`early.md`](projects/early.md) |" in table
+    def test_the_table_has_no_track_or_phase_column(self, root):
+        project(root, "a", super_project="cd")
+        project(root, "b", super_project="cd")
+        assert gen.render_initiatives_table(root).splitlines()[0] == "| Initiative | Project | Unblocks | Status |"
 
     def test_initiative_cell_is_only_blanked_within_a_contiguous_run(self, root):
         project(root, "a1", super_project="a")
@@ -207,40 +196,21 @@ class TestInitiativesTable:
         # together even though `a2` was declared before `b1`'s row here.
         assert [line.split("|")[1].strip() for line in table.splitlines()[2:]] == ["`a`", "", "`b`"]
 
-    def test_tracks_read_in_build_order_not_alphabetical(self, root, order):
-        project(root, "core", super_project="t", track="provisioning")
-        project(root, "rehearse", super_project="t", track="migration", depends_on=[{"project": "PROJ-core", "reason": "x"}])
-        project(root, "day2", super_project="t", track="opnsense", depends_on=[{"project": "PROJ-rehearse", "reason": "x"}])
-        assert order() == ["core.md", "rehearse.md", "day2.md"]
-
-    def test_numbered_phases_order_a_track_even_when_names_sort_the_other_way(self, root, order):
-        project(root, "cutover", super_project="t", track="migration", phase="2-cutover")
-        project(root, "rehearsal", super_project="t", track="migration", phase="1-rehearsal")
-        assert order() == ["rehearsal.md", "cutover.md"]
-
-    def test_an_explicit_phase_order_beats_inferred_depth(self, root, order):
-        project(root, "outside", super_project="t", track="y")
-        project(root, "first", super_project="t", track="x", phase="1-first", depends_on=[{"project": "PROJ-outside", "reason": "x"}])
-        project(root, "second", super_project="t", track="x", phase="2-second")
-        # `first` is deeper than `second`, but its phase says it reads first
-        assert order() == ["first.md", "second.md", "outside.md"]
-
-    def test_within_a_track_dependency_depth_orders_projects(self, root, order):
-        project(root, "a-last", super_project="t", track="x", depends_on=[{"project": "PROJ-z-first", "reason": "x"}])
-        project(root, "z-first", super_project="t", track="x")
+    def test_dependency_depth_orders_projects_within_an_initiative(self, root, order):
+        project(root, "a-last", super_project="t", depends_on=[{"project": "PROJ-z-first", "reason": "x"}])
+        project(root, "z-first", super_project="t")
         assert order() == ["z-first.md", "a-last.md"]
 
-    def test_independent_tracks_fall_back_to_name(self, root, order):
-        project(root, "b", super_project="t", track="beta")
-        project(root, "a", super_project="t", track="alpha")
+    def test_independent_projects_fall_back_to_name(self, root, order):
+        project(root, "b", super_project="t")
+        project(root, "a", super_project="t")
         assert order() == ["a.md", "b.md"]
 
-    def test_a_tracks_rows_stay_together_when_the_chain_weaves_between_tracks(self, root, order):
-        project(root, "early", super_project="t", track="alpha")
-        project(root, "mid", super_project="t", track="beta", depends_on=[{"project": "PROJ-early", "reason": "x"}])
-        project(root, "late", super_project="t", track="alpha", depends_on=[{"project": "PROJ-mid", "reason": "x"}])
-        # by depth alone this would interleave alpha, beta, alpha
-        assert order() == ["early.md", "late.md", "mid.md"]
+    def test_a_chain_reads_in_build_order(self, root, order):
+        project(root, "core", super_project="t")
+        project(root, "rehearse", super_project="t", depends_on=[{"project": "PROJ-core", "reason": "x"}])
+        project(root, "day2", super_project="t", depends_on=[{"project": "PROJ-rehearse", "reason": "x"}])
+        assert order() == ["core.md", "rehearse.md", "day2.md"]
 
     def test_initiatives_stay_grouped(self, root, order):
         project(root, "y1", super_project="y")
@@ -472,6 +442,15 @@ class TestLineagesIndex:
         assert "[0013](0013-secret-storage/revision-001.md)" in out
         assert "| OpenBao | Accepted (revision 1) | Revision 2 working; Formerly ADR-0027 |" in out
 
+    def test_a_light_revision_is_marked_and_a_full_one_is_not(self, root):
+        revision(root, "0013-secret-storage", 0, status="accepted", solution="Light one", weight="light")
+        revision(root, "0014-other", 0, status="accepted", solution="Full one", weight="full")
+        revision(root, "0015-third", 0, status="accepted", solution="Default one")
+        out = gen.render_lineages_index(root)
+        assert "| Light one | Accepted, light |" in out
+        assert "| Full one | Accepted |" in out
+        assert "| Default one | Accepted |" in out
+
     def test_the_original_is_labelled_when_a_successor_exists(self, root):
         revision(root, "0013-secret-storage", 0, status="accepted", solution="File cache")
         revision(root, "0013-secret-storage", 1, status="working", supersedes=0, solution="OpenBao")
@@ -593,3 +572,23 @@ class TestSectionReplacement:
         path.write_text("# T\n\n## Lineages\n\nold\n", encoding="utf-8")
         assert gen.regenerate(path, "Lineages", "new", optional=True)
         assert path.read_text(encoding="utf-8") == "# T\n\n## Lineages\n\nnew\n"
+
+
+class TestActiveProjectWarnings:
+    def make(self, root, n, status):
+        for i in range(n):
+            project(root, f"{status}-{i}", status=status)
+
+    def test_at_the_limit_is_quiet(self, root):
+        self.make(root, gen.ACTIVE_PROJECT_LIMIT, "building")
+        assert gen.active_project_warnings(root) == []
+
+    def test_building_and_de_risking_both_count(self, root):
+        self.make(root, gen.ACTIVE_PROJECT_LIMIT - 1, "building")
+        self.make(root, 2, "de-risking")
+        [warning] = gen.active_project_warnings(root)
+        assert f"{gen.ACTIVE_PROJECT_LIMIT + 1} projects" in warning
+
+    def test_not_started_and_done_projects_do_not_count(self, root):
+        self.make(root, gen.ACTIVE_PROJECT_LIMIT + 5, "not-started")
+        assert gen.active_project_warnings(root) == []

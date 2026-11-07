@@ -7,7 +7,6 @@ blocked: false
 summary: Lock the on-site backup bucket in compliance mode so the host that wrote an archive cannot delete it, and expire superseded versions once their lock ends, as ADR 0081 decides.
 decision: ADR-0081/0
 super_project: backup-archive-protection
-track: retention-lock
 allowed_paths:
   - docker/seaweedfs/**
   - ansible/roles/seaweedfs_bucket/**

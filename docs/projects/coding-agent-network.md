@@ -7,8 +7,6 @@ blocked: false
 summary: A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions.
 decision: ADR-0053/0
 super_project: coding-agent-host
-track: boundary
-phase: 1-network
 ---
 
 # Coding-Agent Network Zone

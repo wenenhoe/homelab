@@ -39,7 +39,9 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | ... | Not started | ... |
 
-Stage status is `Not started`, `In progress`, or `Done`. Add detail
+Stage status is `Not started`, `In progress`, or `Done`. A stage that answers an
+open question by running something starts with `Spike`, and is finished or
+renamed before its decision is approved. Add detail
 below only for a stage that needs more than its row to orient someone.
 
 ## Acceptance criteria

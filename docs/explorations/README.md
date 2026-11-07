@@ -47,9 +47,9 @@ exploration; it ends in a new revision of that lineage or is dropped.
   which lists the open ones. An exploration may link to anything.
 - **It stays small.** A question that grows a design is a decision that has
   not been written yet.
-- **It does not go stale.** The planning view shows when each last changed (a
+- **Age is shown, not judged.** The planning view shows when each last changed (a
   change not yet committed counts as today, since the commit being made is
-  its newest), and the generator warns about one untouched for longer than the limit in
-  [`doc_explorations.py`](../../tools/doc_scripts/doc_explorations.py).
+  its newest). Nothing warns about age: a solo repository takes as long as an
+  idea takes.
 - **No incident detail.** The rule in
   [`docs/README.md#public-repo`](../README.md#public-repo) applies.

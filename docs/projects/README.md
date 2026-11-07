@@ -60,7 +60,9 @@ dangling one.
 back to `working` stops any project `building` on it. It also checks the
 status against the stage table: `not-started` with a stage `In progress` or
 `Done`, or `de-risking` or `building` with every stage `Not started`, fails. A
-doc with no stage rows is not judged. A project without
+doc with no stage rows is not judged. A stage named `Spike` that is not `Done` fails when the
+decision is `approved` or `accepted`: finish it, or name the stage for what it
+builds. A project without
 `decision:` isn't gated. Several projects may name one revision; it stays
 `approved` until the last of them closes (see
 [When a project finishes](#when-a-project-finishes)).

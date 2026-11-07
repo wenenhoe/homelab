@@ -43,7 +43,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Watch the three paths, in code, tests and docs | Not started | `test_r2_read_watcher.py` shows an alert for a read of each of the three paths that names it, none for an identifier-only path, and one alert per read; the watcher doc's expected-alerts section, `scoping.md` and ADR 0014's wording describe the watched set |
+| 1 | Watch the three paths, in code, tests and docs | Not started | `test_r2_read_watcher.py` shows an alert for a read of each of the three paths that names it, none for an identifier-only path, and one alert per read; the watcher doc's expected-alerts section, `scoping.md` and ADR 0110's wording describe the watched set |
 | 2 | Install on `security` | Not started | the updated script runs on `security`, and the next weekly freshness run raised three alerts naming the role that ran it and no other |
 
 Stage status is `Not started`, `In progress`, or `Done`.

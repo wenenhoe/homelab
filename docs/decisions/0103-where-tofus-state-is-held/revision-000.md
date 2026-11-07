@@ -120,7 +120,7 @@ flowchart LR
 
 - The state leaves the LAN, encrypted. Reading it needs the credential and the key, and
   recovering from the copy needs the offline GPG key and a read credential minted for the
-  occasion, as ADR 0017 does for snapshots.
+  occasion, as ADR 0111 does for snapshots.
 - Two credentials and one key are added to the operator's custody, and the key's offline
   copy joins the yearly custody check
   ([`exercises.md`](../../topics/disaster-recovery/exercises.md)).

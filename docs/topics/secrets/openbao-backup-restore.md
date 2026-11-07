@@ -7,7 +7,7 @@ OpenBao to tar its data volume means sealing it, which needs a manual
 unseal ([0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup
 cycle. `bao operator raft snapshot save` is the backup mechanism here
 instead, pushed independently to R2/B2 — see
-[0019](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md) for why the
+[0111](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md) for why the
 push itself also stays out of `backup_agent`/`cloud_sync` rather than
 reusing that pipeline.
 
@@ -32,7 +32,7 @@ installed or enabled as a systemd unit anywhere.
 `tools/cloud_credentials/create_snapshot_write_keys.py` mints a
 standing, quarterly-rotating, no-delete write leaf on both R2 and B2,
 scoped to the `openbao-snapshots` bucket — a different credential from
-[0017](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s break-glass
+[0111](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s break-glass
 **read-only** restore key, which stays reserved for actual disaster
 recovery and is never cached to disk. See
 [`cloud-credentials/creation.md`](cloud-credentials/creation.md) for how

@@ -111,7 +111,7 @@ change that makes it.
 - **Leave the logic inline in the workflows.** Untestable, and already
   duplicated three times.
 - **A second top-level directory for CI code.** Repeats the scatter that
-  ADR 0031 fixed; `tools/` is already the place.
+  ADR 0105 fixed; `tools/` is already the place.
 
 ## Consequences
 

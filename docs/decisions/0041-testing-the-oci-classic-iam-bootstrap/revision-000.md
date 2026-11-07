@@ -17,7 +17,7 @@ related: [ADR-0109]
 
 `tools/cloud_credentials/` talks to OCI through two unrelated auth
 surfaces (see `rotation_keys/oci_scim.py`'s own header comment and ADR
-0016):
+0109):
 
 - **Classic Signature V1** (`rotation_keys/oci_iam.py`,
   `rotation_keys/oci_bootstrap.py`) — a `requests.Session` signed by

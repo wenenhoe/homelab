@@ -380,6 +380,18 @@ more lineages of one topic that all list one another in `related:`. With
 are active. The limits are constants at the top of the script. What a hit means
 is the maintainer's call.
 
+A pair or cluster the maintainer has read and kept apart is recorded in the
+decisions README's table
+[Records the report lists that stay separate](../../../decisions/README.md#records-the-report-lists-that-stay-separate),
+with a reason and, in its last column, each record's status when the row was
+written (the status of its newest revision, so a pending `working` revision
+counts). The report leaves a similar pair or tight cluster out when a row
+covers it and none of its records has changed status. A row with a record that
+changed status, is gone, or has no status recorded is listed under "Kept apart,
+to read again" with the reason on file, whether or not the pair would be
+reported now; a row the report cannot read is listed there too. Updating the
+column is how a row is marked read again.
+
 ## Moved-file check
 
 [`tools/doc_scripts/check_moved_files.py`](../../../../tools/doc_scripts/check_moved_files.py), a local pre-commit hook like the

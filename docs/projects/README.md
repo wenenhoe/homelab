@@ -57,7 +57,10 @@ dangling one.
 | `done` | Everything implemented and merged. | `accepted`, or `approved` while another project still names it |
 
 `check_doc_drift.py` enforces the last column, so a revision that drops
-back to `working` stops any project `building` on it. A project without
+back to `working` stops any project `building` on it. It also checks the
+status against the stage table: `not-started` with a stage `In progress` or
+`Done`, or `de-risking` or `building` with every stage `Not started`, fails. A
+doc with no stage rows is not judged. A project without
 `decision:` isn't gated. Several projects may name one revision; it stays
 `approved` until the last of them closes (see
 [When a project finishes](#when-a-project-finishes)).
@@ -66,7 +69,9 @@ A project starts on a decision that is settled. A new project is
 `not-started` only when its `decision:` revision is `approved`, or it names
 none; one whose revision is still `working` starts as `de-risking`, limited to
 spikes and reading code, or does not exist yet, and the question stays in a
-decision or an [exploration](../explorations/README.md) until it is approved.
+decision or an [exploration](../explorations/README.md) until it is approved. A spike
+for a question no decision covers yet is a project without `decision:`: it states
+the question in its scope and ends by writing the decision.
 [`check_project_start.py`](../../tools/doc_scripts/check_project_start.py)
 fails a change that adds one otherwise; it reads only the docs the change
 adds, so a project already waiting on a `working` revision is left alone until

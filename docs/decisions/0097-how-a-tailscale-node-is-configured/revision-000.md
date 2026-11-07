@@ -8,7 +8,7 @@ solution: A small repo-owned role converges the node against its own preferences
 summary: How a host's Tailscale client is installed, joined to the tailnet and kept configured, given that the join key is a credential and the policy keys off the node's tag.
 topic: deployment-platform
 status: accepted
-related: [ADR-0015, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0058, ADR-0059, ADR-0089]
+related: [ADR-0109, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0058, ADR-0059, ADR-0089]
 ---
 
 # 0097. How a Tailscale node is configured
@@ -26,7 +26,7 @@ The tailnet is the maintainer's path into the lab away from home, and the subnet
 - **Subnet routers source-NAT by default**, so the gateway sees every tailnet caller as the router ([ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
 - **`artis3n.tailscale` v1.2.1** is the maintained collection for the node side, MIT-licensed, with one role. Its role stops unless `tailscale_authkey` is set on every run that does not skip `tailscale up`. It runs `tailscale up` again when a hash of the arguments and key changes, a hash it keeps in the login user's home directory, and it does not compare the node's actual preferences. `tailscale up` is a plain command task. It installs the package and the apt repository for several distribution families and sets no forwarding sysctl.
 - **`tailscale set` converges the preferences on a logged-in node without a key.** One call changes the advertised routes, the accepted DNS setting and the client's auto-update, and the values survive a restart of `tailscaled` and a reboot of the VM. `set` takes one flag per preference and changes only the ones named. `AutoUpdate.Check` stays `true`: it is the notice of available updates, a separate flag (`--update-check`) that the role leaves alone. The client's updater is the in-process one that `AutoUpdate.Apply` controls.
-- **Join keys are credentials** that [ADR 0015 (Cloud credential expiry)](../0015-cloud-credential-expiry/revision-000.md) expects to expire. An OAuth client that mints them does not expire on its own and can add any node under the tags it may apply.
+- **Join keys are credentials** that [ADR 0109 (Cloud credential expiry)](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md) expects to expire. An OAuth client that mints them does not expire on its own and can add any node under the tags it may apply.
 - **The router is not always on yet, and will be.** Spike VMs are created and removed on the Proxmox node while VM 401 is in service, and the router VM or its host has been shut down for days at a time. [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) makes a Tailscale route to VLAN 30 the laptop's only way to the operator host, so once the operator host and the laptop replace VM 401 every operator session crosses the router and it has to run all the time.
 - **The Proxmox node is already a member.** It joined by hand as an ordinary node with no approved route, and it is the maintainer's way to the hypervisor when the router VM is broken, so it is the one way in that does not cross the router. It is outside the `network_infra` group.
 - **Other hosts may join.** [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) extends the router's reach to a GCP node, which may have to join the tailnet itself. The coding-agent host and the operator host do not join.

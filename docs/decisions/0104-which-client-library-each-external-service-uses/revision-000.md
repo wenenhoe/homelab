@@ -8,7 +8,7 @@ solution: "Official SDKs for OCI SCIM and B2, hvac and paramiko for OpenBao, and
 summary: Which client library the repo's Python uses for each cloud provider, OpenBao and S3-compatible storage, so each client's behaviour is known and the offsite-copy guarantees hold.
 topic: cloud-credentials
 status: accepted
-related: [ADR-0010, ADR-0016, ADR-0067]
+related: [ADR-0010, ADR-0109, ADR-0067]
 former_ids: [ADR-0029, ADR-0030, ADR-0046]
 ---
 

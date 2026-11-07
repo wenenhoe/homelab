@@ -9,7 +9,7 @@ summary: Every read of a rotation credential that can mint or revoke other crede
 topic: secrets-store
 status: approved
 supersedes: 0
-related: [ADR-0014, ADR-0020, ADR-0024]
+related: [ADR-0110, ADR-0020]
 ---
 
 # 0026. Request-line matching, and watching all three rotation credentials
@@ -31,7 +31,7 @@ a read that fails, or whose response is never written, still alerts.
 
 **The watched set.** Revision 0 watches the R2 token because it is
 master-equivalent
-([ADR 0014](../0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)).
+([ADR 0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)).
 B2's and OCI's rotation credentials are narrower than that, but "narrower"
 is not "harmless": each can still create and delete the leaf credentials
 for its provider, which is the whole of what the leaf credentials guard.
@@ -105,7 +105,7 @@ Telegram path alone.
   directory would touch a hand-installed host, so this revision leaves it,
   and the doc says why.
 - [`scoping.md`](../../topics/secrets/cloud-credentials/scoping.md) and
-  [ADR 0014](../0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
+  [ADR 0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)
   call B2's and OCI's rotation keys "genuinely narrower". That stays true of
   what they can reach, and the wording is adjusted to say they are now
   watched like R2's, so it reads as a difference in blast radius and not in

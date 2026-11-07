@@ -8,7 +8,7 @@ solution: Hand-edited in the console now, with tests as the guard; moves to Open
 summary: The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes.
 topic: security-hardening
 status: working
-related: [ADR-0015, ADR-0048, ADR-0049, ADR-0053, ADR-0058]
+related: [ADR-0109, ADR-0048, ADR-0049, ADR-0053, ADR-0058]
 ---
 
 # 0059. Where the tailnet policy is defined

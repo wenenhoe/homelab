@@ -11,7 +11,7 @@ allowed_paths:
   - ansible/tests/test_r2_read_watcher.py
   - docs/topics/secrets/openbao-r2-read-watcher.md
   - docs/topics/secrets/cloud-credentials/scoping.md
-  - docs/decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md
+  - docs/decisions/0110-*/revision-000.md
   - docs/projects/watch-all-rotation-credentials.md
 ---
 

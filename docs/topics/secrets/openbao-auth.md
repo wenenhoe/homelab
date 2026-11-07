@@ -104,7 +104,7 @@ supplied explicitly (see
    - `secret_id_ttl` **2160h (90 days), `secret_id_num_uses=0`
      (unlimited within that window).** Matches this repo's existing
      90-day rotation cadence for every other leaf/rotation credential
-     ([ADR 0015 (Cloud credential expiry)](../../decisions/0015-cloud-credential-expiry/revision-000.md)),
+     ([ADR 0109 (Cloud credential expiry)](../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)),
      rather than cd_agent's never-expire shape — that shape is
      justified for an always-on box logging in every 2 minutes
      (0022); `controller` is a laptop with no fixed cadence, and

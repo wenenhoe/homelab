@@ -8,7 +8,7 @@ solution: A small set of exercise kinds on a cadence set by a recovery tier, wit
 summary: Which disaster-recovery exercises the repository runs, how often, and how the cadence follows from what a system's loss would cost, so the restore paths are exercised before they are needed.
 topic: backup-recovery
 status: approved
-related: [ADR-0012, ADR-0017, ADR-0099, ADR-0100]
+related: [ADR-0012, ADR-0111, ADR-0099, ADR-0100]
 ---
 
 # 0101. Exercising disaster recovery often enough that it works when it is needed
@@ -24,7 +24,7 @@ the maintainer remembers, and a path that is never chosen is never tested.
 
 - **What exists.** A real fire drill restores one app on a scratch host. A restore
   drill rebuilds the secrets store from its snapshot
-  ([ADR 0017 (Secrets store recovery)](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md),
+  ([ADR 0111 (Secrets store recovery)](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md),
   [ADR 0099 (Rebuilding security from nothing)](../0099-rebuilding-security-from-nothing/revision-000.md)).
   A rebuild runbook destroys and recreates a host from the repository and its
   backups. Automated checks prove that backups land

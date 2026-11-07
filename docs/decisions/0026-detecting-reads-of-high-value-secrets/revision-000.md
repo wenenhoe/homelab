@@ -8,14 +8,14 @@ solution: A declarative stdout audit device plus a least-privilege watcher
 summary: Every read of the R2 admin token's path is visible and raises an alert.
 topic: secrets-store
 status: accepted
-related: [ADR-0020, ADR-0024]
+related: [ADR-0020, ADR-0110]
 ---
 
 # 0026. Detecting reads of high-value secrets
 
 ## Context
 
-[0024](../0024-r2-admin-token-custody/revision-000.md) requires an alert on every
+[0024](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md) requires an alert on every
 read of the R2 admin token's Vault path, calling the audit log "the
 natural source" but leaving the exact mechanism to this stage.
 OpenBao currently has no audit device configured at all
@@ -131,7 +131,7 @@ silently going dark.
   `cloud_credentials`. If a scheduled poll of the log file ever proves
   simpler than a live-tail, that's a legitimate future revisit — the
   live-tail choice here follows from
-  [0024](../0024-r2-admin-token-custody/revision-000.md) explicitly wanting
+  [0024](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md) explicitly wanting
   event-driven alerting, not from polling being ruled out on the
   merits.
 - No mechanism exists to reduce what OpenBao itself logs; accepted as

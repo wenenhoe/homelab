@@ -54,7 +54,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   anything it finds is a separate, deliberate step.
 - **`tools/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
-  credentials [ADR 0017 (Secrets store recovery)](../../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)
+  credentials [ADR 0111 (Secrets store recovery)](../../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
   calls for — OpenBao's own break-glass snapshot-restore credential,
   not a `cloud_sync` leaf. Verifies each one via a real `rclone lsjson`
   against its actual bucket before printing it — same discipline

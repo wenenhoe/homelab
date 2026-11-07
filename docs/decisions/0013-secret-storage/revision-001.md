@@ -27,8 +27,8 @@ made that untenable as the repo grew:
   across more hosts and apps.
 - Centralized rotation and audit weren't achievable within a flat file
   cache in practice, not just in principle —
-  [0015](../0015-cloud-credential-expiry/revision-000.md)/
-  [0016](../0016-oci-credential-creation-and-expiry/revision-000.md) show
+  [0015](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)/
+  [0016](../0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md) show
   this directly: credential expiry needed a mix of native provider
   expiry and self-tracked cache-file timestamps, checked by a systemd
   user timer on `controller` — a workaround for the lack of any real
@@ -50,7 +50,7 @@ not just to avoid committing it in plaintext.
 Adopt OpenBao — a standing, network-reachable secrets store — instead
 of any git-committed encrypted-file approach or a continued file
 cache. See ADRs
-[0017](../0017-recovering-the-secrets-store-from-total-loss/revision-000.md) through
+[0017](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md) through
 [0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md) for the
 implementation this decision was built from, in sequence.
 

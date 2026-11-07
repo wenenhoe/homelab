@@ -58,7 +58,7 @@ flowchart LR
 The R2 admin token is the one rotation credential accepted as
 master-equivalent rather than narrowly scoped — Cloudflare's API can't
 mint a scoped delegate for it
-([ADR 0014 (R2 rotation credential)](../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)).
+([ADR 0110 (R2 admin token custody)](../decisions/0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)).
 The read-watcher's per-read alert on that one path is the compensating
 control, running its own least-privilege AppRole
 ([ADR 0026 (High-value secret read alerts)](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md))

@@ -69,11 +69,14 @@ changed() { # changed NAME: the recap line of a run says something changed
   grep -E '^localhost +:' "$log/$1.txt" | grep -qE 'changed=[1-9]'
 }
 get() { sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\".*\$/\\1/p" "$creds"; }
+# Runs once: before the summary on a full run, so a failed removal counts, and from the EXIT trap on an early exit.
 cleanup() {
   if [ "$up" = 1 ] && [ "${KEEP:-0}" != 1 ]; then
+    up=0
     "$scratch" down "$out" > "$log/down.txt" 2>&1
     check "the scratch gateway is removed" $?
   elif [ "$up" = 1 ]; then
+    up=0
     echo "KEEP=1: the scratch gateway is still up; remove it with: $scratch down $out"
   fi
 }
@@ -168,6 +171,7 @@ if [ -n "$leaks" ]; then
 else
   echo "CHECK no credential value in the results: PASS"
 fi
+cleanup
 echo
 if [ "$fails" = 0 ]; then echo "ALL CHECKS PASSED"; else echo "$fails CHECK(S) FAILED"; fi
 echo "results: $log"

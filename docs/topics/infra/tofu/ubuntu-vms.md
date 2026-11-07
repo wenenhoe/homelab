@@ -48,7 +48,7 @@ SHA-256 in `ubuntu_image_url` and `ubuntu_image_checksum`
 | Nameservers | The VLAN's gateway by default; `dns_servers` replaces them |
 | Search domain | `dns_domain`, the lab's internal zone, with no default: a VM with no search domain gets a copy of the node's own |
 | Sizing | `cores`, `memory_mb`, `disk_gb` default in [`variables.tf`](../../../../tofu/modules/proxmox_ubuntu_vm/variables.tf); a larger host overrides them |
-| Outputs | `vm_id`, `hostname`, `ip_address`, `mac_address` and `inventory_entry` (the one the [inventory generator](../vm-provisioning.md#tofu--ansible-handoff) reads) |
+| Outputs | `vm_id`, `hostname`, `datastore_id`, `ip_address`, `mac_address` and `inventory_entry` (the one the [inventory generator](../vm-provisioning.md#tofu--ansible-handoff) reads) |
 
 ```hcl
 module "services" {

@@ -15,10 +15,30 @@ setup() {
   printf 'transcript\n' > "$NODE_FILES/console.log"
   printf '{"result": "done"}\n' > "$NODE_FILES/result.json"
   printf 'PEM\n' > "$NODE_FILES/gateway-cert.pem"
+  # The VM as the node holds it once the importer has taken the seed: the system disk and the seed disk.
+  printf '%s\n' 'boot: order=scsi0' 'scsi0: local-lvm:vm-501-disk-0,discard=on,iothread=1,size=32G,ssd=1' 'scsi1: local-lvm:vm-501-disk-1,size=1G' > "$NODE_FILES/qm.config"
+  printf '%s\n' 'local-lvm:vm-501-disk-0 raw 34359738368 501' 'local-lvm:vm-501-disk-1 raw 1073741824 501' > "$NODE_FILES/pvesm.list"
   # A stand-in for the node: it answers by the command it is given, which is the last argument.
+  # Deleting a disk key leaves its volume as unused0; deleting unused0 frees the volume.
+  # UNPLUG_REFUSED=1 makes the guest keep the disk; KEEP_VOLUME=1 makes the storage keep the volume.
   stub ssh <<'BODY'
 cmd=${*: -1}
 case "$cmd" in
+  "qm config "*)
+    # Without --current the output shows pending changes applied, so a refused unplug looks done.
+    if [ -n "${UNPLUG_REFUSED:-}" ] && [[ "$cmd" != *" --current 1" ]]; then grep -v '^scsi1:' "$NODE_FILES/qm.config"; else cat "$NODE_FILES/qm.config"; fi ;;
+  "qm set "*" --delete "*)
+    key=${cmd##* }
+    [ -z "${UNPLUG_REFUSED:-}" ] || [ "$key" != "${SEED_SLOT:-scsi1}" ] || exit 0
+    volume=$(awk -F': ' -v key="$key" '$1 == key { split($2, v, ","); print v[1] }' "$NODE_FILES/qm.config")
+    grep -v "^$key: " "$NODE_FILES/qm.config" > "$NODE_FILES/qm.config.new" || true
+    mv "$NODE_FILES/qm.config.new" "$NODE_FILES/qm.config"
+    case "$key" in
+      unused*) [ -n "${KEEP_VOLUME:-}" ] || { grep -vF "$volume" "$NODE_FILES/pvesm.list" > "$NODE_FILES/pvesm.list.new" || true; mv "$NODE_FILES/pvesm.list.new" "$NODE_FILES/pvesm.list"; } ;;
+      *) echo "unused0: $volume" >> "$NODE_FILES/qm.config" ;;
+    esac
+    ;;
+  "pvesm list "*) cat "$NODE_FILES/pvesm.list" ;;
   "qm status "*) echo "status: ${VM_STATUS:-stopped}" ;;
   "mktemp -d "*) echo /tmp/opn-first-boot.TEST ;;
   "python3 -I "*) cat > "$DRIVER_STDIN"; exit "${DRIVER_RC:-0}" ;;
@@ -65,7 +85,7 @@ line_of() {
   assert_equal "$(cat "$OUT/console.log")" "transcript"
   assert_equal "$(cat "$OUT/result.json")" '{"result": "done"}'
   assert_equal "$(cat "$OUT/gateway-cert.pem")" "PEM"
-  assert_output "gateway certificate: $OUT/gateway-cert.pem"
+  assert_line "gateway certificate: $OUT/gateway-cert.pem"
 }
 
 @test "a driver that fails passes its exit status on and brings back what exists, without a certificate" {
@@ -136,4 +156,63 @@ line_of() {
   unset NODE
   run -1 "$SCRIPT" 501 "$OUT"
   assert_output --partial "set NODE"
+}
+
+@test "once the importer has taken the seed, the seed disk is unplugged and its volume deleted, in that order" {
+  run -0 "$SCRIPT" 501 "$OUT"
+  assert_line "seed disk local-lvm:vm-501-disk-1 detached and removed"
+  [ "$(line_of 'python3\ -I')" -lt "$(line_of 'qm\ set\ 501\ --delete\ scsi1')" ]
+  [ "$(line_of 'qm\ set\ 501\ --delete\ scsi1')" -lt "$(line_of 'qm\ set\ 501\ --delete\ unused0')" ]
+  run ! grep -E '^(scsi1|unused)' "$NODE_FILES/qm.config"
+  run ! grep -F 'disk-1' "$NODE_FILES/pvesm.list"
+}
+
+@test "the system disk is left alone" {
+  run -0 "$SCRIPT" 501 "$OUT"
+  grep -q '^scsi0: local-lvm:vm-501-disk-0' "$NODE_FILES/qm.config"
+  grep -qF 'vm-501-disk-0' "$NODE_FILES/pvesm.list"
+  run calls_to ssh
+  refute_output --partial '--delete\ scsi0'
+}
+
+@test "the configuration is read as the VM runs it, not with pending changes" {
+  run -0 "$SCRIPT" 501 "$OUT"
+  run calls_to ssh
+  [ "$(grep -c 'qm\\ config' <<< "$output")" -ge 3 ]
+  [ "$(grep 'qm\\ config' <<< "$output" | grep -vc -- '--current\\ 1')" = 0 ]
+}
+
+@test "SEED_SLOT names another slot for the seed disk" {
+  sed -i 's/^scsi1:/scsi2:/' "$NODE_FILES/qm.config"
+  SEED_SLOT=scsi2 run -0 "$SCRIPT" 501 "$OUT"
+  run calls_to ssh
+  assert_output --partial 'qm\ set\ 501\ --delete\ scsi2'
+  refute_output --partial '--delete\ scsi1'
+}
+
+@test "a VM without a seed disk has nothing detached and the run still succeeds" {
+  sed -i '/^scsi1:/d' "$NODE_FILES/qm.config"
+  run -0 "$SCRIPT" 501 "$OUT"
+  assert_line "VM 501 has no scsi1: no seed disk to detach"
+  run calls_to ssh
+  refute_output --partial '--delete'
+}
+
+@test "a driver that fails detaches nothing" {
+  DRIVER_RC=4 run -4 "$SCRIPT" 501 "$OUT"
+  run calls_to ssh
+  refute_output --partial '--delete'
+  grep -q '^scsi1:' "$NODE_FILES/qm.config"
+}
+
+@test "a guest that keeps the seed disk fails the run after the first boot, with the certificate already brought back" {
+  UNPLUG_REFUSED=1 run -1 "$SCRIPT" 501 "$OUT"
+  assert_output --partial "still attached or stored"
+  assert_output --partial "only the detach is left"
+  [ -f "$OUT/gateway-cert.pem" ]
+}
+
+@test "a volume the storage keeps fails the run" {
+  KEEP_VOLUME=1 run -1 "$SCRIPT" 501 "$OUT"
+  assert_output --partial "still attached or stored"
 }

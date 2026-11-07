@@ -250,6 +250,36 @@ class TestStageTable:
         assert graph.project_errors(root) == []
 
 
+class TestSpikeStage:
+    def errors(self, root, revision_status, *stages):
+        revision(root, "0001-a", 0, status=revision_status)
+        path = project(root, "p", status={"working": "not-started", "approved": "building", "accepted": "done"}[revision_status], decision="ADR-0001/0")
+        rows = "\n".join(f"| {i} | {title} | {status} | done |" for i, (title, status) in enumerate(stages, 1))
+        table = f"\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n{rows}\n"
+        path.write_text(path.read_text(encoding="utf-8") + table, encoding="utf-8")
+        return graph.project_errors(root)
+
+    @pytest.mark.parametrize("revision_status", ["approved", "accepted"])
+    def test_an_unfinished_spike_under_a_settled_decision_fails(self, root, revision_status):
+        errors = self.errors(root, revision_status, ("Spike: the proxy", "In progress"), ("Build it", "Done"))
+        assert_one_error(errors, "Spike: the proxy", revision_status, "name the stage for what it builds")
+
+    def test_a_spike_under_a_working_decision_passes(self, root):
+        assert self.errors(root, "working", ("Spike: the proxy", "Not started")) == []
+
+    def test_a_finished_spike_stays_as_history(self, root):
+        assert self.errors(root, "approved", ("Spike: the proxy", "Done"), ("Build it", "In progress")) == []
+
+    def test_only_a_stage_named_a_spike_counts(self, root):
+        assert self.errors(root, "approved", ("Trial the proxy", "In progress")) == []
+
+    def test_a_stage_that_only_mentions_a_spike_is_not_one(self, root):
+        assert self.errors(root, "approved", ("Build it, after the spike", "In progress")) == []
+
+    def test_the_plural_names_a_spike_too(self, root):
+        assert_one_error(self.errors(root, "approved", ("Spikes: proxy and bridge", "Not started"), ("Build it", "In progress")), "Spikes")
+
+
 class TestProjectErrors:
     def test_no_projects_is_clean(self, root):
         assert graph.project_errors(root) == []

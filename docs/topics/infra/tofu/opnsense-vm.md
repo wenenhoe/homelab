@@ -31,7 +31,7 @@ flowchart LR
 | WAN as a client | Setting `wan_bridge` to the LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a WAN that is an ordinary client of another OPNsense's LAN. NIC 1 stays untagged |
 | System disk | The only boot device, imported at `disk_gb`. The image is 3 GB and the gateway grows its root file system into the rest at the first boot |
 | Console | A serial port on a socket |
-| Seed | When `seed_image_path` names a raw disk image holding `conf/config.xml`, the module uploads it as import content under the VM's lowercased name and attaches it as `scsi1` |
+| Seed | When `seed_image_path` names a raw disk image holding `conf/config.xml`, the module uploads it as import content under the VM's lowercased name and attaches it as `scsi1`. It is needed for the first boot only: [`first_boot.sh`](#first-boot) detaches the disk afterwards, and unsetting `seed_image_path` makes Tofu drop the import file |
 | `started` | The caller sets `started = false` when a script on the node answers the importer, because that script must be connected to the serial socket before the first boot passes the importer's prompt. `started` applies only when the VM is created: a later apply neither starts nor stops it, so a change of it never powers a running gateway off |
 | Boot order | Tofu does not set it. Proxmox requires `Sys.Modify` on `/` for a startup order, which is cluster-wide and far wider than the token's role. Set it once on the VM with `qm set <vmid> --startup order=1,up=60`, so the gateway starts first and has 60 s before any dependent VM, giving DHCP and DNS time to come up |
 | Names | The gateway runs no authoritative DNS and registers no name. A Tofu-built VM's name is an `A` record BIND9 on `services` renders from the generated inventory, and the gateway forwards the zone to `services` and `storage` ([`bind9.md`](../../services/bind9.md#the-host-zone)). A client in the `.50`–`.254` DHCP pool has no name |
@@ -108,6 +108,16 @@ node's ssh target; the node needs `python3`.
    file the play pins. The driver refuses a certificate that does not match the
    fingerprint the console banner prints, and the script removes the output if it
    finds the password in it.
+5. Once the importer has taken the seed, the script unplugs the seed disk (`scsi1`,
+   or `SEED_SLOT`) from the running VM, deletes the volume it leaves behind and reads
+   the VM's running configuration and the datastore back. The disk holds root's
+   one-time-password seed in the clear and the gateway never reads it again, so it
+   must not stay in the VM or in a dump of it. A disk that is still there fails the
+   script with the volume named, after the certificate has been brought back.
+
+The import file is still on the node after the script. Unset `seed_image_path` and
+apply: Tofu drops the file, and the VM, which no longer has the disk, shows no
+change. Applying again with `seed_image_path` still set would attach a seed again.
 
 A node that takes a password is reached through a master connection opened by hand
 (`ssh -fN -M -S /tmp/opn-ssh.sock root@pve`) and named in `SSH_CONTROL_PATH`. A first

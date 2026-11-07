@@ -113,7 +113,7 @@ variable "disk_gb" {
 }
 
 variable "seed_image_path" {
-  description = "Local path of a raw disk image holding conf/config.xml, attached as a second disk (scsi1) for the importer to read at the first boot. Null attaches none."
+  description = "Local path of a raw disk image holding conf/config.xml, attached as a second disk (scsi1) for the importer to read at the first boot. Null attaches none. The seed holds secrets in the clear: after the first boot, first_boot.sh detaches the disk, and unsetting this variable and applying drops the uploaded file."
   type        = string
   default     = null
 }

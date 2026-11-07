@@ -1,5 +1,5 @@
-"""Tests for check_pr_range.py against real temporary git repositories: the pre-push
-runner of the four pull-request checks. Run via `uv run pytest tests/ -v`.
+"""Tests for check_doc_change.py against real temporary git repositories: the one
+entry point of the four checks, in its staged, base and push forms. Run via `uv run pytest tests/ -v`.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 from _doc_fixtures import GitRepo, revision
 from doc_scripts import check_accepted_records, check_project_scope
-from doc_scripts import check_pr_range as cli
+from doc_scripts import check_doc_change as cli
 
 PROJECT = "docs/projects/p.md"
 PROJECT_DOC = """---
@@ -49,7 +49,7 @@ def repo(root: Path) -> GitRepo:
 
 
 def push(repo: GitRepo, *args: str) -> tuple[int, str]:
-    return repo.run_cli(*args)
+    return repo.run_cli("--push", *args)
 
 
 class TestDefaultBranch:
@@ -121,7 +121,7 @@ class TestChecks:
         def fake(name, code):
             return SimpleNamespace(__name__=f"doc_scripts.{name}", main=lambda argv: calls.append((name, argv)) or code)
 
-        monkeypatch.setattr(cli, "CHECKS", (fake("first", 1), fake("second", 0), fake("third", 1)))
+        monkeypatch.setattr(cli, "RULES", (fake("first", 1), fake("second", 0), fake("third", 1)))
         repo.branch()
         repo.write("src/a.py", "a = 2\n")
         repo.commit("work")
@@ -141,13 +141,30 @@ class TestChecks:
         monkeypatch.setenv("PRE_COMMIT_TO_REF", repo.git("rev-parse", "pushed").strip())
         assert push(repo)[0] == 1
 
-    def test_an_explicit_base_replaces_the_default_branch(self, repo):
+    def test_the_base_form_judges_the_range_without_the_push_skips(self, repo):
         repo.branch()
         repo.write("other/b.py", "b = 2\n")
         repo.write(PROJECT, PROJECT_DOC.format(stage="In progress"))
         repo.commit("stray")
-        assert push(repo, "--base", "HEAD")[0] == 0
-        assert push(repo, "--base", "main")[0] == 1
+        assert repo.run_cli("--base", "HEAD")[0] == 0
+        code, out = repo.run_cli("--base", "main")
+        assert code == 1
+        assert "Failed: check_project_scope" in out
+
+    def test_the_staged_form_judges_only_what_is_staged(self, repo):
+        repo.branch()
+        repo.write("other/b.py", "b = 2\n")
+        repo.write(PROJECT, PROJECT_DOC.format(stage="In progress"))
+        repo.git("add", "-A")
+        code, out = repo.run_cli("--staged")
+        assert code == 1
+        assert "other/b.py" in out
+        repo.git("reset", "-q", "--hard")
+        assert repo.run_cli("--staged")[0] == 0
+
+    def test_a_mode_is_required(self, repo):
+        with pytest.raises(SystemExit):
+            cli.main(["--root", str(repo.root)])
 
 
 class TestSkipped:

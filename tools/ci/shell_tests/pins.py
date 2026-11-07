@@ -4,7 +4,7 @@
 `pins.txt` lists each repository with a release tag and the full commit SHA the
 tag points at. `check` resolves every tag with `git ls-remote` and fails when
 it does not point at the pinned SHA: a SHA copied wrongly, or a tag that was
-moved. That is the listed tier of ADR 0077, since no current key is published
+moved. That is the listed tier of ADR 0107, since no current key is published
 to verify the signed tags against.
 
 A repository, a tag and a SHA go to `git` as arguments and come from a file a

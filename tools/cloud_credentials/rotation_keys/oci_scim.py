@@ -1,6 +1,6 @@
 """Shared OAuth2 client-credentials + Identity Domains SCIM plumbing for
 OCI, used by leaf_keys/oci.py, rotation_keys/oci_bootstrap.py,
-check_freshness.py, and openbao_utils/audit.py. See ADR 0016 - this is
+check_freshness.py, and openbao_utils/audit.py. See ADR 0109 - this is
 a second, unrelated auth model to oci_iam.py's classic Signature V1
 signer, not a replacement for it: oci_iam.py stays in use for
 leaf-identity user/group/policy bootstrap, which SCIM has no equivalent
@@ -92,7 +92,7 @@ def oci_identity_domains_client() -> IdentityDomainsClient:
     """A ready-to-use IdentityDomainsClient (SCIM), auth'd with a fresh
     OAuth2 client-credentials token on every call - these are short,
     one-shot scripts, not a long-running service, and the token itself
-    is never cached (see ADR 0016: only the client ID + secret is the
+    is never cached (see ADR 0109: only the client ID + secret is the
     long-lived credential here)."""
     domain_url, client_id, client_secret = oci_scim_domain_and_credentials()
     token = oci_scim_access_token(domain_url, client_id, client_secret)

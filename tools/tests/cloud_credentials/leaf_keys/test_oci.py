@@ -55,7 +55,7 @@ class TestOciRotation:
         assert vault.get("oci-read-access-key") == "NEW_ACCESS"
         assert vault.get("oci-read-secret-key") == "NEW_SECRET"
         assert vault.get("oci-read-scim-id") == "NEW_SCIM_ID"
-        # expiresOn is native now (see ADR 0016) - no self-tracked
+        # expiresOn is native now (see ADR 0109) - no self-tracked
         # -created-at secret should exist for a SCIM-created key.
         assert vault.get("oci-read-created-at") is None
 

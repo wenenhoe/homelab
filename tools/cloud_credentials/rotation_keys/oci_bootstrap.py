@@ -1,6 +1,6 @@
 """OCI leaf-identity bootstrap (classic IAM: users/groups/policies for
 the two cloud_sync leaves) and rotation-credential bootstrap (a
-Confidential Application's OAuth2 client credentials - see ADR 0016).
+Confidential Application's OAuth2 client credentials - see ADR 0109).
 These are two unrelated auth models sharing this module only because
 create_rotation_keys.py's --provider oci wires up both in one pass.
 """
@@ -152,7 +152,7 @@ def _oci_ensure_scim_app_credentials() -> None:
     write_secret("_rotation-key-oci-client-id", client_id)
     write_secret("_rotation-key-oci-client-secret", client_secret)
     write_secret("_rotation-key-oci-app-id", app_id)
-    # Self-tracked, not native (see ADR 0016's Context: the App
+    # Self-tracked, not native (see ADR 0109's Context: the App
     # resource has no expires_on field of its own).
     write_secret("_rotation-key-oci-created-at", utcnow_iso())
     print("oci: SCIM app credentials verified and cached")
@@ -214,7 +214,7 @@ def rotate_oci_rotation_key(admin_email: str) -> bool:
     Unlike leaf-key rotation (leaf_keys/oci.py:rotate_oci) there is no
     verify-then-revoke available here: OCI supports exactly one active
     secret per App, and regenerating invalidates the old one
-    immediately (see ADR 0016). The new secret is cached as soon as
+    immediately (see ADR 0109). The new secret is cached as soon as
     it's returned, before verification - the OLD secret is already
     gone regardless of whether the verification round-trip below
     succeeds, so withholding the cache write on a verification failure

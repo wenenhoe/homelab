@@ -81,7 +81,7 @@ class TestR2Rotation:
         session.delete.assert_called_once()
         assert "OLD_TOKEN_ID" in session.delete.call_args.args[0]
         assert vault.get("cloudflare-r2-write-access-key") == "NEW_TOKEN_ID"
-        # Every new leaf token must request native expiry (see ADR 0015)
+        # Every new leaf token must request native expiry (see ADR 0109)
         create_call = session.post.call_args
         expires_on = create_call.kwargs["json"]["expires_on"]
         assert re.search(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", expires_on)

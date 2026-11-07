@@ -534,7 +534,7 @@ jobs:
         working-directory: tools
 
   # Shows that each pinned release checksum is the one its publisher signed or
-  # lists (ADR 0077) — see docs/topics/engineering/ci/release-checksum-check.md.
+  # lists (ADR 0107) — see docs/topics/engineering/ci/release-checksum-check.md.
   # Not a matrix job, so it can be required directly: a PR that changes no pin
   # reports it skipped.
   release-checksums:
@@ -566,7 +566,7 @@ jobs:
         working-directory: tools
 
   # Shows that each pinned image digest is one its publisher signed or attested
-  # (ADR 0084) — see docs/topics/engineering/ci/image-provenance-check.md.
+  # (ADR 0107) — see docs/topics/engineering/ci/image-provenance-check.md.
   # Not a matrix job, so it can be required directly: a PR that changes no
   # image reference reports it skipped.
   provenance:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mint the read-only cloud credential ADR 0017 calls for: scoped to
+"""Mint the read-only cloud credential ADR 0111 calls for: scoped to
 OpenBao's own raft-snapshot bucket, able to fetch a snapshot but nothing
 else, and — unlike every credential create_leaf_keys.py handles — never
 stored in Vault or ansible/files/secrets/ at all. OpenBao runs on

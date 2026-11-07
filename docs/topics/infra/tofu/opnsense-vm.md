@@ -66,7 +66,7 @@ mtools and `xmllint`. It starts from OPNsense's own sample `config.xml`
 | IPv6 | Off: no system-wide allowance and no IPv6 address method on the WAN or LAN |
 | Root password | Set from the credentials file |
 | GUI login | A one-time password in front of it: a `TOTP` authentication server which the GUI uses, and a seed on root |
-| API user | One, holding only the privileges that cover the play's calls, the scratch update and the diagnostics (system information, firmware, aliases, filter rules, Kea DHCPv4 and dnsmasq), not `page-all` |
+| API user | One, holding only the privileges that cover the play's calls, the scratch update and the diagnostics (system information, firmware, aliases, filter rules, Kea DHCPv4, dnsmasq and Unbound), not `page-all` |
 
 OPNsense has no option left to keep console logins off the one-time-password rule,
 so the console menu is not password-protected: whoever can open the VM's console in

@@ -566,6 +566,457 @@
    "bot": false,
    "group": "Project: tofu-migration",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "403a92935a255284fc2892c986042f6680171914",
+   "date": "2026-11-07T15:00:18+08:00",
+   "kind": "pr",
+   "pr": 665,
+   "title": "Scope workflow revision",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: docs-process-overhaul",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r004 \u00b7 decision and project documentation workflow",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "docs-process-overhaul",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "d0e9904abe946457b9388f5670f71d148bc814f5",
+   "date": "2026-11-07T16:03:02+08:00",
+   "kind": "pr",
+   "pr": 666,
+   "title": "Implement workflow revision",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: docs-process-overhaul",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r003 \u00b7 decision and project documentation workflow",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0037 r004 \u00b7 decision and project documentation workflow",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "docs-corpus-compaction",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "docs-process-overhaul",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "3074f8c6f5d0ff1b76c65817d1c37b5040c93a46",
+   "date": "2026-11-07T16:30:05+08:00",
+   "kind": "pr",
+   "pr": 667,
+   "title": "widen the compaction project's scope to the security policy",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: docs-corpus-compaction",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5d1cb4e32effe386040928c0c3a1449800021d83",
+   "date": "2026-11-07T17:18:40+08:00",
+   "kind": "pr",
+   "pr": 668,
+   "title": "address unsettled questions",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: docs-corpus-compaction",
+   "events": [
+    [
+     "project",
+     "docs-corpus-compaction",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "710919191910aecd0371a7df719ab200f57ce798",
+   "date": "2026-11-07T17:42:16+08:00",
+   "kind": "pr",
+   "pr": 670,
+   "title": "let the compaction project update record references in code and\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: docs-corpus-compaction",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "029bd6a25b3b13df1412fd905c448c369028cbd9",
+   "date": "2026-11-07T17:48:14+08:00",
+   "kind": "pr",
+   "pr": 669,
+   "title": "compact implementation detail records",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: docs-corpus-compaction",
+   "events": [
+    [
+     "adr",
+     "ADR 0104 r000 \u00b7 which client library each external service uses",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0105 r000 \u00b7 where repo tooling lives",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0106 r000 \u00b7 operator access to the openbao cli",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "999de3b3d3ea7ae553689df31bb977fca62fab14",
+   "date": "2026-11-07T17:52:58+08:00",
+   "kind": "pr",
+   "pr": 671,
+   "title": "compact supply chain family",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: docs-corpus-compaction",
+   "events": [
+    [
+     "adr",
+     "ADR 0107 r000 \u00b7 knowing a pinned artifact is the publishers",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0108 r000 \u00b7 which images a deploy runs and where they come from",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "e6f877ea6ef56fe22df7bb76b1cf73461f695488",
+   "date": "2026-11-07T18:08:20+08:00",
+   "kind": "pr",
+   "pr": 672,
+   "title": "compact secrets and tofu cluster decisions",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": [
+    [
+     "adr",
+     "ADR 0109 r000 \u00b7 knowing a cloud credential is about to expire",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0110 r000 \u00b7 the r2 admin token as the rotation credential",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0111 r000 \u00b7 recovering the secrets store from total loss",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "fdb469466f688b8efb69eb8723eb97638b6040ba",
+   "date": "2026-11-07T18:38:45+08:00",
+   "kind": "pr",
+   "pr": 673,
+   "title": "withdraw placeholder projects",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: openbao-auto-unseal",
+   "events": [
+    [
+     "project",
+     "coding-agent-network",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "docs-corpus-compaction",
+     "closed"
+    ],
+    [
+     "project",
+     "gcp-e2-micro-provisioning",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "network-boundary-checks",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "off-site-monitoring",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "openbao-auto-unseal",
+     "de-risking \u2192 not-started"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "74c77a46ded4048a1d96ee4604d77840afab0bf7",
+   "date": "2026-11-07T18:45:36+08:00",
+   "kind": "pr",
+   "pr": 674,
+   "title": "point code and config comments at the merged record numbers",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "52dbeb65e6a6c033d4b10fbd6722b200e6bb2f44",
+   "date": "2026-11-07T19:55:42+08:00",
+   "kind": "pr",
+   "pr": 675,
+   "title": "fail on a reference to a retired decision number",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "70e966e0abb1d09158dfd76f1e0142c0ea11457d",
+   "date": "2026-11-07T19:59:23+08:00",
+   "kind": "pr",
+   "pr": 676,
+   "title": "date an exploration that is not committed yet in the planning view",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9ec0db9e7f67dde8eb21c8993d61a6d863d210ef",
+   "date": "2026-11-07T20:02:45+08:00",
+   "kind": "pr",
+   "pr": 677,
+   "title": "run the pull-request checks before a push",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e2c65578826ee043750d07b4fa47be7d2a80563c",
+   "date": "2026-11-07T20:10:04+08:00",
+   "kind": "pr",
+   "pr": 678,
+   "title": "prepare the inbound side of merging decision records",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d3ebb589f2afa12717a38bf945554fa2a5ca7c10",
+   "date": "2026-11-07T20:13:42+08:00",
+   "kind": "pr",
+   "pr": 679,
+   "title": "leave a pair with a recorded reason out of the consolidation report",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ee806f4604e8f0c78a7fc0919bf0a3b848852144",
+   "date": "2026-11-07T22:41:53+08:00",
+   "kind": "pr",
+   "pr": 681,
+   "title": "run the four project and record checks as one command",
+   "type": "refactor",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "30c14d44bba1205a55757ec11f06d07d183eac39",
+   "date": "2026-11-07T22:44:10+08:00",
+   "kind": "pr",
+   "pr": 682,
+   "title": "describe each project and record check in one place",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "62cc7b316aa4cb325cb152437267b4e35b3fd126",
+   "date": "2026-11-07T23:15:16+08:00",
+   "kind": "pr",
+   "pr": 683,
+   "title": "drop time-based warnings and check a project's status against its stage table",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: integration-records",
+   "events": [
+    [
+     "project",
+     "integration-records",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "723d13a0e9e1fee055fdbc5e060e2e4697163a02",
+   "date": "2026-11-07T23:20:12+08:00",
+   "kind": "pr",
+   "pr": 684,
+   "title": "fail an unfinished spike stage under a settled decision",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "79da3f997d90b1a2801c900b2a152ac72ef48685",
+   "date": "2026-11-07T23:23:50+08:00",
+   "kind": "pr",
+   "pr": 685,
+   "title": "approve the reliance declaration and open its project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: reliance-declaration",
+   "events": [
+    [
+     "adr",
+     "ADR 0080 r000 \u00b7 approved decisions resting on unfinished ones",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "reliance-declaration",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "0b9ee07d7f3402fe0b37ac5c4029965494c292c9",
+   "date": "2026-11-07T23:28:07+08:00",
+   "kind": "pr",
+   "pr": 686,
+   "title": "split a project's status and blocker into two columns and drop Next up",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0082 r000 \u00b7 choosing which project to take up next",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0082 r001 \u00b7 choosing which project to take up next",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "50bf80fa7857bc593eea0b0228f1a953aa4e8245",
+   "date": "2026-11-07T23:32:08+08:00",
+   "kind": "pr",
+   "pr": 687,
+   "title": "order the project tables by status, name a blocking decision by its short name, raise the limit to 15",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5552f2cacd46470b3d5d117ad570906cb705a93c",
+   "date": "2026-11-08T00:01:33+08:00",
+   "kind": "pr",
+   "pr": 689,
+   "title": "make Renovate's expected commit author the app's bot",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4d8b5e15e9ab0c55480ef7a8ea8d23e63cc6ffb2",
+   "date": "2026-11-08T00:49:42+08:00",
+   "kind": "pr",
+   "pr": 690,
+   "title": "Improve tofu provisioning",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a113fc629692a4f4cdfff49d9fd580a9df0877dd",
+   "date": "2026-11-08T00:58:53+08:00",
+   "kind": "pr",
+   "pr": 691,
+   "title": "Resolve ansible bump issue",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "adr",
+     "ADR 0067 r000 \u00b7 where the code that generates and stores a vault backed secret lives",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0067 r001 \u00b7 where the code that generates and stores a vault backed secret lives",
+     "added (accepted)"
+    ]
+   ]
   }
  ]
 }

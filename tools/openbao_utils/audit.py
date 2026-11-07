@@ -104,7 +104,7 @@ def audit_local() -> None:
         print("  checked, then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in orphans))
 
 
-# --- OCI: list customer secret keys per leaf (via SCIM - see ADR 0016) ----
+# --- OCI: list customer secret keys per leaf (via SCIM - see ADR 0109) ----
 
 
 def audit_oci() -> None:
@@ -157,7 +157,7 @@ def audit_b2() -> None:
         if key_id in active:
             marker = f"ACTIVE ({active[key_id]})"
         elif key.key_name == "openbao-snapshot-readonly":
-            # ADR 0017: this credential is never cached anywhere by
+            # ADR 0111: this credential is never cached anywhere by
             # design (create_snapshot_readonly_keys.py prints it once,
             # straight to the break-glass password-manager entry) - a
             # cache lookup can never confirm it, so this is matched by
@@ -165,7 +165,7 @@ def audit_b2() -> None:
             # than a cache match (a genuine orphan could reuse this
             # name), but this tool already only flags, never deletes -
             # see its own module docstring.
-            marker = "ACTIVE (break-glass restore key, ADR 0017 - matched by name, not cache, since it's never cached)"
+            marker = "ACTIVE (break-glass restore key, ADR 0111 - matched by name, not cache, since it's never cached)"
         else:
             marker = "ORPHAN"
         print(f"    {key_id}  name={key.key_name}  [{marker}]")
@@ -213,9 +213,9 @@ def audit_r2() -> None:
         if t["id"] in active:
             marker = f"ACTIVE ({active[t['id']]})"
         elif t["name"] == "openbao-snapshot-readonly":
-            # ADR 0017: never cached anywhere by design - see audit_b2's
+            # ADR 0111: never cached anywhere by design - see audit_b2's
             # identical comment on why this is matched by name instead.
-            marker = "ACTIVE (break-glass restore key, ADR 0017 - matched by name, not cache, since it's never cached)"
+            marker = "ACTIVE (break-glass restore key, ADR 0111 - matched by name, not cache, since it's never cached)"
         else:
             marker = "ORPHAN"
         print(f"    {t['id']}  name={t['name']}  status={t['status']}  [{marker}]")

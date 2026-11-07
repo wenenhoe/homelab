@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR 0026's dedicated R2 per-read watcher (ADR 0024's own
+"""ADR 0026's dedicated R2 per-read watcher (ADR 0110's own
 requirement). Tails `docker logs -f openbao` (the audit device's
 stdout, per ADR 0026), alerts on any read of the R2 rotation token's
 Vault path, and does nothing else - no cloud_credentials access, no

@@ -6,7 +6,7 @@ It runs `docker exec` against the live `openbao` container, the one OpenBao
 CLI path that cannot use the native `bao` client: the container crash-loops
 until `step_ca_cert` issues its leaf cert, so there is no trustworthy network
 path to it yet, and `docker exec` skips the network and TLS chain entirely
-(ADR 0034).
+(ADR 0106).
 
 `bao operator init` takes no input, so this runs a plain `docker exec` with
 no PTY. Its output is the initial root token and the unseal key shares, which

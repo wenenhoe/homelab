@@ -3,7 +3,7 @@
 # clones each at its SHA and `python3 -m ci.shell_tests.pins check` requires
 # each tag to still point at it.
 #
-# Every entry is at the listed tier of ADR 0077: the check catches a SHA copied
+# Every entry is at the listed tier of ADR 0107: the check catches a SHA copied
 # wrongly and a tag that moved, not a commit the publisher did not intend. No
 # current key is published to verify the signed tags against, and
 # bats-support's tag is not signed.

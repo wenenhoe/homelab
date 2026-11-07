@@ -214,7 +214,7 @@ class TestAuditB2:
     """audit_b2()'s active-key classification. Two cases need explicit
     handling: the openbao snapshot write leaf is cached in Vault and
     must be checked against it, and the break-glass readonly key
-    (ADR 0017) can never match a cache lookup since it's never cached
+    (ADR 0111) can never match a cache lookup since it's never cached
     anywhere by design."""
 
     @pytest.fixture(autouse=True)

@@ -31,7 +31,7 @@ def utcnow_iso() -> str:
     """Now, as an ISO-8601 UTC timestamp - what OCI's self-tracked
     `-created-at` secrets store, since OCI's classic Identity API
     (the one this repo authenticates against) has no expiry field of
-    its own to read back later. See ADR 0015."""
+    its own to read back later. See ADR 0109."""
     return datetime.now(UTC).isoformat()
 
 

@@ -4,7 +4,7 @@
     "config:recommended",
     "helpers:pinGitHubActionDigests",
     // Pins every docker-datasource image to `name:tag@sha256:...` and moves the
-    // digest with the tag (ADR 0083). The regex managers below opt in with a
+    // digest with the tag (ADR 0108). The regex managers below opt in with a
     // `currentDigest` group and an `autoReplaceStringTemplate`; without both,
     // Renovate can neither read the digest nor write one back.
     "docker:pinDigests",
@@ -756,7 +756,7 @@
       enabled: false,
     },
 
-    // Digest pins (ADR 0083), placed after every per-image group above so they
+    // Digest pins (ADR 0108), placed after every per-image group above so they
     // win: the first run turns every tag into tag@digest in one PR, and a tag
     // its publisher rebuilt later moves only that digest. Neither is
     // automerged. The initial digest is the one the registry serves when

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Save an OpenBao raft snapshot, encrypt it, and push it to R2 and B2 -
 # one process on `controller`, over the network, using the native
-# `bao` CLI (ADR 0034 - decisions/0106-operator-access-to-the-openbao-cli/revision-000.md).
+# `bao` CLI (ADR 0106 - decisions/0106-operator-access-to-the-openbao-cli/revision-000.md).
 # `bao operator raft snapshot save` is a plain client-side download
 # (confirmed live - see
 # docs/decisions/0106-operator-access-to-the-openbao-cli/revision-000.md's

@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter, ref_label
+from doc_scripts.doc_scope import stage_statuses
 
 # A project's status fixes which state its linked decision revision must
 # be in. The gate is what stops production work when a revision drops
@@ -226,6 +227,19 @@ def _cycle_errors(graph: dict[str, list[str]]) -> list[str]:
     return errors
 
 
+def stage_table_errors(rel: Path, status: str, stages: list[str]) -> list[str]:
+    """A project's status against its stage table. A doc with no stage rows is not judged: the
+    status is the author's statement of intent, and this only catches it drifting from the table."""
+    started = [s for s in stages if s != "Not started"]
+    if not stages:
+        return []
+    if status == "not-started" and started:
+        return [f"{rel}: status: not-started, but a stage is {started[0]} — move the status on, or the stage back to Not started"]
+    if status in ("de-risking", "building") and not started:
+        return [f"{rel}: status: {status}, but no stage has started — start one, or set the status back to not-started"]
+    return []
+
+
 def project_errors(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     projects: dict[str, tuple[Path, dict]] = {}
@@ -245,6 +259,7 @@ def project_errors(root: Path = ROOT) -> list[str]:
     graph: dict[str, list[str]] = {}
     for pid, (path, fm) in projects.items():
         rel = path.relative_to(root)
+        errors.extend(stage_table_errors(rel, fm["status"], stage_statuses(path.read_text(encoding="utf-8"))))
         graph[pid] = []
         for dep in fm.get("depends_on", []):
             target = dep["project"]

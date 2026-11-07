@@ -4,9 +4,7 @@ Run via `uv run pytest tools/tests/ -v`.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
-
-from _doc_fixtures import GitRepo, project, revision
+from _doc_fixtures import project, revision
 from doc_scripts import suggest_adr_consolidation as tool
 from doc_scripts.doc_frontmatter import load_lineages
 
@@ -84,25 +82,16 @@ class TestClusters:
 class TestReport:
     def test_without_the_flag_there_is_no_quarterly_section(self, root):
         revision(root, "0001-a", 0)
-        out = tool.render(root, report=False, today=date.today())
+        out = tool.render(root, report=False)
         assert "# Decision records worth a look" in out
         assert "Quarterly report" not in out
-
-    def test_the_report_names_a_working_revision_left_alone(self, root):
-        repo = GitRepo(root, tool)
-        repo.git("init", "-q", "-b", "main")
-        revision(root, "0001-a", 0, status="working")
-        repo.commit("add")
-        later = date.today() + timedelta(days=tool.WORKING_STALE_DAYS + 5)
-        out = tool.render(root, report=True, today=later)
-        assert "ADR-0001 revision 0: working, unchanged for" in out
 
     def test_the_report_flags_too_many_active_projects(self, root):
         from doc_scripts import generate_doc_indexes as gen
 
         for i in range(gen.ACTIVE_PROJECT_LIMIT + 1):
             project(root, f"p{i}", status="building")
-        assert "over the limit" in tool.render(root, report=True, today=date.today())
+        assert "over the limit" in tool.render(root, report=True)
 
 
 SAME = "Pinned artifacts installed on hosts are trusted without showing the digest came from the publisher"
@@ -124,7 +113,7 @@ def similar_pair(root, status_a="accepted", status_b="accepted"):
 
 
 def report(root):
-    return tool.render(root, report=False, today=date.today())
+    return tool.render(root, report=False)
 
 
 class TestKeptApart:

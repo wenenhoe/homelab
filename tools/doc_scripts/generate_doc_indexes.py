@@ -21,10 +21,9 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import date
 from pathlib import Path
 
-from doc_scripts.doc_explorations import last_commit_date, load_explorations, stale_warnings
+from doc_scripts.doc_explorations import last_commit_date, load_explorations
 from doc_scripts.doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
 from doc_scripts.doc_removed import LEDGER
@@ -498,7 +497,7 @@ def main() -> int:
     regenerate(ROOT / "docs/project-planning.md", "Projects", render_standalone_projects_table())
     regenerate(ROOT / "docs/project-planning.md", "Open explorations", render_explorations_table())
     regenerate(ROOT / "docs/project-planning.md", "Decisions awaiting a project", render_needs_project_table())
-    for warning in [*active_project_warnings(ROOT), *stale_warnings(ROOT, date.today())]:
+    for warning in active_project_warnings(ROOT):
         print(warning, file=sys.stderr)
     touched.append("docs/project-planning.md")
     if regenerate(ROOT / "docs/decisions/README.md", "Lineages", render_lineages_index(), optional=True):

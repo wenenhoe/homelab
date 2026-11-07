@@ -212,9 +212,8 @@ unless records are made smaller on purpose. These operations are the
 maintainer's, never an agent's working a project, and a pull request that
 makes one says which it is.
 [`suggest_adr_consolidation.py`](../../tools/doc_scripts/suggest_adr_consolidation.py)
-lists candidates and changes nothing, and with `--report` also prints the
-quarterly report: explorations that have stood still, `working` revisions
-untouched for a long time, and whether too many projects are active.
+lists candidates and changes nothing, and with `--report` also says whether
+too many projects are active.
 
 - **Condense.** Shorten an `accepted` or `superseded` revision in place if
   what it decided is unchanged. Its title, its one-line `solution`, and its

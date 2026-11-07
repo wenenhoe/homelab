@@ -102,6 +102,9 @@ these narrow, structural things:
   that is `building` on it. Projects without a `decision:` are never
   gated. `depends_on` entries name existing project docs, never
   themselves, and form no cycle.
+- A project's status must agree with its stage table: `not-started` fails with
+  a stage `In progress` or `Done`, and `de-risking` or `building` fails with
+  every stage `Not started`. A doc with no stage rows is not judged.
 - A revision's `weight` is `full` or `light`. A `light` revision has no
   `Invariants`, `Non-goals` or `Validation` section and a body of at most
   `LIGHT_MAX_WORDS` words (`doc_graph.py`); a full one is not limited. See
@@ -382,9 +385,7 @@ runs nowhere in CI and changes nothing. It lists decisions that read like
 implementation detail (an accepted Decision that names many files), lineages
 whose title, summary and Problem share many words, and clusters of three or
 more lineages of one topic that all list one another in `related:`. With
-`--report` it adds the quarterly report: explorations that have stood still,
-`working` revisions untouched for a long time, and whether too many projects
-are active. The limits are constants at the top of the script. What a hit means
+`--report` it adds whether too many projects are active. The limits are constants at the top of the script. What a hit means
 is the maintainer's call.
 
 A pair or cluster the maintainer has read and kept apart is recorded in the

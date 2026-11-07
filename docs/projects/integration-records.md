@@ -2,7 +2,7 @@
 id: PROJ-integration-records
 title: "Integration records"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view."
 decision: ADR-0100/0

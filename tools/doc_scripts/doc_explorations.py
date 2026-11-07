@@ -18,9 +18,6 @@ from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT, docs_in, load_lineages, read_frontmatter
 
-# Days without a commit after which an open exploration is reported as stale.
-EXPLORATION_STALE_DAYS = 60
-
 EXPLORATION_PATH_RE = re.compile(r"docs/explorations/(?!(?:README|TEMPLATE)\.md\b)[\w.-]+\.md")
 # Files that may name an exploration: the explorations themselves and the generated planning view.
 MENTION_ALLOWED_PREFIX = "docs/explorations/"
@@ -85,14 +82,3 @@ def last_commit_date(root: Path, path: Path, today: date | None = None) -> date 
         return date.fromisoformat(out) if out else None
     except subprocess.CalledProcessError, FileNotFoundError, ValueError:
         return None
-
-
-def stale_warnings(root: Path, today: date, limit: int = EXPLORATION_STALE_DAYS) -> list[str]:
-    warnings = []
-    for path, _ in load_explorations(root):
-        changed = last_commit_date(root, path, today)
-        if changed is not None and (today - changed).days > limit:
-            warnings.append(
-                f"warning: {path.relative_to(root)} has not changed for {(today - changed).days} days — settle it as a decision or a project, or drop it"
-            )
-    return warnings

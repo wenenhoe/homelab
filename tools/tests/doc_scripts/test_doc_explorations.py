@@ -1,6 +1,6 @@
 """Unit tests for doc_explorations.py and the exploration rules in
 doc_frontmatter.py: the frontmatter shape, the one-way reference rule and the
-stale warning. Run via `uv run pytest tools/tests/ -v`.
+planning view's dates. Run via `uv run pytest tools/tests/ -v`.
 """
 
 from __future__ import annotations
@@ -95,28 +95,6 @@ class TestErrors:
         assert explorations.exploration_errors(root) == []
 
 
-class TestStale:
-    def repo(self, root):
-        repo = GitRepo(root, generator)
-        repo.git("init", "-q", "-b", "main")
-        return repo
-
-    def test_an_exploration_untouched_past_the_limit_warns(self, root):
-        repo = self.repo(root)
-        exploration(root)
-        repo.commit("add")
-        changed = explorations.last_commit_date(root, root / "docs/explorations/where-state-lives.md")
-        assert changed == date.today()
-        later = date.fromordinal(changed.toordinal() + explorations.EXPLORATION_STALE_DAYS + 1)
-        [warning] = explorations.stale_warnings(root, later)
-        assert "where-state-lives.md" in warning
-        assert explorations.stale_warnings(root, changed) == []
-
-    def test_a_tree_without_git_never_warns(self, root):
-        exploration(root)
-        assert explorations.stale_warnings(root, date(2999, 1, 1)) == []
-
-
 class TestLastChanged:
     """An uncommitted change is dated today: the hooks that regenerate the planning view
     run before the commit that holds the file exists."""
@@ -174,11 +152,6 @@ class TestLastChanged:
     def test_without_git_the_date_is_unknown(self, root):
         exploration(root)
         assert self.changed(root) is None
-
-    def test_an_uncommitted_file_is_not_stale(self, root):
-        GitRepo(root, generator).git("init", "-q", "-b", "main")
-        exploration(root)
-        assert explorations.stale_warnings(root, date(2999, 1, 1)) == []
 
     def test_the_planning_view_dates_a_new_file_and_sorts_it_last(self, root, monkeypatch):
         repo = self.repo(root, monkeypatch)

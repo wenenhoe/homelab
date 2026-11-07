@@ -25,7 +25,19 @@ IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/decisions/README.md", "docs/pro
 
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+STAGE_STATUSES = ("Not started", "In progress", "Done")
 EXECUTION_PLAN_RE = re.compile(r"^## Execution plan[ \t]*\n(.*?)(?=^## |\Z)", re.DOTALL | re.MULTILINE)
+
+
+def stage_statuses(text: str) -> list[str]:
+    """The status cell of each row of a project doc's Execution plan table, in order."""
+    plan = EXECUTION_PLAN_RE.search(text)
+    statuses = []
+    for line in plan.group(1).splitlines() if plan else ():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if line.startswith("|") and len(cells) >= 3 and cells[2] in STAGE_STATUSES:
+            statuses.append(cells[2])
+    return statuses
 
 
 def project_state(text: str | None) -> tuple[str, tuple[str, ...]] | None:

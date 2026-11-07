@@ -31,7 +31,7 @@ Docker's `sbx` runs each agent in a microVM with a private Docker daemon. On x86
 
 The agent runs in a dedicated Proxmox VM with its own kernel and no nested virtualization, as an unprivileged account with Claude Code's built-in sandbox enabled. The VM sits in its own network zone ([ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md)).
 
-`sbx` and nested virtualization are not used unless [ADR 0052 (Molecule runtime)](../0052-molecule-runtime-without-host-privilege/revision-000.md)'s spike shows this repo's Molecule scenarios cannot run any other way; that outcome returns here as a new revision.
+`sbx` and nested virtualization are not used unless the spike that picks a Molecule runtime shows this repo's Molecule scenarios cannot run any other way; that outcome returns here as a new revision.
 
 ## Alternatives considered
 
@@ -61,7 +61,7 @@ The agent runs in a dedicated Proxmox VM with its own kernel and no nested virtu
 ## Non-goals
 
 - Network policy ([ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md)).
-- Container runtime for tests ([ADR 0052 (Molecule runtime)](../0052-molecule-runtime-without-host-privilege/revision-000.md)).
+- Container runtime for tests, which is still an open question.
 
 ## Reconsideration triggers
 

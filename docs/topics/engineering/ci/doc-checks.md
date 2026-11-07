@@ -49,6 +49,18 @@ these narrow, structural things:
 - [`pipeline.md`](pipeline.md#jobs)'s Jobs table lists every `pr-checks.yml` job id, except
   `detect-changes` (internal plumbing) and `trivy-scan` (documented in
   [`security-scanning.md`](../security-scanning.md) instead).
+- Every `app_catalog` entry names its service record with `doc:`, unless it is on the
+  exemption list kept in [`doc_records.py`](../../../../tools/doc_scripts/doc_records.py)
+  ([ADR 0100](../../../decisions/0100-recording-how-a-system-is-integrated/revision-000.md)).
+  The named doc must exist and have the seven `##` sections `Dependencies`, `Data`,
+  `Exposure`, `Threat model`, `Observability`, `Disaster recovery` and `Lifecycle`,
+  in that order (other sections may sit between them), each with something under it.
+  A section that does not apply says so and why, and one not known yet says `Unknown:`;
+  only an empty one fails. Several entries may name one record. The list holds the apps
+  that predate the rule and only shrinks: an app that names a record while still listed
+  fails, and so does a listed name that is not in the catalog. It checks that the
+  sections are present and filled, not that they are true. The value's shape is
+  [the catalog rules'](gates.md#app-catalog-rules).
 - Every cross-file `#anchor` reference anywhere in the repo (not just
   `.md` files — YAML/Python comments too) resolves to a real file with
   a heading that actually slugs to that anchor; same for same-file

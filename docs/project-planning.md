@@ -127,8 +127,9 @@ calls for a project, while a working one still has to be settled.
 
 | Exploration | Question | Last changed |
 | :--- | :--- | :--- |
-| [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? | — |
-| [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | — |
+| [`project-stage-discipline.md`](explorations/project-stage-discipline.md) | What should a project's status and stage table promise, and what enforces it? | — |
+| [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? | 2026-11-07 |
+| [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-07 |
 
 ## Decisions awaiting a project
 

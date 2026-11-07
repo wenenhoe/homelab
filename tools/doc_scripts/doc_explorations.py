@@ -68,15 +68,20 @@ def _mention_errors(root: Path) -> list[str]:
     return errors
 
 
-def last_commit_date(root: Path, path: Path) -> date | None:
-    """The date of the newest commit that touched `path`, or None when git does not know it."""
+def last_commit_date(root: Path, path: Path, today: date | None = None) -> date | None:
+    """The date of the newest commit that touched `path`, or None when git does not know it.
+
+    A file with a change that is not committed yet (new, or edited, staged or not) is dated
+    `today` (default: the local date): the commit about to be made is its newest. The hooks that
+    regenerate the planning view run before that commit exists, and a view that said nothing for
+    the file would differ from the one CI regenerates after the merge.
+    """
+    rel = str(path.relative_to(root))
     try:
-        out = subprocess.run(
-            ["git", "-C", str(root), "log", "-1", "--format=%cs", "--", str(path.relative_to(root))],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
+        pending = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", rel], check=True, capture_output=True, text=True).stdout.strip()
+        if pending:
+            return today or date.today()
+        out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs", "--", rel], check=True, capture_output=True, text=True).stdout.strip()
         return date.fromisoformat(out) if out else None
     except subprocess.CalledProcessError, FileNotFoundError, ValueError:
         return None
@@ -85,7 +90,7 @@ def last_commit_date(root: Path, path: Path) -> date | None:
 def stale_warnings(root: Path, today: date, limit: int = EXPLORATION_STALE_DAYS) -> list[str]:
     warnings = []
     for path, _ in load_explorations(root):
-        changed = last_commit_date(root, path)
+        changed = last_commit_date(root, path, today)
         if changed is not None and (today - changed).days > limit:
             warnings.append(
                 f"warning: {path.relative_to(root)} has not changed for {(today - changed).days} days — settle it as a decision or a project, or drop it"

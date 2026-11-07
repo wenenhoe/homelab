@@ -230,6 +230,22 @@ repos:
         additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true
+      - id: check-pr-range
+        name: check-pr-range
+        stages: [pre-push]
+        description: >-
+          The pull-request forms of check-project-scope, check-project-close,
+          check-project-start and check-accepted-records, over the commits the
+          push adds against the default branch - see
+          tools/doc_scripts/check_pr_range.py. The commit-time forms see one
+          commit and warn about a frozen section, so this is where a stray file
+          or a missing Editorial-Fix trailer shows before CI. Skips, saying so,
+          when the clone has no default branch or shares no history with it.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_pr_range' --
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        pass_filenames: false
+        always_run: true
       - id: check-project-close
         name: check-project-close
         description: >-

@@ -1,6 +1,6 @@
 # CI Doc Checks
 
-The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, and the Mermaid render check, plus the helpers that suggest a project's scope and renumber the lineages a patch series adds. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
+The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, the push-time run of them, and the Mermaid render check, plus the helpers that suggest a project's scope and renumber the lineages a patch series adds. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Doc index generation
 
@@ -303,6 +303,32 @@ section as a warning only (the trailer that excuses it is written with the
 commit message, after the hook runs) and still fails on a lineage that leaves
 unaccounted for. It reads the docs as they stand after the change for the
 removal rule, and a doc that does not parse fails the check.
+
+## Push-time pull-request checks
+
+[`tools/doc_scripts/check_pr_range.py`](../../../../tools/doc_scripts/check_pr_range.py),
+the `check-pr-range` hook at the `pre-push` stage. The project scope, close
+and start checks and the accepted records check each have a `--staged` form
+that runs at commit time and a `--base` form that the `project-checks` job runs
+over the whole pull request. The staged forms see one commit, so a stray file in
+an earlier commit of the branch passes them, and the accepted records check can
+only warn about a frozen section because the `Editorial-Fix:` trailer is written
+after the hook runs. This runs the four `--base` forms, in order and all of
+them even if one fails, over the commits being pushed against the default
+branch.
+
+- **The base** is the remote's HEAD (`origin/HEAD`), else `origin/main`,
+  `origin/master`, `main` or `master`. It is not fetched: the checks read the
+  merge-base, so a stale base still gives the branch's own commits.
+- **The head** is the commit being pushed (`PRE_COMMIT_TO_REF`), else `HEAD`.
+- **Skipped**, with a message and a pass, when there is no default branch in the
+  clone, when the head shares no history with it (a shallow clone), when the
+  push adds no commit, or when it deletes a ref. The `ansible-lint` job runs
+  every push-stage hook against all files in a shallow checkout, so this
+  skips there; the `project-checks` job is where the pull request is judged.
+
+The error output is each check's own, followed by the names of the checks that
+failed.
 
 ## Consolidation suggestions
 

@@ -5,7 +5,6 @@ type: project
 status: not-started
 blocked: false
 summary: Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host.
-decision: ADR-0052/0
 super_project: coding-agent-host
 depends_on:
   - project: PROJ-coding-agent-host
@@ -22,7 +21,7 @@ Comparing rootless Podman, rootless Docker, and a microVM-private daemon against
 
 ## Decision
 
-Implements [ADR 0052 (Molecule runtime)](../decisions/0052-molecule-runtime-without-host-privilege/revision-000.md), `working`.
+None yet. This project answers an open question, so stage 2 writes the decision and the project then names it in `decision:` before any stage adopts the runtime.
 
 ## Execution plan
 
@@ -30,15 +29,16 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike each candidate against `compose/default`, then `secrets/vault_backed` | Not started | One candidate passes, or none does and the outcome is recorded in ADR 0052 |
-| 2 | Adopt the chosen runtime in the `coding_agent` role | Not started | The role installs and configures it idempotently and no host-root daemon socket is reachable from the agent account |
-| 3 | Run the scenario set the host claims and name the subset in `molecule-testing.md` | Not started | The named scenarios pass from `ansible/scripts/molecule-test-all.sh` on the host |
+| 1 | Spike each candidate against `compose/default`, then `secrets/vault_backed` | Not started | One candidate passes, or none does and the outcome is known |
+| 2 | Write the decision for the chosen runtime | Not started | A decision record names the runtime and is `approved`, and this doc names it in `decision:` |
+| 3 | Adopt the chosen runtime in the `coding_agent` role | Not started | The role installs and configures it idempotently and no host-root daemon socket is reachable from the agent account |
+| 4 | Run the scenario set the host claims and name the subset in `molecule-testing.md` | Not started | The named scenarios pass from `ansible/scripts/molecule-test-all.sh` on the host |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
-- [ ] ADR 0052 names one runtime and its Assumptions section is gone.
+- [ ] An approved decision names one runtime.
 - [ ] The scenarios the host claims pass on the host.
 - [ ] No host-root daemon socket is reachable from the agent account.
 - [ ] The scenario subset, if reduced, is stated in `molecule-testing.md`.

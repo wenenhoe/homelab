@@ -2,7 +2,7 @@
 id: PROJ-docs-corpus-compaction
 title: "Docs corpus compaction"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Clean up the existing decisions and placeholder projects with the compaction rules: move unsettled questions to explorations, demote implementation-detail records, merge records that are one problem, and withdraw projects that wait on an unsettled revision."
 allowed_paths:
@@ -50,7 +50,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Unsettled questions | Not started | Each candidate is read and is an exploration, a decision or dropped, and none remains as a `working` revision with no chosen solution. |
+| 1 | Unsettled questions | Done | Each candidate is read and is an exploration, a decision or dropped, and no `working` revision with no chosen solution remains unless a project is spiking it. |
 | 2 | Implementation-detail records | Not started | The OpenBao placement records are demoted or condensed, their content is in a topic doc, their numbers are in the ledger of removed numbers, and no link into them remains. |
 | 3 | Supply-chain family | Not started | The records on pinned-artifact trust are one lineage that carries every Decision point, Invariant, Non-goal and trigger of its sources, lists their numbers in `former_ids`, and has taken over their inbound links. |
 | 4 | Secrets and Tofu clusters | Not started | Each cluster has been read, and every record in it is kept, condensed, merged or demoted, with the outcome recorded in the pull request. |

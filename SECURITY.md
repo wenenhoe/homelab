@@ -21,5 +21,5 @@ What is true on `main` today, each with the document that owns the detail:
 
 - It is not a compliance program. [`nist-800-53-alignment.md`](docs/topics/engineering/nist-800-53-alignment.md) names the controls its practices resemble and the one it checked and left unmapped.
 - Trivy's Ansible misconfiguration and secret scans are report-only. Container images are assessed for vulnerabilities, but host operating-system packages are not.
-- No intrusion detection or security-event pipeline is in place; both are still open decisions ([ADR 0039](docs/decisions/0039-intrusion-detection-scope/revision-000.md), [ADR 0045](docs/decisions/0045-security-event-collection-and-alerting/revision-000.md)).
+- No intrusion detection or security-event pipeline is in place; intrusion detection is an open question, and the event pipeline is a draft decision ([ADR 0045](docs/decisions/0045-security-event-collection-and-alerting/revision-000.md)).
 - A compromised app host can still tamper with its own backup archives. That residual risk is accepted and stated in the threat model.

@@ -19,6 +19,7 @@ place; `git diff` shows whether anything actually changed.
 
 from __future__ import annotations
 
+import functools
 import re
 import sys
 from pathlib import Path
@@ -67,6 +68,11 @@ def _decision_statuses(root: Path) -> dict[str, str]:
     return {f"{lineage.id}/{rev.label}": rev.status for lineage in load_lineages(root) for rev in lineage.revisions}
 
 
+def _decision_shorts(root: Path) -> dict[str, str]:
+    """`ADR-NNNN/label` -> the revision's short name."""
+    return {f"{lineage.id}/{rev.label}": rev.fm["short"] for lineage in load_lineages(root) for rev in lineage.revisions}
+
+
 def _decision_paths(root: Path) -> dict[str, str]:
     """`ADR-NNNN/label` -> the revision's path under docs/decisions/."""
     return {f"{lineage.id}/{rev.label}": f"{lineage.dir.name}/{rev.path.name}" for lineage in load_lineages(root) for rev in lineage.revisions}
@@ -94,6 +100,7 @@ def _status_cells(
     projects: dict[str, tuple[Path, dict]],
     decisions: dict[str, str],
     decision_paths: dict[str, str],
+    decision_shorts: dict[str, str],
     *,
     project_prefix: str,
     decision_prefix: str,
@@ -101,7 +108,8 @@ def _status_cells(
     """The Status and Blocker cells for a view, as the two cells of a row. The prefixes are the paths from the file the
     view renders into to docs/projects/ and to docs/decisions/."""
     ref = fm.get("decision")
-    link = f"[{ref}]({decision_prefix}{decision_paths[ref]})" if ref in decision_paths else None
+    text = f"{ref} ({decision_shorts[ref]})" if ref in decision_shorts else ref
+    link = f"[{text}]({decision_prefix}{decision_paths[ref]})" if ref in decision_paths else None
     status, blocker = project_status_cells(fm, _waiting_on(fm, projects, project_prefix), decisions.get(ref), link)
     return f"{status} | {blocker}"
 
@@ -130,6 +138,15 @@ def _unblocks(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
     return {pid: len(downstream(pid)) for pid in projects}
 
 
+# Building comes first so started work finishes before new work opens, then spikes, then work not started.
+STATUS_ORDER = {"building": 0, "de-risking": 1, "not-started": 2, "done": 3}
+
+
+def _by_status(projects: dict[str, tuple[Path, dict]]) -> list[tuple[str, tuple[Path, dict]]]:
+    """The projects ordered by lifecycle status, then by file name."""
+    return sorted(projects.items(), key=lambda item: (STATUS_ORDER[item[1][1]["status"]], item[1][0].name))
+
+
 def _unblocks_cell(count: int) -> str:
     return str(count) if count else "—"
 
@@ -138,10 +155,11 @@ def render_projects_table(root: Path = ROOT) -> str:
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
     decision_paths = _decision_paths(root)
+    decision_shorts = _decision_shorts(root)
     unblocks = _unblocks(projects)
     rows = []
-    for pid, (path, fm) in projects.items():
-        status = _status_cells(fm, projects, decisions, decision_paths, project_prefix="", decision_prefix="../decisions/")
+    for pid, (path, fm) in _by_status(projects):
+        status = _status_cells(fm, projects, decisions, decision_paths, decision_shorts, project_prefix="", decision_prefix="../decisions/")
         rows.append(f"| [`{path.name}`]({path.name}) | {_unblocks_cell(unblocks[pid])} | {status} | {fm['summary']} |")
     header = "| Project | Unblocks | Status | Blocker | Covers |\n| :--- | ---: | :--- | :--- | :--- |"
     return "\n".join([header, *rows])
@@ -157,11 +175,20 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
     decision_paths = _decision_paths(root)
+    decision_shorts = _decision_shorts(root)
     unblocks = _unblocks(projects)
+    cells = functools.partial(
+        _status_cells,
+        projects=projects,
+        decisions=decisions,
+        decision_paths=decision_paths,
+        decision_shorts=decision_shorts,
+        project_prefix="projects/",
+        decision_prefix="decisions/",
+    )
     rows = [
-        f"| [`{path.name}`](projects/{path.name}) | {_unblocks_cell(unblocks[pid])} "
-        f"| {_status_cells(fm, projects, decisions, decision_paths, project_prefix='projects/', decision_prefix='decisions/')} | {fm['summary']} |"
-        for pid, (path, fm) in projects.items()
+        f"| [`{path.name}`](projects/{path.name}) | {_unblocks_cell(unblocks[pid])} | {cells(fm)} | {fm['summary']} |"
+        for pid, (path, fm) in _by_status(projects)
         if "super_project" not in fm
     ]
     if not rows:
@@ -196,6 +223,7 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
     decision_paths = _decision_paths(root)
+    decision_shorts = _decision_shorts(root)
     depths = _dependency_depths(projects)
     unblocks = _unblocks(projects)
     entries = [(fm["super_project"], depths[pid], path.name, fm) for pid, (path, fm) in projects.items() if "super_project" in fm]
@@ -221,7 +249,7 @@ def render_initiatives_table(root: Path = ROOT) -> str:
         rows.append(
             f"|{initiative_cell}| [`{name}`](projects/{name}) "
             f"| {_unblocks_cell(unblocks[fm['id']])} "
-            f"| {_status_cells(fm, projects, decisions, decision_paths, project_prefix='projects/', decision_prefix='decisions/')} |"
+            f"| {_status_cells(fm, projects, decisions, decision_paths, decision_shorts, project_prefix='projects/', decision_prefix='decisions/')} |"
         )
     header = "| Initiative | Project | Unblocks | Status | Blocker |\n| :--- | :--- | ---: | :--- | :--- |"
     return "\n".join([header, *rows])
@@ -394,7 +422,7 @@ def render_explorations_table(root: Path = ROOT) -> str:
 
 
 # More projects than this at `building` or `de-risking` at once is reported (ADR 0037 revision 4).
-ACTIVE_PROJECT_LIMIT = 8
+ACTIVE_PROJECT_LIMIT = 15
 
 
 def active_project_warnings(root: Path = ROOT) -> list[str]:

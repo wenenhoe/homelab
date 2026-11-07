@@ -27,8 +27,8 @@ class TestProjectsTable:
         project(root, "b", status="building", blocked=True, blocked_reason="needs new hardware")
         project(root, "c", status="done")
         assert rows() == [
-            "| [`a.md`](a.md) | — | De-risking | — | a summary |",
             "| [`b.md`](b.md) | — | Building | blocked: needs new hardware | b summary |",
+            "| [`a.md`](a.md) | — | De-risking | — | a summary |",
             "| [`c.md`](c.md) | — | Done | — | c summary |",
         ]
 
@@ -40,7 +40,7 @@ class TestProjectsTable:
     def test_blocked_flag_and_dependency_combine(self, root, rows):
         project(root, "base")
         project(root, "next", status="building", blocked=True, blocked_reason="r", depends_on=[{"project": "PROJ-base", "reason": "x"}])
-        assert "Building | blocked: r; waiting on [`base.md`](base.md)" in rows()[1]
+        assert "Building | blocked: r; waiting on [`base.md`](base.md)" in rows()[0]
 
 
 class TestNoBlocker:
@@ -62,7 +62,9 @@ class TestNoBlocker:
     def test_a_working_decision_is_not_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="working")
         project(root, "a", decision="ADR-0013/0")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | waiting on [ADR-0013/0](../decisions/0013-secret-storage/revision-000.md) | a summary |"]
+        assert rows() == [
+            "| [`a.md`](a.md) | — | Not started | waiting on [ADR-0013/0 (0013-secret-storage)](../decisions/0013-secret-storage/revision-000.md) | a summary |"
+        ]
 
     def test_a_decision_that_does_not_resolve_is_not_ready(self, root, rows):
         project(root, "a", decision="ADR-0099/0")
@@ -95,7 +97,7 @@ class TestNoBlocker:
         assert "| Not started | — |" in rows()[0]
         path.write_text(path.read_text(encoding="utf-8").replace("status: approved", "status: working"), encoding="utf-8")
         assert "| Not started | — |" not in rows()[0]
-        assert "| Not started | waiting on [ADR-0013/0]" in rows()[0]
+        assert "| Not started | waiting on [ADR-0013/0 (" in rows()[0]
 
     def test_every_view_that_renders_a_status_shows_it(self, root):
         revision(root, "0013-secret-storage", 0, status="approved")
@@ -122,13 +124,16 @@ class TestWaitingOnADecisionLabel:
         revision(root, "0013-secret-storage", 0, status="working")
         project(root, "a", decision="ADR-0013/0", **fields)
         project(root, "b", **fields)
-        assert f"| Not started | waiting on [ADR-0013/0]({link}) |" in render(root)
+        assert f"| Not started | waiting on [ADR-0013/0 (0013-secret-storage)]({link}) |" in render(root)
 
     def test_a_lettered_candidate_is_linked_by_its_label(self, root):
         revision(root, "0013-secret-storage", 0, letter="a", status="abandoned")
         revision(root, "0013-secret-storage", 0, letter="b", status="working")
         project(root, "a", decision="ADR-0013/0-b")
-        assert "| Not started | waiting on [ADR-0013/0-b](../decisions/0013-secret-storage/revision-000-b.md) |" in gen.render_projects_table(root)
+        assert (
+            "| Not started | waiting on [ADR-0013/0-b (0013-secret-storage)](../decisions/0013-secret-storage/revision-000-b.md) |"
+            in gen.render_projects_table(root)
+        )
 
     @pytest.mark.parametrize(
         ("fields", "expected"),
@@ -153,6 +158,40 @@ class TestWaitingOnADecisionLabel:
         project(root, "left-out", **fields)
         cells = gen.render_projects_table(root).splitlines()[-1].split("|")
         assert (cells[3].strip(), cells[4].strip()) == expected
+
+
+class TestOrderByStatus:
+    """The project tables list started work first, then spikes, then the rest, each by file name."""
+
+    def names(self, render, root):
+        return [row.split("|")[1].split("`")[1] for row in render(root).splitlines()[2:]]
+
+    @pytest.mark.parametrize("render", [gen.render_projects_table, gen.render_standalone_projects_table])
+    def test_building_then_de_risking_then_not_started_then_done(self, root, render):
+        project(root, "a-idle")
+        project(root, "b-done", status="done")
+        project(root, "c-spike", status="de-risking")
+        project(root, "d-build", status="building")
+        project(root, "e-build", status="building")
+        project(root, "f-idle")
+        assert self.names(render, root) == ["d-build.md", "e-build.md", "c-spike.md", "a-idle.md", "f-idle.md", "b-done.md"]
+
+    def test_the_super_projects_view_keeps_its_build_order(self, root):
+        project(root, "a-first", super_project="s")
+        project(root, "b-second", super_project="s", status="building", depends_on=[{"project": "PROJ-a-first", "reason": "x"}])
+        project(root, "c-other", super_project="s")
+        with contextlib.redirect_stderr(io.StringIO()):
+            table = gen.render_initiatives_table(root)
+        assert [line.split("|")[2].split("`")[1] for line in table.splitlines()[2:]] == ["a-first.md", "c-other.md", "b-second.md"]
+
+
+class TestDecisionShortName:
+    """`short` is required on every revision, so a resolved decision always has one."""
+
+    def test_a_revision_with_a_short_name_is_linked_by_it(self, root):
+        revision(root, "0013-secret-storage", 0, status="working", short="Secret storage")
+        project(root, "a", decision="ADR-0013/0")
+        assert "waiting on [ADR-0013/0 (Secret storage)](../decisions/0013-secret-storage/revision-000.md)" in gen.render_projects_table(root)
 
 
 class TestInitiativesTable:

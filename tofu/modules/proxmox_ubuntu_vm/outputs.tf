@@ -8,6 +8,11 @@ output "hostname" {
   value       = proxmox_virtual_environment_vm.this.name
 }
 
+output "datastore_id" {
+  description = "Datastore of the VM's system disk."
+  value       = proxmox_virtual_environment_vm.this.disk[0].datastore_id
+}
+
 output "ip_address" {
   description = "Static IPv4 address, without the prefix length."
   value       = local.ip_address

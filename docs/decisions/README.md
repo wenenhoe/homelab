@@ -262,7 +262,7 @@ lists it to read again; update the column when you have.
 | ADR 0096 and 0108 | Hook pinning is `working` and has open assumptions. Re-read it once accepted. | 0096 working, 0108 accepted |
 | ADR 0018 and 0023 | Unsealing OpenBao after a restart, and how credential code stores its output. 0018 is `working`. | 0018 working, 0023 accepted |
 | ADR 0023, 0109, 0110 | Storage and rotation cadence, expiry, and the R2 admin token. They share a topic and link one another, but each states a different choice with its own triggers. | 0023 accepted, 0109 accepted, 0110 accepted |
-| ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. 0080 is `working`. | 0037 accepted, 0080 working, 0082 accepted |
+| ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. 0080 is `approved`. | 0037 accepted, 0080 approved, 0082 accepted |
 
 Nothing is renumbered: a number identifies a problem for good, and git holds
 what a deleted record said.

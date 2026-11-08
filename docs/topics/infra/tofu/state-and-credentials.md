@@ -20,7 +20,7 @@ backend and holds no secret.
 ```mermaid
 flowchart LR
     host["Host that runs Tofu"] -- "encrypted state, lock" --> live[("opentofu-state<br/>R2")]
-    host -. "planned: GPG copy after each apply" .-> copy[("opentofu-state-b2<br/>B2")]
+    host -. "after each apply: GPG copy" .-> copy[("opentofu-state-b2<br/>B2")]
 ```
 
 | Aspect | Setting |
@@ -29,7 +29,7 @@ flowchart LR
 | Lock | `use_lockfile`: R2 refuses a second conditional write, so a second run is refused while the first holds the lock |
 | Encryption | OpenTofu state encryption (`pbkdf2` key, `aes_gcm`) on state and plan files, `enforced`, so a missing or wrong passphrase fails the run and never writes plaintext. R2 holds only ciphertext |
 | Credential | An R2 key for that bucket only; it reads, writes and deletes |
-| Copy | Planned: after each apply a GPG-encrypted `tofu state pull` goes to `opentofu-state-b2` on B2 with a key that cannot delete |
+| Copy | After each apply [`state-copy-push.sh`](#state-copy) pushes a GPG-encrypted `tofu state pull` to `opentofu-state-b2` on B2 with a key that cannot delete |
 | Offline copy | The passphrase, held like the backup GPG key, since the file that holds it is what a total loss removes |
 
 Neither the token nor the endpoint appears in the state, but the domain and the SSH
@@ -60,6 +60,35 @@ stops at backend initialisation. The scratch roots under `tofu/scratch/` are sep
 directories with no backend, so they keep their own `-state` files and are not
 affected. In the root module, `-state=` is ignored once a backend is declared and the
 command runs on the live state, so do not pass it.
+
+### State copy
+
+After each apply, from anywhere on the host that runs Tofu:
+
+```sh
+tools/tofu_state/state-copy-push.sh
+```
+
+The script pulls the state, encrypts it to the backup GPG key at once, and pushes it
+to `opentofu-state-b2/state/` under a new name, `state-<UTC time>.json.gpg`, with
+`rclone copy` only. The plaintext pull exists in one scratch directory that is removed
+on every exit, including a failed one. The R2 environment is sourced for the pull
+alone and the B2 key for the rclone config alone, so each provider's credential reaches
+only its own process. It reads `~/.config/tofu/state-copy.env`, which
+`create_state_keys.py --provider b2` writes; the key writes but cannot delete, so old
+copies stay until a lifecycle rule set on the bucket by hand prunes them.
+
+To recover from a copy, with the offline GPG key and a read credential minted for the
+occasion, download the newest object under `state/` from `opentofu-state-b2` with any
+S3 client, then:
+
+```sh
+gpg --decrypt <name>.json.gpg > recovered.json
+. ~/.config/tofu/state-backend.env
+tofu -chdir=tofu state push recovered.json
+```
+
+Delete `recovered.json` afterwards; it is the state in plaintext.
 
 ### Migrating the local state
 

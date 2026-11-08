@@ -218,7 +218,7 @@
 - name: Make the leaf cert/key world-readable, as root inside a throwaway container (throwaway test key — no real security value)
   community.docker.docker_container:
     name: openbao-test-chmod-certs
-    image: alpine:3.24@sha256:ce9e1e6d23f04a0b7593445a062a9fc73ed52f8260b9396f77a958295ad18ee7
+    image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
     volumes:
       - /tmp:/tmp
     command:

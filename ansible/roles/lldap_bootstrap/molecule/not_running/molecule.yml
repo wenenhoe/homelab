@@ -8,7 +8,7 @@ driver:
   name: docker
 platforms:
   - name: lldap-bootstrap-not-running-instance
-    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:be93de7e3a833b14007d24a41da1d9b833e85330daa01c17f545e9b16454bf91
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:783c4bb7423377606953839d711fe55fe17adda9107d26d2aebecee096f05061
     privileged: true
     cgroupns_mode: host
     volumes:

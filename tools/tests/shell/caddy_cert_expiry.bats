@@ -33,7 +33,7 @@ expires_in() {
 }
 
 @test "a certificate with more than the threshold left passes" {
-  NOT_AFTER=$(expires_in "40 days") run "$SCRIPT"
+  NOT_AFTER=$(expires_in "40 days 12 hours") run "$SCRIPT"
   assert_success
   assert_output --partial "app.example.test: certificate expires"
   assert_output --partial "(40 days left)"
@@ -62,7 +62,7 @@ expires_in() {
 }
 
 @test "the connection goes to loopback with the real hostname as the SNI" {
-  NOT_AFTER=$(expires_in "40 days") run "$SCRIPT"
+  NOT_AFTER=$(expires_in "40 days 12 hours") run "$SCRIPT"
   # s_client and x509 run as one pipeline, so which of them records first is not fixed.
   assert_equal "$(calls_to openssl | grep '^openssl s_client ')" "openssl s_client -connect 127.0.0.1:443 -servername app.example.test"
 }

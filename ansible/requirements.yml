@@ -5,15 +5,15 @@ collections:
   - name: ansible.posix
     version: "2.2.2"
   - name: amazon.aws
-    version: "12.0.0"
+    version: "12.1.0"
   - name: community.hashi_vault
     version: "7.1.0"
   - name: community.crypto
     version: "3.5.1"
   - name: konstruktoid.hardening
-    version: "0.4.0"
+    version: "0.5.0"
   - name: community.general
-    version: "13.5.0"
+    version: "14.0.0"
   # Pinned by commit: the git tag 26.1.11 carries an earlier version's metadata.
   # The same commit is in the opnsense_gateway role's defaults.
   - name: https://github.com/O-X-L/ansible-opnsense.git

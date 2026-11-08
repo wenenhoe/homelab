@@ -18,7 +18,7 @@ repos:
       - id: yamllint
         args: [--strict, -c, .config/.yamllint]
   - repo: https://github.com/ansible/ansible-lint
-    rev: v26.10.1
+    rev: v26.11.0
     hooks:
       - id: ansible-lint
         stages: [pre-push]
@@ -46,9 +46,9 @@ repos:
         # its language.
         language: python
         additional_dependencies:
-          - ansible==14.5.0
+          - ansible==14.6.0
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.3
+    rev: v0.17.4
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -94,7 +94,7 @@ repos:
       - id: actionlint-docker
         args: [-config-file, .config/.actionlint.yaml]
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.31.1
+    rev: v1.32.0
     hooks:
       # args replaces the manifest's own, so --no-progress is repeated.
       - id: zizmor

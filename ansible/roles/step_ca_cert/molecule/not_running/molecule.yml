@@ -3,7 +3,7 @@ driver:
   name: docker
 platforms:
   - name: step-ca-cert-not-running-instance
-    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:919ee3092f78df3207611fc2ef4f08fffaf058ec119044e45927043891c14364
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:be93de7e3a833b14007d24a41da1d9b833e85330daa01c17f545e9b16454bf91
     privileged: true
     cgroupns_mode: host
     volumes:

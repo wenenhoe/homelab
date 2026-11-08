@@ -5,7 +5,7 @@ Requires=docker.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /opt/r2-read-watcher/r2_read_watcher.py
+ExecStart=/usr/bin/python3 /opt/rotation-read-watcher/rotation_read_watcher.py
 # always, not on-failure: the watcher follows `docker logs -f`, which ends
 # without an error when the openbao container stops, and the watcher then
 # exits 0. on-failure would leave it stopped.
@@ -14,7 +14,7 @@ RestartSec=10
 # Root, not a docker-group user: docker-group membership is already
 # root-equivalent (well-known Docker caveat), so there's no real
 # privilege reduction available here either way. The actual privilege
-# boundary is r2-read-watcher's own Vault AppRole (read-only on one
+# boundary is rotation-read-watcher's own Vault AppRole (read-only on one
 # Telegram path), not the OS user running this unit.
 User=root
 

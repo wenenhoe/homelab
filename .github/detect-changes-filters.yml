@@ -91,9 +91,9 @@ python_unit_tests:
   # tests them.
   - 'tools/doc_scripts/**'
   # Not under ansible/ — imported via sys.path in
-  # ansible/tests/test_r2_read_watcher.py (see that file's
+  # ansible/tests/test_rotation_read_watcher.py (see that file's
   # own docstring for why).
-  - 'docker/openbao/watcher/r2_read_watcher.py'
+  - 'docker/openbao/watcher/rotation_read_watcher.py'
   - 'pyproject.toml'
   - 'uv.lock'
 # Gates release-checksums: the registry, the verifier and the committed keys,

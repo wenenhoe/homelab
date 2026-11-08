@@ -22,7 +22,7 @@ type in the repo. The scoped outputs:
 | `tofu` | Anything under `tofu/`, which includes the committed provider lock file. Not narrowed by the comment-only rule below. Gates `tofu-checks`; see [the `tofu-checks` job](pipeline.md#jobs). |
 | `shell_tests` | Any `.sh` or `.sh.j2` file, `tools/tests/shell/**`, `tools/ci/shell_tests/**`, or `tools/ci/verification.py`. Not narrowed by the comment-only rule below. See [Shell tests](shell-tests.md#in-ci). |
 | `shell_test_pins` | `tools/ci/shell_tests/**` or `tools/ci/verification.py`. Gates the pin check inside the `shell-tests` job. See [Shell test pins](shell-test-pins.md#where-it-runs). |
-| `python_unit_tests` | `ansible/scripts/*.py`, `tools/cloud_credentials/**`, `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/tofu_inventory/**`, `tools/rebuild_check/**`, `tofu/modules/proxmox_opnsense_vm/seed/*.py`, `tofu/modules/proxmox_opnsense_vm/first_boot/*.py`, `tofu/scratch/opnsense/update_gateway.sh`, `tools/utils/**`, `tools/ci/**`, `.github/workflows/**`, `.github/molecule-shards.yml`, `tools/doc_scripts/**`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/module_utils/**`, `ansible/roles/*/library/**`, `ansible/tests/**`, `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
+| `python_unit_tests` | `ansible/scripts/*.py`, `tools/cloud_credentials/**`, `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/tofu_inventory/**`, `tools/rebuild_check/**`, `tofu/modules/proxmox_opnsense_vm/seed/*.py`, `tofu/modules/proxmox_opnsense_vm/first_boot/*.py`, `tofu/scratch/opnsense/update_gateway.sh`, `tools/utils/**`, `tools/ci/**`, `.github/workflows/**`, `.github/molecule-shards.yml`, `tools/doc_scripts/**`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/module_utils/**`, `ansible/roles/*/library/**`, `ansible/tests/**`, `tools/tests/**`, `docker/openbao/watcher/rotation_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
 
 A few paths map to *every* role: `ansible/requirements.yml` (a Galaxy
 collection bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core`
@@ -43,7 +43,7 @@ so a change to any of them alters what it exercises.
 
 `python_unit_tests` covers plain controller-side Python, not Ansible roles,
 through the `pytest` suites in `ansible/tests/` and `tools/tests/`. That
-includes `r2_read_watcher.py`, the one file outside either tree that
+includes `rotation_read_watcher.py`, the one file outside either tree that
 `ansible/tests/` imports directly, through the `pythonpath` in
 `pyproject.toml`'s `[tool.pytest]`, and the shared module code in
 `ansible/module_utils/` and the modules in a role's `library/`, which

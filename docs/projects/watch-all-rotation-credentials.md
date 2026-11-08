@@ -8,10 +8,8 @@ summary: Make the OpenBao read-watcher alert on a read of the B2 and OCI rotatio
 decision: ADR-0026/1
 allowed_paths:
   - docker/openbao/watcher/**
-  - docker/openbao/policies/r2-read-watcher.hcl
   - docker/openbao/policies/rotation-read-watcher.hcl
   - docker/openbao/policies/cd-agent-freshness.hcl
-  - ansible/tests/test_r2_read_watcher.py
   - ansible/tests/test_rotation_read_watcher.py
   - ansible/inventory/group_vars/all/main.yaml
   - ansible/inventory/group_vars/all/secret_catalog.yaml
@@ -20,7 +18,6 @@ allowed_paths:
   - tools/rebuild_check/host.py
   - tools/tests/rebuild_check/test_host.py
   - tools/tests/ci/promotion/test_rules.py
-  - docs/topics/secrets/openbao-r2-read-watcher.md
   - docs/topics/secrets/openbao-rotation-read-watcher.md
   - docs/topics/secrets/openbao-reinit-runbook.md
   - docs/topics/secrets/cloud-credentials/scoping.md
@@ -69,15 +66,15 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Watch the three paths, in code, tests and docs | Done | `test_r2_read_watcher.py` shows an alert for a read of each of the three paths that names it, none for an identifier-only path, and one alert per read; the watcher doc's expected-alerts section and `scoping.md` describe the watched set |
-| 2 | Rename to `rotation-read-watcher` | Not started | no tracked file outside decision history and the fire-drill record names `r2-read-watcher` or `r2_read_watcher`; the watcher's tests and `rebuild_check` use the new names; the watcher doc, the Gatus doc and ADR 0026 revision 1 describe the new name |
+| 1 | Watch the three paths, in code, tests and docs | Done | `test_rotation_read_watcher.py` shows an alert for a read of each of the three paths that names it, none for an identifier-only path, and one alert per read; the watcher doc's expected-alerts section and `scoping.md` describe the watched set |
+| 2 | Rename to `rotation-read-watcher` | Done | no tracked file outside decision history and the fire-drill record names `r2-read-watcher` or `r2_read_watcher`; the watcher's tests and `rebuild_check` use the new names; the watcher doc, the Gatus doc and ADR 0026 revision 1 describe the new name |
 | 3 | Install on `security` | Not started | the renamed watcher runs on `security` under its new AppRole and heartbeat, the old units and directories are gone from it, and the next weekly freshness run raised three alerts naming the role that ran it and no other |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 3 — Install on `security`
 
-The script is installed by hand ([the watcher doc](../topics/secrets/openbao-r2-read-watcher.md)).
+The script is installed by hand ([the watcher doc](../topics/secrets/openbao-rotation-read-watcher.md)).
 The old install is replaced, not renamed in place: the new AppRole, its
 `secret_id`, the heartbeat token and the new units are created first, the state
 file is carried over so the new unit resumes without re-alerting on past reads,
@@ -95,7 +92,7 @@ format is unchanged, so an old record stays valid.
 
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced. Stage 3 is run by the operator on `security`, not by a pull request.
 - **Must not change:** the rules of the watcher's AppRole policy, the audit device, or the resume record's format.
-- **Relevant files and interfaces:** [`r2_read_watcher.py`](../../docker/openbao/watcher/r2_read_watcher.py) and its test, `ansible/tests/test_r2_read_watcher.py`.
+- **Relevant files and interfaces:** [`rotation_read_watcher.py`](../../docker/openbao/watcher/rotation_read_watcher.py) and its test, `ansible/tests/test_rotation_read_watcher.py`.
 - **Required checks:** `pre-commit run --all-files`, and the watcher's tests.
 
 ## Risks

@@ -14,7 +14,7 @@ same path - matching on `type == "request"` alone is sufficient and
 avoids double-alerting on one real read.
 
 Runs as a persistent systemd service on `security` - see
-docs/topics/secrets/openbao-r2-read-watcher.md for installation. Logs in once at
+docs/topics/secrets/openbao-rotation-read-watcher.md for installation. Logs in once at
 startup to fetch Telegram's secrets, then never touches Vault again
 for the rest of the process's life; alerting itself is a direct
 Telegram Bot API call, not a Vault operation.
@@ -71,12 +71,12 @@ WATCHED_PATHS = frozenset(
         "_rotation-key-oci-client-secret",
     )
 )
-OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/topics/secrets/openbao-r2-read-watcher.md
-ROLE_ID_PATH = "/etc/r2-read-watcher/role_id"
-SECRET_ID_PATH = "/etc/r2-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
+OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/topics/secrets/openbao-rotation-read-watcher.md
+ROLE_ID_PATH = "/etc/rotation-read-watcher/role_id"
+SECRET_ID_PATH = "/etc/rotation-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
 TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021
 VAULT_KV_MOUNT = "secret"
-STATE_PATH = "/var/lib/r2-read-watcher/state.json"
+STATE_PATH = "/var/lib/rotation-read-watcher/state.json"
 # Bounds the hvac.Client - see cloud_credentials/secret_store.py's identical
 # constant/comment.
 _TIMEOUT_SECONDS = 10

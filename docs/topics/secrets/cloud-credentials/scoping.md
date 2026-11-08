@@ -186,7 +186,7 @@ caches to `_rotation-key-cloudflare-r2-token`, and every later call
 cached token is master-equivalent, not a narrower delegate like B2's/
 OCI's rotation keys. The difference is blast radius, not scrutiny: a read of
 B2's application key or OCI's client secret raises an alert just as a read of
-this token does ([watcher](../openbao-r2-read-watcher.md#watched-set)). See
+this token does ([watcher](../openbao-rotation-read-watcher.md#watched-set)). See
 [ADR 0110 (R2 admin token custody)](../../../decisions/0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)
 for why that's accepted rather than worked around.
 

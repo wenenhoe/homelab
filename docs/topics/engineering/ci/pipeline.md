@@ -299,7 +299,7 @@ The rules are a table in [`ci/promotion/rules.py`](../../../../tools/ci/promotio
 
 Only the OpenBao **server** container seals. The compose file's image pin and the seeded `openbao.hcl` are what recreate or restart it, so they are the only OpenBao paths that fire. The role's one-shot containers (`openbao-read-uid`, `openbao-chown-data`, the `step_ca_cert` chown) and the native `bao` client package on `security` run from the same release and are never sealed, and a certificate renewal reloads the server with `SIGHUP` and leaves it unsealed, so none of those ask for an unseal.
 
-Two kinds of change are applied by hand and have no rule: a new or changed Vault policy (`docker/openbao/policies/`, written with `bao policy write <name>`) and the R2 read watcher's files (`docker/openbao/watcher/`, copied to `security`). Both depend on the file's name or on where it is installed, which the table's fixed commands cannot express, so the pull request description's own text is where to note them.
+Two kinds of change are applied by hand and have no rule: a new or changed Vault policy (`docker/openbao/policies/`, written with `bao policy write <name>`) and the rotation read watcher's files (`docker/openbao/watcher/`, copied to `security`). Both depend on the file's name or on where it is installed, which the table's fixed commands cannot express, so the pull request description's own text is where to note them.
 
 To add a rule, add a `Rule` to the table with a test in `tools/tests/ci/promotion/test_rules.py` for a path it asks for and one it does not.
 

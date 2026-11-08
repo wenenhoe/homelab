@@ -160,12 +160,12 @@ def step_ca_is_healthy(run: Runner, expected: Expected) -> Result:
     return Result(False, f"step ca health said {out.strip()[:120] or 'nothing'} (exit {status})")
 
 
-def r2_read_watcher_is_running(run: Runner, expected: Expected) -> Result:
-    status, out = run("systemctl is-active r2-read-watcher.service r2-read-watcher-heartbeat.timer")
+def rotation_read_watcher_is_running(run: Runner, expected: Expected) -> Result:
+    status, out = run("systemctl is-active rotation-read-watcher.service rotation-read-watcher-heartbeat.timer")
     states = out.split()
     if status == 0 and states == ["active", "active"]:
         return Result(True, "the service and its heartbeat timer are active")
-    return Result(False, f"r2-read-watcher is {' / '.join(states) or 'not installed'}: it is installed by hand, see openbao-r2-read-watcher.md")
+    return Result(False, f"rotation-read-watcher is {' / '.join(states) or 'not installed'}: it is installed by hand, see openbao-rotation-read-watcher.md")
 
 
 def tinyauth_reaches_ldap(run: Runner, expected: Expected) -> Result:
@@ -247,7 +247,7 @@ COMMON_CHECKS = (
 DOCKER_CHECKS = (containers_resolve_the_hosts_name, containers_are_running_and_healthy)
 
 HOST_CHECKS = {
-    "security": (openbao_is_unsealed, step_ca_is_healthy, tinyauth_reaches_ldap, r2_read_watcher_is_running),
+    "security": (openbao_is_unsealed, step_ca_is_healthy, tinyauth_reaches_ldap, rotation_read_watcher_is_running),
     "tailscale": (ip_forwarding_is_on, tailscale_is_online, tailscale_carries_its_tag, tailscale_routes_are_approved, tailscale_key_does_not_expire),
 }
 

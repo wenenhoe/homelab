@@ -15,7 +15,7 @@ narrows: ADR-0026
 
 ## Context
 
-`docker/openbao/watcher/r2_read_watcher.py` (ADR 0026) is a
+`docker/openbao/watcher/r2_read_watcher.py` (renamed: `rotation_read_watcher.py`) (ADR 0026) is a
 purpose-built Python watcher for exactly one thing: alerting on reads
 of the R2 admin token. Confirmed: no SIEM/audit-log tooling (Wazuh or
 otherwise) exists anywhere in this repo today — this is a genuinely

@@ -136,5 +136,5 @@ console for the run ([`network-infra.md`](../infra/network-infra.md#tailscale-no
 | The Beszel fingerprint | [`beszel.md`](../monitoring/beszel.md#rebuilding-a-host) |
 | Creating the dump storage, once | [Dump storage](rebuild-tools.md#dump-storage) |
 | OpenBao's unseal after any restart of it | [`openbao.md`](../secrets/openbao.md) |
-| `r2-read-watcher` on `security`: its AppRole's `role_id` and `secret_id` can be read and minted only by the `vault-bootstrap` identity, never by the `controller` identity Ansible runs as. `rebuild_check.host security` fails until it is installed | [`openbao-r2-read-watcher.md`](../secrets/openbao-r2-read-watcher.md#installing) |
+| `rotation-read-watcher` on `security`: its AppRole's `role_id` and `secret_id` can be read and minted only by the `vault-bootstrap` identity, never by the `controller` identity Ansible runs as. `rebuild_check.host security` fails until it is installed | [`openbao-rotation-read-watcher.md`](../secrets/openbao-rotation-read-watcher.md#installing) |
 | Fetching and decrypting the step-ca archive for the `security` bootstrap, needed before any secret is reachable | [`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#rebuilding-security) |

@@ -30,7 +30,7 @@ that had nothing to do with credentials.
   `sys.path` and working-directory manipulation throughout (`[tool.uv]
   package = false`, no real Python packaging), so a `tools/` root shares it with
   no change.
-- `r2_read_watcher.py` is hand-installed as a single file onto `security`'s system
+- `r2_read_watcher.py` (renamed: `rotation_read_watcher.py`) is hand-installed as a single file onto `security`'s system
   Python and referenced by no Dockerfile. It is never part of the `uv`-managed
   tree, and sharing code across that boundary would mean shipping a second file
   with a script whose point is staying one file.

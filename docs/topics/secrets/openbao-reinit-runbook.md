@@ -109,10 +109,10 @@ can't fix.
    ```sh
    cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
 
-   bao policy write r2-read-watcher - < ../docker/openbao/policies/r2-read-watcher.hcl
+   bao policy write rotation-read-watcher - < ../docker/openbao/policies/rotation-read-watcher.hcl
 
-   bao write auth/approle/role/r2-read-watcher \
-     token_policies="r2-read-watcher" \
+   bao write auth/approle/role/rotation-read-watcher \
+     token_policies="rotation-read-watcher" \
      token_ttl=1h \
      token_max_ttl=1h \
      secret_id_ttl=0 \
@@ -139,7 +139,7 @@ can't fix.
    once that method is built, if it is meaningful.
 
    This step only provisions the identity. The watcher's install steps
-   in [`openbao-r2-read-watcher.md`](openbao-r2-read-watcher.md) mint its
+   in [`openbao-rotation-read-watcher.md`](openbao-rotation-read-watcher.md) mint its
    `secret_id` and write it, with the `role_id`, to the files on `security`.
 
 7. Revoke root, same as `openbao-auth.md`'s own last step.

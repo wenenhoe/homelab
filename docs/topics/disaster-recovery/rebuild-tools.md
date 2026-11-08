@@ -134,7 +134,7 @@ being trusted.
 | `containers_are_running_and_healthy` | Docker hosts | A container exited, restarts, is unhealthy or is still starting |
 | `ip_forwarding_is_on` | `tailscale` | IPv4 or IPv6 forwarding is not 1 |
 | `tailscale_is_online`, `tailscale_carries_its_tag`, `tailscale_routes_are_approved`, `tailscale_key_does_not_expire` | `tailscale` | Read from `tailscale status --self --json`: the node is offline, lacks its tag, advertises routes the policy did not approve, or its key expires |
-| `openbao_is_unsealed`, `step_ca_is_healthy`, `tinyauth_reaches_ldap` (no LDAP error lines in tinyauth's last ten minutes), `r2_read_watcher_is_running` | `security` | The service behind each name is down or not installed |
+| `openbao_is_unsealed`, `step_ca_is_healthy`, `tinyauth_reaches_ldap` (no LDAP error lines in tinyauth's last ten minutes), `rotation_read_watcher_is_running` | `security` | The service behind each name is down or not installed |
 
 A host of the `network_infra` group has no Docker, so it skips the two container
 checks. Add a check for what only another host runs to `HOST_CHECKS` in

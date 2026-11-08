@@ -22,7 +22,7 @@ meant to protect.
 
 **The matched line type.** Revision 0 says the watcher matches
 `type: "response"` lines. The watcher
-([`r2_read_watcher.py`](../../../docker/openbao/watcher/r2_read_watcher.py))
+([`rotation_read_watcher.py`](../../../docker/openbao/watcher/rotation_read_watcher.py))
 matches `type: "request"` lines instead, and its docstring gives the
 reason: one read writes both a `request` and a `response` line carrying the
 same path, so matching either alone avoids a double alert. The request line
@@ -98,12 +98,13 @@ Telegram path alone.
 ## Consequences
 
 - Every weekly freshness run raises three alerts instead of one. The
-  [watcher doc](../../topics/secrets/openbao-r2-read-watcher.md)'s
+  [watcher doc](../../topics/secrets/openbao-rotation-read-watcher.md)'s
   "Expected alerts" section changes to say so, and to describe the
   watched set instead of "the R2 rotation token's path".
-- The watcher's name still says R2. Renaming the script, unit and state
-  directory would touch a hand-installed host, so this revision leaves it,
-  and the doc says why.
+- The watcher no longer watches R2 alone, so it is renamed
+  `rotation-read-watcher`: the script, units, state and credential
+  directories, AppRole, policy and heartbeat. The hand-installed host is
+  moved over once.
 - [`scoping.md`](../../topics/secrets/cloud-credentials/scoping.md) and
   [ADR 0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)
   call B2's and OCI's rotation keys "genuinely narrower". That stays true of

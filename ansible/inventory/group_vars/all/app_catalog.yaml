@@ -23,6 +23,7 @@
 # Leave it out elsewhere: any other system's tier follows from its `backup`.
 app_catalog:
   caddy:
+    doc: docs/topics/records/caddy.md
     volumes:
       - name: caddyfile
       - name: data
@@ -69,11 +70,13 @@ app_catalog:
       - name: run
 
   bentopdf:
+    doc: docs/topics/records/bentopdf.md
     routes:
       default:
         upstream: "bentopdf:8080"
 
   cobalt:
+    doc: docs/topics/records/cobalt.md
     configs:
       - src: env.j2
         dest: .env
@@ -89,6 +92,7 @@ app_catalog:
   # both. Change the dashboard in the template: an edit made in the UI is lost
   # with the volume.
   dashy:
+    doc: docs/topics/records/dashy.md
     volumes:
       - name: data
     configs:
@@ -99,6 +103,7 @@ app_catalog:
         upstream: "dashy:8080"
 
   kms:
+    doc: docs/topics/records/kms.md
     volumes:
       - name: data
     backup:
@@ -109,6 +114,7 @@ app_catalog:
         upstream: "kms-gui:3000"
 
   librespeed:
+    doc: docs/topics/records/librespeed.md
     routes:
       default:
         upstream: "librespeed:8080"
@@ -116,6 +122,7 @@ app_catalog:
   # Link data lives in the container's writable layer (SQLite), with no volume
   # or backup: it is disposable and rebuilt by re-creating the links.
   shlink:
+    doc: docs/topics/records/shlink.md
     configs:
       - src: env.j2
         dest: .env
@@ -148,6 +155,7 @@ app_catalog:
         read_only: true   # browsing only: the filer API would otherwise write and delete outside the per-host S3 identities
 
   wastebin:
+    doc: docs/topics/records/wastebin.md
     volumes:
       - name: data
     backup:
@@ -230,6 +238,7 @@ app_catalog:
     # like lldap's LDAPS. See docs/topics/secrets/openbao.md.
 
   minecraft:
+    doc: docs/topics/records/minecraft.md
     volumes:
       - name: data
       - name: backups

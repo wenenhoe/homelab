@@ -115,6 +115,15 @@ Service records: for each integrated system, what it depends on, holds, exposes,
 | [`beszel-hub.md`](records/beszel-hub.md) | The monitoring hub. |
 | [`beszel-agent.md`](records/beszel-agent.md) | The per-host monitoring agent. |
 | [`gatus.md`](records/gatus.md) | The job-heartbeat monitor. |
+| [`caddy.md`](records/caddy.md) | The per-host reverse proxy and TLS terminator. |
+| [`bentopdf.md`](records/bentopdf.md) | The PDF toolbox. |
+| [`cobalt.md`](records/cobalt.md) | The media-download proxy. |
+| [`dashy.md`](records/dashy.md) | The service dashboard. |
+| [`kms.md`](records/kms.md) | The activation emulator and its console. |
+| [`librespeed.md`](records/librespeed.md) | The speed test. |
+| [`shlink.md`](records/shlink.md) | The URL shortener and its web client. |
+| [`wastebin.md`](records/wastebin.md) | The paste service. |
+| [`minecraft.md`](records/minecraft.md) | The game server, map viewer and backup container. |
 
 ## engineering/
 

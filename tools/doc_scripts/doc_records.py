@@ -24,17 +24,7 @@ SECTIONS = ("Dependencies", "Data", "Exposure", "Threat model", "Observability",
 
 # The apps that were in the catalog before the rule, and have no record yet. The list only shrinks:
 # a new app is not added to it, and an app that names a record is taken off it.
-EXEMPT_APPS = (
-    "caddy",
-    "bentopdf",
-    "cobalt",
-    "dashy",
-    "kms",
-    "librespeed",
-    "shlink",
-    "wastebin",
-    "minecraft",
-)
+EXEMPT_APPS = ()
 
 _HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$")
 _FENCE_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")

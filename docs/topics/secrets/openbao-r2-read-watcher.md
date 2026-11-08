@@ -1,14 +1,32 @@
 # OpenBao's R2 Read-Watcher
 
 ADR 0110's per-read alert requirement, and the last piece of
-[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-001.md)
 that wasn't already live (the audit device and its logging cap were —
 see [`openbao.md`](openbao.md)). Tails `docker logs -f openbao` on
-`security`, alerts on any read of the R2 rotation token's Vault path,
-and does nothing else — see
+`security`, alerts on any read of the three secret-bearing rotation
+credentials, and does nothing else — see
 [`docker/openbao/watcher/r2_read_watcher.py`](../../../docker/openbao/watcher/r2_read_watcher.py)'s
 own docstring for the exact matching logic, confirmed against a real
 audit-log capture, not inferred from docs.
+
+## Watched set
+
+All three paths sit under `secret/data/cloud_credentials/rotation/`:
+
+| Provider | Watched path |
+| :--- | :--- |
+| R2 | `_rotation-key-cloudflare-r2-token` |
+| B2 | `_rotation-key-backblaze-b2-application-key` |
+| OCI | `_rotation-key-oci-client-secret` |
+
+The identifier-only paths beside them (`…-b2-key-id`, `…-oci-client-id`,
+`…-oci-app-id`, `…-oci-domain-url`, `…-oci-created-at`) authenticate
+nothing and raise no alert. The alert names the secret that was read. Adding a
+rotation credential is one entry in `WATCHED_PATHS` and a row here.
+
+The script, unit and state directory keep the `r2` name: renaming them would
+touch a hand-installed host.
 
 Hand-installed, checked in but never Ansible-deployed — same
 convention as `controller.hcl`/`vault-bootstrap.hcl`/`r2-read-watcher.hcl`:
@@ -24,13 +42,15 @@ live).
 
 ## Expected alerts
 
-`check_freshness.py` reads the watched path on every run (`check_r2()`
-reads `_rotation-key-cloudflare-r2-token`), so each weekly run raises one
-alert naming the role that ran it: `controller` today, and
-`cd-agent-freshness` once the check moves to `cd_agent`
+`check_freshness.py` reads all three watched secrets on every run: the R2
+token in `check_r2()`, the B2 application key through `b2_rotation_api()`, and
+the OCI client secret through `oci_identity_domains_client()`. Each weekly run
+therefore raises three alerts, one per secret, all naming the role that ran it:
+`controller` today, and `cd-agent-freshness` once the check moves to `cd_agent`
 ([ADR 0020 revision 1 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)).
-That alert is the accepted weekly signal that the freshness check ran. An
-alert at any other time, or naming any other role, is not expected.
+The trio is the accepted weekly signal that the freshness check ran. The
+rotation commands read the same paths when they run, which is also expected. An
+alert at any other time, or naming any other role, is not.
 
 ## Installing
 
@@ -193,6 +213,6 @@ any Vault-backed alerting path.
 
 Until this lands, Gatus's missed-heartbeat alert is the only
 backstop. Since this watcher's only job is alerting on reads of the
-R2 rotation token, any read that happens while it's down goes
+rotation credentials, any read that happens while it's down goes
 undetected until then — Gatus reports the watcher is unhealthy, not
 why, and not what happened while it was down.

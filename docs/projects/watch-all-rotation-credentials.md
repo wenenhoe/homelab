@@ -2,7 +2,7 @@
 id: PROJ-watch-all-rotation-credentials
 title: "Watch All Rotation Credentials"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides.
 decision: ADR-0026/1
@@ -34,7 +34,6 @@ allowed_paths:
   - docs/architecture/secrets-and-credentials-flow.md
   - docs/decisions/0045-*/revision-000.md
   - docs/decisions/0105-*/revision-000.md
-  - docs/decisions/0110-*/revision-000.md
   - docs/projects/watch-all-rotation-credentials.md
 ---
 
@@ -70,7 +69,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Watch the three paths, in code, tests and docs | Not started | `test_r2_read_watcher.py` shows an alert for a read of each of the three paths that names it, none for an identifier-only path, and one alert per read; the watcher doc's expected-alerts section, `scoping.md` and ADR 0110's wording describe the watched set |
+| 1 | Watch the three paths, in code, tests and docs | Done | `test_r2_read_watcher.py` shows an alert for a read of each of the three paths that names it, none for an identifier-only path, and one alert per read; the watcher doc's expected-alerts section and `scoping.md` describe the watched set |
 | 2 | Rename to `rotation-read-watcher` | Not started | no tracked file outside decision history and the fire-drill record names `r2-read-watcher` or `r2_read_watcher`; the watcher's tests and `rebuild_check` use the new names; the watcher doc, the Gatus doc and ADR 0026 revision 1 describe the new name |
 | 3 | Install on `security` | Not started | the renamed watcher runs on `security` under its new AppRole and heartbeat, the old units and directories are gone from it, and the next weekly freshness run raised three alerts naming the role that ran it and no other |
 

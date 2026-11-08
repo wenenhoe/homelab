@@ -5,10 +5,11 @@ docker/openbao/watcher boundary deliberately - that script is
 hand-installed, not part of the ansible/ package tree, but still
 gets real test coverage like everything else in this repo.
 
-Fixture lines below are copied verbatim from a real audit-log capture
-against a live 2.6.2 instance (the spike that grounded ADR 0026's
+The R2 fixture lines below are copied verbatim from a real audit-log
+capture against a live 2.6.2 instance (the spike that grounded ADR 0026's
 watcher design) - not synthesized, so the exact field shapes are
-trustworthy.
+trustworthy. The other paths reuse those lines with only the path swapped:
+the audit device writes the same shape for every KV read.
 """
 
 from __future__ import annotations
@@ -40,6 +41,17 @@ REAL_R2_RESPONSE_LINE = (
     '"path":"secret/data/cloud_credentials/rotation/_rotation-key-cloudflare-r2-token"},'
     '"response":{"data":{"data":{"value":"hmac-sha256:z"}}}}'
 )
+
+ROTATION_PREFIX = "secret/data/cloud_credentials/rotation/"
+R2_PATH = ROTATION_PREFIX + "_rotation-key-cloudflare-r2-token"
+B2_PATH = ROTATION_PREFIX + "_rotation-key-backblaze-b2-application-key"
+OCI_PATH = ROTATION_PREFIX + "_rotation-key-oci-client-secret"
+
+
+def _with_path(line: str, path: str) -> str:
+    assert R2_PATH in line
+    return line.replace(R2_PATH, path)
+
 
 REAL_UNRELATED_LINE = (
     '{"time":"2026-09-09T06:11:55.374857106Z","type":"request","auth":{"policy_results":{"allowed":true},'
@@ -73,27 +85,49 @@ def _ok_response() -> requests.Response:
     return resp
 
 
-class TestMatchR2Read:
-    def test_matches_a_real_request_line_for_the_r2_token(self):
-        match = watcher.match_r2_read(REAL_R2_REQUEST_LINE)
+class TestMatchWatchedRead:
+    def test_extracts_the_read_details_from_a_real_request_line(self):
+        match = watcher.match_watched_read(REAL_R2_REQUEST_LINE)
         assert match is not None
         assert match["role_name"] == "controller"
         assert match["display_name"] == "approle"
         assert match["remote_address"] == "127.0.0.1"
 
     @pytest.mark.parametrize(
+        ("path", "secret"),
+        [
+            pytest.param(R2_PATH, "_rotation-key-cloudflare-r2-token", id="r2"),
+            pytest.param(B2_PATH, "_rotation-key-backblaze-b2-application-key", id="b2"),
+            pytest.param(OCI_PATH, "_rotation-key-oci-client-secret", id="oci"),
+        ],
+    )
+    def test_matches_a_read_of_each_rotation_secret_and_names_it(self, path, secret):
+        match = watcher.match_watched_read(_with_path(REAL_R2_REQUEST_LINE, path))
+        assert match is not None
+        assert match["secret"] == secret
+
+    def test_watches_exactly_the_three_secret_bearing_paths(self):
+        assert {R2_PATH, B2_PATH, OCI_PATH} == watcher.WATCHED_PATHS
+
+    @pytest.mark.parametrize(
         "line",
         [
             pytest.param(REAL_R2_RESPONSE_LINE, id="response-line-for-the-same-read"),
             pytest.param(REAL_UNRELATED_LINE, id="unrelated-path"),
+            pytest.param(_with_path(REAL_R2_REQUEST_LINE, ROTATION_PREFIX + "_rotation-key-backblaze-b2-key-id"), id="b2-key-id"),
+            pytest.param(_with_path(REAL_R2_REQUEST_LINE, ROTATION_PREFIX + "_rotation-key-oci-client-id"), id="oci-client-id"),
+            pytest.param(_with_path(REAL_R2_REQUEST_LINE, ROTATION_PREFIX + "_rotation-key-oci-app-id"), id="oci-app-id"),
+            pytest.param(_with_path(REAL_R2_REQUEST_LINE, ROTATION_PREFIX + "_rotation-key-oci-domain-url"), id="oci-domain-url"),
+            pytest.param(_with_path(REAL_R2_REQUEST_LINE, ROTATION_PREFIX + "_rotation-key-oci-created-at"), id="oci-created-at"),
+            pytest.param(REAL_R2_REQUEST_LINE.replace('"path":"' + R2_PATH + '"', '"path":["' + R2_PATH + '"]'), id="path-that-is-not-a-string"),
             pytest.param("not json at all {{{", id="malformed-json"),
             pytest.param("", id="empty-line"),
             pytest.param("[1, 2, 3]", id="json-that-is-not-a-dict"),
             pytest.param(REAL_R2_REQUEST_LINE.replace('"operation":"read"', '"operation":"update"'), id="write-to-the-same-path"),
         ],
     )
-    def test_ignores_a_line_that_is_not_a_read_of_the_r2_token(self, line):
-        assert watcher.match_r2_read(line) is None
+    def test_ignores_a_line_that_is_not_a_read_of_a_watched_secret(self, line):
+        assert watcher.match_watched_read(line) is None
 
 
 class TestSendAlert:
@@ -101,7 +135,7 @@ class TestSendAlert:
     def test_includes_topic_id_when_present(self, mock_post):
         mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": "42"}
-        match = {"time": "now", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
+        match = {"time": "now", "secret": "s", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
 
         watcher.send_alert(telegram, match)
 
@@ -112,7 +146,7 @@ class TestSendAlert:
     def test_omits_topic_id_when_blank(self, mock_post):
         mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
-        match = {"time": "now", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
+        match = {"time": "now", "secret": "s", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
 
         watcher.send_alert(telegram, match)
 
@@ -123,7 +157,7 @@ class TestSendAlert:
     def test_escapes_html_special_characters_in_match_fields(self, mock_post):
         mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
-        match = {"time": "now", "role_name": "<script>", "display_name": "approle", "remote_address": "1.2.3.4"}
+        match = {"time": "now", "secret": "s", "role_name": "<script>", "display_name": "approle", "remote_address": "1.2.3.4"}
 
         watcher.send_alert(telegram, match)
 
@@ -131,10 +165,21 @@ class TestSendAlert:
         assert "<script>" not in kwargs["data"]["text"]
         assert "&lt;script&gt;" in kwargs["data"]["text"]
 
+    @patch("r2_read_watcher.requests.post", autospec=True)
+    def test_names_the_secret_that_was_read(self, mock_post):
+        mock_post.return_value = _ok_response()
+        telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
+        match = {"time": "now", "secret": "_rotation-key-oci-client-secret", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
+
+        watcher.send_alert(telegram, match)
+
+        _, kwargs = mock_post.call_args
+        assert "Secret: _rotation-key-oci-client-secret" in kwargs["data"]["text"]
+
     @patch("r2_read_watcher.requests.post", side_effect=watcher.requests.RequestException("boom"), autospec=True)
     def test_a_failed_send_is_reported_on_stderr_not_raised(self, mock_post, capsys):
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
-        match = {"time": "now", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
+        match = {"time": "now", "secret": "s", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
 
         watcher.send_alert(telegram, match)
 
@@ -157,6 +202,27 @@ class TestWatch:
 
     @patch("r2_read_watcher._save_state", autospec=True)
     @patch("r2_read_watcher.subprocess.Popen", autospec=True)
+    def test_alerts_once_per_read_across_the_three_secrets_naming_each(self, mock_popen, mock_save_state):
+        # One real read writes a request and a response line; each pair must raise one alert.
+        lines = []
+        for path in (R2_PATH, B2_PATH, OCI_PATH):
+            lines += [_with_path(REAL_R2_REQUEST_LINE, path), _with_path(REAL_R2_RESPONSE_LINE, path)]
+        mock_proc = mock_popen.return_value
+        mock_proc.stdout = iter(line + "\n" for line in lines)
+        mock_proc.wait.return_value = 0
+
+        with patch("r2_read_watcher.send_alert", autospec=True) as mock_send:
+            watcher.watch({"token": "t", "chat_id": "c", "topic_id": ""}, None)
+
+        alerted = [call.args[1]["secret"] for call in mock_send.call_args_list]
+        assert alerted == [
+            "_rotation-key-cloudflare-r2-token",
+            "_rotation-key-backblaze-b2-application-key",
+            "_rotation-key-oci-client-secret",
+        ]
+
+    @patch("r2_read_watcher._save_state", autospec=True)
+    @patch("r2_read_watcher.subprocess.Popen", autospec=True)
     def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state, capsys):
         mock_proc = mock_popen.return_value
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n"])
@@ -166,7 +232,7 @@ class TestWatch:
             rc = watcher.watch(None, None)
 
         assert rc == 3
-        assert "R2 admin token read" in capsys.readouterr().err
+        assert "Rotation credential read" in capsys.readouterr().err
         mock_send.assert_not_called()
 
 

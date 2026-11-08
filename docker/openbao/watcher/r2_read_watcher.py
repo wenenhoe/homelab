@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""ADR 0026's dedicated R2 per-read watcher (ADR 0110's own
+"""ADR 0026's dedicated per-read watcher (ADR 0110's own
 requirement). Tails `docker logs -f openbao` (the audit device's
-stdout, per ADR 0026), alerts on any read of the R2 rotation token's
-Vault path, and does nothing else - no cloud_credentials access, no
-write capability, nothing beyond the one path its own AppRole can
-read (Telegram's secrets).
+stdout, per ADR 0026), alerts on any read of the three secret-bearing
+rotation credentials (R2's token, B2's application key, OCI's client
+secret) and names the one read, and does nothing else - no
+cloud_credentials access, no write capability, nothing beyond the
+one path its own AppRole can read (Telegram's secrets).
 
 Confirmed against a live 2.6.2 audit log (not inferred from docs):
 paths are plaintext, values and tokens are HMAC'd, and a single read
@@ -58,7 +59,18 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # hvac.Client(verify=False) below is deliberate (loopback), silence its warning
 
-TARGET_PATH = "secret/data/cloud_credentials/rotation/_rotation-key-cloudflare-r2-token"
+_ROTATION_PATH_PREFIX = "secret/data/cloud_credentials/rotation/"
+# Secret-bearing paths only: the identifier-only siblings (key ids, client id,
+# app id, domain url, created-at) authenticate nothing, so alerting on them
+# would bury the three reads that matter.
+WATCHED_PATHS = frozenset(
+    _ROTATION_PATH_PREFIX + name
+    for name in (
+        "_rotation-key-cloudflare-r2-token",
+        "_rotation-key-backblaze-b2-application-key",
+        "_rotation-key-oci-client-secret",
+    )
+)
 OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/topics/secrets/openbao-r2-read-watcher.md
 ROLE_ID_PATH = "/etc/r2-read-watcher/role_id"
 SECRET_ID_PATH = "/etc/r2-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
@@ -70,9 +82,9 @@ STATE_PATH = "/var/lib/r2-read-watcher/state.json"
 _TIMEOUT_SECONDS = 10
 
 
-def match_r2_read(raw_line: str) -> dict[str, Any] | None:
+def match_watched_read(raw_line: str) -> dict[str, Any] | None:
     """Parses one audit-log line; returns match details if it's a real
-    read attempt on the R2 rotation token, else None. Never raises -
+    read attempt on one of WATCHED_PATHS, else None. Never raises -
     a malformed or unrelated line (docker log noise, a truncated
     write during rotation) is just not a match, not an error."""
     try:
@@ -90,7 +102,8 @@ def match_r2_read(raw_line: str) -> dict[str, Any] | None:
     if not isinstance(request, dict):
         return None
 
-    if request.get("path") != TARGET_PATH or request.get("operation") != "read":
+    path = request.get("path")
+    if not isinstance(path, str) or path not in WATCHED_PATHS or request.get("operation") != "read":
         return None
 
     auth = entry.get("auth") or {}
@@ -98,6 +111,7 @@ def match_r2_read(raw_line: str) -> dict[str, Any] | None:
     return {
         "time": entry.get("time", "unknown"),
         "request_id": request.get("id", "unknown"),
+        "secret": path.removeprefix(_ROTATION_PATH_PREFIX),
         "role_name": metadata.get("role_name", "unknown"),
         "display_name": auth.get("display_name", "unknown"),
         "remote_address": request.get("remote_address", "unknown"),
@@ -153,8 +167,9 @@ def _escape_telegram_html(text: str) -> str:
 
 def send_alert(telegram: dict[str, str], match: dict[str, Any]) -> None:
     lines = [
-        "<b>R2 admin token read</b>",
+        "<b>Rotation credential read</b>",
         "",
+        f"Secret: {_escape_telegram_html(match['secret'])}",
         f"Time: {_escape_telegram_html(match['time'])}",
         f"Role: {_escape_telegram_html(match['role_name'])}",
         f"Auth method: {_escape_telegram_html(match['display_name'])}",
@@ -206,13 +221,13 @@ def watch(telegram: dict[str, str] | None, prior_state: dict[str, str] | None) -
 
     skip_request_id = prior_state["request_id"] if prior_state is not None else None
     for line in proc.stdout:
-        match = match_r2_read(line)
+        match = match_watched_read(line)
         if match is None:
             continue
         if skip_request_id is not None and match["request_id"] == skip_request_id:
             skip_request_id = None  # --since is inclusive; this is that boundary line, not a new read
             continue
-        print(f"R2 admin token read: {match}", file=sys.stderr)
+        print(f"Rotation credential read: {match}", file=sys.stderr)
         if telegram is not None:
             send_alert(telegram, match)
         _save_state(STATE_PATH, match)

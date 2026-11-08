@@ -50,6 +50,22 @@ Observable conditions that mean this project is done.
 
 - [ ] ...
 
+A project that introduces a system (an app, a service a role deploys, or an
+external dependency) adds one line per section of its service record
+([ADR 0100](../decisions/0100-recording-how-a-system-is-integrated/revision-000.md)),
+and replaces the placeholder path with a link to the record:
+
+- [ ] `Dependencies` of `docs/topics/<group>/<system>.md` states what it needs and what needs it.
+- [ ] `Data` states what it stores or handles, and which of it is a secret.
+- [ ] `Exposure` states what reaches it and what it reaches out to, and with which credential.
+- [ ] `Threat model` states what can go wrong, what is done about it, and how that is known.
+- [ ] `Observability` states how its failure is noticed and by whom.
+- [ ] `Disaster recovery` states what is backed up, how it is restored, and what a rebuild still needs by hand.
+- [ ] `Lifecycle` states how it is upgraded, how it is removed, and what it waits on.
+
+A section that does not apply says why in one line, and a fact not yet known
+says `Unknown:` and what to check.
+
 ## Agent handoff
 
 Omit for work no agent will touch. Stop conditions are in

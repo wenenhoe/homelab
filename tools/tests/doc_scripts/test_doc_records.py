@@ -180,3 +180,11 @@ class TestTheRealRepository:
 
     def test_the_sections_are_the_ones_the_decision_names(self):
         assert records.SECTIONS == ("Dependencies", "Data", "Exposure", "Threat model", "Observability", "Disaster recovery", "Lifecycle")
+
+
+def test_the_project_template_has_one_readiness_line_per_section_in_order() -> None:
+    from doc_scripts.doc_frontmatter import ROOT
+
+    template = (ROOT / "docs/projects/TEMPLATE.md").read_text(encoding="utf-8")
+    lines = [line for line in template.splitlines() if line.startswith("- [ ] `")]
+    assert [line.split("`")[1] for line in lines] == list(records.SECTIONS)

@@ -109,6 +109,7 @@ In `ansible/inventory/group_vars/all/app_catalog.yaml`, add an entry keyed by th
 ```yaml
 app_catalog:
   my-app:
+    doc: docs/topics/<group>/my-app.md
     volumes:
       - name: data
     configs:
@@ -123,6 +124,7 @@ app_catalog:
 
 | Field | Purpose |
 | :--- | :--- |
+| `doc` | The app's service record: a topic doc under `docs/topics/` with the seven sections listed [below](#the-service-record). Required for a new app; the apps from before the rule that have no record yet are on an exemption list that only shrinks. |
 | `volumes` | Named Docker volumes Ansible creates (`./data:/data` becomes `data:/data` in the app's `compose.yaml`). See [`volumes.md`](volumes.md). Omit for stateless apps or to keep a plain bind mount. |
 | `create_dirs` | Subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount. |
 | `configs` | Templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself — no app in the catalog needs this today, so there's no worked example to point to yet. Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](../secrets/secrets.md)). Secrets this repo can generate go in `secret_catalog.yaml`, not a raw `lookup('password', ...)` in the template. |
@@ -132,6 +134,21 @@ app_catalog:
 | `recovery_tier` | Only `1`, for a system every other restore depends on (the secrets store, the certificate authority, the storage host); leave it out of every other entry, whose tier follows from whether it has a `backup`. [ADR 0101 (DR exercise cadence)](../../decisions/0101-exercising-disaster-recovery/revision-000.md) sets how often each tier is exercised. |
 
 The `check-app-catalog` pre-commit hook rejects a repeated app name, a route with no `upstream`, a `backup` block that names no volume or one its `volumes` doesn't declare, a backup setting of the wrong shape or a key that isn't one (here, in a host's own `backup:` override, or in `backup_defaults`), a cloud target `storage` doesn't define, and a host that would start backing up without its SeaweedFS secret pair and host variables. See [`ci/gates.md`](../engineering/ci/gates.md#app-catalog-rules).
+
+### The service record
+
+`doc:` names a topic doc that answers, in this order under `##` headings,
+`Dependencies`, `Data`, `Exposure`, `Threat model`, `Observability`,
+`Disaster recovery` and `Lifecycle`. What each asks is in
+[ADR 0100 (Recording a system's integration)](../../decisions/0100-recording-how-a-system-is-integrated/revision-000.md).
+A section that does not apply says why in one line, and a fact not yet known
+says `Unknown:` and what to check; only an empty or missing section fails
+the `check-doc-drift` hook. Don't restate what the catalog declares (hosts,
+volumes, routes, backup): the generated
+[coverage table](../disaster-recovery/coverage.md) shows it. Add the record to
+[`docs/topics/README.md`](../README.md). A project that introduces the app
+carries one line per section in its acceptance criteria, from
+[`docs/projects/TEMPLATE.md`](../../projects/TEMPLATE.md).
 
 ### `backup` keys
 

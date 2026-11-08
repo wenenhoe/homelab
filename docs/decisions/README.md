@@ -292,11 +292,3 @@ The generated [decision index](../decision-index.md) lists every lineage by
 [open decisions](../decision-index.md#open-decisions) with the projects that
 implement them, and the [history](../decision-index.md#history) of superseded
 and abandoned revisions.
-
-## Other design records
-
-`docs/topics/infra/vm-provisioning.md` is this repo's other major architecture
-decision (the OpenTofu/Ansible ownership boundary) — it predates this
-directory and already documents itself as a design record, so it's
-left where it is rather than moved. Once OpenTofu work actually lands,
-new decisions from that effort belong here as regular lineages.

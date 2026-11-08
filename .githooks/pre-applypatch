@@ -11,7 +11,11 @@ if [ ! -x "$hook" ]; then
   exit 1
 fi
 
-views=(docs/projects/README.md docs/project-planning.md docs/decisions/README.md)
+# The generated views, one path per line, in the list the post hook and the tests read too.
+views=()
+while IFS= read -r view; do
+  [ -z "$view" ] || views+=("$view")
+done < "$(git rev-parse --show-toplevel)/.githooks/generated-views"
 
 # After the previous patch of a series, `git am` writes back an index without the views that
 # post-applypatch folded into that commit, which leaves them unstaged. pre-commit stashes

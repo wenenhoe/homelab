@@ -43,8 +43,9 @@ from doc_scripts.doc_frontmatter import REVISION_LABEL, REVISION_PATH_RE, ROOT, 
 from doc_scripts.doc_frozen import HELD_STATUSES, changed_parts, split
 from doc_scripts.doc_retired import find_hits, tracked_text_files
 from doc_scripts.doc_scope import PROJECT_DOC_RE, is_worked
+from doc_scripts.generated_views import generated_views
 
-VIEWS = ("docs/projects/README.md", "docs/project-planning.md", "docs/decisions/README.md")
+VIEWS = generated_views()
 _RELATED_RE = re.compile(r"^related:[^\n]*(?:\n[ \t]*-[^\n]*)*\n?", re.MULTILINE)
 _NARROWS_RE = re.compile(r"^(narrows: )(ADR-\d{4})", re.MULTILINE)
 _FRONTMATTER_RE = re.compile(r"\A(---\n)(.*?\n)(---\n)", re.DOTALL)

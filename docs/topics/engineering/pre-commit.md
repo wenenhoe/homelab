@@ -28,8 +28,9 @@ for hook in pre-applypatch post-applypatch; do
 done
 ```
 
-Patches leave out the generated views (`docs/projects/README.md`,
-`docs/project-planning.md`, `docs/decisions/README.md`), so two series that
+Patches leave out the generated views, listed one per line in
+[`.githooks/generated-views`](../../../.githooks/generated-views) (the project
+and decision indexes and the planning view at the time of writing), so two series that
 each add a project or a decision never conflict on them. After a patch is
 applied, `pre-applypatch` stages the views, regenerates and stages them
 again, then runs the installed `pre-commit` hook. `git am` commits its own

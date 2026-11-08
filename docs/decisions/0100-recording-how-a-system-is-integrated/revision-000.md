@@ -7,7 +7,7 @@ short: Recording a system's integration
 solution: One required-section topic doc per integrated system, linked from its app_catalog entry, checked by check_doc_drift, with a generated disaster-recovery coverage view
 summary: How the repository makes a new app, service or dependency state its dependencies, data, exposure, threat model, observability, disaster recovery and lifecycle when it is added, and keeps what a review of them finds out of git history.
 topic: documentation-process
-status: approved
+status: accepted
 related: [ADR-0028, ADR-0037]
 ---
 
@@ -27,20 +27,16 @@ back.
 
 ## Context
 
-- **Where the answers live today.** The app-adding guide covers wiring: the
-  `docker/` directory, the `app_catalog` entry and `compose_apps`. It does not
-  ask for a threat model, an observability story or a restore path.
-  Per-system topic docs exist for some systems and sit in different groups of
-  `docs/topics/`, so the file name does not identify the system it covers.
+- **Where the answers live today.** The app-adding guide covers wiring, not a
+  threat model, an observability story or a restore path, and per-system topic
+  docs sit in different groups of `docs/topics/`, so a file name does not
+  identify the system it covers.
 - **What the repository already derives.** Which apps declare a `backup`, which
   volumes they name and which hosts run them are data in `app_catalog` and
-  `host_vars`. The fire-drill doc records, per rehearsal, which apps were
-  restored. Neither is joined to the other anywhere, so whether an app that is
-  backed up has ever been restored cannot be read off one page.
-- **What the checks cover.** `check_doc_drift.py` already fails on a missing
-  index entry, a dead anchor and the decision and project rules.
-  `check-app-catalog` validates the shape of a catalog entry. Neither asks
-  whether an entry has any documentation.
+  `host_vars`; the fire-drill doc records which apps each rehearsal restored.
+  Neither is joined to the other, so whether a backed-up app has ever been
+  restored cannot be read off one page. The existing checks do not ask whether
+  an entry has any documentation.
 - **The same sections fit each kind of system.** Drafts of one record for a
   catalog app, for the certificate issuance and renewal a role installs, and for
   the cloud storage targets each filled the six sections first proposed;
@@ -55,13 +51,10 @@ back.
   structured column is needed. The join also shows an app that is backed up and
   was never restored, and a restored system that has no `backup` entry because
   its backup is its own, as OpenBao's snapshot is.
-- **A view the apply hooks do not name stops the apply.** The hooks name their
-  generated views in a fixed list, as does their test. Applied with real
-  `git am`, a patch whose extra view is in that list is committed with the view
-  regenerated, one after another in a series. With the view missing from the
-  list the apply stops on a stale view and makes no commit. A patch that carries
-  the view itself conflicts across two series, which is why patches leave
-  generated views out.
+- **A view the apply hooks do not name stops the apply.** With the view missing
+  from the list the hooks name, a real `git am` stops on a stale view and makes
+  no commit. A patch that carries the view itself conflicts across two series,
+  which is why patches leave generated views out.
 - **Rebuild order is a dependency question.** A host comes back only if what each
   system needs to start is back first; the rebuild of `security` needed its own
   procedure because two systems each needed the other

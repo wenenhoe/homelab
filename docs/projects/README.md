@@ -300,7 +300,6 @@ here.
 | [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md) | — | Building | — | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
 | [`cd-agent.md`](cd-agent.md) | 3 | Building | — | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`dr-exercises.md`](dr-exercises.md) | — | Building | — | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
-| [`integration-records.md`](integration-records.md) | — | Building | — | A required-section topic doc for every integrated system, linked from the app catalog and checked, with a generated disaster-recovery coverage view. |
 | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | — | Building | — | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
 | [`opnsense-config.md`](opnsense-config.md) | — | Building | — | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
 | [`operator-host.md`](operator-host.md) | 2 | De-risking | — | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |

@@ -6,6 +6,7 @@ status: building
 blocked: false
 summary: Move Tofu's state off the dev VM into a remote backend, so Tofu's record of what it built no longer depends on one VM.
 super_project: tofu-vm-provisioning
+decision: ADR-0103/0
 ---
 
 # Tofu Migration
@@ -22,7 +23,7 @@ Moving Tofu's state from the dev VM to a remote backend, and the copies the rebu
 
 No ADR for the first two stages; the design is [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs.
 
-Stage 3 carries out [ADR 0103 (Tofu state backend)](../decisions/0103-where-tofus-state-is-held/revision-000.md), which is `working`. Stage 3 does not start until that revision is `approved` and this doc names it in `decision:`.
+Stage 3 carries out [ADR 0103 (Tofu state backend)](../decisions/0103-where-tofus-state-is-held/revision-000.md).
 
 ## Execution plan
 
@@ -40,7 +41,7 @@ Tofu's state is a local file on the dev VM, and each rebuild changed it. The sta
 
 | Part | State |
 | :--- | :--- |
-| Backend | An encrypted `opentofu-state` bucket on R2 and B2: one provider live, the other holding a GPG copy pushed after each apply ([ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md)) |
+| Backend | An encrypted `opentofu-state` bucket on R2, with a GPG copy pushed to B2 after each apply ([ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md)) |
 | Which provider is live, and the lock | Open: a bucket check on each provider settles it before the ADR can be `approved` |
 | Credentials | A state credential and an encryption key, in the credentials file ([ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md)) |
 | Move | `tofu init -migrate-state` from the operator host |
@@ -69,7 +70,6 @@ Could cause rework or delay but blocks nothing now — no live vulnerability, in
 
 ## Open items
 
-- Which of R2 and B2 is the live backend, and whether either honours conditional writes for the lock. [ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md) leaves both to a bucket check before it can be `approved`.
 - Whether `tailscale` needs the 2 vCPU and 2 GB its module call gives it. The VM is a routing appliance that runs `tailscaled` and the guest agent and no Docker, so it may need less than the hosts the keep-current-size rule was written for. At idle the guest used about 200 MB of its 2 GiB and `tailscaled` about 50 MB, but an idle reading says nothing about the load to come: once the operator host and the laptop replace VM 401, every operator session crosses the router ([ADR 0097](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md)). Measure its memory, CPU and throughput on the live VM under that traffic, over runs that span real operator sessions, and resize it in its module call if the numbers allow.
 
 ## Closing checklist

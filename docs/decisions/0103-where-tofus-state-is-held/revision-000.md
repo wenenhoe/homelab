@@ -7,7 +7,7 @@ short: Tofu state backend
 solution: An encrypted state bucket in the R2 account the lab already uses, with a credential of its own, and a write-only GPG copy of each apply's state in the B2 account
 summary: Where OpenTofu's state lives so that the record of what Tofu built depends on neither one machine nor a machine Tofu builds.
 topic: deployment-platform
-status: approved
+status: accepted
 related: [ADR-0111, ADR-0048, ADR-0058, ADR-0102]
 ---
 
@@ -22,42 +22,34 @@ recovering it needs nothing that Tofu itself has to rebuild first.
 
 ## Context
 
-- **What exists.** State is `tofu/terraform.tfstate` on the host that runs Tofu. A copy
-  is taken after each apply with `tofu state pull`, and the copies sit on the same VM
-  ([`tofu/state-and-credentials.md`](../../topics/infra/tofu/state-and-credentials.md)).
-  Retiring VM 401 waits on the state leaving it
-  ([`workstation-management.md`](../../projects/workstation-management.md)).
+- **What existed.** State was `tofu/terraform.tfstate` on the host that runs Tofu, with
+  its copies on the same VM.
 - **The backend cannot be a host Tofu builds.** Tofu has to be able to rebuild any VM it
-  manages, so a state bucket on one of them is unreachable at the moment it is needed.
-  That rules out `storage`. It also rules out the operator host (VMID 302,
-  [ADR 0058](../0058-where-operator-work-runs/revision-000.md)) while it can be built
-  from the Ubuntu module, and even built by hand it is the one machine the state is meant
-  to stop depending on.
-- **A state credential is already expected.** ADR 0048 puts an S3 credential for the
-  backend in the credentials file on the host that runs Tofu, beside the Proxmox token
-  ([ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md)).
-- **The pattern exists.** The secrets store's snapshots go to a bucket on both R2 and B2,
-  so that recovery does not depend on one vendor
-  ([ADR 0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)).
-  Those buckets are made by hand, and the operator host's Internet allowlist already
-  names both providers.
-- **That bucket cannot be shared.** Its write credential is deliberately unable to delete,
-  and its bucket takes retention rules. Tofu's backend overwrites the state and creates
-  and deletes a lock object. Neither provider renames a bucket, and the existing name is
-  fixed in the snapshot scripts.
-- **State is sensitive.** It holds values a plan reads from providers, and some
-  resources store secret-adjacent material. A provider that holds it must not be able to
-  read it.
-- **Size.** The state is small and a run touches it a few times: read, lock, write,
-  unlock. Operations are far below either provider's free allowance. Storage is the
-  shared limit, since each free allowance is per account and the backup archives are in
-  the same accounts.
+  manages, so a bucket on one of them is unreachable when it is needed. That rules out
+  `storage`, and the operator host (VMID 302,
+  [ADR 0058](../0058-where-operator-work-runs/revision-000.md)) while it can be built from
+  the Ubuntu module. Even built by hand it is the machine the state must stop depending on.
+- **The pattern exists.** ADR 0048 puts an S3 credential for the backend in the
+  credentials file beside the Proxmox token
+  ([ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md)). The
+  secrets store's snapshots go to a bucket on both R2 and B2, made by hand, so that
+  recovery does not depend on one vendor
+  ([ADR 0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)), and
+  the operator host's Internet allowlist already names both providers.
+- **That bucket cannot be shared.** Its write credential cannot delete and its bucket
+  takes retention rules, while Tofu's backend overwrites the state and creates and deletes
+  a lock object. The name is fixed in the snapshot scripts and neither provider renames a
+  bucket.
+- **State is sensitive.** It holds values a plan reads from providers, and some resources
+  store secret-adjacent material, so a provider that holds it must not be able to read it.
+- **Size.** The state is small and a run touches it a few times. Operations are far below
+  either provider's free allowance; storage is the shared limit, since the backup archives
+  are in the same accounts.
 - **What the two providers do.** Checked with scoped credentials on scratch buckets and
   OpenTofu 1.13's `s3` backend. R2 refuses a second `If-None-Match: *` write, so the
-  backend's lock file is a real lock: a second run was refused while the first held it.
-  The scoped token reads, writes and deletes, and R2 has no object-version listing, so it
-  keeps only the latest state. B2 answers a conditional write with `501 NotImplemented`,
-  so OpenTofu cannot take its lock there, but it keeps old versions of an overwritten key.
+  backend's lock file is a real lock, but it lists no object versions and keeps only the
+  latest state. B2 answers a conditional write with `501 NotImplemented`, so OpenTofu
+  cannot take its lock there, but it keeps old versions of an overwritten key.
 
 ## Decision
 
@@ -116,7 +108,7 @@ flowchart LR
 - Tofu's apply depends on R2 being reachable. The B2 copy cannot run Tofu on its own,
   only recover the state.
 - [`tofu/state-and-credentials.md`](../../topics/infra/tofu/state-and-credentials.md)
-  describes the backend once it is built.
+  describes the backend.
 
 ## Invariants
 

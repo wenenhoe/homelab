@@ -54,6 +54,11 @@ tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
 | `TOFU_STATE_ENCRYPTION_MIGRATING` | The same config with an `unencrypted` fallback, for the one migration command |
 | `TOFU_STATE_PASSPHRASE`, `TOFU_STATE_KEY_MINTED` | The passphrase the configs are built from, and when the key pair was minted |
 
+The two keys expire a quarter after `TOFU_STATE_KEY_MINTED`. Run
+`create_state_keys.py --rotate` before then: it writes the new file before it revokes
+the old key, and keeps the passphrase. Nothing warns yet, because
+`check_freshness.py` does not see keys held in files.
+
 Anything that calls `tofu` against the root module needs the same environment, the
 inventory generator (`tools/tofu_inventory`) among them: without it `tofu output`
 stops at backend initialisation. The scratch roots under `tofu/scratch/` are separate

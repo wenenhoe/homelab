@@ -76,7 +76,6 @@ first, so one that has stood still is the first row.
 | `tailnet-policy` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started | waiting on [ADR-0059/0 (Tailnet policy)](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
 | `tofu-vm-provisioning` | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | — |
 | | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started | waiting on [ADR-0093/0 (Proxmox node install)](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
-| | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building | — |
 | | [`windows-vms.md`](projects/windows-vms.md) | — | Not started | waiting on [ADR-0092/0 (Windows VM builds)](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
 
 ## Projects

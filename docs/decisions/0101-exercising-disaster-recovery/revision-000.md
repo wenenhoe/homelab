@@ -52,7 +52,7 @@ the maintainer remembers, and a path that is never chosen is never tested.
   backed up by its own snapshot, and SeaweedFS is the backup target. A tier derived
   only from `backup` would put them last.
 - **Capacity is one maintainer and one node.** The rebuilt hosts' sizes in
-  [`tofu-migration.md`](../../projects/tofu-migration.md) add up to 14 GB of RAM,
+  [`main.tf`](../../../tofu/main.tf) add up to 14 GB of RAM,
   and the live hosts use the same again, on a node with 32 GB. The estate cannot be
   rebuilt twice at once.
 - **The coverage view holds the evidence.** [ADR 0100 (Recording a system's integration)](../0100-recording-how-a-system-is-integrated/revision-000.md)

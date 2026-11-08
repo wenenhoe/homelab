@@ -52,7 +52,7 @@ Update at the start and end of each PR that works a stage.
 | 1 | Spike: one record of each kind (catalog app, role-deployed service, external dependency) and a trial join of the fire-drill table to catalog keys | Done | The three assumptions in ADR 0100 are settled and folded into its Context, and it is `approved`. |
 | 2 | The `doc:` key, its shape check, the section check and the exemption list | Done | A new catalog entry with no record, a missing section or an empty section fails; an entry with a record that is still listed fails; every existing app passes. |
 | 3 | The generated coverage view and its apply-hook support | Done | The view lists every catalog app with its volumes, record and newest restoring drill; the hooks and their test read one list of generated views, and a throwaway `git am` leaves the view current. |
-| 4 | The readiness checklist and the app-adding guide | Not started | The template lists one line per section; the guide's field table names `doc:`. |
+| 4 | The readiness checklist and the app-adding guide | Done | The template lists one line per section; the guide's field table names `doc:`. |
 | 5 | Records for the exempt apps, one topic group per pull request | Not started | The exemption list is empty and is removed with its check. |
 
 ## Acceptance criteria
@@ -84,11 +84,6 @@ Update at the start and end of each PR that works a stage.
   stage 5 goes by topic group so a stall is visible.
 - Records written to satisfy the check rather than to answer the question would
   read as filler; a section that does not apply must say why.
-
-## Open items
-
-- Whether the readiness checklist should block `done` mechanically, or stay a
-  template line, is left to stage 4 once stage 2's check exists.
 
 ## Closing checklist
 

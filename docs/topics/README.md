@@ -87,6 +87,7 @@ Backup, offsite copies, and getting data back.
 | [`rebuild-storage.md`](disaster-recovery/rebuild-storage.md) | Rebuilding `storage`, the one host that cannot take the plain cycle: building beside the old VM, copying the bucket, flipping DNS, and moving back. |
 | [`exercises.md`](disaster-recovery/exercises.md) | The disaster-recovery exercises: the recovery tiers, each exercise and how often it is run, how each is run, and where it is recorded. |
 | [`fire-drill.md`](disaster-recovery/fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
+| [`coverage.md`](disaster-recovery/coverage.md) | The generated table of every catalog app with its hosts, volumes, routes, backup, service record and newest restoring drill. |
 | [`cloud-sync.md`](disaster-recovery/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
 
 ## monitoring/

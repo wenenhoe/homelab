@@ -18,9 +18,11 @@ from pathlib import Path
 
 import pytest
 from _doc_fixtures import write_doc
+from doc_scripts import generate_doc_indexes as generator
 
 REPO = Path(__file__).resolve().parents[3]
-VIEWS = ("docs/projects/README.md", "docs/project-planning.md", "docs/decisions/README.md")
+VIEW_LIST = ".githooks/generated-views"
+VIEWS = tuple((REPO / VIEW_LIST).read_text().split())
 
 LISTING = """#!/usr/bin/env bash
 # Prints what docs/projects/README.md should hold for the projects in the working tree.
@@ -90,6 +92,10 @@ class Sandbox:
         self.write("docs/projects/README.md", "# Index\n")
         self.write("docs/project-planning.md", "# Planning\n")
         self.write("docs/decisions/README.md", "# Decisions\n")
+        for view in VIEWS:
+            if not (self.repo / view).exists():
+                self.write(view, "# View\n")
+        self.write(VIEW_LIST, "\n".join(VIEWS) + "\n")
         git(self.repo, "add", "-A")
         git(self.repo, "commit", "-q", "-m", "base")
         self.base = git(self.repo, "rev-parse", "HEAD").stdout.strip()
@@ -264,8 +270,78 @@ class TestPlanningViewDates:
         assert view.rstrip("\n") != self.regenerated(sandbox).rstrip("\n")
 
 
-def test_views_named_by_the_hooks_exist_in_the_repo() -> None:
-    for hook in ("pre-applypatch", "post-applypatch"):
-        text = (REPO / ".githooks" / hook).read_text()
-        assert all(view in text for view in VIEWS), hook
-        assert all((REPO / view).is_file() for view in VIEWS)
+EXTRA_VIEW = "docs/extra-view.md"
+EXTRA_PRE_COMMIT = """#!/usr/bin/env bash
+here="$(dirname "$0")"
+. "$here/stash"
+regenerate() { "$here/listing" > docs/projects/README.md; "$here/listing" | sed '1s/.*/# Extra/' > docs/extra-view.md; }
+if [ "$1" = run ] && [ "$2" = generate-doc-indexes ]; then
+  with_unstaged_stashed regenerate
+fi
+"""
+EXTRA_COMMIT_HOOK = """#!/usr/bin/env bash
+# Fails when the staged index view or the staged extra view is stale.
+cd "$(git rev-parse --show-toplevel)"
+. "$STASH"
+check() {
+  diff <(git show :docs/projects/README.md) <("$LISTING") >/dev/null || { echo "stale view" >&2; return 1; }
+  diff <(git show :docs/extra-view.md) <("$LISTING" | sed '1s/.*/# Extra/') >/dev/null || { echo "stale extra view" >&2; return 1; }
+}
+with_unstaged_stashed check
+"""
+
+
+class TestTheViewList:
+    """The hooks take their views from `.githooks/generated-views`, so a view added to that
+    one list is staged, regenerated and amended into each commit with no change to a hook."""
+
+    def with_extra_view(self, sandbox: Sandbox, listed: bool) -> None:
+        sandbox.install("pre-applypatch", "post-applypatch")
+        sandbox.write(EXTRA_VIEW, "# Extra\n")
+        (sandbox.bin / "pre-commit").write_text(EXTRA_PRE_COMMIT)
+        (sandbox.hooks / "pre-commit").write_text(
+            EXTRA_COMMIT_HOOK.replace("$LISTING", str(sandbox.bin / "listing")).replace("$STASH", str(sandbox.bin / "stash"))
+        )
+        if listed:
+            sandbox.write(VIEW_LIST, "\n".join([*VIEWS, EXTRA_VIEW]) + "\n")
+        git(sandbox.repo, "add", "-A")
+        git(sandbox.repo, "commit", "-q", "--no-verify", "-m", "add the extra view")
+        sandbox.base = git(sandbox.repo, "rev-parse", "HEAD").stdout.strip()
+
+    def test_a_view_in_the_list_is_regenerated_into_every_commit_of_a_series(self, sandbox: Sandbox) -> None:
+        self.with_extra_view(sandbox, listed=True)
+        result = sandbox.am(sandbox.project_patch("alpha"), sandbox.project_patch("beta"))
+        assert result.returncode == 0, result.stderr
+        assert sandbox.committed(EXTRA_VIEW) == "# Extra\nalpha.md\nbeta.md\n"
+        assert sandbox.committed("docs/projects/README.md") == "# Index\nalpha.md\nbeta.md\n"
+        assert git(sandbox.repo, "status", "--porcelain").stdout == ""
+
+    def test_control_a_view_left_out_of_the_list_stops_the_apply_on_a_stale_view(self, sandbox: Sandbox) -> None:
+        self.with_extra_view(sandbox, listed=False)
+        result = sandbox.am(sandbox.project_patch("alpha"))
+        assert result.returncode != 0
+        assert "stale extra view" in result.stderr
+        assert sandbox.count() == 2
+
+    def test_the_hooks_name_no_view_themselves(self) -> None:
+        for hook in ("pre-applypatch", "post-applypatch"):
+            text = (REPO / ".githooks" / hook).read_text()
+            assert "generated-views" in text, hook
+            assert not [view for view in VIEWS if view in text], hook
+
+
+def test_the_list_names_the_views_the_generator_writes(monkeypatch: pytest.MonkeyPatch) -> None:
+    written: list[str] = []
+
+    def record(path: Path, heading: str, body: str, *, optional: bool = False) -> bool:
+        written.append(path.relative_to(generator.ROOT).as_posix())
+        return True
+
+    monkeypatch.setattr(generator, "regenerate", record)
+    generator.main()
+    assert sorted(set(written)) == sorted(VIEWS)
+
+
+def test_every_view_in_the_list_exists_in_the_repo() -> None:
+    assert VIEWS
+    assert all((REPO / view).is_file() for view in VIEWS)

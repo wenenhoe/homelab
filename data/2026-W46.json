@@ -1,0 +1,88 @@
+{
+ "week": "2026-W46",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "67bc7db90c1ef3f7d8510d3138bb7a8f771e47a0",
+   "date": "2026-11-09T00:02:28+08:00",
+   "kind": "pr",
+   "pr": 700,
+   "title": "generate a coverage table of every catalog app",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: integration-records",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "fe18b0a64b823b8f746e0aebe3e9825efdd73408",
+   "date": "2026-11-09T00:09:03+08:00",
+   "kind": "pr",
+   "pr": 701,
+   "title": "add the service-record readiness lines and the doc field",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: integration-records",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3a581f8e2a4c7cee3aec1787dfc03ae1ea668cf7",
+   "date": "2026-11-09T00:19:06+08:00",
+   "kind": "pr",
+   "pr": 702,
+   "title": "add service records for every catalog app",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: integration-records",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "347383b799ca407f8ca9e8272195b8e2fc4e8951",
+   "date": "2026-11-09T00:21:43+08:00",
+   "kind": "pr",
+   "pr": 703,
+   "title": "accept the integration records decision and close its project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: integration-records",
+   "events": [
+    [
+     "adr",
+     "ADR 0100 r000 \u00b7 recording how a system is integrated",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "integration-records",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "d471aaa80f7de071ca71781f6fbe400d5900ea88",
+   "date": "2026-11-09T01:31:41+08:00",
+   "kind": "pr",
+   "pr": 706,
+   "title": "add the root README's gateway note to the gateway rebuild's exi\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f5a154b5892353462b1729e25d3fa00ba66d9500",
+   "date": "2026-11-09T01:31:51+08:00",
+   "kind": "pr",
+   "pr": 705,
+   "title": "Improve projects and decisions view and readme",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  }
+ ]
+}

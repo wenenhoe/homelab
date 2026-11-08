@@ -1017,6 +1017,135 @@
      "added (accepted)"
     ]
    ]
+  },
+  {
+   "cat": "built",
+   "sha": "55099fa6647c10780751195052f79468d81a2c8d",
+   "date": "2026-11-08T08:59:31+08:00",
+   "kind": "pr",
+   "pr": 692,
+   "title": "Maintenance",
+   "type": "other",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a24f495e2559ca3f6284329aa48e6ee65f2ce668",
+   "date": "2026-11-08T19:08:19+08:00",
+   "kind": "pr",
+   "pr": 693,
+   "title": "Implement tofu state backend",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": [
+    [
+     "adr",
+     "ADR 0103 r000 \u00b7 where tofus state is held",
+     "working \u2192 accepted"
+    ],
+    [
+     "project",
+     "tofu-migration",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "a9a624b79877024c76e347e2b62a396498d3f41c",
+   "date": "2026-11-08T19:29:02+08:00",
+   "kind": "pr",
+   "pr": 694,
+   "title": "stop the certificate expiry test failing when the clock ticks over",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "0219a4e9cccb55f25d406fbe75350f72ef39b35c",
+   "date": "2026-11-08T21:00:44+08:00",
+   "kind": "pr",
+   "pr": 695,
+   "title": "widen the watcher project scope and add a rename stage",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: watch-all-rotation-credentials",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "66245c0e55982f8704360a7cbf36a210482a98d5",
+   "date": "2026-11-08T23:20:39+08:00",
+   "kind": "pr",
+   "pr": 696,
+   "title": "Implement watch all rotation creds",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: watch-all-rotation-credentials",
+   "events": [
+    [
+     "adr",
+     "ADR 0026 r000 \u00b7 detecting reads of high value secrets",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0026 r001 \u00b7 detecting reads of high value secrets",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "watch-all-rotation-credentials",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "0448321503db15a28351304840d983522349e0fc",
+   "date": "2026-11-08T23:26:15+08:00",
+   "kind": "pr",
+   "pr": 697,
+   "title": "Run credential freshness from clone venv",
+   "type": "fix",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "1de9003985ec6598ddf0bcd5c49ccf170ab6de54",
+   "date": "2026-11-08T23:28:00+08:00",
+   "kind": "pr",
+   "pr": 698,
+   "title": "add a project to rename the credential freshness check",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: credential-expiry-rename",
+   "events": [
+    [
+     "project",
+     "credential-expiry-rename",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "c2f814f935f6e86a234a96c58e458189a5201fbd",
+   "date": "2026-11-08T23:58:31+08:00",
+   "kind": "pr",
+   "pr": 699,
+   "title": "require a service record for each catalog app",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: integration-records",
+   "events": []
   }
  ]
 }

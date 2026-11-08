@@ -100,6 +100,28 @@ decision revision keeps an old name, with the note
 [`docs/decisions/README.md#editing-a-revision`](docs/decisions/README.md#editing-a-revision)
 describes.
 
+## Command blocks for the operator
+
+A block the operator pastes, in a doc or in a reply, never mixes a command
+that opens an interactive session (`openbao_utils.shell`, `ssh -t`, `sudo -i`)
+with the commands meant to run inside it: pasted whole, the later lines run
+after the session ends, in the wrong place. Split such a block into segments,
+each opened by a comment that says where it runs and when to paste it:
+
+```sh
+# [1/3] controller: paste alone; it opens a shell and waits for the secret_id
+cd tools && python3 -m openbao_utils.shell "<role_id>"
+
+# [2/3] inside that shell: paste once its prompt is back
+bao kv get -mount=secret -field=value hosts/<host>/<name> > /dev/null
+exit
+
+# [3/3] controller again: paste after the shell has exited
+ssh <host> 'sudo systemctl restart <unit>'
+```
+
+A block with no interactive step needs no segments.
+
 ## Verification before writing it down
 
 - Quote a doc's or config's own line when its exact expected format

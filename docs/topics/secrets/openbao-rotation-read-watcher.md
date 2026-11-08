@@ -91,8 +91,10 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    without appearing on the terminal or in a command line:
 
    ```sh
+   # [1/3] controller: paste alone; it opens a shell and waits for the secret_id
    cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
 
+   # [2/3] inside that shell: paste once its prompt is back
    bao read -field=role_id auth/approle/role/rotation-read-watcher/role-id \
      | ssh security 'sudo tee /etc/rotation-read-watcher/role_id > /dev/null'
 
@@ -103,6 +105,7 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    unset new
    exit
 
+   # [3/3] controller again: paste after the shell has exited
    ssh security 'sudo chmod 600 /etc/rotation-read-watcher/role_id /etc/rotation-read-watcher/secret_id'
    ```
 
@@ -114,12 +117,16 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    `heartbeat_jobs` already has its token (`gatus-token-rotation-read-watcher`); the unit
    reads the endpoint URL and the bearer header from a curl config, so the
    token never appears in a command line. `sudo` on `security` needs a terminal,
-   so the token goes into a temporary file first. From a `vault-bootstrap` session
-   on `controller`, as in step 4:
+   so the token goes into a temporary file first. `vault-bootstrap` has no access to
+   secret data, so this one is a `controller` session:
 
    ```sh
+   # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
+   cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+
+   # [2/2] inside that shell: paste once its prompt is back
    bao kv get -mount=secret -field=value hosts/security/gatus-token-rotation-read-watcher \
-     | ssh security 'umask 077; cat > ~/.gatus-token-r2'
+     | ssh security 'umask 077; cat > ~/.gatus-token-rotation'
    exit
    ```
 
@@ -140,11 +147,11 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    Then write the config:
 
    ```sh
-   t=$(cat ~/.gatus-token-r2)
+   t=$(cat ~/.gatus-token-rotation)
    printf 'url = "%s/api/v1/endpoints/backups_rotation-read-watcher/external?success=true"\nrequest = "POST"\nheader = "Authorization: Bearer %s"\n' "$gatus_url" "$t" \
      | sudo tee /etc/gatus-push/gatus-push-rotation-read-watcher.curlrc >/dev/null
    sudo chmod 600 /etc/gatus-push/gatus-push-rotation-read-watcher.curlrc
-   unset t; shred -u ~/.gatus-token-r2
+   unset t; shred -u ~/.gatus-token-rotation
    sudo grep '^url' /etc/gatus-push/gatus-push-rotation-read-watcher.curlrc
    ```
 
@@ -162,9 +169,15 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    read and check both the journal and Telegram:
 
    ```sh
-   sudo journalctl -u rotation-read-watcher -f &
+   # [1/3] security, a second terminal: leave it running to watch the alert arrive
+   sudo journalctl -u rotation-read-watcher -f
+
+   # [2/3] controller: paste alone; it opens a shell and waits for the secret_id
    cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
-   bao kv get -mount=secret cloud_credentials/rotation/_rotation-key-cloudflare-r2-token
+
+   # [3/3] inside that shell: paste once its prompt is back. Any one of the three
+   # watched secrets works; the value is discarded rather than printed.
+   bao kv get -mount=secret -field=value cloud_credentials/rotation/_rotation-key-cloudflare-r2-token > /dev/null
    exit
    ```
 

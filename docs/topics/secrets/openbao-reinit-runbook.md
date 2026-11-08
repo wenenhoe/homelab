@@ -78,7 +78,10 @@ can't fix.
    prompted:
 
    ```sh
+   # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
    cd tools && python3 -m openbao_utils.shell "<role_id from above>"
+
+   # [2/2] inside that shell: paste once its prompt is back
    bao policy write _stage-test-policy - <<< 'path "sys/health" { capabilities = ["read"] }'   # succeeds
    bao kv get -mount=secret hosts/security/lldap-jwt-secret                                    # denied
    exit
@@ -103,12 +106,14 @@ can't fix.
    duplicate under `cloud_credentials/leaf/` (see ADR 0025's Context)
    is not recreated - this script only ever writes to each
    name's own registered category.
-6. Provision the R2 watcher's AppRole (ADR 0026) using
+6. Provision the rotation read watcher's AppRole (ADR 0026) using
    `vault-bootstrap`:
 
    ```sh
+   # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
    cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
 
+   # [2/2] inside that shell: paste once its prompt is back
    bao policy write rotation-read-watcher - < ../docker/openbao/policies/rotation-read-watcher.hcl
 
    bao write auth/approle/role/rotation-read-watcher \

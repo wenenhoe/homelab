@@ -7,9 +7,12 @@ A small fleet of Ubuntu hosts running Dockerized services, fully converged by An
 
 | Concern | Stack |
 | :--- | :--- |
-| Automation & networking | Ansible · Docker Compose · Caddy · BIND9 |
+| Virtualisation & provisioning | Proxmox · OpenTofu |
+| Automation & networking | Ansible · Docker Compose · Caddy · BIND9 · Tailscale · OPNsense |
 | Identity & secrets | OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth |
-| Data & ops | SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate |
+| CI/CD | GitHub Actions · pull-based CD agent · Molecule · Trivy · Renovate |
+| Backups | SeaweedFS on-site, relayed offsite to Cloudflare R2 · Backblaze B2 · Oracle Cloud (OCI) |
+| Monitoring | Beszel · Gatus |
 
 OpenTofu builds the Ubuntu hosts: [`tofu/`](tofu) holds the root module that declares them, its modules and their tests, and [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) is the entry point to how they are built. The production gateway is still maintained by hand, and Tofu's state is in an encrypted bucket on R2 ([`state-and-credentials.md`](docs/topics/infra/tofu/state-and-credentials.md)); [`project-planning.md`](docs/project-planning.md) lists what remains.
 

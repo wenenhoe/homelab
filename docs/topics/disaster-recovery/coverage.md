@@ -27,9 +27,9 @@ source, or the "Apps covered" cell of a drill row (a catalog app key, or
 | `shlink` | services | — | `short` (Tinyauth), `web` (Tinyauth) | — | — | — |
 | `seaweedfs` | storage | `data` | `s3` (no Tinyauth), `filer` (Tinyauth) | — | — | — |
 | `wastebin` | services | `data` | `default` (Tinyauth) | data at `30 4 * * *` | — | 2026-11-06 |
-| `tinyauth` | security | `data` | — | data at `30 4 * * *` | — | 2026-11-02 |
-| `lldap` | security | `data`, `certs` | `default` (no Tinyauth) | data, certs at `30 4 * * *` | — | 2026-11-02 |
-| `step-ca` | security | `data`, `scripts` | — | data at `30 4 * * *` | — | 2026-11-02 |
-| `openbao` | security | `data`, `config`, `certs` | — | — | — | 2026-11-02 |
+| `tinyauth` | security | `data` | — | data at `30 4 * * *` | [tinyauth.md](../records/tinyauth.md) | 2026-11-02 |
+| `lldap` | security | `data`, `certs` | `default` (no Tinyauth) | data, certs at `30 4 * * *` | [lldap.md](../records/lldap.md) | 2026-11-02 |
+| `step-ca` | security | `data`, `scripts` | — | data at `30 4 * * *` | [step-ca.md](../records/step-ca.md) | 2026-11-02 |
+| `openbao` | security | `data`, `config`, `certs` | — | — | [openbao.md](../records/openbao.md) | 2026-11-02 |
 | `minecraft` | play | `data`, `backups`, `bluemap_config`, `bluemap_web`, `bluemap_data`, `extras` | `default` (Tinyauth) | backups at `30 4 * * *` | — | 2026-11-01 |
 | `gatus` | security | `data`, `config` | `default` (no Tinyauth) | — | — | — |

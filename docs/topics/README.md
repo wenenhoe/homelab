@@ -100,6 +100,17 @@ Observability and alerting.
 | [`gatus.md`](monitoring/gatus.md) | Gatus job heartbeats: one declared endpoint and generated token per job, routed into the Telegram topics below. |
 | [`telegram-notifications.md`](monitoring/telegram-notifications.md) | Bot/topic scheme shared by Beszel, backups, and cert-renewal alerts. |
 
+## records/
+
+Service records: for each integrated system, what it depends on, holds, exposes, how its failure is noticed, how it is recovered and how it is changed. The catalog's own facts are in the [coverage table](disaster-recovery/coverage.md).
+
+| Doc | Covers |
+| :--- | :--- |
+| [`openbao.md`](records/openbao.md) | The secrets store: what it needs, holds, exposes, how its failure is noticed, and how it is recovered. |
+| [`step-ca.md`](records/step-ca.md) | The internal certificate authority. |
+| [`lldap.md`](records/lldap.md) | The login directory. |
+| [`tinyauth.md`](records/tinyauth.md) | The forward-auth gate in front of the routes. |
+
 ## engineering/
 
 Working on the repo: conventions, tests, CI, review and scanning.

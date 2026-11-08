@@ -37,10 +37,6 @@ EXEMPT_APPS = (
     "shlink",
     "seaweedfs",
     "wastebin",
-    "tinyauth",
-    "lldap",
-    "step-ca",
-    "openbao",
     "minecraft",
     "gatus",
 )

@@ -153,6 +153,7 @@ app_catalog:
         upstream: "wastebin:8088"
 
   tinyauth:
+    doc: docs/topics/records/tinyauth.md
     volumes:
       - name: data
     configs:
@@ -169,6 +170,7 @@ app_catalog:
     upstream: "tinyauth:3000"
 
   lldap:
+    doc: docs/topics/records/lldap.md
     volumes:
       - name: data
       - name: certs
@@ -185,6 +187,7 @@ app_catalog:
         auth: false
 
   step-ca:
+    doc: docs/topics/records/step-ca.md
     recovery_tier: 1
     volumes:
       - name: data
@@ -203,6 +206,7 @@ app_catalog:
     # uses. See docs/topics/services/step-ca.md.
 
   openbao:
+    doc: docs/topics/records/openbao.md
     recovery_tier: 1
     volumes:
       - name: data

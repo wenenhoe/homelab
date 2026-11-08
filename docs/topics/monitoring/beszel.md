@@ -60,7 +60,11 @@ Sequence:
    `value=-` reads from stdin instead of the command line, which a
    shell's own history file and process listing (`ps`) can both expose:
    ```sh
+   # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
    cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+
+   # [2/2] inside that shell: paste once its prompt is back, one line at a time
+   # (each `read` waits for the value to be typed)
    read -rs KEY; bao kv put -mount=secret hosts/all/beszel/beszel-hub-key value=- <<< "$KEY"; unset KEY
    read -rs TOKEN; bao kv put -mount=secret hosts/all/beszel/beszel-agent-token value=- <<< "$TOKEN"; unset TOKEN
    exit

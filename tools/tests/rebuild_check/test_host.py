@@ -136,8 +136,8 @@ class TestSecurityChecks:
         [(0, "active\nactive\n", True), (3, "inactive\nactive\n", False), (3, "inactive\ninactive\n", False), (4, "", False)],
     )
     def test_the_watcher_and_its_timer_must_both_be_active(self, status, output, ok):
-        command = "systemctl is-active r2-read-watcher.service r2-read-watcher-heartbeat.timer"
-        assert host.r2_read_watcher_is_running(runner({command: (status, output)}), EXPECTED).ok is ok
+        command = "systemctl is-active rotation-read-watcher.service rotation-read-watcher-heartbeat.timer"
+        assert host.rotation_read_watcher_is_running(runner({command: (status, output)}), EXPECTED).ok is ok
 
     @pytest.mark.parametrize(("count", "ok"), [("0", True), ("4", False)])
     def test_tinyauth_ldap_errors_in_its_log(self, count, ok):
@@ -219,7 +219,7 @@ class TestRunChecks:
             "docker ps -a --format '{{.Names}}|{{.State}}|{{.Status}}'": (0, "step-ca|running|Up 2 hours (healthy)\n"),
             "docker exec openbao bao status -address=https://127.0.0.1:8200": (0, ""),
             "docker exec step-ca step ca health": (0, "ok\n"),
-            "systemctl is-active r2-read-watcher.service r2-read-watcher-heartbeat.timer": (0, "active\nactive\n"),
+            "systemctl is-active rotation-read-watcher.service rotation-read-watcher-heartbeat.timer": (0, "active\nactive\n"),
             "docker logs --since 10m tinyauth 2>&1 | grep -ciE 'ldap.*(error|failed)' || true": (0, "0\n"),
         }
 

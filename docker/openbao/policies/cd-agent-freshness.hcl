@@ -5,7 +5,7 @@
 # Read-only on everything check_freshness.py reads: both
 # cloud_credentials tiers (it asks each provider when a key expires) and
 # the Telegram credentials it alerts with (ADR 0021). Reading the R2
-# admin token's path is what makes r2-read-watcher name this role in the
+# admin token's path is what makes rotation-read-watcher name this role in the
 # weekly alert (ADR 0026).
 
 path "secret/data/cloud_credentials/leaf/*" {

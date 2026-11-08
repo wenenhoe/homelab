@@ -9,7 +9,7 @@ SSH/root-cert-fetching helpers live in tools/utils/repo.py instead:
 they aren't OpenBao-specific either. See
 docs/decisions/0105-where-repo-tooling-lives/revision-000.md.
 
-r2_read_watcher.py deliberately does NOT import this: it's
+rotation_read_watcher.py deliberately does NOT import this: it's
 hand-installed via scp as a single file onto security's system
 Python, never part of this uv-managed tools/ tree - sharing code
 across that deployment boundary would mean shipping a second file

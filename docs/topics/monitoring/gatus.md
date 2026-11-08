@@ -34,7 +34,7 @@ rather than a shorter interval.
 | :--- | :--- | :--- | :--- |
 | `backup-security`, `backup-services`, `backup-play` | `backups` | 1 hour | 3 hours |
 | `cloud-sync` | `backups` | 1 day | 26 hours |
-| `r2-read-watcher` | `backups` | 10 minutes | 15 minutes |
+| `rotation-read-watcher` | `backups` | 10 minutes | 15 minutes |
 | `cert-expiry-security`, `-storage`, `-play`, `-services` | `certs` | 1 day | 26 hours |
 | `cert-renewer-lldap`, `cert-renewer-openbao` | `certs` | 1 day | 26 hours |
 
@@ -76,7 +76,7 @@ unset t
 ```
 
 A real producer's next scheduled push also resolves it. This proves the routing and the resolved message. Detecting a job that
-stops is a separate path (a missed heartbeat), shown by stopping a timer: the [`r2-read-watcher`](../secrets/openbao-r2-read-watcher.md)
+stops is a separate path (a missed heartbeat), shown by stopping a timer: the [`rotation-read-watcher`](../secrets/openbao-rotation-read-watcher.md)
 heartbeat is the quickest, with a 15-minute interval.
 
 ## Telegram routing
@@ -137,8 +137,8 @@ Three producers do not use the role:
   bearer header to `curl` on stdin (`-K -`) so the token is not in an argument. It tries both monitors even when the
   first push fails, and a failed push fails the unit, so `OnFailure=` alerts as before. A backup host with no matching
   `heartbeat_jobs` entry fails the render instead of skipping the push.
-- **`r2-read-watcher`** runs from units copied by hand ([`openbao-r2-read-watcher.md`](../secrets/openbao-r2-read-watcher.md)),
-  not from Ansible. `gatus-push-r2-read-watcher.service` has the same shape as the role's, and its curl config is written
+- **`rotation-read-watcher`** runs from units copied by hand ([`openbao-rotation-read-watcher.md`](../secrets/openbao-rotation-read-watcher.md)),
+  not from Ansible. `gatus-push-rotation-read-watcher.service` has the same shape as the role's, and its curl config is written
   by hand from the job's token.
 - **The CD agent's `freshness` job** has no endpoint yet. The `cd_agent` role can install a push unit for any job that sets
   `heartbeat`, and the host holds no secrets, so the curl config is written by hand; the steps, and the three lines that add the
@@ -228,5 +228,5 @@ An endpoint that has never been pushed to is missing from the list until its fir
 
 ## State today
 
-`cloud_sync`, `cert-expiry-check`, the backup freshness check, the `r2-read-watcher` heartbeat and the two `cert-renewer@`
+`cloud_sync`, `cert-expiry-check`, the backup freshness check, the `rotation-read-watcher` heartbeat and the two `cert-renewer@`
 instances (through their daily liveness push) push to Gatus, and nothing else monitors them.

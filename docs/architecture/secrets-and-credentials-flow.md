@@ -6,7 +6,7 @@ rotation plus the R2 per-read watcher fit together — spans
 [`cloud-credentials/creation.md`](../topics/secrets/cloud-credentials/creation.md) and
 [`cloud-credentials/rotation.md`](../topics/secrets/cloud-credentials/rotation.md)
 (minting and rotating R2/B2/OCI credentials), and
-[`openbao-r2-read-watcher.md`](../topics/secrets/openbao-r2-read-watcher.md) (the
+[`openbao-rotation-read-watcher.md`](../topics/secrets/openbao-rotation-read-watcher.md) (the
 per-read alert on the R2 admin token), none of which shows the whole
 picture on one page.
 
@@ -31,7 +31,7 @@ Every `ansible-playbook deploy.yaml` run and every
 address to bind to
 ([ADR 0020 (Automation identity scope)](../decisions/0020-automation-identity-and-access-scope/revision-000.md)).
 
-## Cloud credential rotation & the R2 read-watcher
+## Cloud credential rotation & the rotation read-watcher
 
 ```mermaid
 flowchart LR
@@ -42,7 +42,7 @@ flowchart LR
 
     subgraph security["security"]
         openbao[("OpenBao<br/>cloud_credentials/rotation/*,<br/>incl. the R2 admin token")]
-        watcher["r2-read-watcher<br/>own least-privilege AppRole,<br/>tails openbao's audit log"]
+        watcher["rotation-read-watcher<br/>own least-privilege AppRole,<br/>tails openbao's audit log"]
     end
 
     telegram(["Telegram"])

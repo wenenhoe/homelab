@@ -71,7 +71,7 @@ OpenBao and the credentials around it.
 | [`openbao-vault-bootstrap.md`](secrets/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
 | [`openbao-backup-restore.md`](secrets/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
 | [`openbao-reinit-runbook.md`](secrets/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
-| [`openbao-r2-read-watcher.md`](secrets/openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open gap in alerting when the watcher itself stops running. |
+| [`openbao-rotation-read-watcher.md`](secrets/openbao-rotation-read-watcher.md) | ADR 0026's per-read alert on the three rotation credentials: what it watches, installation, and the still-open gap in alerting when the watcher itself stops running. |
 
 ## disaster-recovery/
 

@@ -93,7 +93,6 @@ first, so one that has stood still is the first row.
 | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) | — | Not started | waiting on [ADR-0018/1 (Secrets store unsealing)](decisions/0018-unsealing-the-secrets-store-after-restart/revision-001.md) | Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again. |
 | [`reliance-declaration.md`](projects/reliance-declaration.md) | — | Not started | — | A declared reliance between decisions, checked as a warning that names every approved or accepted revision whose boundary still rests on a working one, as ADR 0080 decides. |
 | [`tofu-plan-guard.md`](projects/tofu-plan-guard.md) | — | Not started | waiting on [ADR-0102/0 (Tofu change review)](decisions/0102-knowing-what-a-tofu-change-will-do/revision-000.md) | Build the guard that checks a saved Tofu plan against a committed allow-list of destructive actions, the wrapper that applies the checked plan, and the pull request check that fails an address removed without one, then accept the decision. |
-| [`watch-all-rotation-credentials.md`](projects/watch-all-rotation-credentials.md) | — | Not started | — | Make the OpenBao read-watcher alert on a read of the B2 and OCI rotation secrets as well as R2's, as ADR 0026 revision 1 decides. |
 
 ## Decisions awaiting a project
 

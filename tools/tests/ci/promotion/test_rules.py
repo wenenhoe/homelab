@@ -65,7 +65,7 @@ class TestRules:
             pytest.param("ansible/roles/openbao/defaults/main.yaml", id="openbao-one-shot-image"),
             pytest.param("ansible/playbooks/deploy.yaml", id="openbao-chown-image-in-deploy"),
             pytest.param("docker/openbao/policies/controller.hcl", id="openbao-policy"),
-            pytest.param("docker/openbao/watcher/r2_read_watcher.py", id="openbao-watcher"),
+            pytest.param("docker/openbao/watcher/rotation_read_watcher.py", id="openbao-watcher"),
             pytest.param("ansible/inventory/group_vars/all.yaml", id="other-group-vars"),
             pytest.param("tofu/tests/vm.tftest.hcl", id="tofu-tests"),
             pytest.param("tofu/modules/vm/tests/vm.tftest.hcl", id="tofu-module-tests"),

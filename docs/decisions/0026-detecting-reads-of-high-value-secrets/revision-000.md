@@ -7,7 +7,8 @@ short: High-value secret read alerts
 solution: A declarative stdout audit device plus a least-privilege watcher
 summary: Every read of the R2 admin token's path is visible and raises an alert.
 topic: secrets-store
-status: accepted
+status: superseded
+superseded_by: 1
 related: [ADR-0020, ADR-0110]
 ---
 

@@ -1,21 +1,36 @@
-# OpenBao's R2 Read-Watcher
+# OpenBao's Rotation Read-Watcher
 
 ADR 0110's per-read alert requirement, and the last piece of
-[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-001.md)
 that wasn't already live (the audit device and its logging cap were —
 see [`openbao.md`](openbao.md)). Tails `docker logs -f openbao` on
-`security`, alerts on any read of the R2 rotation token's Vault path,
-and does nothing else — see
-[`docker/openbao/watcher/r2_read_watcher.py`](../../../docker/openbao/watcher/r2_read_watcher.py)'s
+`security`, alerts on any read of the three secret-bearing rotation
+credentials, and does nothing else — see
+[`docker/openbao/watcher/rotation_read_watcher.py`](../../../docker/openbao/watcher/rotation_read_watcher.py)'s
 own docstring for the exact matching logic, confirmed against a real
 audit-log capture, not inferred from docs.
 
+## Watched set
+
+All three paths sit under `secret/data/cloud_credentials/rotation/`:
+
+| Provider | Watched path |
+| :--- | :--- |
+| R2 | `_rotation-key-cloudflare-r2-token` |
+| B2 | `_rotation-key-backblaze-b2-application-key` |
+| OCI | `_rotation-key-oci-client-secret` |
+
+The identifier-only paths beside them (`…-b2-key-id`, `…-oci-client-id`,
+`…-oci-app-id`, `…-oci-domain-url`, `…-oci-created-at`) authenticate
+nothing and raise no alert. The alert names the secret that was read. Adding a
+rotation credential is one entry in `WATCHED_PATHS` and a row here.
+
 Hand-installed, checked in but never Ansible-deployed — same
-convention as `controller.hcl`/`vault-bootstrap.hcl`/`r2-read-watcher.hcl`:
+convention as `controller.hcl`/`vault-bootstrap.hcl`/`rotation-read-watcher.hcl`:
 this is bootstrap-tier OpenBao tooling, not `managed_hosts` application
 config.
 
-On restart, the watcher resumes from `/var/lib/r2-read-watcher/state.json`
+On restart, the watcher resumes from `/var/lib/rotation-read-watcher/state.json`
 (last-alerted read's time and request id) and passes that time as
 `docker logs --since`, so a restart doesn't re-alert on every past
 read. See the script's own docstring for why the request id is also
@@ -24,17 +39,19 @@ live).
 
 ## Expected alerts
 
-`check_freshness.py` reads the watched path on every run (`check_r2()`
-reads `_rotation-key-cloudflare-r2-token`), so each weekly run raises one
-alert naming the role that ran it: `controller` today, and
-`cd-agent-freshness` once the check moves to `cd_agent`
+`check_freshness.py` reads all three watched secrets on every run: the R2
+token in `check_r2()`, the B2 application key through `b2_rotation_api()`, and
+the OCI client secret through `oci_identity_domains_client()`. Each weekly run
+therefore raises three alerts, one per secret, all naming the role that ran it:
+`controller` today, and `cd-agent-freshness` once the check moves to `cd_agent`
 ([ADR 0020 revision 1 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)).
-That alert is the accepted weekly signal that the freshness check ran. An
-alert at any other time, or naming any other role, is not expected.
+The trio is the accepted weekly signal that the freshness check ran. The
+rotation commands read the same paths when they run, which is also expected. An
+alert at any other time, or naming any other role, is not.
 
 ## Installing
 
-The watcher's own AppRole (`r2-read-watcher`) is already provisioned —
+The watcher's own AppRole (`rotation-read-watcher`) is already provisioned —
 [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md)'s step 6. This
 picks up from there. A rebuilt `security` has none of it, so these steps run
 again on the new VM, and `rebuild_check.host security` fails until they have
@@ -43,16 +60,16 @@ again on the new VM, and `rebuild_check.host security` fails until they have
 1. Copy everything over, from `controller`:
 
    ```sh
-   ssh security 'sudo mkdir -p /opt/r2-read-watcher /etc/r2-read-watcher /etc/gatus-push /var/lib/r2-read-watcher'
+   ssh security 'sudo mkdir -p /opt/rotation-read-watcher /etc/rotation-read-watcher /etc/gatus-push /var/lib/rotation-read-watcher'
    scp docker/openbao/watcher/* security:/tmp/
    ```
 
 2. On `security`, place them and lock down the credential directory:
 
    ```sh
-   sudo mv /tmp/r2_read_watcher.py /opt/r2-read-watcher/
+   sudo mv /tmp/rotation_read_watcher.py /opt/rotation-read-watcher/
    sudo mv /tmp/*.service /tmp/*.timer /etc/systemd/system/
-   sudo chmod 700 /etc/r2-read-watcher /etc/gatus-push
+   sudo chmod 700 /etc/rotation-read-watcher /etc/gatus-push
    ```
 
 3. Install `hvac` for the system Python this runs under - apt, not
@@ -76,32 +93,32 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    ```sh
    cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
 
-   bao read -field=role_id auth/approle/role/r2-read-watcher/role-id \
-     | ssh security 'sudo tee /etc/r2-read-watcher/role_id > /dev/null'
+   bao read -field=role_id auth/approle/role/rotation-read-watcher/role-id \
+     | ssh security 'sudo tee /etc/rotation-read-watcher/role_id > /dev/null'
 
-   new=$(bao write -f -field=secret_id auth/approle/role/r2-read-watcher/secret-id) \
+   new=$(bao write -f -field=secret_id auth/approle/role/rotation-read-watcher/secret-id) \
      && [ -n "$new" ] \
-     && printf '%s' "$new" | ssh security 'sudo tee /etc/r2-read-watcher/secret_id > /dev/null' \
+     && printf '%s' "$new" | ssh security 'sudo tee /etc/rotation-read-watcher/secret_id > /dev/null' \
      && echo "secret_id written"
    unset new
    exit
 
-   ssh security 'sudo chmod 600 /etc/r2-read-watcher/role_id /etc/r2-read-watcher/secret_id'
+   ssh security 'sudo chmod 600 /etc/rotation-read-watcher/role_id /etc/rotation-read-watcher/secret_id'
    ```
 
    The `[ -n "$new" ]` check stops a failed mint from overwriting the file
    with an empty value. Minting again issues another `secret_id` and leaves
    the earlier one valid, so re-run this step only to replace a lost file.
 
-5. Cache the heartbeat's Gatus credentials. The `r2-read-watcher` job in
-   `heartbeat_jobs` already has its token (`gatus-token-r2-read-watcher`); the unit
+5. Cache the heartbeat's Gatus credentials. The `rotation-read-watcher` job in
+   `heartbeat_jobs` already has its token (`gatus-token-rotation-read-watcher`); the unit
    reads the endpoint URL and the bearer header from a curl config, so the
    token never appears in a command line. `sudo` on `security` needs a terminal,
    so the token goes into a temporary file first. From a `vault-bootstrap` session
    on `controller`, as in step 4:
 
    ```sh
-   bao kv get -mount=secret -field=value hosts/security/gatus-token-r2-read-watcher \
+   bao kv get -mount=secret -field=value hosts/security/gatus-token-rotation-read-watcher \
      | ssh security 'umask 077; cat > ~/.gatus-token-r2'
    exit
    ```
@@ -124,11 +141,11 @@ again on the new VM, and `rebuild_check.host security` fails until they have
 
    ```sh
    t=$(cat ~/.gatus-token-r2)
-   printf 'url = "%s/api/v1/endpoints/backups_r2-read-watcher/external?success=true"\nrequest = "POST"\nheader = "Authorization: Bearer %s"\n' "$gatus_url" "$t" \
-     | sudo tee /etc/gatus-push/gatus-push-r2-read-watcher.curlrc >/dev/null
-   sudo chmod 600 /etc/gatus-push/gatus-push-r2-read-watcher.curlrc
+   printf 'url = "%s/api/v1/endpoints/backups_rotation-read-watcher/external?success=true"\nrequest = "POST"\nheader = "Authorization: Bearer %s"\n' "$gatus_url" "$t" \
+     | sudo tee /etc/gatus-push/gatus-push-rotation-read-watcher.curlrc >/dev/null
+   sudo chmod 600 /etc/gatus-push/gatus-push-rotation-read-watcher.curlrc
    unset t; shred -u ~/.gatus-token-r2
-   sudo grep '^url' /etc/gatus-push/gatus-push-r2-read-watcher.curlrc
+   sudo grep '^url' /etc/gatus-push/gatus-push-rotation-read-watcher.curlrc
    ```
 
    The last line prints the URL the heartbeat will post to and nothing of the token.
@@ -137,23 +154,32 @@ again on the new VM, and `rebuild_check.host security` fails until they have
 
    ```sh
    sudo systemctl daemon-reload
-   sudo systemctl enable --now r2-read-watcher.service
-   sudo systemctl enable --now r2-read-watcher-heartbeat.timer
+   sudo systemctl enable --now rotation-read-watcher.service
+   sudo systemctl enable --now rotation-read-watcher-heartbeat.timer
    ```
 
 7. Confirm it's actually alerting, not just running — trigger a real
    read and check both the journal and Telegram:
 
    ```sh
-   sudo journalctl -u r2-read-watcher -f &
+   sudo journalctl -u rotation-read-watcher -f &
    cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
    bao kv get -mount=secret cloud_credentials/rotation/_rotation-key-cloudflare-r2-token
    exit
    ```
 
+## Leftovers from the rename
+
+The `r2-read-watcher` AppRole, its policy and the `gatus-token-r2-read-watcher`
+secret are still in OpenBao. Deleting a role, a policy or a KV secret takes a
+root session, which neither `vault-bootstrap` nor `controller` has. Nothing
+holds the old `secret_id`, and the policy reads only Telegram's secrets. A
+re-init does not recreate them, since the runbook provisions only the new role,
+so they go then, or in any earlier root session.
+
 ## Known gap
 
-`r2-read-watcher.service` has no alert wired for a watcher that's
+`rotation-read-watcher.service` has no alert wired for a watcher that's
 stopped doing its job, unlike every other managed service on this
 host. The obvious fix doesn't actually work for this unit's shape:
 `OnFailure=` only fires once a unit reaches systemd's `failed` state,
@@ -175,17 +201,17 @@ unseals it. A bounded restart count would leave the watcher sitting
 gap.
 
 The replacement: a separate check, run off the same
-`r2-read-watcher-heartbeat.timer` tick, that counts consecutive ticks
-where `r2-read-watcher.service` isn't active and, past **3 in a row
+`rotation-read-watcher-heartbeat.timer` tick, that counts consecutive ticks
+where `rotation-read-watcher.service` isn't active and, past **3 in a row
 (~30 minutes)**, sends a Telegram alert carrying the tail of
-`journalctl -u r2-read-watcher` — the actual error, not just "it's
+`journalctl -u rotation-read-watcher` — the actual error, not just "it's
 down." Not yet built.
 
 30 minutes is what Gatus already gives: the endpoint's 15-minute heartbeat interval (a 10-minute push period plus 5
 minutes of slack) puts its own alert between 15 and 30 minutes after the last push. A check that waits for 3 missed
 ticks therefore adds the cause, the journal tail, and not an earlier alert; revisit the threshold when it is built.
 
-Needs its own standalone `/etc/telegram-notify/r2-read-watcher.env`,
+Needs its own standalone `/etc/telegram-notify/rotation-read-watcher.env`,
 populated by hand from the same `hosts/all/telegram/*` values, for
 the same reason as the original plan: it must fire even if the
 Vault-reachability problem that took the watcher down also takes out
@@ -193,6 +219,6 @@ any Vault-backed alerting path.
 
 Until this lands, Gatus's missed-heartbeat alert is the only
 backstop. Since this watcher's only job is alerting on reads of the
-R2 rotation token, any read that happens while it's down goes
+rotation credentials, any read that happens while it's down goes
 undetected until then — Gatus reports the watcher is unhealthy, not
 why, and not what happened while it was down.

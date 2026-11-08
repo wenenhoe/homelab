@@ -7,7 +7,7 @@ short: High-value secret read alerts
 solution: Match request lines and watch every secret-bearing rotation credential, not only R2's
 summary: Every read of a rotation credential that can mint or revoke other credentials is visible and raises an alert.
 topic: secrets-store
-status: approved
+status: accepted
 supersedes: 0
 related: [ADR-0110, ADR-0020]
 ---
@@ -22,7 +22,7 @@ meant to protect.
 
 **The matched line type.** Revision 0 says the watcher matches
 `type: "response"` lines. The watcher
-([`r2_read_watcher.py`](../../../docker/openbao/watcher/r2_read_watcher.py))
+([`rotation_read_watcher.py`](../../../docker/openbao/watcher/rotation_read_watcher.py))
 matches `type: "request"` lines instead, and its docstring gives the
 reason: one read writes both a `request` and a `response` line carrying the
 same path, so matching either alone avoids a double alert. The request line
@@ -35,8 +35,8 @@ master-equivalent
 B2's and OCI's rotation credentials are narrower than that, but "narrower"
 is not "harmless": each can still create and delete the leaf credentials
 for its provider, which is the whole of what the leaf credentials guard.
-Today a read of either one is audited but raises nothing, so the one
-alerting path in this design covers one of the three rotation credentials.
+A read of either one was audited but raised nothing, so the one alerting
+path in this design covered one of the three rotation credentials.
 
 The secret-bearing paths, by provider:
 
@@ -50,14 +50,10 @@ All paths sit under `secret/data/cloud_credentials/rotation/`. An identifier
 alone authenticates nothing, so alerting on it would add noise without
 adding detection.
 
-**Expected alerts.** `check_freshness.py` reads the B2 application key
-(through `b2_rotation_api()`) and the OCI client secret (through
-`oci_identity_domains_client()`) on every run, as it already reads the R2
-token. The weekly run therefore raises three alerts, one per watched path,
-all naming the same role. That is the accepted weekly signal that the check
-ran, and an alert at any other time, or naming any other role, is not
-expected. The rotation commands read the same paths when they run, which
-is also expected.
+**Expected alerts.** The weekly credential check reads all three secrets, so
+it raises three alerts, one per watched path, all naming the same role. That
+trio is the accepted signal that the check ran; an alert at any other time,
+or naming another role, is not expected.
 
 ## Decision
 
@@ -97,19 +93,13 @@ Telegram path alone.
 
 ## Consequences
 
-- Every weekly freshness run raises three alerts instead of one. The
-  [watcher doc](../../topics/secrets/openbao-r2-read-watcher.md)'s
-  "Expected alerts" section changes to say so, and to describe the
-  watched set instead of "the R2 rotation token's path".
-- The watcher's name still says R2. Renaming the script, unit and state
-  directory would touch a hand-installed host, so this revision leaves it,
-  and the doc says why.
-- [`scoping.md`](../../topics/secrets/cloud-credentials/scoping.md) and
-  [ADR 0110](../0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)
-  call B2's and OCI's rotation keys "genuinely narrower". That stays true of
-  what they can reach, and the wording is adjusted to say they are now
-  watched like R2's, so it reads as a difference in blast radius and not in
-  how closely each is watched.
+- Every weekly credential check raises three alerts instead of one, which
+  the [watcher doc](../../topics/secrets/openbao-rotation-read-watcher.md)
+  explains.
+- The watcher no longer watches R2 alone, so it is named
+  `rotation-read-watcher`.
+- "Genuinely narrower", said of B2's and OCI's rotation keys, is a
+  difference in blast radius and not in how closely each is watched.
 - Matching more than one path adds a lookup per audit line and nothing
   else. The "parsed only far enough to check the path, then discarded"
   rule from revision 0 still holds.

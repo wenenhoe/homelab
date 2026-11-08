@@ -3,8 +3,10 @@ Description=Check whether every cloud_credentials leaf/rotation credential is st
 
 [Service]
 Type=oneshot
-# Edit to this clone's actual path before installing - not templated,
-# since this runs on the operator's own machine, not through Ansible.
-# See docs/topics/secrets/cloud-credentials/expiry.md's Credential expiry section.
-WorkingDirectory=%h/CHANGE-ME-path-to-this-repo/tools
-ExecStart=/usr/bin/python3 -m cloud_credentials.check_freshness
+# CHANGE-ME-path-to-this-repo is replaced with this clone's path when the unit
+# is installed - not templated, since this runs on the operator's own machine,
+# not through Ansible. See docs/topics/secrets/cloud-credentials/expiry.md's
+# Scheduling section. The interpreter is the clone's .venv, which holds the
+# dependencies; the system python3 does not.
+WorkingDirectory=CHANGE-ME-path-to-this-repo/tools
+ExecStart=CHANGE-ME-path-to-this-repo/.venv/bin/python -m cloud_credentials.check_freshness

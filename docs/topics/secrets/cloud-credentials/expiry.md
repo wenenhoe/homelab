@@ -112,13 +112,22 @@ since `cloud_credentials` isn't one and doesn't deploy to any
 `managed_hosts` entry. Install once, by hand:
 
 ```sh
-cd tools/cloud_credentials/systemd
-# Edit check-freshness.service's WorkingDirectory to this clone's actual path first.
+# From the repo root, with `uv sync` already run (the unit uses the clone's .venv)
 mkdir -p ~/.config/systemd/user
-cp check-freshness.service check-freshness.timer ~/.config/systemd/user/
+sed "s|CHANGE-ME-path-to-this-repo|$PWD|" tools/cloud_credentials/systemd/check-freshness.service \
+  > ~/.config/systemd/user/check-freshness.service
+cp tools/cloud_credentials/systemd/check-freshness.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now check-freshness.timer
+
+# Run it once now, since a unit that cannot start only shows as failed in its status
+systemctl --user start check-freshness.service
+journalctl --user -u check-freshness.service -n 15 --no-pager
 ```
+
+A repo moved to another path needs the same `sed` again. A failed run raises no
+alert on `controller`, so check `systemctl --user status check-freshness.service`
+after an install or a move.
 
 `Persistent=true` on the timer catches up on a missed weekly run once
 the machine's next on — see ADR 0109's Consequences for the real limit

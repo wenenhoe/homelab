@@ -22,10 +22,6 @@ from doc_scripts.doc_frontmatter import ROOT
 DOC_KEY = "doc"
 SECTIONS = ("Dependencies", "Data", "Exposure", "Threat model", "Observability", "Disaster recovery", "Lifecycle")
 
-# The apps that were in the catalog before the rule, and have no record yet. The list only shrinks:
-# a new app is not added to it, and an app that names a record is taken off it.
-EXEMPT_APPS = ()
-
 _HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$")
 _FENCE_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
 
@@ -77,29 +73,21 @@ def section_errors(text: str) -> list[str]:
     return errors
 
 
-def record_errors(root: Path = ROOT, exempt: tuple[str, ...] = EXEMPT_APPS) -> list[str]:
-    """Every catalog app names a record that exists and has its sections, unless it is on the exemption list."""
+def record_errors(root: Path = ROOT) -> list[str]:
+    """Every catalog app names a record that exists and has its sections."""
     try:
         catalog = load_catalog(root / CATALOG_RELATIVE)
     except CatalogError as exc:
         return [str(exc)]
-    errors = [
-        f"{CATALOG_RELATIVE}: the exemption list in doc_records.py names {name}, which isn't an app in the catalog; remove it"
-        for name in exempt
-        if name not in catalog
-    ]
+    errors: list[str] = []
     checked: set[str] = set()
     for name, app in catalog.items():
         doc = app.get(DOC_KEY)
         if doc is None:
-            if name not in exempt:
-                errors.append(
-                    f"{CATALOG_RELATIVE}: {name} has no `{DOC_KEY}:` naming its service record (ADR 0100). Write the record under "
-                    "docs/topics/ and name it; the exemption list in doc_records.py is for apps that predate the rule and takes no new ones"
-                )
+            errors.append(
+                f"{CATALOG_RELATIVE}: {name} has no `{DOC_KEY}:` naming its service record (ADR 0100). Write the record under docs/topics/ and name it"
+            )
             continue
-        if name in exempt:
-            errors.append(f"{CATALOG_RELATIVE}: {name} names a record but is still on the exemption list in doc_records.py; remove it")
         if not isinstance(doc, str) or Path(doc).is_absolute() or ".." in Path(doc).parts or doc in checked:
             continue  # a malformed value is the catalog rules' to report; a record shared by several entries is read once
         checked.add(doc)

@@ -1,5 +1,5 @@
 """Unit tests for doc_records.py: the service-record rules of ADR 0100 (the sections, the link from
-the catalog and the exemption list). Run via `uv run pytest tools/tests/ -v`.
+the catalog). Run via `uv run pytest tools/tests/ -v`.
 """
 
 from __future__ import annotations
@@ -41,8 +41,8 @@ class Tree:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
-    def errors(self, exempt: tuple[str, ...] = ()) -> list[str]:
-        return records.record_errors(self.root, exempt)
+    def errors(self) -> list[str]:
+        return records.record_errors(self.root)
 
 
 @pytest.fixture
@@ -123,21 +123,7 @@ class TestCatalogLink:
 
     def test_an_app_with_no_doc_fails_with_what_to_do(self, tree):
         tree.catalog(web={})
-        assert_one_error(tree.errors(), "web has no `doc:`", "Write the record", "takes no new ones")
-
-    def test_an_exempt_app_with_no_doc_passes(self, tree):
-        tree.catalog(web={})
-        assert tree.errors(exempt=("web",)) == []
-
-    def test_an_app_with_a_record_that_is_still_exempt_fails(self, tree):
-        tree.catalog(web={"doc": DOC})
-        tree.doc(DOC, record())
-        assert_one_error(tree.errors(exempt=("web",)), "web names a record but is still on the exemption list")
-
-    def test_an_exemption_for_an_app_not_in_the_catalog_fails(self, tree):
-        tree.catalog(web={"doc": DOC})
-        tree.doc(DOC, record())
-        assert_one_error(tree.errors(exempt=("gone",)), "names gone, which isn't an app in the catalog")
+        assert_one_error(tree.errors(), "web has no `doc:`", "Write the record")
 
     def test_a_doc_that_does_not_exist_fails(self, tree):
         tree.catalog(web={"doc": DOC})
@@ -168,15 +154,11 @@ class TestCatalogLink:
 
 
 class TestTheRealRepository:
-    def test_every_catalog_app_has_a_record_or_is_exempt(self):
+    def test_every_catalog_app_has_a_complete_record(self):
         assert records.record_errors() == []
 
-    def test_the_exemption_list_has_no_repeats(self):
-        assert len(set(records.EXEMPT_APPS)) == len(records.EXEMPT_APPS)
-
-    def test_the_exemption_list_is_the_apps_that_have_no_record(self):
-        catalog = load_catalog()
-        assert sorted(name for name, app in catalog.items() if "doc" not in app) == sorted(records.EXEMPT_APPS)
+    def test_every_catalog_app_names_a_record(self):
+        assert [name for name, app in load_catalog().items() if "doc" not in app] == []
 
     def test_the_sections_are_the_ones_the_decision_names(self):
         assert records.SECTIONS == ("Dependencies", "Data", "Exposure", "Threat model", "Observability", "Disaster recovery", "Lifecycle")

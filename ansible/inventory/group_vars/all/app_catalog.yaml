@@ -23,6 +23,7 @@
 # Leave it out elsewhere: any other system's tier follows from its `backup`.
 app_catalog:
   caddy:
+    doc: docs/topics/records/caddy.md
     volumes:
       - name: caddyfile
       - name: data
@@ -34,6 +35,7 @@ app_catalog:
         no_log: true
 
   beszel-hub:
+    doc: docs/topics/records/beszel-hub.md
     volumes:
       - name: data
     configs:
@@ -50,6 +52,7 @@ app_catalog:
         auth: false   # agents auth via TOKEN/KEY handshake, not Tinyauth/LDAP
 
   beszel-agent:
+    doc: docs/topics/records/beszel-agent.md
     volumes:
       - name: data
     configs:
@@ -59,6 +62,7 @@ app_catalog:
         no_log: true
 
   bind9:
+    doc: docs/topics/records/bind9.md
     volumes:
       - name: config
       - name: cache
@@ -66,11 +70,13 @@ app_catalog:
       - name: run
 
   bentopdf:
+    doc: docs/topics/records/bentopdf.md
     routes:
       default:
         upstream: "bentopdf:8080"
 
   cobalt:
+    doc: docs/topics/records/cobalt.md
     configs:
       - src: env.j2
         dest: .env
@@ -86,6 +92,7 @@ app_catalog:
   # both. Change the dashboard in the template: an edit made in the UI is lost
   # with the volume.
   dashy:
+    doc: docs/topics/records/dashy.md
     volumes:
       - name: data
     configs:
@@ -96,6 +103,7 @@ app_catalog:
         upstream: "dashy:8080"
 
   kms:
+    doc: docs/topics/records/kms.md
     volumes:
       - name: data
     backup:
@@ -106,6 +114,7 @@ app_catalog:
         upstream: "kms-gui:3000"
 
   librespeed:
+    doc: docs/topics/records/librespeed.md
     routes:
       default:
         upstream: "librespeed:8080"
@@ -113,6 +122,7 @@ app_catalog:
   # Link data lives in the container's writable layer (SQLite), with no volume
   # or backup: it is disposable and rebuilt by re-creating the links.
   shlink:
+    doc: docs/topics/records/shlink.md
     configs:
       - src: env.j2
         dest: .env
@@ -127,6 +137,7 @@ app_catalog:
         upstream: "shlink-web-client:8080"
 
   seaweedfs:
+    doc: docs/topics/records/seaweedfs.md
     recovery_tier: 1
     volumes:
       - name: data
@@ -144,6 +155,7 @@ app_catalog:
         read_only: true   # browsing only: the filer API would otherwise write and delete outside the per-host S3 identities
 
   wastebin:
+    doc: docs/topics/records/wastebin.md
     volumes:
       - name: data
     backup:
@@ -153,6 +165,7 @@ app_catalog:
         upstream: "wastebin:8088"
 
   tinyauth:
+    doc: docs/topics/records/tinyauth.md
     volumes:
       - name: data
     configs:
@@ -169,6 +182,7 @@ app_catalog:
     upstream: "tinyauth:3000"
 
   lldap:
+    doc: docs/topics/records/lldap.md
     volumes:
       - name: data
       - name: certs
@@ -185,6 +199,7 @@ app_catalog:
         auth: false
 
   step-ca:
+    doc: docs/topics/records/step-ca.md
     recovery_tier: 1
     volumes:
       - name: data
@@ -203,6 +218,7 @@ app_catalog:
     # uses. See docs/topics/services/step-ca.md.
 
   openbao:
+    doc: docs/topics/records/openbao.md
     recovery_tier: 1
     volumes:
       - name: data
@@ -222,6 +238,7 @@ app_catalog:
     # like lldap's LDAPS. See docs/topics/secrets/openbao.md.
 
   minecraft:
+    doc: docs/topics/records/minecraft.md
     volumes:
       - name: data
       - name: backups
@@ -261,6 +278,7 @@ app_catalog:
   # store. Stopping the container to copy it would restart every heartbeat
   # timer each day. See docs/topics/monitoring/gatus.md.
   gatus:
+    doc: docs/topics/records/gatus.md
     volumes:
       - name: data
       - name: config

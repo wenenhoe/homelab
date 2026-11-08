@@ -53,7 +53,7 @@ Update at the start and end of each PR that works a stage.
 | 2 | The `doc:` key, its shape check, the section check and the exemption list | Done | A new catalog entry with no record, a missing section or an empty section fails; an entry with a record that is still listed fails; every existing app passes. |
 | 3 | The generated coverage view and its apply-hook support | Done | The view lists every catalog app with its volumes, record and newest restoring drill; the hooks and their test read one list of generated views, and a throwaway `git am` leaves the view current. |
 | 4 | The readiness checklist and the app-adding guide | Done | The template lists one line per section; the guide's field table names `doc:`. |
-| 5 | Records for the exempt apps, one topic group per pull request | Not started | The exemption list is empty and is removed with its check. |
+| 5 | Records for the exempt apps, one topic group per pull request | Done | The exemption list is empty and is removed with its check. |
 
 ## Acceptance criteria
 

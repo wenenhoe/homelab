@@ -100,6 +100,31 @@ Observability and alerting.
 | [`gatus.md`](monitoring/gatus.md) | Gatus job heartbeats: one declared endpoint and generated token per job, routed into the Telegram topics below. |
 | [`telegram-notifications.md`](monitoring/telegram-notifications.md) | Bot/topic scheme shared by Beszel, backups, and cert-renewal alerts. |
 
+## records/
+
+Service records: for each integrated system, what it depends on, holds, exposes, how its failure is noticed, how it is recovered and how it is changed. The catalog's own facts are in the [coverage table](disaster-recovery/coverage.md).
+
+| Doc | Covers |
+| :--- | :--- |
+| [`openbao.md`](records/openbao.md) | The secrets store: what it needs, holds, exposes, how its failure is noticed, and how it is recovered. |
+| [`step-ca.md`](records/step-ca.md) | The internal certificate authority. |
+| [`lldap.md`](records/lldap.md) | The login directory. |
+| [`tinyauth.md`](records/tinyauth.md) | The forward-auth gate in front of the routes. |
+| [`seaweedfs.md`](records/seaweedfs.md) | The on-site S3 backup store. |
+| [`bind9.md`](records/bind9.md) | The internal DNS primary and secondary. |
+| [`beszel-hub.md`](records/beszel-hub.md) | The monitoring hub. |
+| [`beszel-agent.md`](records/beszel-agent.md) | The per-host monitoring agent. |
+| [`gatus.md`](records/gatus.md) | The job-heartbeat monitor. |
+| [`caddy.md`](records/caddy.md) | The per-host reverse proxy and TLS terminator. |
+| [`bentopdf.md`](records/bentopdf.md) | The PDF toolbox. |
+| [`cobalt.md`](records/cobalt.md) | The media-download proxy. |
+| [`dashy.md`](records/dashy.md) | The service dashboard. |
+| [`kms.md`](records/kms.md) | The activation emulator and its console. |
+| [`librespeed.md`](records/librespeed.md) | The speed test. |
+| [`shlink.md`](records/shlink.md) | The URL shortener and its web client. |
+| [`wastebin.md`](records/wastebin.md) | The paste service. |
+| [`minecraft.md`](records/minecraft.md) | The game server, map viewer and backup container. |
+
 ## engineering/
 
 Working on the repo: conventions, tests, CI, review and scanning.

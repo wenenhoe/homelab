@@ -34,8 +34,8 @@ named stops the apply, and what was checked is what runs.
 - **Where Tofu runs.** On the operator host, with its credentials in a file outside the
   repository ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md),
   [ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md)).
-  The CD agent takes no part in Tofu. State is a local file until a remote backend is
-  decided in [`tofu-migration.md`](../../projects/tofu-migration.md).
+  The CD agent takes no part in Tofu. State is in the bucket
+  [ADR 0103 (Tofu state backend)](../0103-where-tofus-state-is-held/revision-000.md) decides.
 - **A plan runs the branch's code.** `tofu plan` evaluates the configuration, and its
   providers and modules, with the infrastructure credential in the environment. A data
   source, a module source or a provider override in a pull request can act with that

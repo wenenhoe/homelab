@@ -73,6 +73,22 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   write leaves). Cached to OpenBao like every other leaf here, unlike
   the break-glass credential. Supports `--rotate`, same
   verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
+- **`tools/cloud_credentials/create_state_keys.py`** — run on the host
+  that runs Tofu. Mints
+  the two credentials of Tofu's remote state
+  ([ADR 0103 (Tofu state backend)](../../../decisions/0103-where-tofus-state-is-held/revision-000.md)):
+  an `opentofu-state` R2 token that reads, writes and deletes, and a
+  write-only B2 key on `opentofu-state-b2` for the copy pushed after each
+  apply. Both carry the quarterly expiry and are verified over rclone
+  before use, like the leaves above, but are written to files under
+  `~/.config/tofu/` (mode `0600`) instead of OpenBao, since Tofu has to be
+  able to rebuild the host that runs OpenBao
+  ([ADR 0048](../../../decisions/0048-where-tofu-credentials-live/revision-000.md)).
+  The R2 file also holds the state encryption passphrase, made once and
+  shown once for its offline copy. `--rotate` swaps a file and then
+  revokes the old key, and keeps the passphrase. Because the keys are not
+  cached, `check_freshness.py` does not see them; the file records when each was
+  minted.
 
 Restoring cloud_credentials' Vault state after a genuine OpenBao re-init is
 `openbao_utils/restore.py`'s job — see

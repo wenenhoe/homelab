@@ -18,7 +18,7 @@ Moves the controller off the workstation onto the host [`operator-host.md`](oper
 
 ## Scope
 
-The VLAN 30 allowlist on the egress proxy, and moving the toolchain and credentials onto the host: `main-domain`, a freshly issued AppRole secret, the Tofu credentials file ([ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)) and the shared SSH key. Not in scope: building the host ([`operator-host.md`](operator-host.md)), the proxy itself ([`coding-agent-egress.md`](coding-agent-egress.md)), stripping and retiring VM 401 ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The VLAN 30 allowlist on the egress proxy, and moving the toolchain and credentials onto the host: `main-domain`, a freshly issued AppRole secret, the Tofu credentials file and the state backend's two env files ([ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md), [`state-and-credentials.md`](../topics/infra/tofu/state-and-credentials.md)) and the shared SSH key. Not in scope: building the host ([`operator-host.md`](operator-host.md)), the proxy itself ([`coding-agent-egress.md`](coding-agent-egress.md)), stripping and retiring VM 401 ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 

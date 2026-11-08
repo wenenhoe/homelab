@@ -58,7 +58,10 @@ RULES: tuple[Rule, ...] = (
         command="tofu -chdir=tofu plan",
         patterns=("tofu/**",),
         exclude=("tofu/**/tests/**",),
-        where="the repository root on the operator host; read the plan, then `tofu -chdir=tofu apply` with the same variables",
+        where=(
+            "the repository root on the operator host, with `~/.config/tofu/state-backend.env` sourced; "
+            "read the plan, then `tofu -chdir=tofu apply` with the same variables"
+        ),
     ),
 )
 

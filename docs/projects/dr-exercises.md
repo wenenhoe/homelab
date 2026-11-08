@@ -31,7 +31,7 @@ accepting the decision.
 - The tier and the age of the newest restoring drill, as two columns of the coverage view that
   [`integration-records.md`](integration-records.md) builds.
 - The first quarter of exercises, each recorded in the fire-drill results.
-- The staged total-loss exercise, once the host migration ([`tofu-migration.md`](tofu-migration.md)) is done.
+- The staged total-loss exercise, now that the host migration is done.
 - Accepting ADR 0101, and deleting this doc by its closing checklist.
 
 Not in scope: the coverage view itself (that is `integration-records.md`), and anything about how a review

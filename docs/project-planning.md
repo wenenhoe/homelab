@@ -76,7 +76,6 @@ first, so one that has stood still is the first row.
 | `tailnet-policy` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started | waiting on [ADR-0059/0 (Tailnet policy)](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
 | `tofu-vm-provisioning` | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | — |
 | | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started | waiting on [ADR-0093/0 (Proxmox node install)](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
-| | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building | — |
 | | [`windows-vms.md`](projects/windows-vms.md) | — | Not started | waiting on [ADR-0092/0 (Windows VM builds)](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
 
 ## Projects
@@ -106,7 +105,6 @@ first, so one that has stood still is the first row.
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
 | [0096](decisions/0096-knowing-the-pre-commit-hooks-that-run-are-the-reviewed-ones/revision-000.md) | **Knowing the pre-commit hooks that run are the ones that were reviewed** — How the pre-commit hook code and the images hooks pull are made to be the ones a commit names, so they change only in a pull request that shows the change. | Each hook repository is pinned to a full commit SHA with its tag in a comment, each docker hook's image is pinned by digest in the config, and Renovate moves both in a reviewed pull request | Working |
-| [0103](decisions/0103-where-tofus-state-is-held/revision-000.md) | **Where Tofu's state is held** — Where OpenTofu's state lives so that the record of what Tofu built depends on neither one machine nor a machine Tofu builds. | An encrypted state bucket in the R2 and B2 accounts the lab already uses, with a credential of its own, one provider live and the other holding a write-only copy | Working |
 
 ## Open explorations
 

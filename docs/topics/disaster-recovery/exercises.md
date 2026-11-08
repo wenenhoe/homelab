@@ -60,16 +60,19 @@ large app whose copy goes to the provider with a delete-after window
 **Host rebuild.** [`rebuild-runbook.md`](rebuild-runbook.md), for the host rebuilt longest ago.
 The host migration's rebuilds count as the first cycle.
 
-**Key custody.** Retrieve the offline private key, the break-glass read-only credential and the
-unseal shares from where they are kept, and count the shares. Then use the key and the credential:
-decrypt a real app archive ([`backup.md`](backup.md#encryption)) and pull and decrypt the latest
+**Key custody.** Retrieve the offline private key, the break-glass read-only credential, the Tofu
+state encryption passphrase and the unseal shares from where they are kept, and count the shares. Then use
+them: decrypt a real app archive ([`backup.md`](backup.md#encryption)), pull and decrypt the latest
 secrets-store snapshot with
-[`snapshot-pull.sh`](../secrets/openbao-backup-restore.md#pulling-a-snapshot). The shares are used in
-the restore drill and in the total-loss exercise, not here. Delete every decrypted file afterwards.
+[`snapshot-pull.sh`](../secrets/openbao-backup-restore.md#pulling-a-snapshot), and decrypt the newest object
+under `state/` in the state copy bucket ([State copy](../infra/tofu/state-and-credentials.md#state-copy)).
+Check the offline passphrase against the one in use without printing either: `sha256sum` of each must match.
+The shares are used in the restore drill and in the total-loss exercise, not here. Delete every decrypted
+file afterwards.
 
 **Tabletop.** Take the next scenario from the list, state it in a sentence, walk the runbooks as
 if it had happened, and write down what is missing or wrong. The scenarios are the loss of the
-development VM and the state it holds, the loss of the storage host together with one cloud copy,
+development VM and the credentials file it holds, the loss of the storage host together with one cloud copy,
 a compromised app host (the adversary [`backup-threat-model.md`](backup-threat-model.md) assumes),
 and the loss of the workstation that holds the break-glass credentials. Each is walked once in
 two years.

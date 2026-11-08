@@ -395,8 +395,8 @@ class TestLineagesIndex:
         assert "### Backup" not in out
         assert out.index("0001-host-config") < out.index("0004-docker-api-access")
         assert (
-            "| [0004](0004-docker-api-access/revision-000.md) | **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |"
-            in out
+            "| [0004](decisions/0004-docker-api-access/revision-000.md) "
+            "| **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |" in out
         )
 
     def test_multi_revision_lineage_shows_current_and_pending(self, root):
@@ -404,7 +404,7 @@ class TestLineagesIndex:
         revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0, solution="OpenBao", former_ids=["ADR-0027"])
         revision(root, "0013-secret-storage", 2, status="working", solution="Something newer")
         out = gen.render_lineages_index(root)
-        assert "[0013](0013-secret-storage/revision-001.md)" in out
+        assert "[0013](decisions/0013-secret-storage/revision-001.md)" in out
         assert "| OpenBao | Accepted (revision 1) | Revision 2 working; Formerly ADR-0027 |" in out
 
     def test_a_light_revision_is_marked_and_a_full_one_is_not(self, root):
@@ -427,7 +427,7 @@ class TestLineagesIndex:
         revision(root, "0044-trigger", 0, letter="a", status="working", solution="Pull-based agent")
         revision(root, "0044-trigger", 0, letter="b", status="working", solution="Private Gitea")
         out = gen.render_lineages_index(root)
-        assert "[0044](0044-trigger/revision-000-a.md)" in out
+        assert "[0044](decisions/0044-trigger/revision-000-a.md)" in out
         assert "Undecided between: (000-a) Pull-based agent; or (000-b) Private Gitea" in out
         assert "Working (000-a), Working (000-b)" in out
         assert "| Private Gitea |" not in out  # the newest candidate must not be presented as the current solution
@@ -471,14 +471,106 @@ class TestLineagesIndex:
         revision(root, "0014-r2", 0, status="accepted", topic="cloud-credentials", title="R2 rotation credential")
         out = gen.render_lineages_index(root)
         rows = {line.split("|")[1].strip()[1:5]: line for line in out.splitlines() if line.startswith("| [")}
-        assert "Narrowed by [0016](0016-oci/revision-000.md)" in rows["0015"]
+        assert "Narrowed by [0016](decisions/0016-oci/revision-000.md)" in rows["0015"]
         assert "Narrowed by" not in rows["0016"]
-        assert "Related: [0014](0014-r2/revision-000.md)" in rows["0016"]
-        assert "Related: [0016](0016-oci/revision-000.md)" in rows["0014"]
+        assert "Related: [0014](decisions/0014-r2/revision-000.md)" in rows["0016"]
+        assert "Related: [0016](decisions/0016-oci/revision-000.md)" in rows["0014"]
 
     def test_pipes_in_text_are_escaped(self, root):
         revision(root, "0001-x", 0, status="accepted", solution="a | b")
         assert r"a \| b" in gen.render_lineages_index(root)
+
+
+class TestDecisionsByNumber:
+    def test_empty(self, root):
+        assert gen.render_decisions_by_number(root) == "No decision lineages yet."
+
+    def test_one_short_row_per_lineage_in_number_order_whatever_the_topic(self, root):
+        revision(root, "0017-store-recovery", 0, short="Store recovery", topic="secrets-store", status="accepted")
+        revision(root, "0004-docker-api-access", 0, short="Docker API access", topic="deployment-platform", status="accepted")
+        revision(root, "0011-alerts", 0, short="Alert routing", topic="monitoring-alerting", status="accepted")
+        assert gen.render_decisions_by_number(root).splitlines()[2:] == [
+            "| [0004](decisions/0004-docker-api-access/revision-000.md) | Docker API access | Accepted | Deployment & platform | — |",
+            "| [0011](decisions/0011-alerts/revision-000.md) | Alert routing | Accepted | Monitoring & alerting | — |",
+            "| [0017](decisions/0017-store-recovery/revision-000.md) | Store recovery | Accepted | Secrets store | — |",
+        ]
+
+    def test_the_link_goes_to_the_revision_that_answers_the_problem(self, root):
+        revision(root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        assert "| [0013](decisions/0013-secret-storage/revision-001.md) |" in gen.render_decisions_by_number(root)
+
+    def test_a_merged_lineages_old_number_and_a_pending_revision_are_in_the_notes(self, root):
+        revision(root, "0013-secret-storage", 0, status="accepted", former_ids=["ADR-0027", "ADR-0029"])
+        revision(root, "0013-secret-storage", 1, status="working")
+        row = gen.render_decisions_by_number(root).splitlines()[2]
+        assert row.endswith("| Accepted (original) | Secrets store | Revision 1 working; Formerly ADR-0027, ADR-0029 |")
+
+    def test_competing_candidates_are_undecided_with_no_note_repeating_it(self, root):
+        revision(root, "0044-trigger", 0, letter="a", status="working")
+        revision(root, "0044-trigger", 0, letter="b", status="working")
+        row = gen.render_decisions_by_number(root).splitlines()[2]
+        assert "| Working (000-a), Working (000-b) | Secrets store | — |" in row
+
+    def test_a_link_prefix_follows_the_file_rendered_into(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        assert "[0001](../decisions/0001-a/revision-000.md)" in gen.render_decisions_by_number(root, prefix="../decisions/")
+
+
+class TestOpenDecisions:
+    def test_empty(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        assert gen.render_open_decisions(root) == "No decision is open."
+
+    def test_approved_before_working_each_group_in_lineage_order_and_closed_ones_left_out(self, root):
+        revision(root, "0002-b", 0, status="working")
+        revision(root, "0003-c", 0, status="approved")
+        revision(root, "0004-d", 0, status="accepted")
+        revision(root, "0005-e", 0, status="approved")
+        assert [row.split("|")[1].strip()[1:5] for row in gen.render_open_decisions(root).splitlines()[2:]] == ["0003", "0005", "0002"]
+
+    def test_a_decision_a_project_names_is_listed_with_its_projects_and_one_nobody_names_with_a_dash(self, root):
+        revision(root, "0002-b", 0, status="approved")
+        revision(root, "0003-c", 0, status="working")
+        project(root, "p", decision="ADR-0002/0")
+        project(root, "q", decision="ADR-0009/0", also_implements=["ADR-0002/0"])
+        rows = gen.render_open_decisions(root).splitlines()[2:]
+        assert rows[0].endswith("| Approved | [`p.md`](projects/p.md), [`q.md`](projects/q.md) |")
+        assert rows[1].endswith("| Working | — |")
+
+    def test_a_pending_successor_is_listed_under_its_own_revision(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        revision(root, "0001-a", 1, status="working", supersedes=0)
+        assert gen.render_open_decisions(root).splitlines()[2].startswith("| [0001](decisions/0001-a/revision-001.md) | revision 1 |")
+
+    def test_a_lettered_candidate_is_matched_to_a_project_by_its_label(self, root):
+        revision(root, "0044-trigger", 0, letter="a", status="abandoned")
+        revision(root, "0044-trigger", 0, letter="b", status="approved")
+        project(root, "p", decision="ADR-0044/0-b")
+        assert gen.render_open_decisions(root).splitlines()[2].endswith("| original (b) | 0044-trigger | Approved | [`p.md`](projects/p.md) |")
+
+
+class TestHistory:
+    def test_empty(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        assert gen.render_history(root) == "No revision has been superseded or abandoned."
+
+    def test_a_superseded_revision_links_the_one_that_replaced_it(self, root):
+        revision(root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        assert gen.render_history(root).splitlines()[2:] == [
+            "| [0013](decisions/0013-secret-storage/revision-000.md) | original | 0013-secret-storage | Superseded "
+            "| [revision 1](decisions/0013-secret-storage/revision-001.md) |"
+        ]
+
+    def test_an_abandoned_candidate_is_listed_and_the_current_revisions_are_not(self, root):
+        revision(root, "0044-trigger", 0, letter="a", status="abandoned")
+        revision(root, "0044-trigger", 0, letter="b", status="accepted")
+        revision(root, "0045-other", 0, status="working")
+        rows = gen.render_history(root).splitlines()[2:]
+        assert len(rows) == 1
+        assert rows[0].startswith("| [0044](decisions/0044-trigger/revision-000-a.md) | original (a) |")
+        assert rows[0].endswith("| Abandoned | — |")
 
 
 class TestValidateAdrs:

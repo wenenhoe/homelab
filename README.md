@@ -71,12 +71,12 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 | Understand | See the fleet on one page | [`system-overview.md`](docs/architecture/system-overview.md) |
 | | Check a claim this repo makes against the check behind it | [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) |
 | | See the security model and its limits | [`SECURITY.md`](SECURITY.md) |
-| | Know why a design was chosen | [decisions](docs/decisions/README.md) |
+| | Know why a design was chosen | [decisions](docs/decisions/README.md) · [find one by number](docs/decision-index.md#by-number) |
 | Contribute | See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |
 | | Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
 | | Start as an agent | [`AGENTS.md`](AGENTS.md) |
 | Browse | Topic docs ([all](docs/topics/README.md)), by area | [deploy](docs/topics/README.md#deploy) · [infra](docs/topics/README.md#infra) · [services](docs/topics/README.md#services) · [secrets](docs/topics/README.md#secrets) · [disaster recovery](docs/topics/README.md#disaster-recovery) · [monitoring](docs/topics/README.md#monitoring) · [engineering](docs/topics/README.md#engineering) |
-| | Decisions ([all](docs/decisions/README.md)), by area | [Deployment & platform](docs/decisions/README.md#deployment--platform) · [Ingress, TLS & PKI](docs/decisions/README.md#ingress-tls--pki) · [Secrets store](docs/decisions/README.md#secrets-store) · [Cloud credentials](docs/decisions/README.md#cloud-credentials) · [Backup & recovery](docs/decisions/README.md#backup--recovery) · [Monitoring & alerting](docs/decisions/README.md#monitoring--alerting) · [Repository & tooling](docs/decisions/README.md#repository--tooling) · [Security & hardening](docs/decisions/README.md#security--hardening) · [Documentation & process](docs/decisions/README.md#documentation--process) |
+| | Decisions ([by number](docs/decision-index.md#by-number)), by area | [Deployment & platform](docs/decision-index.md#deployment--platform) · [Ingress, TLS & PKI](docs/decision-index.md#ingress-tls--pki) · [Secrets store](docs/decision-index.md#secrets-store) · [Cloud credentials](docs/decision-index.md#cloud-credentials) · [Backup & recovery](docs/decision-index.md#backup--recovery) · [Monitoring & alerting](docs/decision-index.md#monitoring--alerting) · [Repository & tooling](docs/decision-index.md#repository--tooling) · [Security & hardening](docs/decision-index.md#security--hardening) · [Documentation & process](docs/decision-index.md#documentation--process) |
 
 ## License
 

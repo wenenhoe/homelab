@@ -10,7 +10,7 @@ import re
 from collections import Counter
 
 # Generated from the docs themselves, so a change that only regenerates them says nothing about the work.
-VIEWS = ("docs/decisions/README.md", "docs/projects/README.md", "docs/project-planning.md")
+VIEWS = ("docs/decision-index.md", "docs/projects/README.md", "docs/project-planning.md")
 PROJECT_DOC = re.compile(r"^docs/projects/([^/]+)\.md$")
 NOT_PROJECTS = ("README", "TEMPLATE")
 CONVENTIONAL = re.compile(r"^(\w+)(?:\([^)]*\))?!?:\s*")

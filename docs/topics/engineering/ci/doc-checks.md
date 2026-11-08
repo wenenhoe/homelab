@@ -11,8 +11,9 @@ generation gets caught by the checks that follow, the same way a bad
 hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
 frontmatter and regenerates `docs/projects/README.md`'s Index,
 `docs/project-planning.md`'s Super Projects, Projects, Decisions awaiting a
-project and Open explorations views, and `docs/decisions/README.md`'s
-Lineages index in place, validating each doc's frontmatter as it goes.
+project and Open explorations views, and `docs/decision-index.md`'s By
+number, By topic, Open decisions and History views in place, validating each
+doc's frontmatter as it goes.
 The Unblocks counts, the Status and Blocker cells, the order of the
 project tables, and the approved-first order of the decisions table are computed from that
 frontmatter alone, with nothing stored for them
@@ -96,7 +97,7 @@ these narrow, structural things:
   and `short` is unique across lineages (ignoring case);
   `narrows`, `related`, and `former_ids` reference real lineages, and a
   `former_ids` entry is never a live lineage. Each lineage directory is
-  linked from `decisions/README.md`. An `approved` or `accepted`
+  linked from `decision-index.md`. An `approved` or `accepted`
   revision has no open `Assumptions` entry — the hard gate in
   [`docs/decisions/README.md#assumptions`](../../../decisions/README.md#assumptions).
   Presence-of-a-bullet only, not whether the claim is genuinely

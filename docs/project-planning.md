@@ -3,7 +3,8 @@
 Four generated, cross-cutting views; none is a rules doc. For what a
 project is and its lifecycle, see [`projects/README.md`](projects/README.md);
 for what an ADR is and its revision states, see
-[`decisions/README.md`](decisions/README.md).
+[`decisions/README.md`](decisions/README.md); for every ADR by number and
+topic, see [`decision-index.md`](decision-index.md).
 
 **Unblocks**, in every table of projects, is the number of existing
 projects that wait on that one, directly or through a chain of

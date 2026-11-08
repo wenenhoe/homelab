@@ -168,7 +168,7 @@ of a stage in its Execution plan table, or it deletes the doc. Editing
 the doc's prose or links, as a wording or link sweep across every doc
 does, doesn't tie the change to it. Every other file that change touches must
 match `allowed_paths`, apart from what the workflow itself produces:
-project docs, the generated decisions index and project-planning view
+project docs, the generated decision index and project-planning view
 (a status change regenerates both), and the decision revisions its
 close edits: the one `decision:` names, each one in `also_implements:`,
 and the revision each of those supersedes, since accepting a successor

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from _doc_fixtures import assert_one_error, revision
 from doc_scripts import check_doc_drift as drift
+from doc_scripts.doc_frontmatter import DECISION_INDEX
 
 INDEX_DIRS = ("docs", "docs/decisions", "docs/architecture", "docs/projects", "docs/topics")
 
@@ -39,16 +40,18 @@ class TestLineageIndex:
     def _index_readmes(self, repo):
         for d in INDEX_DIRS:
             repo.write(f"{d}/README.md", "# Index\n")
+        repo.write(DECISION_INDEX, "# Decision Index\n")
+        repo.write("docs/README.md", "# Index\n\n[decision index](decision-index.md)\n")
 
-    def test_lineage_directory_must_appear_in_the_decisions_index(self, repo):
+    def test_lineage_directory_must_appear_in_the_decision_index(self, repo):
         revision(repo.root, "0013-secret-storage", 0)
         drift.check_doc_indexes()
         assert len(drift.errors) == 1, drift.errors
-        assert "lineage 0013-secret-storage/ exists but isn't linked" in drift.errors[0]
+        assert f"{DECISION_INDEX}: lineage 0013-secret-storage/ exists but isn't linked" in drift.errors[0]
 
     def test_linked_lineage_directory_passes(self, repo):
         revision(repo.root, "0013-secret-storage", 0)
-        repo.write("docs/decisions/README.md", "# Index\n\n[0013](0013-secret-storage/revision-000.md)\n")
+        repo.write(DECISION_INDEX, "# Decision Index\n\n[0013](decisions/0013-secret-storage/revision-000.md)\n")
         drift.check_doc_indexes()
         assert drift.errors == []
 

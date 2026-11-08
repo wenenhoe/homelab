@@ -104,9 +104,8 @@ repos:
       - id: generate-doc-indexes
         name: generate-doc-indexes
         description: >-
-          Regenerates docs/projects/README.md's Index and By initiative
-          tables and docs/decisions/README.md's Lineages index from
-          frontmatter
+          Regenerates docs/projects/README.md's Index, docs/project-planning.md's
+          tables and docs/decision-index.md from frontmatter
           — see tools/doc_scripts/generate_doc_indexes.py. Runs before
           markdownlint/check-doc-drift below, so a bad generation is
           caught the same way a bad hand-edit already is.

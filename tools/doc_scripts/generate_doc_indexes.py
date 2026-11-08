@@ -7,6 +7,8 @@ every time a project or decision lineage is added or changes status:
   `## Decisions awaiting a project`, and `## Open explorations` (always).
 - docs/decisions/README.md: `## Lineages`, grouped by topic (only if
   that heading exists).
+- docs/topics/disaster-recovery/coverage.md: `## Apps` (always), the
+  per-app coverage table.
 
 Reads only YAML frontmatter, via doc_frontmatter.py (shared with
 check_doc_drift.py), which is also the schema of record. Validating
@@ -24,6 +26,7 @@ import re
 import sys
 from pathlib import Path
 
+from doc_scripts.doc_coverage import COVERAGE_RELATIVE, render_coverage_table
 from doc_scripts.doc_explorations import last_commit_date, load_explorations
 from doc_scripts.doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
@@ -488,6 +491,8 @@ def main() -> int:
     touched.append("docs/project-planning.md")
     if regenerate(ROOT / "docs/decisions/README.md", "Lineages", render_lineages_index(), optional=True):
         touched.append("docs/decisions/README.md")
+    regenerate(ROOT / COVERAGE_RELATIVE, "Apps", render_coverage_table(ROOT))
+    touched.append(COVERAGE_RELATIVE)
     print(f"Regenerated {', '.join(touched)}.")
     return 0
 

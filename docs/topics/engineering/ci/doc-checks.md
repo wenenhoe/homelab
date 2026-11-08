@@ -23,6 +23,14 @@ passing. It stops before writing anything when two lineage directories
 share a number, naming both and pointing at the
 [renumber helper](#renumbering-a-patch-series-lineages).
 
+It also regenerates the `## Apps` table of
+[`coverage.md`](../../disaster-recovery/coverage.md) from the app catalog, the
+inventory and the fire-drill results table
+([`doc_coverage.py`](../../../../tools/doc_scripts/doc_coverage.py)). Each item
+in the fire-drill table's "Apps covered" column must be a catalog app key (any
+case, with an optional parenthetical) or `None`; any other name stops the
+generation and is reported.
+
 ## Docs drift check
 
 [`tools/doc_scripts/check_doc_drift.py`](../../../../tools/doc_scripts/check_doc_drift.py), wired into

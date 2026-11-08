@@ -112,6 +112,9 @@ Service records: for each integrated system, what it depends on, holds, exposes,
 | [`tinyauth.md`](records/tinyauth.md) | The forward-auth gate in front of the routes. |
 | [`seaweedfs.md`](records/seaweedfs.md) | The on-site S3 backup store. |
 | [`bind9.md`](records/bind9.md) | The internal DNS primary and secondary. |
+| [`beszel-hub.md`](records/beszel-hub.md) | The monitoring hub. |
+| [`beszel-agent.md`](records/beszel-agent.md) | The per-host monitoring agent. |
+| [`gatus.md`](records/gatus.md) | The job-heartbeat monitor. |
 
 ## engineering/
 

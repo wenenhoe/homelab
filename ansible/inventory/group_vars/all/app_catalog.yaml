@@ -34,6 +34,7 @@ app_catalog:
         no_log: true
 
   beszel-hub:
+    doc: docs/topics/records/beszel-hub.md
     volumes:
       - name: data
     configs:
@@ -50,6 +51,7 @@ app_catalog:
         auth: false   # agents auth via TOKEN/KEY handshake, not Tinyauth/LDAP
 
   beszel-agent:
+    doc: docs/topics/records/beszel-agent.md
     volumes:
       - name: data
     configs:
@@ -267,6 +269,7 @@ app_catalog:
   # store. Stopping the container to copy it would restart every heartbeat
   # timer each day. See docs/topics/monitoring/gatus.md.
   gatus:
+    doc: docs/topics/records/gatus.md
     volumes:
       - name: data
       - name: config

@@ -26,8 +26,6 @@ SECTIONS = ("Dependencies", "Data", "Exposure", "Threat model", "Observability",
 # a new app is not added to it, and an app that names a record is taken off it.
 EXEMPT_APPS = (
     "caddy",
-    "beszel-hub",
-    "beszel-agent",
     "bentopdf",
     "cobalt",
     "dashy",
@@ -36,7 +34,6 @@ EXEMPT_APPS = (
     "shlink",
     "wastebin",
     "minecraft",
-    "gatus",
 )
 
 _HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$")

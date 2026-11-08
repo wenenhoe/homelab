@@ -1,47 +1,80 @@
 # Tofu state and credentials
 
-Where Tofu keeps what it built, and what it needs to talk to Proxmox. Both live on
-the host that runs Tofu, outside the repository.
+Where Tofu keeps what it built, and what it needs to talk to Proxmox. The state is in
+an encrypted bucket; the credentials live on the host that runs Tofu, outside the
+repository.
 
 | What | Where | Notes |
 | :--- | :--- | :--- |
-| State | `tofu/terraform.tfstate` on the host that runs Tofu | Ignored by git; the only copy ([State](#state)) |
-| Credentials | `~/.config/tofu/credentials.tfvars`, mode `0600` in a `0700` directory | Outside the repo and outside OpenBao ([Credentials file](#credentials-file)) |
+| State | Bucket `opentofu-state` on R2, encrypted by OpenTofu | [Remote state](#remote-state) |
+| State credentials | `~/.config/tofu/state-backend.env`, mode `0600` in a `0700` directory | The bucket key pair and the encryption passphrase ([Backend environment](#backend-environment)) |
+| Credentials | `~/.config/tofu/credentials.tfvars`, mode `0600` in the same directory | Outside the repo and outside OpenBao ([Credentials file](#credentials-file)) |
 | API token | Created on the Proxmox node | `tofu@pve!skeleton`; privileges listed [below](#proxmox-api-token) |
 
-## State
-
-State is `tofu/terraform.tfstate` on the host that runs Tofu, ignored by git. It is
-the only copy:
-
-- `git clean -x` deletes ignored files, so it is never run in the checkout.
-- A backup is taken after each apply with `tofu -chdir=tofu state pull` redirected to
-  a `0600` file outside the checkout.
-- Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the tree.
-- Neither the token nor the endpoint appears in the state, but the domain and the SSH
-  keys do, since each VM carries them, so a copy of the state is kept as private as
-  the credentials file.
-
-### Remote backend (planned)
+## Remote state
 
 [ADR 0103](../../../decisions/0103-where-tofus-state-is-held/revision-000.md) decides
-where state moves to; it is `working`, so nothing here is built.
+where state lives. [`tofu/backend.tf`](../../../../tofu/backend.tf) declares the `s3`
+backend and holds no secret.
 
 ```mermaid
 flowchart LR
-    host["Host that runs Tofu"] -- "today: local file" --> local[("terraform.tfstate")]
-    host -. "planned: encrypted state" .-> live[("opentofu-state<br/>live bucket: R2 or B2")]
-    host -. "after each apply: GPG copy" .-> copy[("opentofu-state<br/>the other provider")]
+    host["Host that runs Tofu"] -- "encrypted state, lock" --> live[("opentofu-state<br/>R2")]
+    host -. "planned: GPG copy after each apply" .-> copy[("opentofu-state-b2<br/>B2")]
 ```
 
-| Aspect | Plan |
+| Aspect | Setting |
 | :--- | :--- |
-| Bucket | `opentofu-state` on R2 and on B2, made by hand. The backend cannot be a host Tofu builds, which rules out `storage` and, while Tofu can build it, the operator host |
-| Live provider | One of the two, chosen by a lock check |
-| Copy | After each apply the guarded wrapper pushes `tofu state pull`, encrypted to the backup GPG key, to the other provider with a credential that cannot delete |
-| Encryption | OpenTofu state encryption, so a provider holds only ciphertext. The key is in the credentials file with an offline copy |
-| Credential | One that reads, writes and deletes in the state bucket only, in the credentials file |
-| Migration | `tofu init -migrate-state`; the local file and its copies are deleted once a plan against the bucket shows no change |
+| Bucket | `opentofu-state` on R2, made by hand. The backend cannot be a host Tofu builds |
+| Lock | `use_lockfile`: R2 refuses a second conditional write, so a second run is refused while the first holds the lock |
+| Encryption | OpenTofu state encryption (`pbkdf2` key, `aes_gcm`) on state and plan files, `enforced`, so a missing or wrong passphrase fails the run and never writes plaintext. R2 holds only ciphertext |
+| Credential | An R2 key for that bucket only; it reads, writes and deletes |
+| Copy | Planned: after each apply a GPG-encrypted `tofu state pull` goes to `opentofu-state-b2` on B2 with a key that cannot delete |
+| Offline copy | The passphrase, held like the backup GPG key, since the file that holds it is what a total loss removes |
+
+Neither the token nor the endpoint appears in the state, but the domain and the SSH
+keys do, since each VM carries them. The bucket holds that only as ciphertext.
+
+## Backend environment
+
+`tools/cloud_credentials/create_state_keys.py` mints the keys and writes
+`~/.config/tofu/state-backend.env`, a file a shell can source. Every command that
+reads state needs it in the environment, so source it first:
+
+```sh
+. ~/.config/tofu/state-backend.env
+tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
+```
+
+| Variable | Is |
+| :--- | :--- |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | The R2 key pair |
+| `AWS_ENDPOINT_URL_S3` | The account's R2 endpoint |
+| `TF_ENCRYPTION` | The steady-state encryption config, `enforced` |
+| `TOFU_STATE_ENCRYPTION_MIGRATING` | The same config with an `unencrypted` fallback, for the one migration command |
+| `TOFU_STATE_PASSPHRASE`, `TOFU_STATE_KEY_MINTED` | The passphrase the configs are built from, and when the key pair was minted |
+
+Anything that calls `tofu` against the root module needs the same environment, the
+inventory generator (`tools/tofu_inventory`) among them: without it `tofu output`
+stops at backend initialisation. The scratch roots under `tofu/scratch/` are separate
+directories with no backend, so they keep their own `-state` files and are not
+affected. In the root module, `-state=` is ignored once a backend is declared and the
+command runs on the live state, so do not pass it.
+
+### Migrating the local state
+
+Once, from the operator host, in a checkout whose `tofu/terraform.tfstate` is the
+state to move:
+
+```sh
+. ~/.config/tofu/state-backend.env
+TF_ENCRYPTION="$TOFU_STATE_ENCRYPTION_MIGRATING" tofu -chdir=tofu init -migrate-state
+tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
+```
+
+The first command reads the plaintext file and writes it encrypted to the bucket; the
+plan runs under the `enforced` config and must show no change. Only then delete the
+local state file and the copies the rebuilds took. Never export the migrating config.
 
 ## Credentials file
 

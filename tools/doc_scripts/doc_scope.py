@@ -19,7 +19,7 @@ from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, ref_label
 
 PROJECT_DOC_RE = re.compile(r"docs/projects/(?!(?:README|TEMPLATE)\.md$)[^/]+\.md")
 # Bookkeeping the workflow itself produces for any project change: every project doc,
-# and the generated views a status change regenerates (the projects index is a project
+# and the generated views a status change regenerates (the projects README is a project
 # doc's sibling; the decision index and project-planning.md live elsewhere).
 IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/decision-index.md", "docs/project-planning.md")
 

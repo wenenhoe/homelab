@@ -37,7 +37,7 @@ PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
 # (directory under docs/, whether its README.md also indexes docs in nested
 # folders). A recursive directory is matched by path relative to that
 # README, so two folders can each hold a doc of the same name.
-INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), ("projects", False), ("topics", True))
+INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), ("topics", True))
 
 DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
 PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}

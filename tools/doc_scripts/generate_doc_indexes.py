@@ -2,7 +2,6 @@
 """Regenerates the doc-index sections that would otherwise be hand-edited
 every time a project or decision lineage is added or changes status:
 
-- docs/projects/README.md: `## Index` (always).
 - docs/project-planning.md: `## Super Projects`, `## Projects`,
   `## Decisions awaiting a project`, and `## Open explorations` (always).
 - docs/decision-index.md: `## By number`, `## By topic`, `## Open decisions`
@@ -154,26 +153,10 @@ def _unblocks_cell(count: int) -> str:
     return str(count) if count else "—"
 
 
-def render_projects_table(root: Path = ROOT) -> str:
-    projects = _load_projects(root)
-    decisions = _decision_statuses(root)
-    decision_paths = _decision_paths(root)
-    decision_shorts = _decision_shorts(root)
-    unblocks = _unblocks(projects)
-    rows = []
-    for pid, (path, fm) in _by_status(projects):
-        status = _status_cells(fm, projects, decisions, decision_paths, decision_shorts, project_prefix="", decision_prefix="../decisions/")
-        rows.append(f"| [`{path.name}`]({path.name}) | {_unblocks_cell(unblocks[pid])} | {status} | {fm['summary']} |")
-    header = "| Project | Unblocks | Status | Blocker | Covers |\n| :--- | ---: | :--- | :--- | :--- |"
-    return "\n".join([header, *rows])
-
-
 def render_standalone_projects_table(root: Path = ROOT) -> str:
     """Projects with no `super_project`: the complement of the Super
-    Projects view below. Same three columns as projects/README.md's own
-    Index (this function's rows are a filtered copy of that table, not
-    a different shape), rendered with the `projects/` prefix since this
-    lives one level above docs/projects/.
+    Projects view below, with the same columns plus Covers, rendered with the
+    `projects/` prefix since this lives one level above docs/projects/.
     """
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
@@ -190,7 +173,7 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
         decision_prefix="decisions/",
     )
     rows = [
-        f"| [`{path.name}`](projects/{path.name}) | {_unblocks_cell(unblocks[pid])} | {cells(fm)} | {fm['summary']} |"
+        f"| [`{path.name}`](projects/{path.name}) | {_unblocks_cell(unblocks[pid])} | {cells(fm)} | {_cell(fm['summary'])} |"
         for pid, (path, fm) in _by_status(projects)
         if "super_project" not in fm
     ]
@@ -252,9 +235,10 @@ def render_initiatives_table(root: Path = ROOT) -> str:
         rows.append(
             f"|{initiative_cell}| [`{name}`](projects/{name}) "
             f"| {_unblocks_cell(unblocks[fm['id']])} "
-            f"| {_status_cells(fm, projects, decisions, decision_paths, decision_shorts, project_prefix='projects/', decision_prefix='decisions/')} |"
+            f"| {_status_cells(fm, projects, decisions, decision_paths, decision_shorts, project_prefix='projects/', decision_prefix='decisions/')} "
+            f"| {_cell(fm['summary'])} |"
         )
-    header = "| Initiative | Project | Unblocks | Status | Blocker |\n| :--- | :--- | ---: | :--- | :--- |"
+    header = "| Initiative | Project | Unblocks | Status | Blocker | Covers |\n| :--- | :--- | ---: | :--- | :--- | :--- |"
     return "\n".join([header, *rows])
 
 
@@ -558,7 +542,6 @@ def regenerate(path: Path, heading: str, body: str, *, optional: bool = False) -
 
 def main() -> int:
     validate_adrs()
-    regenerate(ROOT / "docs/projects/README.md", "Index", render_projects_table())
     planning = ROOT / "docs/project-planning.md"
     regenerate(planning, "Super Projects", render_initiatives_table())
     regenerate(planning, "Projects", render_standalone_projects_table())
@@ -572,7 +555,7 @@ def main() -> int:
     regenerate(index, "Open decisions", render_open_decisions())
     regenerate(index, "History", render_history())
     regenerate(ROOT / COVERAGE_RELATIVE, "Apps", render_coverage_table(ROOT))
-    print(f"Regenerated docs/projects/README.md, docs/project-planning.md, {DECISION_INDEX}, {COVERAGE_RELATIVE}.")
+    print(f"Regenerated docs/project-planning.md, {DECISION_INDEX}, {COVERAGE_RELATIVE}.")
     return 0
 
 

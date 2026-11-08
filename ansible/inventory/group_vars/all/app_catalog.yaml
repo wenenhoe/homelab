@@ -16,6 +16,9 @@
 # Per-host files (host_vars/*.yaml) only list which apps to deploy and,
 # for routable apps, the route host label(s).
 #
+# `doc:` names the app's service record, a topic doc with the seven sections
+# ADR 0100 sets. Several entries may name one record when they are one system.
+#
 # `recovery_tier: 1` marks a system every other restore depends on (ADR 0101).
 # Leave it out elsewhere: any other system's tier follows from its `backup`.
 app_catalog:

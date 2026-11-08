@@ -481,7 +481,7 @@ class TestMainRunsEveryCheck:
         "check_adr_link_names",
         "check_nist_alignment_currency",
     )
-    GRAPH_CHECKS = ("lineage_errors", "heading_errors", "open_assumption_errors", "project_errors")
+    GRAPH_CHECKS = ("lineage_errors", "heading_errors", "open_assumption_errors", "project_errors", "record_errors")
 
     @pytest.fixture
     def called(self, repo, monkeypatch):
@@ -505,6 +505,11 @@ class TestMainRunsEveryCheck:
         captured = capsys.readouterr()
         assert "::error::boom" in captured.out
         assert "1 doc-drift issue(s) found." in captured.err
+
+    def test_errors_from_the_record_check_fail_the_run(self, called, monkeypatch, capsys):
+        monkeypatch.setattr(drift, "record_errors", lambda root: ["a record is missing"])
+        assert drift.main() == 1
+        assert "::error::a record is missing" in capsys.readouterr().out
 
     def test_errors_from_the_graph_checks_fail_the_run(self, called, monkeypatch, capsys):
         monkeypatch.setattr(drift, "project_errors", lambda root: ["a project rule broke"])

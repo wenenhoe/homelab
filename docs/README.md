@@ -19,7 +19,9 @@ Docs are grouped by artifact type, one directory each:
   revision's reasoning stays fixed — a changed decision is a new
   revision — while editorial fixes are fine. See
   [`decisions/README.md#editing-a-revision`](decisions/README.md#editing-a-revision)
-  for where that line sits.
+  for where that line sits. The generated [`decision-index.md`](decision-index.md)
+  lists every lineage by number and by topic, the open decisions and the
+  superseded and abandoned revisions.
 - **[`architecture/`](architecture/README.md)** — Mermaid diagrams for
   views that cut across multiple topic docs (a system-wide component
   map, an end-to-end data flow). A diagram that only illustrates one

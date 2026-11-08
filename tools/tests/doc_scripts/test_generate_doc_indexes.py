@@ -15,32 +15,32 @@ from doc_scripts import generate_doc_indexes as gen
 class TestProjectsTable:
     @pytest.fixture
     def rows(self, root):
-        return lambda: gen.render_projects_table(root).splitlines()[2:]
+        return lambda: gen.render_standalone_projects_table(root).splitlines()[2:]
 
     def test_not_started_and_sort_order(self, root, rows):
         project(root, "a", status="not-started")
         project(root, "b", status="not-started")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | — | a summary |", "| [`b.md`](b.md) | — | Not started | — | b summary |"]
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |", "| [`b.md`](projects/b.md) | — | Not started | — | b summary |"]
 
     def test_lifecycle_statuses_and_the_blocked_flag(self, root, rows):
         project(root, "a", status="de-risking")
         project(root, "b", status="building", blocked=True, blocked_reason="needs new hardware")
         project(root, "c", status="done")
         assert rows() == [
-            "| [`b.md`](b.md) | — | Building | blocked: needs new hardware | b summary |",
-            "| [`a.md`](a.md) | — | De-risking | — | a summary |",
-            "| [`c.md`](c.md) | — | Done | — | c summary |",
+            "| [`b.md`](projects/b.md) | — | Building | blocked: needs new hardware | b summary |",
+            "| [`a.md`](projects/a.md) | — | De-risking | — | a summary |",
+            "| [`c.md`](projects/c.md) | — | Done | — | c summary |",
         ]
 
     def test_waiting_on_an_existing_predecessor(self, root, rows):
         project(root, "base", status="building")
         project(root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
-        assert rows()[1] == "| [`next.md`](next.md) | — | Not started | waiting on [`base.md`](base.md) | next summary |"
+        assert rows()[1] == "| [`next.md`](projects/next.md) | — | Not started | waiting on [`base.md`](projects/base.md) | next summary |"
 
     def test_blocked_flag_and_dependency_combine(self, root, rows):
         project(root, "base")
         project(root, "next", status="building", blocked=True, blocked_reason="r", depends_on=[{"project": "PROJ-base", "reason": "x"}])
-        assert "Building | blocked: r; waiting on [`base.md`](base.md)" in rows()[0]
+        assert "Building | blocked: r; waiting on [`base.md`](projects/base.md)" in rows()[0]
 
 
 class TestNoBlocker:
@@ -48,48 +48,49 @@ class TestNoBlocker:
 
     @pytest.fixture
     def rows(self, root):
-        return lambda: gen.render_projects_table(root).splitlines()[2:]
+        return lambda: gen.render_standalone_projects_table(root).splitlines()[2:]
 
     def test_not_started_with_an_approved_decision_is_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="approved")
         project(root, "a", decision="ADR-0013/0")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | — | a summary |"]
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |"]
 
     def test_no_decision_means_nothing_gates_it(self, root, rows):
         project(root, "a")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | — | a summary |"]
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |"]
 
     def test_a_working_decision_is_not_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="working")
         project(root, "a", decision="ADR-0013/0")
         assert rows() == [
-            "| [`a.md`](a.md) | — | Not started | waiting on [ADR-0013/0 (0013-secret-storage)](../decisions/0013-secret-storage/revision-000.md) | a summary |"
+            "| [`a.md`](projects/a.md) | — | Not started "
+            "| waiting on [ADR-0013/0 (0013-secret-storage)](decisions/0013-secret-storage/revision-000.md) | a summary |"
         ]
 
     def test_a_decision_that_does_not_resolve_is_not_ready(self, root, rows):
         project(root, "a", decision="ADR-0099/0")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | waiting on ADR-0099/0 | a summary |"]
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | waiting on ADR-0099/0 | a summary |"]
 
     def test_a_lettered_candidate_is_resolved_by_its_label(self, root, rows):
         revision(root, "0013-secret-storage", 0, letter="a", status="abandoned")
         revision(root, "0013-secret-storage", 0, letter="b", status="approved")
         project(root, "a", decision="ADR-0013/0-b")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | — | a summary |"]
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |"]
 
     def test_an_existing_predecessor_means_waiting_not_ready(self, root, rows):
         project(root, "base", status="building")
         project(root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
-        assert rows()[1] == "| [`next.md`](next.md) | — | Not started | waiting on [`base.md`](base.md) | next summary |"
+        assert rows()[1] == "| [`next.md`](projects/next.md) | — | Not started | waiting on [`base.md`](projects/base.md) | next summary |"
 
     def test_a_blocked_project_is_not_ready(self, root, rows):
         project(root, "a", blocked=True, blocked_reason="needs new hardware")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | blocked: needs new hardware | a summary |"]
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | blocked: needs new hardware | a summary |"]
 
     def test_only_not_started_projects_are_ever_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="approved")
         project(root, "a", status="building", decision="ADR-0013/0")
         project(root, "b", status="de-risking")
-        assert rows() == ["| [`a.md`](a.md) | — | Building | — | a summary |", "| [`b.md`](b.md) | — | De-risking | — | b summary |"]
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Building | — | a summary |", "| [`b.md`](projects/b.md) | — | De-risking | — | b summary |"]
 
     def test_the_label_follows_the_decision_state_with_no_edit_to_the_project(self, root, rows):
         path = revision(root, "0013-secret-storage", 0, status="approved")
@@ -105,7 +106,7 @@ class TestNoBlocker:
         project(root, "b", decision="ADR-0013/0")
         with contextlib.redirect_stderr(io.StringIO()):
             initiatives = gen.render_initiatives_table(root)
-        assert initiatives.splitlines()[2].endswith("| Not started | — |")
+        assert initiatives.splitlines()[2].endswith("| Not started | — | a summary |")
         assert gen.render_standalone_projects_table(root).splitlines()[2] == "| [`b.md`](projects/b.md) | — | Not started | — | b summary |"
 
 
@@ -115,7 +116,6 @@ class TestWaitingOnADecisionLabel:
     @pytest.mark.parametrize(
         ("render", "fields", "link"),
         [
-            pytest.param(gen.render_projects_table, {}, "../decisions/0013-secret-storage/revision-000.md", id="index"),
             pytest.param(gen.render_standalone_projects_table, {}, "decisions/0013-secret-storage/revision-000.md", id="projects-view"),
             pytest.param(gen.render_initiatives_table, {"super_project": "s"}, "decisions/0013-secret-storage/revision-000.md", id="super-projects-view"),
         ],
@@ -131,8 +131,8 @@ class TestWaitingOnADecisionLabel:
         revision(root, "0013-secret-storage", 0, letter="b", status="working")
         project(root, "a", decision="ADR-0013/0-b")
         assert (
-            "| Not started | waiting on [ADR-0013/0-b (0013-secret-storage)](../decisions/0013-secret-storage/revision-000-b.md) |"
-            in gen.render_projects_table(root)
+            "| Not started | waiting on [ADR-0013/0-b (0013-secret-storage)](decisions/0013-secret-storage/revision-000-b.md) |"
+            in gen.render_standalone_projects_table(root)
         )
 
     @pytest.mark.parametrize(
@@ -146,7 +146,7 @@ class TestWaitingOnADecisionLabel:
             ),
             pytest.param(
                 {"depends_on": [{"project": "PROJ-base", "reason": "needs its output"}], "decision": "ADR-0013/0"},
-                ("Not started", "waiting on [`base.md`](base.md)"),
+                ("Not started", "waiting on [`base.md`](projects/base.md)"),
                 id="waiting-on-a-project",
             ),
             pytest.param({}, ("Not started", "—"), id="no-decision"),
@@ -156,7 +156,7 @@ class TestWaitingOnADecisionLabel:
         revision(root, "0013-secret-storage", 0, status="working")
         project(root, "base", status="building")
         project(root, "left-out", **fields)
-        cells = gen.render_projects_table(root).splitlines()[-1].split("|")
+        cells = gen.render_standalone_projects_table(root).splitlines()[-1].split("|")
         assert (cells[3].strip(), cells[4].strip()) == expected
 
 
@@ -166,15 +166,14 @@ class TestOrderByStatus:
     def names(self, render, root):
         return [row.split("|")[1].split("`")[1] for row in render(root).splitlines()[2:]]
 
-    @pytest.mark.parametrize("render", [gen.render_projects_table, gen.render_standalone_projects_table])
-    def test_building_then_de_risking_then_not_started_then_done(self, root, render):
+    def test_building_then_de_risking_then_not_started_then_done(self, root):
         project(root, "a-idle")
         project(root, "b-done", status="done")
         project(root, "c-spike", status="de-risking")
         project(root, "d-build", status="building")
         project(root, "e-build", status="building")
         project(root, "f-idle")
-        assert self.names(render, root) == ["d-build.md", "e-build.md", "c-spike.md", "a-idle.md", "f-idle.md", "b-done.md"]
+        assert self.names(gen.render_standalone_projects_table, root) == ["d-build.md", "e-build.md", "c-spike.md", "a-idle.md", "f-idle.md", "b-done.md"]
 
     def test_the_super_projects_view_keeps_its_build_order(self, root):
         project(root, "a-first", super_project="s")
@@ -191,7 +190,7 @@ class TestDecisionShortName:
     def test_a_revision_with_a_short_name_is_linked_by_it(self, root):
         revision(root, "0013-secret-storage", 0, status="working", short="Secret storage")
         project(root, "a", decision="ADR-0013/0")
-        assert "waiting on [ADR-0013/0 (Secret storage)](../decisions/0013-secret-storage/revision-000.md)" in gen.render_projects_table(root)
+        assert "waiting on [ADR-0013/0 (Secret storage)](decisions/0013-secret-storage/revision-000.md)" in gen.render_standalone_projects_table(root)
 
 
 class TestInitiativesTable:
@@ -214,17 +213,17 @@ class TestInitiativesTable:
             # Second row's initiative cell is blank: it's the same
             # initiative as the row above, and rows in one initiative
             # always sort contiguously.
-            "| `pull-based-cd` | [`a.md`](projects/a.md) | — | Building | — |",
+            "| `pull-based-cd` | [`a.md`](projects/a.md) | — | Building | — | a summary |",
             # Blank cell renders as one space between its pipes, not
             # two — MD060's compact table style flags "|  |".
-            "| | [`b.md`](projects/b.md) | — | Not started | — |",
+            "| | [`b.md`](projects/b.md) | — | Not started | — | b summary |",
         ]
         assert err.getvalue() == ""
 
     def test_the_table_has_no_track_or_phase_column(self, root):
         project(root, "a", super_project="cd")
         project(root, "b", super_project="cd")
-        assert gen.render_initiatives_table(root).splitlines()[0] == "| Initiative | Project | Unblocks | Status | Blocker |"
+        assert gen.render_initiatives_table(root).splitlines()[0] == "| Initiative | Project | Unblocks | Status | Blocker | Covers |"
 
     def test_initiative_cell_is_only_blanked_within_a_contiguous_run(self, root):
         project(root, "a1", super_project="a")
@@ -309,7 +308,7 @@ class TestUnblocksCount:
     @pytest.fixture
     def counts(self, root):
         def _counts() -> dict[str, str]:
-            cells = (row.split("|") for row in gen.render_projects_table(root).splitlines()[2:])
+            cells = (row.split("|") for row in gen.render_standalone_projects_table(root).splitlines()[2:])
             return {c[1].split("`")[1]: c[2].strip() for c in cells}
 
         return _counts
@@ -345,8 +344,10 @@ class TestUnblocksCount:
     def test_every_project_view_carries_the_count(self, root):
         project(root, "base", status="building", super_project="s")
         project(root, "next", super_project="s", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
+        project(root, "lone-base", status="building")
+        project(root, "lone-next", depends_on=[{"project": "PROJ-lone-base", "reason": "needs its output"}])
         assert "| [`base.md`](projects/base.md) | 1 | Building | — |" in gen.render_initiatives_table(root)
-        assert "| [`base.md`](base.md) | 1 | Building | — | base summary |" in gen.render_projects_table(root)
+        assert "| [`lone-base.md`](projects/lone-base.md) | 1 | Building | — | lone-base summary |" in gen.render_standalone_projects_table(root)
 
 
 class TestDecisionsAwaitingAProject:
@@ -395,8 +396,8 @@ class TestLineagesIndex:
         assert "### Backup" not in out
         assert out.index("0001-host-config") < out.index("0004-docker-api-access")
         assert (
-            "| [0004](0004-docker-api-access/revision-000.md) | **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |"
-            in out
+            "| [0004](decisions/0004-docker-api-access/revision-000.md) "
+            "| **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |" in out
         )
 
     def test_multi_revision_lineage_shows_current_and_pending(self, root):
@@ -404,7 +405,7 @@ class TestLineagesIndex:
         revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0, solution="OpenBao", former_ids=["ADR-0027"])
         revision(root, "0013-secret-storage", 2, status="working", solution="Something newer")
         out = gen.render_lineages_index(root)
-        assert "[0013](0013-secret-storage/revision-001.md)" in out
+        assert "[0013](decisions/0013-secret-storage/revision-001.md)" in out
         assert "| OpenBao | Accepted (revision 1) | Revision 2 working; Formerly ADR-0027 |" in out
 
     def test_a_light_revision_is_marked_and_a_full_one_is_not(self, root):
@@ -427,7 +428,7 @@ class TestLineagesIndex:
         revision(root, "0044-trigger", 0, letter="a", status="working", solution="Pull-based agent")
         revision(root, "0044-trigger", 0, letter="b", status="working", solution="Private Gitea")
         out = gen.render_lineages_index(root)
-        assert "[0044](0044-trigger/revision-000-a.md)" in out
+        assert "[0044](decisions/0044-trigger/revision-000-a.md)" in out
         assert "Undecided between: (000-a) Pull-based agent; or (000-b) Private Gitea" in out
         assert "Working (000-a), Working (000-b)" in out
         assert "| Private Gitea |" not in out  # the newest candidate must not be presented as the current solution
@@ -471,14 +472,106 @@ class TestLineagesIndex:
         revision(root, "0014-r2", 0, status="accepted", topic="cloud-credentials", title="R2 rotation credential")
         out = gen.render_lineages_index(root)
         rows = {line.split("|")[1].strip()[1:5]: line for line in out.splitlines() if line.startswith("| [")}
-        assert "Narrowed by [0016](0016-oci/revision-000.md)" in rows["0015"]
+        assert "Narrowed by [0016](decisions/0016-oci/revision-000.md)" in rows["0015"]
         assert "Narrowed by" not in rows["0016"]
-        assert "Related: [0014](0014-r2/revision-000.md)" in rows["0016"]
-        assert "Related: [0016](0016-oci/revision-000.md)" in rows["0014"]
+        assert "Related: [0014](decisions/0014-r2/revision-000.md)" in rows["0016"]
+        assert "Related: [0016](decisions/0016-oci/revision-000.md)" in rows["0014"]
 
     def test_pipes_in_text_are_escaped(self, root):
         revision(root, "0001-x", 0, status="accepted", solution="a | b")
         assert r"a \| b" in gen.render_lineages_index(root)
+
+
+class TestDecisionsByNumber:
+    def test_empty(self, root):
+        assert gen.render_decisions_by_number(root) == "No decision lineages yet."
+
+    def test_one_short_row_per_lineage_in_number_order_whatever_the_topic(self, root):
+        revision(root, "0017-store-recovery", 0, short="Store recovery", topic="secrets-store", status="accepted")
+        revision(root, "0004-docker-api-access", 0, short="Docker API access", topic="deployment-platform", status="accepted")
+        revision(root, "0011-alerts", 0, short="Alert routing", topic="monitoring-alerting", status="accepted")
+        assert gen.render_decisions_by_number(root).splitlines()[2:] == [
+            "| [0004](decisions/0004-docker-api-access/revision-000.md) | Docker API access | Accepted | Deployment & platform | — |",
+            "| [0011](decisions/0011-alerts/revision-000.md) | Alert routing | Accepted | Monitoring & alerting | — |",
+            "| [0017](decisions/0017-store-recovery/revision-000.md) | Store recovery | Accepted | Secrets store | — |",
+        ]
+
+    def test_the_link_goes_to_the_revision_that_answers_the_problem(self, root):
+        revision(root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        assert "| [0013](decisions/0013-secret-storage/revision-001.md) |" in gen.render_decisions_by_number(root)
+
+    def test_a_merged_lineages_old_number_and_a_pending_revision_are_in_the_notes(self, root):
+        revision(root, "0013-secret-storage", 0, status="accepted", former_ids=["ADR-0027", "ADR-0029"])
+        revision(root, "0013-secret-storage", 1, status="working")
+        row = gen.render_decisions_by_number(root).splitlines()[2]
+        assert row.endswith("| Accepted (original) | Secrets store | Revision 1 working; Formerly ADR-0027, ADR-0029 |")
+
+    def test_competing_candidates_are_undecided_with_no_note_repeating_it(self, root):
+        revision(root, "0044-trigger", 0, letter="a", status="working")
+        revision(root, "0044-trigger", 0, letter="b", status="working")
+        row = gen.render_decisions_by_number(root).splitlines()[2]
+        assert "| Working (000-a), Working (000-b) | Secrets store | — |" in row
+
+    def test_a_link_prefix_follows_the_file_rendered_into(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        assert "[0001](../decisions/0001-a/revision-000.md)" in gen.render_decisions_by_number(root, prefix="../decisions/")
+
+
+class TestOpenDecisions:
+    def test_empty(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        assert gen.render_open_decisions(root) == "No decision is open."
+
+    def test_approved_before_working_each_group_in_lineage_order_and_closed_ones_left_out(self, root):
+        revision(root, "0002-b", 0, status="working")
+        revision(root, "0003-c", 0, status="approved")
+        revision(root, "0004-d", 0, status="accepted")
+        revision(root, "0005-e", 0, status="approved")
+        assert [row.split("|")[1].strip()[1:5] for row in gen.render_open_decisions(root).splitlines()[2:]] == ["0003", "0005", "0002"]
+
+    def test_a_decision_a_project_names_is_listed_with_its_projects_and_one_nobody_names_with_a_dash(self, root):
+        revision(root, "0002-b", 0, status="approved")
+        revision(root, "0003-c", 0, status="working")
+        project(root, "p", decision="ADR-0002/0")
+        project(root, "q", decision="ADR-0009/0", also_implements=["ADR-0002/0"])
+        rows = gen.render_open_decisions(root).splitlines()[2:]
+        assert rows[0].endswith("| Approved | [`p.md`](projects/p.md), [`q.md`](projects/q.md) |")
+        assert rows[1].endswith("| Working | — |")
+
+    def test_a_pending_successor_is_listed_under_its_own_revision(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        revision(root, "0001-a", 1, status="working", supersedes=0)
+        assert gen.render_open_decisions(root).splitlines()[2].startswith("| [0001](decisions/0001-a/revision-001.md) | revision 1 |")
+
+    def test_a_lettered_candidate_is_matched_to_a_project_by_its_label(self, root):
+        revision(root, "0044-trigger", 0, letter="a", status="abandoned")
+        revision(root, "0044-trigger", 0, letter="b", status="approved")
+        project(root, "p", decision="ADR-0044/0-b")
+        assert gen.render_open_decisions(root).splitlines()[2].endswith("| original (b) | 0044-trigger | Approved | [`p.md`](projects/p.md) |")
+
+
+class TestHistory:
+    def test_empty(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        assert gen.render_history(root) == "No revision has been superseded or abandoned."
+
+    def test_a_superseded_revision_links_the_one_that_replaced_it(self, root):
+        revision(root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        assert gen.render_history(root).splitlines()[2:] == [
+            "| [0013](decisions/0013-secret-storage/revision-000.md) | original | 0013-secret-storage | Superseded "
+            "| [revision 1](decisions/0013-secret-storage/revision-001.md) |"
+        ]
+
+    def test_an_abandoned_candidate_is_listed_and_the_current_revisions_are_not(self, root):
+        revision(root, "0044-trigger", 0, letter="a", status="abandoned")
+        revision(root, "0044-trigger", 0, letter="b", status="accepted")
+        revision(root, "0045-other", 0, status="working")
+        rows = gen.render_history(root).splitlines()[2:]
+        assert len(rows) == 1
+        assert rows[0].startswith("| [0044](decisions/0044-trigger/revision-000-a.md) | original (a) |")
+        assert rows[0].endswith("| Abandoned | — |")
 
 
 class TestValidateAdrs:

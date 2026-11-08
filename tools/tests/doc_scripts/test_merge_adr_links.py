@@ -201,7 +201,7 @@ class TestWhatIsNotEdited:
         assert tree.plan().edits == {}
 
     def test_the_generated_views_are_not_edited(self, tree):
-        tree.write("docs/decisions/README.md", f"| [0017]({A}/revision-000.md) | ADR 0017 |\n")
+        tree.write("docs/decision-index.md", f"| [0017](decisions/{A}/revision-000.md) | ADR 0017 |\n")
         tree.write("docs/project-planning.md", "ADR 0017\n")
         assert tree.plan().edits == {}
 

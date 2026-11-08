@@ -34,7 +34,7 @@ class TestCategory:
             pytest.param(["docs/a.md", "tools/x.py"], False, "built", id="any-code-is-built"),
             pytest.param([project_path("a"), "docs/projects/README.md"], False, "scope", id="only-project-docs"),
             pytest.param(["docs/topics/a.md", project_path("a")], False, "planned", id="other-docs"),
-            pytest.param(["docs/projects/README.md", "docs/project-planning.md"], False, "planned", id="only-generated-views"),
+            pytest.param(["docs/decision-index.md", "docs/project-planning.md"], False, "planned", id="only-generated-views"),
         ],
     )
     def test_follows_the_paths_touched(self, paths, bot, expected):

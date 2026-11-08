@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 from doc_scripts.doc_explorations import exploration_errors
-from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, is_template, load_lineages, read_frontmatter
+from doc_scripts.doc_frontmatter import DECISION_INDEX, LINEAGE_DIR_RE, doc_kind, is_template, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import heading_errors, lineage_errors, open_assumption_errors, project_errors, weight_errors
 from doc_scripts.doc_records import record_errors
 from doc_scripts.doc_removed import ledger_errors
@@ -37,7 +37,7 @@ PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
 # (directory under docs/, whether its README.md also indexes docs in nested
 # folders). A recursive directory is matched by path relative to that
 # README, so two folders can each hold a doc of the same name.
-INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), ("projects", False), ("topics", True))
+INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), ("topics", True))
 
 DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
 PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
@@ -80,9 +80,10 @@ def check_doc_indexes() -> None:
                 fail(f"{label}/README.md: {rel} exists but isn't linked in its index")
 
         if subdir == "decisions":
+            decision_index = read(ROOT / DECISION_INDEX)
             for lineage_dir in sorted(p for p in (ROOT / "docs" / subdir).iterdir() if p.is_dir() and LINEAGE_DIR_RE.match(p.name)):
-                if f"{lineage_dir.name}/" not in index:
-                    fail(f"{label}/README.md: lineage {lineage_dir.name}/ exists but isn't linked in its index")
+                if f"{lineage_dir.name}/" not in decision_index:
+                    fail(f"{DECISION_INDEX}: lineage {lineage_dir.name}/ exists but isn't linked in it")
 
         for link in re.findall(r"\]\(([\w-]+\.md)\)", index):
             if is_template(link):

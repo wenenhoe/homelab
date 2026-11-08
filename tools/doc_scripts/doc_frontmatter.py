@@ -18,7 +18,10 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# `topic:` values, in the order the generated decisions index lists them.
+# The generated index of decision lineages, beside docs/project-planning.md.
+DECISION_INDEX = "docs/decision-index.md"
+
+# `topic:` values, in the order the generated decision index lists them.
 TOPICS = {
     "deployment-platform": "Deployment & platform",
     "ingress-tls-pki": "Ingress, TLS & PKI",

@@ -3,7 +3,8 @@
 Four generated, cross-cutting views; none is a rules doc. For what a
 project is and its lifecycle, see [`projects/README.md`](projects/README.md);
 for what an ADR is and its revision states, see
-[`decisions/README.md`](decisions/README.md).
+[`decisions/README.md`](decisions/README.md); for every ADR by number and
+topic, see [`decision-index.md`](decision-index.md).
 
 **Unblocks**, in every table of projects, is the number of existing
 projects that wait on that one, directly or through a chain of
@@ -18,6 +19,8 @@ approved; more than one are joined with a semicolon. `—` means nothing does, s
 `—` can be started. Neither cell is stored, per
 [ADR 0082 (Choosing the next project)](decisions/0082-choosing-which-project-to-take-up-next/revision-001.md).
 
+**Covers**, in every table of projects, is the project's `summary:`.
+
 **Super Projects** groups every project that belongs to one
 (`super_project:` is set) by build order — projects by dependency depth,
 then by file name, per
@@ -26,9 +29,7 @@ A repeated initiative name is blanked after its first row so the table
 reads as one block per initiative.
 
 **Projects** is every project with no `super_project` — the complement
-of the view above, in the same shape as
-[`projects/README.md`'s own Index](projects/README.md#index), filtered
-down to the ones not part of any initiative. Both tables list building projects
+of the view above, with the same columns. It lists building projects
 first, then de-risking, not started and done, each by file name.
 
 **Decisions awaiting a project** lists every ADR lineage with an open
@@ -49,34 +50,34 @@ first, so one that has stood still is the first row.
 
 ## Super Projects
 
-| Initiative | Project | Unblocks | Status | Blocker |
-| :--- | :--- | ---: | :--- | :--- |
-| `backup-archive-protection` | [`backup-archive-retention-lock.md`](projects/backup-archive-retention-lock.md) | — | Not started | waiting on [ADR-0081/0 (On-site archive deletion)](decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) |
-| | [`backup-archive-signing.md`](projects/backup-archive-signing.md) | — | Not started | waiting on [ADR-0079/0 (Backup archive authenticity)](decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) |
-| `coding-agent-host` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | Not started | waiting on [ADR-0053/0 (Coding-agent network reach)](decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md) |
-| | [`coding-agent-egress.md`](projects/coding-agent-egress.md) | — | Not started | waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| | [`coding-agent-host.md`](projects/coding-agent-host.md) | 4 | Not started | waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started | waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| | [`coding-agent-management.md`](projects/coding-agent-management.md) | — | Not started | waiting on [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | — | Not started | waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| `compose-stack-files` | [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) | — | Not started | waiting on [ADR-0088/0 (Role-deployed stack compose)](decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) |
-| | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started | — |
-| | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started | — |
-| | [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started | waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) |
-| `controller-separation` | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | — |
-| | [`workstation-management.md`](projects/workstation-management.md) | — | Not started | — |
-| | [`operator-host-takeover.md`](projects/operator-host-takeover.md) | — | Not started | waiting on [`operator-host.md`](projects/operator-host.md) |
-| `off-site-monitoring` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | Not started | waiting on [ADR-0073/0 (Off-site cloud auth)](decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) |
-| | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | — |
-| | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | Not started | blocked: no production credential goes to the GCP host until its hardening pass is scoped and done; waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | — |
-| | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | — |
-| | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | — |
-| | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started | waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tailnet-policy` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started | waiting on [ADR-0059/0 (Tailnet policy)](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) |
-| `tofu-vm-provisioning` | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | — |
-| | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started | waiting on [ADR-0093/0 (Proxmox node install)](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) |
-| | [`windows-vms.md`](projects/windows-vms.md) | — | Not started | waiting on [ADR-0092/0 (Windows VM builds)](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
+| Initiative | Project | Unblocks | Status | Blocker | Covers |
+| :--- | :--- | ---: | :--- | :--- | :--- |
+| `backup-archive-protection` | [`backup-archive-retention-lock.md`](projects/backup-archive-retention-lock.md) | — | Not started | waiting on [ADR-0081/0 (On-site archive deletion)](decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) | Lock the on-site backup bucket in compliance mode so the host that wrote an archive cannot delete it, and expire superseded versions once their lock ends, as ADR 0081 decides. |
+| | [`backup-archive-signing.md`](projects/backup-archive-signing.md) | — | Not started | waiting on [ADR-0079/0 (Backup archive authenticity)](decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) | Sign each backup archive with a per-host key and make a restore refuse any archive whose signature does not verify against a key pinned in the repository, as ADR 0079 decides. |
+| `coding-agent-host` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | Not started | waiting on [ADR-0053/0 (Coding-agent network reach)](decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md) | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
+| | [`coding-agent-egress.md`](projects/coding-agent-egress.md) | — | Not started | waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) | A filtering egress proxy for the coding-agent zone and VLAN 30, and canary probes that check the whole boundary from outside the host. |
+| | [`coding-agent-host.md`](projects/coding-agent-host.md) | 4 | Not started | waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
+| | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started | waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
+| | [`coding-agent-management.md`](projects/coding-agent-management.md) | — | Not started | waiting on [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else. |
+| | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | — | Not started | waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
+| `compose-stack-files` | [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) | — | Not started | waiting on [ADR-0088/0 (Role-deployed stack compose)](decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) | Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app. |
+| | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started | — | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
+| | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started | — | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
+| | [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started | waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
+| `controller-separation` | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | — | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
+| | [`workstation-management.md`](projects/workstation-management.md) | — | Not started | — | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it. |
+| | [`operator-host-takeover.md`](projects/operator-host-takeover.md) | — | Not started | waiting on [`operator-host.md`](projects/operator-host.md) | The egress allowlist for VLAN 30, then the controller's toolchain and credentials moved onto the operator host. |
+| `off-site-monitoring` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | Not started | waiting on [ADR-0073/0 (Off-site cloud auth)](decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
+| | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | — | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
+| | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | Not started | blocked: no production credential goes to the GCP host until its hardening pass is scoped and done; waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
+| `pull-based-cd` | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | — | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
+| | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | — | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
+| | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | — | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
+| | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started | waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
+| `tailnet-policy` | [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md) | — | Not started | waiting on [ADR-0059/0 (Tailnet policy)](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides. |
+| `tofu-vm-provisioning` | [`opnsense-config.md`](projects/opnsense-config.md) | — | Building | — | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it. |
+| | [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started | waiting on [ADR-0093/0 (Proxmox node install)](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) | The Proxmox node reinstalled from an ISO with an embedded answer file and brought to the state OpenTofu needs by an idempotent Ansible role, tested on a nested Proxmox VM. |
+| | [`windows-vms.md`](projects/windows-vms.md) | — | Not started | waiting on [ADR-0092/0 (Windows VM builds)](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) | Windows machines created by OpenTofu from their install media with an unattended answer file rendered in this repository, starting with the desktops and the one with a GPU. |
 
 ## Projects
 

@@ -7,11 +7,14 @@ A small fleet of Ubuntu hosts running Dockerized services, fully converged by An
 
 | Concern | Stack |
 | :--- | :--- |
-| Automation & networking | Ansible · Docker Compose · Caddy · BIND9 |
+| Virtualisation & provisioning | Proxmox · OpenTofu |
+| Automation & networking | Ansible · Docker Compose · Caddy · BIND9 · Tailscale · OPNsense |
 | Identity & secrets | OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth |
-| Data & ops | SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate |
+| CI/CD | GitHub Actions · pull-based CD agent · Molecule · Trivy · Renovate |
+| Backups | SeaweedFS on-site, relayed offsite to Cloudflare R2 · Backblaze B2 · Oracle Cloud (OCI) |
+| Monitoring | Beszel · Gatus |
 
-OpenTofu builds the Ubuntu hosts: [`tofu/`](tofu) holds the root module that declares them, its modules and their tests, and [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) is the entry point to how they are built. The production gateway is still maintained by hand, and Tofu's state is still a local file; [`project-planning.md`](docs/project-planning.md) lists what remains.
+The production gateway is still maintained by hand.
 
 Reviewing this repo? [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) maps each claim it makes to the doc that explains it and the check that holds it up.
 
@@ -63,6 +66,7 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 | | Add an app | [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) |
 | | Follow what a `deploy.yaml` run does | [`deployment-flow.md`](docs/topics/deploy/deployment-flow.md) |
 | | Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
+| | Provision a VM with OpenTofu | [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) |
 | | Rebuild a host from the repo and its backups | [`rebuild-runbook.md`](docs/topics/disaster-recovery/rebuild-runbook.md) |
 | | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
 | Develop | Run or write tests | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
@@ -71,12 +75,12 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 | Understand | See the fleet on one page | [`system-overview.md`](docs/architecture/system-overview.md) |
 | | Check a claim this repo makes against the check behind it | [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) |
 | | See the security model and its limits | [`SECURITY.md`](SECURITY.md) |
-| | Know why a design was chosen | [decisions](docs/decisions/README.md) |
-| Contribute | See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |
+| | Know why a design was chosen | [decisions](docs/decisions/README.md) · [find one by number](docs/decision-index.md#by-number) |
+| Contribute | See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [how projects work](docs/projects/README.md) |
 | | Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
 | | Start as an agent | [`AGENTS.md`](AGENTS.md) |
 | Browse | Topic docs ([all](docs/topics/README.md)), by area | [deploy](docs/topics/README.md#deploy) · [infra](docs/topics/README.md#infra) · [services](docs/topics/README.md#services) · [secrets](docs/topics/README.md#secrets) · [disaster recovery](docs/topics/README.md#disaster-recovery) · [monitoring](docs/topics/README.md#monitoring) · [engineering](docs/topics/README.md#engineering) |
-| | Decisions ([all](docs/decisions/README.md)), by area | [Deployment & platform](docs/decisions/README.md#deployment--platform) · [Ingress, TLS & PKI](docs/decisions/README.md#ingress-tls--pki) · [Secrets store](docs/decisions/README.md#secrets-store) · [Cloud credentials](docs/decisions/README.md#cloud-credentials) · [Backup & recovery](docs/decisions/README.md#backup--recovery) · [Monitoring & alerting](docs/decisions/README.md#monitoring--alerting) · [Repository & tooling](docs/decisions/README.md#repository--tooling) · [Security & hardening](docs/decisions/README.md#security--hardening) · [Documentation & process](docs/decisions/README.md#documentation--process) |
+| | Decisions ([all](docs/decision-index.md)), by area | [Deployment & platform](docs/decision-index.md#deployment--platform) · [Ingress, TLS & PKI](docs/decision-index.md#ingress-tls--pki) · [Secrets store](docs/decision-index.md#secrets-store) · [Cloud credentials](docs/decision-index.md#cloud-credentials) · [Backup & recovery](docs/decision-index.md#backup--recovery) · [Monitoring & alerting](docs/decision-index.md#monitoring--alerting) · [Repository & tooling](docs/decision-index.md#repository--tooling) · [Security & hardening](docs/decision-index.md#security--hardening) · [Documentation & process](docs/decision-index.md#documentation--process) |
 
 ## License
 

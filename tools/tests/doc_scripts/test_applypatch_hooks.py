@@ -1,7 +1,8 @@
 """The `git am` hooks run against real `git am` in a throwaway repository.
 
 `pre-commit` is a stub: `pre-commit run generate-doc-indexes` rebuilds a one-line-per-project
-`docs/projects/README.md`, and the installed commit hook fails when that file is stale. That is
+listing in one listed view (`docs/decision-index.md` stands in), and the installed commit hook fails
+when that file is stale. That is
 enough to show which hook puts the regenerated view into the commit. Both stubs also do what
 pre-commit does with unstaged changes: stash them, run, and put them back over whatever the run
 wrote, rolling the run's output back when they no longer apply.
@@ -25,7 +26,7 @@ VIEW_LIST = ".githooks/generated-views"
 VIEWS = tuple((REPO / VIEW_LIST).read_text().split())
 
 LISTING = """#!/usr/bin/env bash
-# Prints what docs/projects/README.md should hold for the projects in the working tree.
+# Prints what the stand-in view, docs/decision-index.md, should hold for the projects in the working tree.
 echo "# Index"
 for f in docs/projects/*.md; do
   [ "$(basename "$f")" = README.md ] || basename "$f"
@@ -48,7 +49,7 @@ with_unstaged_stashed() {
 STUB_PRE_COMMIT = """#!/usr/bin/env bash
 here="$(dirname "$0")"
 . "$here/stash"
-regenerate() { "$here/listing" > docs/projects/README.md; }
+regenerate() { "$here/listing" > docs/decision-index.md; }
 if [ "$1" = run ] && [ "$2" = generate-doc-indexes ]; then
   with_unstaged_stashed regenerate
 fi
@@ -57,14 +58,14 @@ COMMIT_HOOK = """#!/usr/bin/env bash
 # Fails when the staged README does not list the projects in the index.
 cd "$(git rev-parse --show-toplevel)"
 . "$STASH"
-check() { diff <(git show :docs/projects/README.md) <("$LISTING") >/dev/null || { echo "stale view" >&2; return 1; }; }
+check() { diff <(git show :docs/decision-index.md) <("$LISTING") >/dev/null || { echo "stale view" >&2; return 1; }; }
 with_unstaged_stashed check
 """
 PRE_APPLYPATCH_WITHOUT_STAGING = """#!/usr/bin/env bash
 set -euo pipefail
 hook="$(git rev-parse --git-path hooks)/pre-commit"
 pre-commit run generate-doc-indexes >/dev/null 2>&1 || true
-git add -- docs/projects/README.md docs/project-planning.md docs/decisions/README.md
+git add -- docs/decision-index.md docs/project-planning.md
 exec "$hook"
 """
 
@@ -89,9 +90,8 @@ class Sandbox:
         for script in (self.bin / "listing", self.bin / "pre-commit", self.hooks / "pre-commit"):
             script.chmod(0o755)
         git(self.repo, "init", "-q", "-b", "main")
-        self.write("docs/projects/README.md", "# Index\n")
+        self.write("docs/decision-index.md", "# Index\n")
         self.write("docs/project-planning.md", "# Planning\n")
-        self.write("docs/decisions/README.md", "# Decisions\n")
         for view in VIEWS:
             if not (self.repo / view).exists():
                 self.write(view, "# View\n")
@@ -141,7 +141,7 @@ class TestApplypatchHooks:
         sandbox.install("pre-applypatch", "post-applypatch")
         result = sandbox.am(sandbox.project_patch("alpha"))
         assert result.returncode == 0, result.stderr
-        assert sandbox.committed("docs/projects/README.md") == "# Index\nalpha.md\n"
+        assert sandbox.committed("docs/decision-index.md") == "# Index\nalpha.md\n"
         assert git(sandbox.repo, "status", "--porcelain").stdout == ""
 
     def test_series_from_separate_threads_applies_without_a_view_conflict(self, sandbox: Sandbox) -> None:
@@ -150,7 +150,7 @@ class TestApplypatchHooks:
         result = sandbox.am(*patches)
         assert result.returncode == 0, result.stderr
         assert sandbox.count() == 3
-        assert sandbox.committed("docs/projects/README.md") == "# Index\nalpha.md\nbeta.md\n"
+        assert sandbox.committed("docs/decision-index.md") == "# Index\nalpha.md\nbeta.md\n"
         assert git(sandbox.repo, "show", "-s", "--format=%an|%s", "HEAD").stdout.strip() == "t|docs: add beta"
 
     def test_amend_keeps_the_patch_author_and_date(self, sandbox: Sandbox) -> None:
@@ -177,7 +177,7 @@ class TestApplypatchHooks:
     def test_controls_the_view_is_missing_without_both_hooks(self, sandbox: Sandbox, installed: tuple[str, ...], view_committed: bool) -> None:
         sandbox.install(*installed)
         sandbox.am(sandbox.project_patch("alpha"))
-        assert (sandbox.committed("docs/projects/README.md") == "# Index\nalpha.md\n") is view_committed
+        assert (sandbox.committed("docs/decision-index.md") == "# Index\nalpha.md\n") is view_committed
 
     def test_control_without_staging_the_views_first_the_second_patch_of_a_series_stops(self, sandbox: Sandbox) -> None:
         sandbox.install("post-applypatch")
@@ -274,7 +274,7 @@ EXTRA_VIEW = "docs/extra-view.md"
 EXTRA_PRE_COMMIT = """#!/usr/bin/env bash
 here="$(dirname "$0")"
 . "$here/stash"
-regenerate() { "$here/listing" > docs/projects/README.md; "$here/listing" | sed '1s/.*/# Extra/' > docs/extra-view.md; }
+regenerate() { "$here/listing" > docs/decision-index.md; "$here/listing" | sed '1s/.*/# Extra/' > docs/extra-view.md; }
 if [ "$1" = run ] && [ "$2" = generate-doc-indexes ]; then
   with_unstaged_stashed regenerate
 fi
@@ -284,7 +284,7 @@ EXTRA_COMMIT_HOOK = """#!/usr/bin/env bash
 cd "$(git rev-parse --show-toplevel)"
 . "$STASH"
 check() {
-  diff <(git show :docs/projects/README.md) <("$LISTING") >/dev/null || { echo "stale view" >&2; return 1; }
+  diff <(git show :docs/decision-index.md) <("$LISTING") >/dev/null || { echo "stale view" >&2; return 1; }
   diff <(git show :docs/extra-view.md) <("$LISTING" | sed '1s/.*/# Extra/') >/dev/null || { echo "stale extra view" >&2; return 1; }
 }
 with_unstaged_stashed check
@@ -313,7 +313,7 @@ class TestTheViewList:
         result = sandbox.am(sandbox.project_patch("alpha"), sandbox.project_patch("beta"))
         assert result.returncode == 0, result.stderr
         assert sandbox.committed(EXTRA_VIEW) == "# Extra\nalpha.md\nbeta.md\n"
-        assert sandbox.committed("docs/projects/README.md") == "# Index\nalpha.md\nbeta.md\n"
+        assert sandbox.committed("docs/decision-index.md") == "# Index\nalpha.md\nbeta.md\n"
         assert git(sandbox.repo, "status", "--porcelain").stdout == ""
 
     def test_control_a_view_left_out_of_the_list_stops_the_apply_on_a_stale_view(self, sandbox: Sandbox) -> None:

@@ -149,7 +149,7 @@ class TestScopeErrors:
 
     def test_the_workflows_own_bookkeeping_is_implicitly_allowed(self, scoped, errors):
         doc = scoped()
-        assert errors([doc, "docs/projects/README.md", "docs/projects/sibling.md", "docs/decisions/README.md", "docs/project-planning.md"]) == []
+        assert errors([doc, "docs/projects/README.md", "docs/projects/sibling.md", "docs/decision-index.md", "docs/project-planning.md"]) == []
 
     def test_the_linked_decision_revision_is_implicitly_allowed_but_not_its_neighbours(self, root, scoped, errors):
         revision(root, "0001-x", 0)

@@ -168,6 +168,15 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    exit
    ```
 
+## Leftovers from the rename
+
+The `r2-read-watcher` AppRole, its policy and the `gatus-token-r2-read-watcher`
+secret are still in OpenBao. Deleting a role, a policy or a KV secret takes a
+root session, which neither `vault-bootstrap` nor `controller` has. Nothing
+holds the old `secret_id`, and the policy reads only Telegram's secrets. A
+re-init does not recreate them, since the runbook provisions only the new role,
+so they go then, or in any earlier root session.
+
 ## Known gap
 
 `rotation-read-watcher.service` has no alert wired for a watcher that's

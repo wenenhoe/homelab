@@ -56,7 +56,7 @@ are the baseline.
 
 [ADR 0012 (Backup verification)](../../decisions/0012-verifying-backups-actually-land/revision-000.md) (per-host
 backup freshness checks) and
-[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-001.md)
 (a per-read watcher pushing a heartbeat to Gatus) are both, concretely,
 ongoing monitoring of a specific failure mode rather than a
 point-in-time check. The

@@ -59,6 +59,7 @@ app_catalog:
         no_log: true
 
   bind9:
+    doc: docs/topics/records/bind9.md
     volumes:
       - name: config
       - name: cache
@@ -127,6 +128,7 @@ app_catalog:
         upstream: "shlink-web-client:8080"
 
   seaweedfs:
+    doc: docs/topics/records/seaweedfs.md
     recovery_tier: 1
     volumes:
       - name: data

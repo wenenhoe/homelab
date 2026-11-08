@@ -110,6 +110,8 @@ Service records: for each integrated system, what it depends on, holds, exposes,
 | [`step-ca.md`](records/step-ca.md) | The internal certificate authority. |
 | [`lldap.md`](records/lldap.md) | The login directory. |
 | [`tinyauth.md`](records/tinyauth.md) | The forward-auth gate in front of the routes. |
+| [`seaweedfs.md`](records/seaweedfs.md) | The on-site S3 backup store. |
+| [`bind9.md`](records/bind9.md) | The internal DNS primary and secondary. |
 
 ## engineering/
 

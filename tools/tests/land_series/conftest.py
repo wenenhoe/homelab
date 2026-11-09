@@ -39,8 +39,11 @@ class FakeGitHub:
     def branches(self) -> list[str]:
         return git(self.remote, "for-each-ref", "--format=%(refname:short)", "refs/heads").split()
 
+    def merges_on(self, branch: str) -> list[str]:
+        return git(self.remote, "log", "--first-parent", "--merges", "--format=%s", branch).splitlines()
+
     def merges_on_main(self) -> list[str]:
-        return git(self.remote, "log", "--first-parent", "--merges", "--format=%s", "main").splitlines()
+        return self.merges_on("main")
 
     def file_on_main(self, name: str) -> str:
         return git(self.remote, "show", f"main:{name}")

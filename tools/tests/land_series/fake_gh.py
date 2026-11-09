@@ -52,7 +52,7 @@ def main(args: list[str]) -> int:
     elif verb == ["pr", "create"]:
         number = len(state["prs"]) + 1
         url = f"https://example.test/pull/{number}"
-        pr = {"number": number, "url": url, "head": option(args, "--head"), "open": True}
+        pr = {"number": number, "url": url, "head": option(args, "--head"), "base": option(args, "--base"), "open": True}
         pr["title"], pr["body"] = option(args, "--title"), option(args, "--body")
         state["prs"].append(pr)
         print(url)
@@ -69,11 +69,13 @@ def main(args: list[str]) -> int:
     elif verb == ["pr", "merge"]:
         pr = state["prs"][number_of(args[2]) - 1]
         assert {"--admin", "--merge", "--delete-branch"} <= set(args), args
+        base = pr["base"]
         with tempfile.TemporaryDirectory() as scratch:
             git("clone", "-q", REMOTE, scratch)
-            ahead = git("rev-list", "--count", f"origin/main..origin/{pr['head']}", cwd=scratch)
+            git("checkout", "-q", "-B", base, f"origin/{base}", cwd=scratch)
+            ahead = git("rev-list", "--count", f"origin/{base}..origin/{pr['head']}", cwd=scratch)
             git("merge", "-q", "--no-ff", "-m", f"Merge pull request #{pr['number']}", f"origin/{pr['head']}", cwd=scratch)
-            git("push", "-q", "origin", "HEAD:main", f":{pr['head']}", cwd=scratch)
+            git("push", "-q", "origin", f"HEAD:{base}", f":{pr['head']}", cwd=scratch)
         pr["open"] = False
         state["merges"].append({"number": pr["number"], "ahead": int(ahead)})
     else:

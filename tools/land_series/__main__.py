@@ -53,13 +53,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="land_series", description=__doc__)
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument("--repo", type=Path, default=Path())
-    parser.add_argument("--base", default=DEFAULT_BASE)
+    parser.add_argument("--base", default=DEFAULT_BASE, help="the branch to land on: origin/main (the default), or a name like develop for origin/develop")
     parser.add_argument("--no-fetch", action="store_true")
     parser.add_argument("--check", action="append", default=[], metavar="COMMAND")
     parser.add_argument("--dry-run", action="store_true", help="replay and check only; leave no branches")
     parser.add_argument("--land", action="store_true", help="push the kept branches, open, wait for and merge a pull request per layer")
     parser.add_argument("--yes", action="store_true", help="with --land, merge without asking after each layer's checks pass")
     args = parser.parse_args(argv)
+    if "/" not in args.base:
+        args.base = f"{REMOTE}/{args.base}"
     if args.land and args.dry_run:
         parser.error("--land lands the branches a replay kept, so it cannot be combined with --dry-run")
     try:

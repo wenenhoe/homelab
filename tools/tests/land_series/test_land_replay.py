@@ -137,6 +137,7 @@ def test_a_confirmed_layer_on_the_stop_list_replays(repo: Repo, author: Author, 
     assert git(repo.path, "log", "-1", "--format=%s", results[0].commit or "") == "chore: change a tool"
 
 
+@pytest.mark.usefixtures("github")
 def test_a_series_file_replays_and_keeps_a_branch_per_layer_from_the_command_line(
     repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -144,7 +145,7 @@ def test_a_series_file_replays_and_keeps_a_branch_per_layer_from_the_command_lin
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a write-one", patch)]))
 
-    status = cli.main([str(series), "--repo", str(repo.path), "--base", "main", "--no-fetch", "--check", f"{sys.executable} -c pass"])
+    status = cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--check", f"{sys.executable} -c pass"])
 
     assert status == 0
     assert capsys.readouterr().out.splitlines() == [
@@ -154,12 +155,13 @@ def test_a_series_file_replays_and_keeps_a_branch_per_layer_from_the_command_lin
     assert git(repo.path, "log", "-1", "--format=%s", "series/write-one") == "docs: write one"
 
 
+@pytest.mark.usefixtures("github")
 def test_a_dry_run_replays_without_leaving_a_branch(repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     patch = author.patch("docs: write one", {"a.txt": "one\n"})
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a write-one", patch)]))
 
-    status = cli.main([str(series), "--repo", str(repo.path), "--base", "main", "--no-fetch", "--dry-run", "--check", f"{sys.executable} -c pass"])
+    status = cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--dry-run", "--check", f"{sys.executable} -c pass"])
 
     assert status == 0
     assert capsys.readouterr().out.strip() == "0001a  replayed  docs: write one"
@@ -174,23 +176,25 @@ def test_land_and_dry_run_together_are_refused(repo: Repo, tmp_path: Path) -> No
         cli.main([str(series), "--repo", str(repo.path), "--land", "--dry-run"])
 
 
+@pytest.mark.usefixtures("github")
 def test_a_failing_replay_exits_one_and_says_which_layer(repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     patch = author.patch("docs: write one", {"a.txt": "one\n"})
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a write-one", patch)]))
 
-    status = cli.main([str(series), "--repo", str(repo.path), "--base", "main", "--no-fetch", "--check", f"{sys.executable} -c 'raise SystemExit(3)'"])
+    status = cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--check", f"{sys.executable} -c 'raise SystemExit(3)'"])
 
     assert status == 1
     assert capsys.readouterr().err.startswith("land_series: layer 0001a fails")
 
 
+@pytest.mark.usefixtures("github")
 def test_with_no_terminal_a_stop_list_layer_is_refused(repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     patch = author.patch("chore: change a tool", {"tools/run.py": "print()\n"})
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a change-tool", patch)]))
 
-    status = cli.main([str(series), "--repo", str(repo.path), "--base", "main", "--no-fetch", "--check", f"{sys.executable} -c pass"])
+    status = cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--check", f"{sys.executable} -c pass"])
 
     assert status == 1
     assert "was not confirmed" in capsys.readouterr().err

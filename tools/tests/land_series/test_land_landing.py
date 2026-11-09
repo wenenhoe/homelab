@@ -357,3 +357,17 @@ def test_a_series_with_nothing_left_over_says_nothing_about_it(repo: Repo, autho
     keep_series(repo, tmp_path, [("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"}))], "first.txt")
 
     assert "Left from an earlier run" not in capsys.readouterr().out
+
+
+def test_a_series_lands_on_develop_when_that_is_the_base(github: FakeGitHub, repo: Repo, author: Author, tmp_path) -> None:
+    git(repo.path, "push", "-q", "origin", "main:develop")
+    series = tmp_path / "series.txt"
+    series.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+
+    assert run(series, repo, "--base", "develop") == 0
+    assert run(series, repo, "--base", "develop", "--land", "--yes") == 0
+
+    assert github.calls("pr", "create")[0][2:4] == ["--base", "develop"]
+    assert github.merges_on("develop") == ["Merge pull request #1"]
+    assert github.merges_on_main() == []
+    assert git(github.remote, "show", "develop:a.txt") == "one"

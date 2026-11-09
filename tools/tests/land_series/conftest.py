@@ -12,6 +12,14 @@ import pytest
 from _series_repo import Author, Repo, git
 
 
+@pytest.fixture(autouse=True)
+def git_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tool runs `git am` and the fake `gh` merges, both of which commit; a CI runner has no identity configured."""
+    for who in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{who}_NAME", "Test Author")
+        monkeypatch.setenv(f"GIT_{who}_EMAIL", "test@example.com")
+
+
 @pytest.fixture
 def repo(tmp_path_factory: pytest.TempPathFactory) -> Repo:
     """A repository whose `main` the layers are replayed on."""

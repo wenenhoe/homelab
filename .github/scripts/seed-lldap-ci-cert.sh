@@ -23,7 +23,7 @@ lldap_fqdn="$2"
 ca_password="ci-dummy-step-ca-password"
 step_ca_image="smallstep/step-ca:0.30.2@sha256:a2b17872915c193259b75a5474c398326f41bd199f0842093e52cf4182bc8270"
 step_cli_image="smallstep/step-cli:0.31.0@sha256:107e8497646c0e7c06cc5b6fd6fa13b5d2001909df6d7da3706b8541ed42bddf"
-alpine_image="alpine:3.24@sha256:ce9e1e6d23f04a0b7593445a062a9fc73ed52f8260b9396f77a958295ad18ee7"
+alpine_image="alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf"
 
 workdir=$(mktemp -d)
 # mktemp -d defaults to 0700 — smallstep/step-cli runs as a non-root uid

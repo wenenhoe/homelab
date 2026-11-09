@@ -72,7 +72,7 @@ flowchart LR
     subgraph cd["cd_agent (fixed address, CIDR-bound)"]
         deploy["cd-agent-deploy"]
         rotation["cd-agent-rotation"]
-        freshness["cd-agent-freshness"]
+        expiry["cd-agent-credential-expiry"]
         snapshot["cd-agent-snapshot"]
     end
 
@@ -87,7 +87,7 @@ flowchart LR
     deploy -- "read; create new only" --> hosts
     deploy -- "read" --> leaf
     rotation -- "read, create, update" --> leaf & rot
-    freshness -- "read" --> leaf & rot & telegram
+    expiry -- "read" --> leaf & rot & telegram
     snapshot -- "save snapshot,<br/>read" --> snap
 ```
 

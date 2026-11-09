@@ -74,7 +74,7 @@ the one place a check can read it without moving secret material or timestamps a
   timestamp is self-tracked beside it.
 - **Classic OCI IAM is still used only for leaf-identity bootstrapping**
   (`oci_ensure_leaf_identity`), which `~/.oci/config` still serves.
-- **`check_freshness.py` classifies each credential** as fresh, expiring within
+- **`check_freshness.py` (renamed: `check_credential_expiry.py`) classifies each credential** as fresh, expiring within
   `expiry.WARNING_DAYS` (30 days), expiring within `expiry.URGENT_DAYS` (14 days), past its window,
   or check-failed. It queries B2 and R2 live and reads OCI's self-tracked timestamp. Only a genuine
   check failure fails the run's exit code; every other non-fresh result posts a Telegram alert to

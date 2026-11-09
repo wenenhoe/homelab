@@ -25,7 +25,7 @@ surfaces (see `rotation_keys/oci_scim.py`'s own header comment and ADR
   userGroupMemberships,policies}` on `identity.<region>.oraclecloud.com`
   directly. Used once, by a human, for rotation-key bootstrap.
 - **Identity Domains SCIM** (`leaf_keys/oci.py`, `oci_scim.py`,
-  `check_freshness.py`) — OAuth2 client-credentials against
+  `check_freshness.py` (renamed: `check_credential_expiry.py`)) — OAuth2 client-credentials against
   `<domain>/oauth2/v1/token`, then `oci.identity_domains
   .IdentityDomainsClient` calls using the `customerSecretKey` schema.
   This is the surface every quarterly leaf rotation and freshness check

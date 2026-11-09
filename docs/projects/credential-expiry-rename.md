@@ -2,7 +2,7 @@
 id: PROJ-credential-expiry-rename
 title: "Rename the Credential Freshness Check to Credential Expiry"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Give the cloud-credential expiry check its own name, so "freshness" means only the backup check.
 allowed_paths:
@@ -10,7 +10,6 @@ allowed_paths:
   - tools/tests/cloud_credentials/**
   - ansible/inventory/group_vars/cd_agent.yaml
   - ansible/roles/cd_agent/molecule/**
-  - docker/openbao/policies/cd-agent-freshness.hcl
   - docker/openbao/policies/cd-agent-credential-expiry.hcl
   - docker/openbao/policies/rotation-read-watcher.hcl
   - docker/openbao/watcher/rotation_read_watcher.py
@@ -91,7 +90,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Rename in the repository | Not started | no tracked file outside decision history names `check_freshness` or `cd-agent-freshness`; the `controller` unit's command names the renamed module; the credential check's tests and the CD agent role's molecule scenario pass under the new names; the CD agent, AppRole, watcher and expiry docs use them |
+| 1 | Rename in the repository | Done | no tracked file outside decision history names `check_freshness` or `cd-agent-freshness`; the `controller` unit's command names the renamed module; the credential check's tests and the CD agent role's molecule scenario pass under the new names; the CD agent, AppRole, watcher and expiry docs use them |
 | 2 | Move the live pieces | Not started | `controller`'s `check-freshness.service` runs the renamed module and its last run succeeded; any `cd-agent-freshness` AppRole already in OpenBao has a `cd-agent-credential-expiry` successor with the same policy rules, and a CD agent host that already runs the job runs it under the new name |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -118,7 +117,7 @@ watcher doc records its own.
 
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced. Stage 2 is run by the operator, not by a pull request.
 - **Must not change:** the backup freshness check, the credential check's behaviour or exit codes, or the rules of any AppRole policy.
-- **Relevant files and interfaces:** `tools/cloud_credentials/check_freshness.py`, `ansible/inventory/group_vars/cd_agent.yaml`, `docker/openbao/policies/cd-agent-freshness.hcl`, and the `cd_agent` role's molecule scenario.
+- **Relevant files and interfaces:** `tools/cloud_credentials/check_credential_expiry.py`, `ansible/inventory/group_vars/cd_agent.yaml`, `docker/openbao/policies/cd-agent-credential-expiry.hcl`, and the `cd_agent` role's molecule scenario.
 - **Required checks:** `pre-commit run --all-files`, `uv run pytest ansible/tests tools/tests`, and the `cd_agent` molecule scenario in CI.
 
 ## Risks

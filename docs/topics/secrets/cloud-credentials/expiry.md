@@ -1,6 +1,6 @@
 # Cloud Credential Expiry — R2/B2/OCI
 
-How the cloud credentials expire and how `check_freshness.py` warns before they do: the 90-day lifetime, the weekly check, the Telegram warning ladder and the systemd timer. Creation is in [`creation.md`](creation.md); rotation is in [`rotation.md`](rotation.md).
+How the cloud credentials expire and how `check_credential_expiry.py` warns before they do: the 90-day lifetime, the weekly check, the Telegram warning ladder and the systemd timer. Creation is in [`creation.md`](creation.md); rotation is in [`rotation.md`](rotation.md).
 
 ## Credential expiry
 
@@ -23,15 +23,15 @@ the `App` resource has no expiry field on its client secret at all
 (confirmed against Oracle's own SDK model), so a self-tracked
 `_rotation-key-oci-created-at` cache file is advisory only, same as
 every self-tracked credential in this repo. Nothing currently enforces
-it beyond `check_freshness.py`'s own alert.
+it beyond `check_credential_expiry.py`'s own alert.
 
 **R2's rotation admin token** is human-created in the Console (see [its
 section](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)) — set an expiration date on it there when you create
 it; this script has no way to set one after the fact.
 
-## Freshness check
+## Expiry check
 
-**`check_freshness.py`** reads every credential back — natively for B2
+**`check_credential_expiry.py`** reads every credential back — natively for B2
 (`b2_list_keys`), R2 (`GET .../tokens/{id}` for the leaf tokens,
 `GET /user/tokens/verify` for the rotation token — see below), and
 OCI's leaf keys (`IdentityDomainsClient.get_customer_secret_key`, SCIM's `GET /admin/v1/CustomerSecretKeys/{id}`) —
@@ -105,12 +105,12 @@ past-window alone wasn't enough.
 
 ```sh
 cd tools
-python3 -m cloud_credentials.check_freshness
+python3 -m cloud_credentials.check_credential_expiry
 ```
 
 ## Scheduling
 
-The CD agent also runs it weekly as its `freshness` job ([`cd-agent-host.md`](../../deploy/cd-agent-host.md)). Runs unattended via a systemd **user** timer on `controller` — the
+The CD agent also runs it weekly as its `credential-expiry` job ([`cd-agent-host.md`](../../deploy/cd-agent-host.md)). Runs unattended via a systemd **user** timer on `controller` — the
 operator's own machine, where the cache already lives (see
 `docs/architecture/system-overview.md`) — not through any Ansible role,
 since `cloud_credentials` isn't one and doesn't deploy to any
@@ -130,7 +130,7 @@ systemctl --user start check-freshness.service
 journalctl --user -u check-freshness.service -n 15 --no-pager
 ```
 
-A repo moved to another path needs the same `sed` again. A failed run raises no
+A repo moved to another path, or a rename of the module the unit runs, needs the same `sed` again. A failed run raises no
 alert on `controller`, so check `systemctl --user status check-freshness.service`
 after an install or a move.
 

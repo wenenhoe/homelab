@@ -147,7 +147,7 @@ admin-capable credential.
   [`openbao-vault-bootstrap.md`](../../topics/secrets/openbao-vault-bootstrap.md) rather
   than treated as another cached AppRole.
 - Every consumer of OpenBao (`controller`, `snapshot-push.sh`,
-  `check_freshness.py`, `create_leaf_keys.py`/`create_rotation_keys.py`)
+  `check_freshness.py` (renamed: `check_credential_expiry.py`), `create_leaf_keys.py`/`create_rotation_keys.py`)
   is unusable for the duration of the runbook - real downtime,
   schedulable at will in a homelab, but not zero.
 - Any future dedicated-automation-host AppRoles get provisioned

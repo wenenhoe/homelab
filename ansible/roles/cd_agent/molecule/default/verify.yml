@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    cd_agent_verify_jobs: [deploy, freshness, rotation]
+    cd_agent_verify_jobs: [deploy, credential-expiry, rotation]
     cd_agent_verify_users: "{{ cd_agent_verify_jobs | map('regex_replace', '^', 'cd-agent-') | list }}"
     cd_agent_verify_runner_source: "{{ (playbook_dir ~ '/../../../../../tools/cd_agent') | realpath }}"
   tasks:
@@ -215,26 +215,26 @@
         cd_agent_verify_last: "{{ (cd_agent_verify_deploy_files.results[0].content | b64decode).splitlines() | last }}"
         cd_agent_verify_recorded: "{{ cd_agent_verify_deploy_files.results[1].content | b64decode | trim }}"
 
-    - name: Run the freshness job
+    - name: Run the credential-expiry job
       ansible.builtin.systemd:
-        name: cd-agent-freshness.service
+        name: cd-agent-credential-expiry.service
         state: started
 
-    - name: Read what the freshness job copied from its own credential file
+    - name: Read what the credential-expiry job copied from its own credential file
       ansible.builtin.slurp:
-        src: /var/lib/cd-agent/freshness/own.txt
-      register: cd_agent_verify_freshness_own
+        src: /var/lib/cd-agent/credential-expiry/own.txt
+      register: cd_agent_verify_credential_expiry_own
 
-    - name: Stat a record the freshness job must not have written
+    - name: Stat a record the credential-expiry job must not have written
       ansible.builtin.stat:
-        path: /var/lib/cd-agent/freshness/deployed
-      register: cd_agent_verify_freshness_deployed
+        path: /var/lib/cd-agent/credential-expiry/deployed
+      register: cd_agent_verify_credential_expiry_deployed
 
     - name: Confirm the unit read its own credential, and without --on-change recorded nothing
       ansible.builtin.assert:
         that:
-          - (cd_agent_verify_freshness_own.content | b64decode | trim) == 'secret-freshness'
-          - not cd_agent_verify_freshness_deployed.stat.exists
+          - (cd_agent_verify_credential_expiry_own.content | b64decode | trim) == 'secret-credential-expiry'
+          - not cd_agent_verify_credential_expiry_deployed.stat.exists
 
     - name: Run the job that tries to write outside its state directory and to read another job's credentials
       ansible.builtin.systemd:
@@ -364,9 +364,9 @@
           - "'OnCalendar=monthly' in cd_agent_verify_timer_units.results[2].stdout"
 
     # --- Heartbeat ----------------------------------------------------------
-    - name: Read the freshness job's unit and its Gatus push unit  # noqa: command-instead-of-module
+    - name: Read the credential-expiry job's unit and its Gatus push unit  # noqa: command-instead-of-module
       ansible.builtin.command: "systemctl cat {{ item }}"
-      loop: [cd-agent-freshness.service, gatus-push-cd-agent-freshness.service]
+      loop: [cd-agent-credential-expiry.service, gatus-push-cd-agent-credential-expiry.service]
       register: cd_agent_verify_heartbeat_units
       changed_when: false
 
@@ -378,11 +378,13 @@
     - name: Confirm the success-only push, the URL, and that the token lives in a file
       ansible.builtin.assert:
         that:
-          - "'OnSuccess=gatus-push-cd-agent-freshness.service' in cd_agent_verify_heartbeat_units.results[0].stdout"
+          - "'OnSuccess=gatus-push-cd-agent-credential-expiry.service' in cd_agent_verify_heartbeat_units.results[0].stdout"
           - "'OnFailure' not in cd_agent_verify_heartbeat_units.results[0].stdout"
           - "'OnSuccess' not in cd_agent_verify_heartbeat_units.results[1].stdout"
-          - "'-K /etc/gatus-push/cd-agent-freshness.curlrc' in cd_agent_verify_heartbeat_units.results[1].stdout"
-          - "'gatus-test.invalid/api/v1/endpoints/backups_cd-agent-freshness/external?success=true' in cd_agent_verify_heartbeat_units.results[1].stdout"
+          - "'-K /etc/gatus-push/cd-agent-credential-expiry.curlrc' in cd_agent_verify_heartbeat_units.results[1].stdout"
+          - >-
+            'gatus-test.invalid/api/v1/endpoints/backups_cd-agent-credential-expiry/external?success=true'
+            in cd_agent_verify_heartbeat_units.results[1].stdout
           - "'Bearer' not in cd_agent_verify_heartbeat_units.results[1].stdout"
           - cd_agent_verify_gatus_dir.stat.mode == '0700'
           - cd_agent_verify_gatus_dir.stat.pw_name == 'root'

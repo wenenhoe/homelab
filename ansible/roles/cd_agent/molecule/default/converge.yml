@@ -13,7 +13,7 @@
     # so verify.yml can read back what ran, as which user, on what.
     # The push URL a heartbeat job's unit is given (group_vars/all/main.yaml builds it in production).
     heartbeat_push_urls:
-      cd-agent-freshness: https://gatus-test.invalid/api/v1/endpoints/backups_cd-agent-freshness/external?success=true
+      cd-agent-credential-expiry: https://gatus-test.invalid/api/v1/endpoints/backups_cd-agent-credential-expiry/external?success=true
     cd_agent_jobs:
       - name: deploy
         poll_interval: 5min
@@ -22,13 +22,13 @@
           - /bin/sh
           - -c
           - echo "$(id -un) $(git rev-parse HEAD)" >> ../ran.log
-      - name: freshness
+      - name: credential-expiry
         on_calendar: Mon *-*-* 04:00:00
-        heartbeat: cd-agent-freshness
+        heartbeat: cd-agent-credential-expiry
         command:
           - /bin/sh
           - -c
-          - cat /etc/cd-agent/credentials/freshness/secret_id > ../own.txt
+          - cat /etc/cd-agent/credentials/credential-expiry/secret_id > ../own.txt
       # Tries what a compromised job would: write outside its state
       # directory (its own credential directory, which its user owns, so
       # only the sandbox stops it), read another job's credentials. Reads
@@ -42,7 +42,7 @@
           - |
             {
               touch /etc/cd-agent/credentials/rotation/probe 2>/dev/null && echo fs=writable || echo fs=readonly
-              cat /etc/cd-agent/credentials/freshness/secret_id >/dev/null 2>&1 && echo other=readable || echo other=denied
+              cat /etc/cd-agent/credentials/credential-expiry/secret_id >/dev/null 2>&1 && echo other=readable || echo other=denied
               sed 's/^/own=/' /etc/cd-agent/credentials/rotation/secret_id
               echo user=$(id -un)
               echo state=$CD_AGENT_STATE_DIR

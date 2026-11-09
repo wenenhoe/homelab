@@ -24,7 +24,7 @@ new direction, not a gap in an existing setup.
 The instinct is reasonable on its face: a single-purpose watcher
 doesn't generalize, and this repo already has a recognizable pattern —
 narrow, independently-written alerting code showing up in more than
-one place (this watcher, `check_freshness.py`'s Telegram call,
+one place (this watcher, `check_freshness.py` (renamed: `check_credential_expiry.py`)'s Telegram call,
 `telegram_notify`/`telegram_topic_pins` roles, `uptime_kuma_push`) —
 similar in shape to the OpenBao-client duplication already found this
 session, just for alerting instead of secrets access.

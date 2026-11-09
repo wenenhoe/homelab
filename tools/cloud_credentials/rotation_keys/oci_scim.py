@@ -1,6 +1,6 @@
 """Shared OAuth2 client-credentials + Identity Domains SCIM plumbing for
 OCI, used by leaf_keys/oci.py, rotation_keys/oci_bootstrap.py,
-check_freshness.py, and openbao_utils/audit.py. See ADR 0109 - this is
+check_credential_expiry.py, and openbao_utils/audit.py. See ADR 0109 - this is
 a second, unrelated auth model to oci_iam.py's classic Signature V1
 signer, not a replacement for it: oci_iam.py stays in use for
 leaf-identity user/group/policy bootstrap, which SCIM has no equivalent

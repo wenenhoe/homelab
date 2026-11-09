@@ -15,7 +15,7 @@ mode 0600 in a 0700 directory, and this script runs there:
   no `deleteFiles`, the same shape as the snapshot write leaf.
 
 Each key's ID is registered in OpenBao's leaf tier, and only the ID: it names the
-key for check_freshness.py to ask the provider about, and authenticates nothing.
+key for check_credential_expiry.py to ask the provider about, and authenticates nothing.
 
 Both keys carry the quarterly native expiry every other leaf gets, are verified
 over rclone before a file is written, and rotate with --rotate (mint, verify,

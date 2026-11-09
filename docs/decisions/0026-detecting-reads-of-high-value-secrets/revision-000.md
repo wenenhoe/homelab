@@ -69,7 +69,7 @@ day any log-shipping/aggregation is added.
 Separately: Docker's default `json-file` log driver has no size cap,
 and nothing in this repo sets one. Every other service's log volume
 scales with app-level events; this is the first whose volume scales
-with Vault traffic, including `check_freshness.py`'s own routine
+with Vault traffic, including `check_freshness.py` (renamed: `check_credential_expiry.py`)'s own routine
 polling — the gap becomes a real disk-growth risk here specifically,
 not just a latent one.
 

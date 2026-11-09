@@ -166,7 +166,7 @@ class TestRotateR2:
         env = state.read_env_file(backend_env())
         assert env["TOFU_STATE_PASSPHRASE"] == "the-original-passphrase", "a new passphrase would strand every state object already written"
         assert "the-original-passphrase" not in capsys.readouterr().out
-        assert registered_at_revoke == ["NEW_TOKEN_ID"], "the freshness check must already see the new ID when the old key goes"
+        assert registered_at_revoke == ["NEW_TOKEN_ID"], "the expiry check must already see the new ID when the old key goes"
 
     @patch.object(state, "r2_delete_token", autospec=True)
     @patch.object(state, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
@@ -249,7 +249,7 @@ class TestMintB2:
 
         api.session.delete_key.assert_called_once_with("OLD_KEY_ID")
         assert seen_at_revoke["STATE_COPY_ACCESS_KEY_ID"] == "NEW_KEY_ID"
-        assert registered_at_revoke == ["NEW_KEY_ID"], "the freshness check must already see the new ID when the old key goes"
+        assert registered_at_revoke == ["NEW_KEY_ID"], "the expiry check must already see the new ID when the old key goes"
 
     @patch.object(state, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)

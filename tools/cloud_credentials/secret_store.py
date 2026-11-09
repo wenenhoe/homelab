@@ -1,6 +1,6 @@
 """Vault-backed store for cloud_credentials' leaf and rotation credentials.
 
-Every leaf_keys/rotation_keys module, check_freshness.py, and the
+Every leaf_keys/rotation_keys module, check_credential_expiry.py, and the
 top-level create_*.py scripts read/write through the four functions
 scoped() returns - never a raw HTTP call of their own. Storage target
 is OpenBao KV v2, at secret/data/cloud_credentials/<category>/<name>
@@ -93,7 +93,7 @@ def _vault_write_at(full_path: str, value: str) -> None:
 def read_vault_path(full_path: str) -> str | None:
     """Read an arbitrary Vault KV v2 path directly, for the rare caller
     outside the cloud_credentials/{leaf,rotation} taxonomy scoped()
-    covers - e.g. check_freshness.py's telegram-* reads, which live
+    covers - e.g. check_credential_expiry.py's telegram-* reads, which live
     under the secrets role's own hosts/all/telegram/* convention
     (ADR 0021), a different top-level path this package doesn't own.
     Controller's AppRole already grants read/write on all of

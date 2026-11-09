@@ -33,6 +33,8 @@ python3 -m cloud_credentials.rotate_leaf_keys
 
 It runs `--rotate both` for B2, then OCI, then R2, and takes no arguments. A provider that reports a failed verification, exits or raises does not stop the ones after it, because each provider's keys rotate on their own and one failing leaves the others still due. It names the failed providers on stderr and exits 1 if there were any. It asks for nothing itself, but R2's fallback prompt for its admin token cannot be answered without a terminal, so that provider fails unless the token is already cached (`create_rotation_keys --provider r2`, below).
 
+A rotated write leaf reaches `storage` only when `deploy.yaml` next renders its `rclone.conf`, and the old key is already revoked, so run `ansible-playbook playbooks/deploy.yaml --limit storage,localhost` from `ansible/` after a rotation by hand. The read leaf needs no redeploy. Both cases are in [`secrets-rotation.md`](../secrets-rotation.md#manual-secrets-source-manual).
+
 Order of operations, per leaf: create a new provider-side key → verify
 it actually works over the same rclone S3-compatible path
 cloud_sync/restore-discovery use in production (a `ListObjects` listing

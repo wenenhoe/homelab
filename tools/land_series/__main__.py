@@ -1,8 +1,10 @@
-"""python3 -m land_series FILE... [--repo DIR] [--base REF] [--no-fetch] [--check COMMAND]... [--skip-hook ID]...
+"""python3 -m land_series FILE... [--repo DIR] [--base REF] [--no-fetch] [--check COMMAND]... [--dry-run | --land [--yes]]
 
 Replay the series in FILE... (several files make one series) on a scratch worktree of the base branch and run the
-checks after every layer. Without --check the checks are the project scope check against the base and
-`pre-commit run --all-files`, with each --skip-hook id in SKIP.
+checks after every layer, then keep a local branch per layer for review (`--dry-run` keeps none). `--land` pushes the
+kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
+confirms every merge). Without --check the checks are the project scope check against the base and
+`pre-commit run --all-files`; hooks to skip are named in SKIP in the environment, which the apply hooks read too.
 """
 
 from __future__ import annotations
@@ -22,10 +24,10 @@ DEFAULT_BASE = "origin/main"
 REMOTE = "origin"
 
 
-def default_checks(base: str, skip_hooks: Sequence[str]) -> list[Check]:
+def default_checks(base: str) -> list[Check]:
     return [
         Check(("uv", "run", "python", "-m", "doc_scripts.check_project_scope", "--base", base), cwd="tools"),
-        Check(("pre-commit", "run", "--all-files"), env={"SKIP": ",".join(skip_hooks)} if skip_hooks else {}),
+        Check(("pre-commit", "run", "--all-files")),
     ]
 
 
@@ -57,7 +59,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="replay and check only; leave no branches")
     parser.add_argument("--land", action="store_true", help="push the kept branches, open, wait for and merge a pull request per layer")
     parser.add_argument("--yes", action="store_true", help="with --land, merge without asking after each layer's checks pass")
-    parser.add_argument("--skip-hook", action="append", default=[], metavar="ID")
     args = parser.parse_args(argv)
     if args.land and args.dry_run:
         parser.error("--land lands the branches a replay kept, so it cannot be combined with --dry-run")
@@ -68,7 +69,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.land:
             landed = land(args.repo, layers, lambda layer, url: args.yes or ask_merge(layer, url), base=args.base)
             return report(landed)
-        checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks(args.base, args.skip_hook)
+        checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks(args.base)
         results = replay(args.repo, layers, checks, ask, base=args.base)
         kept = [] if args.dry_run else keep(args.repo, results)
     except LandError as error:

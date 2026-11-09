@@ -34,12 +34,15 @@ class Confirmations:
 
 
 @pytest.fixture
-def log(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    return tmp_path_factory.mktemp("log") / "checks.log"
+def log(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The file the recording check appends a line to per run; absent until a check runs."""
+    path = tmp_path_factory.mktemp("log") / "checks.log"
+    monkeypatch.setenv("LAND_LOG", str(path))
+    return path
 
 
-def recording_check(log: Path, *files: str, script: str = RECORD) -> Check:
-    return Check((sys.executable, "-c", script, *files), env={"LAND_LOG": str(log)})
+def recording_check(*files: str, script: str = RECORD) -> Check:
+    return Check((sys.executable, "-c", script, *files))
 
 
 def layers_of(*patches: tuple[str, bytes]) -> list[Layer]:
@@ -53,7 +56,7 @@ def test_each_layer_is_checked_on_the_tree_the_layers_before_it_made(repo: Repo,
     )
     main_before = git(repo.path, "rev-parse", "main")
 
-    results = replay(repo.path, layers, [recording_check(log, "a.txt")], Confirmations(False), base="main")
+    results = replay(repo.path, layers, [recording_check("a.txt")], Confirmations(False), base="main")
 
     assert log.read_text().splitlines() == ["one", "two"]
     assert [(result.layer.id, result.applied) for result in results] == [("0001a", True), ("0001b", True)]
@@ -69,7 +72,7 @@ def test_files_an_apply_hook_leaves_behind_are_dropped_before_the_checks_and_the
         ("0001b", author.patch("docs: two", {"base.txt": "base\none\ntwo\n"})),
     )
 
-    results = replay(repo.path, layers, [recording_check(log, "base.txt")], Confirmations(False), base="main")
+    results = replay(repo.path, layers, [recording_check("base.txt")], Confirmations(False), base="main")
 
     assert hook_runs.read_text().splitlines() == ["ran", "ran"]
     assert log.read_text().splitlines() == ["base/one", "base/one/two"]
@@ -81,7 +84,7 @@ def test_a_layer_already_in_the_base_is_skipped_and_the_ones_after_it_replay(rep
     second = author.patch("docs: write two", {"a.txt": "two\n"})
     git(repo.path, "am", "--quiet", stdin=first)
 
-    results = replay(repo.path, layers_of(("0001a", first), ("0001b", second)), [recording_check(log, "a.txt")], Confirmations(False), base="main")
+    results = replay(repo.path, layers_of(("0001a", first), ("0001b", second)), [recording_check("a.txt")], Confirmations(False), base="main")
 
     assert [(result.layer.id, result.applied) for result in results] == [("0001a", False), ("0001b", True)]
     assert log.read_text().splitlines() == ["two"]
@@ -91,7 +94,7 @@ def test_a_failing_check_stops_the_replay_and_quotes_its_output(repo: Repo, auth
     layers = layers_of(("0001a", author.patch("docs: one", {"a.txt": "one\n"})), ("0001b", author.patch("docs: two", {"a.txt": "two\n"})))
 
     with pytest.raises(ReplayError, match=r"(?s)layer 0001a fails `.*`:\nlint says no"):
-        replay(repo.path, layers, [recording_check(log, "a.txt", script=FAIL)], Confirmations(False), base="main")
+        replay(repo.path, layers, [recording_check("a.txt", script=FAIL)], Confirmations(False), base="main")
 
     assert log.read_text().splitlines() == ["one"]
     assert len(repo.worktrees()) == 1
@@ -102,7 +105,7 @@ def test_a_layer_that_does_not_apply_is_named_and_leaves_no_worktree(repo: Repo,
     second = author.patch("docs: write two", {"a.txt": "two\n"})
 
     with pytest.raises(ReplayError, match="layer 0001b does not apply on main"):
-        replay(repo.path, layers_of(("0001b", second)), [recording_check(log, "a.txt")], Confirmations(False), base="main")
+        replay(repo.path, layers_of(("0001b", second)), [recording_check("a.txt")], Confirmations(False), base="main")
 
     assert not log.exists()
     assert len(repo.worktrees()) == 1
@@ -116,7 +119,7 @@ def test_a_layer_on_the_stop_list_is_not_applied_unless_confirmed(repo: Repo, au
     refusal = Confirmations(False)
 
     with pytest.raises(ReplayError, match=r"layer 0001b changes code the replay runs \(tools/run.py\) and was not confirmed"):
-        replay(repo.path, layers, [recording_check(log, "a.txt")], refusal, base="main")
+        replay(repo.path, layers, [recording_check("a.txt")], refusal, base="main")
 
     assert refusal.asked == [("0001b", ["tools/run.py"])]
     assert log.read_text().splitlines() == ["one"]
@@ -126,7 +129,7 @@ def test_a_confirmed_layer_on_the_stop_list_replays(repo: Repo, author: Author, 
     layers = layers_of(("0001a", author.patch("chore: change a tool", {"tools/run.py": "print()\n"})))
     consent = Confirmations(True)
 
-    results = replay(repo.path, layers, [recording_check(log, "tools/run.py")], consent, base="main")
+    results = replay(repo.path, layers, [recording_check("tools/run.py")], consent, base="main")
 
     assert consent.asked == [("0001a", ["tools/run.py"])]
     assert log.read_text().splitlines() == ["print()"]
@@ -215,10 +218,9 @@ def test_fetch_brings_the_remote_base_up_to_date(repo: Repo, tmp_path_factory: p
     assert git(clone, "rev-parse", "origin/main") == git(repo.path, "rev-parse", "main")
 
 
-def test_default_checks_pass_the_skipped_hooks_to_pre_commit_and_the_base_to_the_scope_check() -> None:
-    scope, hooks = cli.default_checks("origin/main", ["gitleaks", "zizmor"])
+def test_default_checks_are_the_scope_check_against_the_base_and_pre_commit() -> None:
+    scope, hooks = cli.default_checks("origin/main")
 
     assert scope.argv[-2:] == ("--base", "origin/main")
     assert scope.cwd == "tools"
     assert hooks.argv == ("pre-commit", "run", "--all-files")
-    assert dict(hooks.env) == {"SKIP": "gitleaks,zizmor"}

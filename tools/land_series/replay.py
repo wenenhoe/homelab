@@ -7,14 +7,13 @@ code the replay itself runs stops the replay until the maintainer confirms it.
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from land_series.manifest import Layer
@@ -37,7 +36,6 @@ class ReplayError(Exception):
 class Check:
     argv: tuple[str, ...]
     cwd: str = "."
-    env: Mapping[str, str] = field(default_factory=dict)
 
     def __str__(self) -> str:
         return " ".join(self.argv)
@@ -116,9 +114,7 @@ def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
 def _run_check(tree: Path, check: Check) -> str | None:
     """The tail of the output when the check fails, else None."""
     try:
-        result = subprocess.run(
-            check.argv, cwd=tree / check.cwd, env={**os.environ, **check.env}, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL
-        )
+        result = subprocess.run(check.argv, cwd=tree / check.cwd, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
     except OSError as error:
         return f"cannot run it: {error}"
     if result.returncode == 0:

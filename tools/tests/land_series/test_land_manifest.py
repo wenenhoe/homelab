@@ -8,16 +8,16 @@ from land_series.manifest import Layer, SeriesError, order_layers, parse_series
 from land_series.replay import stopped_by
 
 
-def layer(layer_id: str, slug: str | None = None, after: str | None = None, before: str | None = None, source: str = "series") -> Layer:
-    return Layer(id=layer_id, slug=slug or f"slug-{layer_id}", patch=b"", subject="s", authored=0, diff_headers=(), source=source, after=after, before=before)
+def layer(layer_id: str, slug: str | None = None, source: str = "series") -> Layer:
+    return Layer(id=layer_id, slug=slug or f"slug-{layer_id}", patch=b"", subject="s", authored=0, diff_headers=(), source=source)
 
 
 def test_each_layer_carries_its_slug_subject_date_and_touched_files(author: Author) -> None:
     first = author.patch("docs: add a note", {"docs/note.md": "one\n"})
     second = author.patch("fix: tidy the note", {"docs/note.md": "two\n", "docs/other.md": "x\n"})
-    layers = parse_series(series_file([("0001a first-note", first), ("0001b tidy-note after=0001a", second)]))
+    layers = parse_series(series_file([("0001a first-note", first), ("0001b tidy-note", second)]))
 
-    assert [(item.id, item.slug, item.after) for item in layers] == [("0001a", "first-note", None), ("0001b", "tidy-note", "0001a")]
+    assert [(item.id, item.slug) for item in layers] == [("0001a", "first-note"), ("0001b", "tidy-note")]
     assert [item.subject for item in layers] == ["docs: add a note", "fix: tidy the note"]
     assert layers[1].authored - layers[0].authored == 60
     assert layers[1].diff_headers == ("a/docs/note.md b/docs/note.md", "a/docs/other.md b/docs/other.md")
@@ -48,9 +48,7 @@ def test_comments_and_blank_lines_in_the_manifest_are_skipped(author: Author) ->
         pytest.param("S0001a one\n", "not a layer id", id="security series id"),
         pytest.param("0001a Bad_Slug\n", "not a branch slug", id="slug with capitals"),
         pytest.param("0001a\n", "an id and a branch slug", id="no slug"),
-        pytest.param("0001a one when=0001b\n", "not after=ID or before=ID", id="unknown option"),
-        pytest.param("0001a one after=oops\n", "not after=ID or before=ID", id="placement without an id"),
-        pytest.param("0001a one after=0001b before=0001c\n", "both after and before", id="both placements"),
+        pytest.param("0001a one two\n", "an id and a branch slug", id="a third word"),
     ],
 )
 def test_a_malformed_manifest_names_the_problem(author: Author, manifest: str, message: str) -> None:
@@ -72,29 +70,10 @@ def test_layers_from_several_files_land_in_id_order() -> None:
 
 
 @pytest.mark.parametrize(
-    ("layers", "expected"),
-    [
-        pytest.param([layer("0001a"), layer("0002a"), layer("0009a", after="0001a")], ["0001a", "0009a", "0002a"], id="after"),
-        pytest.param([layer("0001a"), layer("0002a"), layer("0009a", before="0002a")], ["0001a", "0009a", "0002a"], id="before"),
-        pytest.param([layer("0001a"), layer("0002a"), layer("0009a", before="0001a")], ["0009a", "0001a", "0002a"], id="before the first"),
-    ],
-)
-def test_a_placed_layer_lands_next_to_its_target(layers: list[Layer], expected: list[str]) -> None:
-    assert [item.id for item in order_layers(layers)] == expected
-
-
-@pytest.mark.parametrize(
     ("layers", "message"),
     [
         pytest.param([layer("0001a"), layer("0001a", slug="other", source="b")], "layer 0001a is listed twice", id="duplicate id"),
         pytest.param([layer("0001a", slug="same"), layer("0002a", slug="same")], "share the branch slug", id="duplicate slug"),
-        pytest.param([layer("0001a", after="0007a")], "0007a, which is not in the series", id="unknown target"),
-        pytest.param([layer("0001a", after="0001a")], "which is not in the series", id="own target"),
-        pytest.param(
-            [layer("0001a", after="0002a"), layer("0002a", after="0001a")],
-            "must come after 0002a, which another placement moved",
-            id="placements that undo each other",
-        ),
     ],
 )
 def test_layers_that_cannot_be_ordered_are_refused(layers: list[Layer], message: str) -> None:

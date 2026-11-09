@@ -24,7 +24,7 @@ An archive on `storage` can be deleted by the host that wrote it, because its id
 
 ## Scope
 
-Versioning and a compliance-mode default retention on the backup bucket, declared by the `seaweedfs_bucket` role; an admin server and a worker restricted to `s3_lifecycle,vacuum` beside SeaweedFS in its network namespace; bucket-wide lifecycle rules that expire a noncurrent version one day after it became noncurrent, remove a delete marker with nothing behind it, and abort an incomplete multipart upload after one day; the check that no app's retention is shorter than the lock window; the Trivy ignore entry that records versioning as suspended on purpose, which no longer holds; a signal for a stopped worker; and the one-time conversion of the live bucket. The disaster-recovery topic docs then describe the lock and the narrowed residual risk.
+Versioning and a compliance-mode default retention on the backup bucket, declared by the `seaweedfs_bucket` role; an admin server and a worker restricted to `s3_lifecycle,vacuum` beside SeaweedFS in its network namespace; bucket-wide lifecycle rules that expire a noncurrent version one day after it became noncurrent, remove a delete marker with nothing behind it, and abort an incomplete multipart upload after one day; the check that no app's retention is shorter than the lock window; the Trivy ignore entry that records versioning as suspended on purpose, which no longer holds; a signal for a stopped worker and one for the volume's free space; and the one-time conversion of the live bucket. The disaster-recovery topic docs then describe the lock and the narrowed residual risk.
 
 Not in scope: the agents' pruning, which stays a plain delete; the identities, which gain no action; the filer API, `weed shell` and the `storage` host; the cloud copies, whose lock and lifecycle stay provider-native; which retention the apps use; archives written after a compromise, which is [`backup-archive-signing.md`](backup-archive-signing.md)'s.
 
@@ -38,10 +38,10 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Resolve the assumptions and choose how the rules are declared | Not started | Each assumption in ADR 0081 is resolved and folded into its Context, including the name of the signal for a stopped worker and a test that it fires with the worker stopped, and the revision can be `approved`; this doc names the collection or API call that declares the lifecycle rules (Open item 1), and `allowed_paths` covers every file stages 2 to 5 edit, widened in its own change before it is used |
+| 1 | Resolve the assumptions and choose how the rules are declared | Not started | Each assumption in ADR 0081 is resolved and folded into its Context, including the names of the signals for a stopped worker and for the volume's free space and a test that each fires, and the revision can be `approved`; this doc names the collection or API call that declares the lifecycle rules (Open item 1), and `allowed_paths` covers every file stages 2 to 5 edit, widened in its own change before it is used |
 | 2 | Run the admin and worker beside SeaweedFS | Not started | A Molecule scenario on the SeaweedFS target shows the worker registering `s3_lifecycle` and `vacuum` over loopback, no container on `caddy-proxy` reaching the admin, and the admin API unrouted through Caddy |
 | 3 | Declare the locked bucket | Not started | `seaweedfs_bucket` creates a bucket with versioning, Object Lock and a compliance default retention of `backup_defaults.retention_days`, is idempotent on it, a unit test over `backup_plan` fails when an app's retention is below that window, the `identity_scoping` scenario shows a scoped identity's delete of a fresh archive by `VersionId` refused and the bucket-admin identity's too, and the `AWS-0090` entry in `.trivyignore` is removed |
-| 4 | Declare the lifecycle rules and the signal | Not started | A Molecule scenario drives the lifecycle job on demand against a target with a short explicit retention, and an expired superseded version and an orphaned marker are removed while a locked version is not; the stopped-worker signal fires in its test |
+| 4 | Declare the lifecycle rules and the signal | Not started | A Molecule scenario drives the lifecycle job on demand against a target with a short explicit retention, and an expired superseded version and an orphaned marker are removed while a locked version is not; the stopped-worker signal and the free-space signal each fire in their tests |
 | 5 | Convert the live bucket | Not started | The live bucket reports versioning and a compliance default retention, each app's next archive carries the lock, the runbook step is in `backup.md`, and `backup-threat-model.md` states the narrowed residual risk |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -58,6 +58,7 @@ Run by the operator on `storage`, through the S3 API, once stages 2 to 4 are mer
 - [ ] The admin API is not routed through Caddy and no container on `caddy-proxy` reaches it.
 - [ ] No app's retention is shorter than the lock window, and a test fails when one is.
 - [ ] A stopped worker is noticed before the volume fills.
+- [ ] The volume's free space running short is noticed before the volume fills.
 - [ ] The backup and threat-model topic docs describe the lock and the narrowed residual risk.
 
 ## Agent handoff

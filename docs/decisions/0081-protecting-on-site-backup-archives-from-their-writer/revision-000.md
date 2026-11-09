@@ -181,7 +181,8 @@ flags and the same identity shapes as production:
   **Breaks if wrong:** the disk fills, and a locked archive cannot be removed over
   S3 to make room.
   **Checked by:** the volume's free space against the largest app's archive size,
-  before the conversion.
+  before the conversion, and a signal on the volume's free space afterwards, named
+  before approval like the one above and tested the same way.
 
 ## Consequences
 
@@ -237,7 +238,7 @@ flags and the same identity shapes as production:
   elapse in a test.
 - A unit test over `backup_plan` fails when an app's retention is below the lock
   window.
-- The operational signal for a stopped worker, once named.
+- The operational signals for a stopped worker and for the volume's free space, once named.
 
 ## Reconsideration triggers
 

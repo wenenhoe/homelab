@@ -144,6 +144,9 @@ def lineage_errors(root: Path = ROOT) -> list[str]:
             for related in rev.fm.get("related", []):
                 if related not in by_id:
                     errors.append(f"{rev_rel}: related {related}, which isn't a lineage")
+            for reliance in rev.fm.get("relies_on", []):
+                if reliance["adr"] not in by_id:
+                    errors.append(f"{rev_rel}: relies_on {reliance['adr']}, which isn't a lineage")
             for former in rev.fm.get("former_ids", []):
                 if former in by_id:
                     errors.append(f"{rev_rel}: former_ids lists {former}, which is still a live lineage")

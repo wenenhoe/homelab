@@ -42,6 +42,10 @@ class TestWhatIsFrozen:
         head = doc().replace("## Validation\n\nA test.\n\n", "")
         assert errors(doc(), head) == []
 
+    def test_a_declared_reliance_may_be_added_to_an_accepted_revision(self):
+        head = doc().replace("status: accepted", 'status: accepted\nrelies_on:\n  - adr: ADR-0002\n    reason: "It presupposes the proxy boundary."')
+        assert errors(doc(), head) == []
+
     @pytest.mark.parametrize("name", ["Problem", "Decision", "Invariants", "Non-goals", "Reconsideration triggers"])
     def test_a_frozen_section_may_not_change(self, name):
         [error] = errors(doc(), doc(**{name: "Something else."}))

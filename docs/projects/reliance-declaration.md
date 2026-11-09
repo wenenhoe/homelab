@@ -2,7 +2,7 @@
 id: PROJ-reliance-declaration
 title: "Reliance Declaration"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: A declared reliance between decisions, checked as a warning that names every approved or accepted revision whose boundary still rests on a working one, as ADR 0080 decides.
 decision: ADR-0080/0
@@ -35,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The `relies_on:` field in the frontmatter validator, the decision template and the revision-states section | Not started | A missing reason, an unknown id and a self-reference are each rejected, and adding the field to an `accepted` revision is an editorial change |
+| 1 | The `relies_on:` field in the frontmatter validator, the decision template and the revision-states section | Done | A missing reason, an unknown id and a self-reference are each rejected, and adding the field to an `accepted` revision is an editorial change |
 | 2 | The warning in `check_doc_drift.py` and the `--strict` flag | Not started | An unmet reliance is printed with the reliant revision, the target, its state and the reason, and does not change the exit status; `--strict` does |
 | 3 | The decisions index note and the project label | Not started | A lineage with a reliance shows "Relies on" with the target's state, and a project whose decision has an unmet one reads "rests on ADR-NNNN (working)", derived and never stored |
 | 4 | The first population | Not started | Every approved or accepted revision whose prose cites a `working` lineage for an invariant declares it with a reason, and the warnings the check prints are read once by the maintainer |

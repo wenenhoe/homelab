@@ -8,7 +8,7 @@ The repository has three long-lived branches ([ADR 0076 (Branch separation)](../
 | `maintenance` | Dependency updates: Renovate's pull requests merge here. | Renovate's app and the maintainer, directly or through a pull request. | No |
 | `develop` | Development in progress. | The maintainer, directly or through a pull request. | No |
 
-Every pull request into any of the three runs the same checks ([`pipeline.md`](ci/pipeline.md)). Merges are merge commits on all three, so a promoted commit stays an ancestor of `main`.
+Every pull request into any of the three runs the same checks ([`pipeline.md`](ci/pipeline.md)), and so does one opened against a `stack/` branch: the trigger lists `stack/**` so that the upper layers of a stacked pull request, which target the branch below them, are checked too. Merges are merge commits on all three, so a promoted commit stays an ancestor of `main`.
 
 ## The rulesets
 

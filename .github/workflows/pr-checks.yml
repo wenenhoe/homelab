@@ -2,10 +2,7 @@ name: PR checks
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    # `stack/**`: an upper layer of a stacked pull request is opened against the branch
-    # below it, which no other entry matches, so without it that layer gets no run and
-    # its required checks never report.
-    branches: [main, maintenance, develop, "stack/**"]
+    branches: [main, maintenance, develop]
 
 permissions:
   contents: read

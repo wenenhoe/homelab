@@ -19,6 +19,7 @@ from _oci_objects import response as oci_response
 from _responses import response
 from cloud_credentials import check_freshness
 from cloud_credentials import create_snapshot_write_keys as snap
+from cloud_credentials import create_state_keys as state
 from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
 
@@ -72,11 +73,13 @@ class TestCheckB2:
         vault.seed("backblaze-b2-write-access-key", "key-write-1")
         vault.seed("backblaze-b2-read-access-key", "key-read-1")
         vault.seed(snap.VAULT_NAME_B2_ACCESS, "key-snap-1")
+        vault.seed(state.VAULT_NAME_B2_ACCESS, "key-state-copy-1")
         # rotation key id deliberately not seeded, mirroring the key
         # itself being "absent from the response" below
         mock_list_keys.return_value = [
             _b2_key("key-write-1", future_ms),
             _b2_key("key-read-1", past_ms),
+            _b2_key("key-state-copy-1", past_ms),
             _b2_key("key-snap-1", (datetime.now(UTC) + timedelta(days=WARNING_DAYS - 1)).timestamp() * 1000),
             # rotation key deliberately absent from the response
         ]
@@ -88,6 +91,7 @@ class TestCheckB2:
         assert statuses["b2 write"] == check_freshness.FRESH
         assert statuses["b2 read"] == check_freshness.STALE
         assert statuses["b2 openbao-snapshot-write"] == check_freshness.WARNING
+        assert statuses["b2 opentofu-state-copy"] == check_freshness.STALE
         assert statuses["b2 rotation key"] == check_freshness.CHECK_FAILED
 
     @patch.object(check_freshness, "b2_list_keys", autospec=True)
@@ -105,7 +109,7 @@ class TestCheckB2:
     def test_auth_failure_reports_check_failed_for_every_key(self, mock_api):
         results = check_freshness.check_b2()
         assert all(status == check_freshness.CHECK_FAILED for _, status, _ in results)
-        assert [name for name, _, _ in results] == ["b2 write", "b2 read", "b2 openbao-snapshot-write", "b2 rotation key"]
+        assert [name for name, _, _ in results] == ["b2 write", "b2 read", "b2 openbao-snapshot-write", "b2 opentofu-state-copy", "b2 rotation key"]
 
     @patch.object(check_freshness, "b2_list_keys", autospec=True)
     @patch.object(check_freshness, "b2_rotation_api", autospec=True)
@@ -265,6 +269,7 @@ class TestCheckR2:
         vault.seed("cloudflare-r2-write-access-key", "TOKEN_ID_WRITE")
         vault.seed("cloudflare-r2-read-access-key", "TOKEN_ID_READ")
         vault.seed(snap.VAULT_NAME_R2_ACCESS, "TOKEN_ID_SNAP")
+        vault.seed(state.VAULT_NAME_R2_ACCESS, "TOKEN_ID_STATE")
 
     def test_fresh_and_stale_and_rotation_token_all_reported(self, session_class):
         session = session_class.return_value
@@ -279,6 +284,8 @@ class TestCheckR2:
                 return response(json_body={"success": True, "result": {"expires_on": future}})
             if "TOKEN_ID_READ" in url:
                 return response(json_body={"success": True, "result": {"expires_on": past}})
+            if "TOKEN_ID_STATE" in url:
+                return response(json_body={"success": True, "result": {"expires_on": past}})
             if "TOKEN_ID_SNAP" in url:
                 return response(json_body={"success": True, "result": {"expires_on": soon}})
             raise AssertionError(f"unexpected URL: {url}")
@@ -291,6 +298,7 @@ class TestCheckR2:
         assert statuses["r2 write"] == check_freshness.FRESH
         assert statuses["r2 read"] == check_freshness.STALE
         assert statuses["r2 openbao-snapshot-write"] == check_freshness.WARNING
+        assert statuses["r2 opentofu-state"] == check_freshness.STALE
         assert statuses["r2 rotation token"] == check_freshness.FRESH
 
     def test_requests_carry_the_cached_rotation_token_as_a_bearer_header(self, session_class):
@@ -307,7 +315,7 @@ class TestCheckR2:
 
         check_freshness.check_r2()
 
-        assert len(session.get.call_args_list) == 4
+        assert len(session.get.call_args_list) == 5
         assert all(has_a_timeout(call) for call in session.get.call_args_list)
 
     @pytest.mark.parametrize(
@@ -323,7 +331,7 @@ class TestCheckR2:
         results = check_freshness.check_r2()
 
         assert [(label, status) for label, status, _ in results] == [
-            (f"r2 {entry}", check_freshness.CHECK_FAILED) for entry in ("write", "read", "openbao-snapshot-write", "rotation token")
+            (f"r2 {entry}", check_freshness.CHECK_FAILED) for entry in ("write", "read", "openbao-snapshot-write", "opentofu-state", "rotation token")
         ]
         assert all(f"no cached {missing} " in detail for _, _, detail in results)
         session_class.assert_not_called()

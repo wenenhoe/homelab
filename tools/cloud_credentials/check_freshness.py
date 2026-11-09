@@ -44,6 +44,7 @@ from b2sdk.v2.exception import B2Error
 from oci.identity_domains import IdentityDomainsClient
 
 from cloud_credentials import create_snapshot_write_keys as snap
+from cloud_credentials import create_state_keys as state
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_api
 from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
@@ -63,8 +64,8 @@ _OCI_SDK_ERRORS = (oci.exceptions.ServiceError, oci.exceptions.ConnectTimeout, o
 # (label, Vault name of the key's ID) for the keys the write/read leaf loop does
 # not cover. Only the ID is read: it names the key to ask the provider about
 # and authenticates nothing.
-B2_EXTRA_KEYS = (("openbao-snapshot-write", snap.VAULT_NAME_B2_ACCESS),)
-R2_EXTRA_KEYS = (("openbao-snapshot-write", snap.VAULT_NAME_R2_ACCESS),)
+B2_EXTRA_KEYS = (("openbao-snapshot-write", snap.VAULT_NAME_B2_ACCESS), (state.KEY_NAME_B2, state.VAULT_NAME_B2_ACCESS))
+R2_EXTRA_KEYS = (("openbao-snapshot-write", snap.VAULT_NAME_R2_ACCESS), (state.TOKEN_NAME_R2, state.VAULT_NAME_R2_ACCESS))
 
 
 def _report(name: str, status: str, detail: str = "") -> str:

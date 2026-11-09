@@ -91,7 +91,7 @@ class TestMintR2:
 
     @patch.object(state, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
     @patch.object(state, "r2_permission_group_ids", return_value=R2_GROUPS, autospec=True)
-    def test_mints_a_state_bucket_token_with_quarterly_expiry_and_writes_the_backend_env(self, _groups, mock_verify, session_class, capsys):
+    def test_mints_a_state_bucket_token_with_quarterly_expiry_and_writes_the_backend_env(self, _groups, mock_verify, session_class, capsys, vault, fake_vault):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
@@ -112,15 +112,18 @@ class TestMintR2:
         assert env["TOFU_STATE_ENCRYPTION_MIGRATING"] == state.encryption_config(env["TOFU_STATE_PASSPHRASE"], migrating=True)
         assert len(env["TOFU_STATE_PASSPHRASE"]) >= 16, "OpenTofu's pbkdf2 provider rejects shorter passphrases"
         assert env["TOFU_STATE_PASSPHRASE"] in capsys.readouterr().out, "the passphrase is shown once so its offline copy can be taken"
+        assert vault.get(state.VAULT_NAME_R2_ACCESS) == "TOKEN_ID"
+        assert secret not in fake_vault.store.values(), "only the ID is registered, never the secret"
 
     @patch.object(state, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
     @patch.object(state, "r2_permission_group_ids", return_value=R2_GROUPS, autospec=True)
-    def test_writes_nothing_for_a_token_that_fails_verification(self, _groups, _verify, session_class):
+    def test_writes_nothing_for_a_token_that_fails_verification(self, _groups, _verify, session_class, vault):
         session_class.return_value.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
         assert not state.mint_r2()
 
         assert not backend_env().exists()
+        assert vault.get(state.VAULT_NAME_R2_ACCESS) is None
 
     @patch.object(state, "verify_leaf_via_rclone", autospec=True)
     def test_skips_when_the_file_exists(self, mock_verify, session_class):
@@ -146,11 +149,15 @@ class TestRotateR2:
     @patch.object(state, "r2_delete_token", autospec=True)
     @patch.object(state, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
     @patch.object(state, "r2_permission_group_ids", return_value=R2_GROUPS, autospec=True)
-    def test_swaps_the_key_keeps_the_passphrase_and_revokes_the_old_token_last(self, _groups, _verify, mock_delete, session_class, capsys):
+    def test_swaps_the_key_keeps_the_passphrase_and_revokes_the_old_token_last(self, _groups, _verify, mock_delete, session_class, capsys, vault):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})
         seen_at_revoke = {}
-        mock_delete.side_effect = lambda *_: seen_at_revoke.update(state.read_env_file(backend_env()))
+        registered_at_revoke = []
+        mock_delete.side_effect = lambda *_: (
+            seen_at_revoke.update(state.read_env_file(backend_env())),
+            registered_at_revoke.append(vault.get(state.VAULT_NAME_R2_ACCESS)),
+        )
 
         assert state.mint_r2(rotate=True)
 
@@ -159,16 +166,19 @@ class TestRotateR2:
         env = state.read_env_file(backend_env())
         assert env["TOFU_STATE_PASSPHRASE"] == "the-original-passphrase", "a new passphrase would strand every state object already written"
         assert "the-original-passphrase" not in capsys.readouterr().out
+        assert registered_at_revoke == ["NEW_TOKEN_ID"], "the freshness check must already see the new ID when the old key goes"
 
     @patch.object(state, "r2_delete_token", autospec=True)
     @patch.object(state, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
     @patch.object(state, "r2_permission_group_ids", return_value=R2_GROUPS, autospec=True)
-    def test_leaves_the_old_key_in_place_when_the_new_one_fails_verification(self, _groups, _verify, mock_delete, session_class):
+    def test_leaves_the_old_key_in_place_when_the_new_one_fails_verification(self, _groups, _verify, mock_delete, session_class, vault):
+        vault.seed(state.VAULT_NAME_R2_ACCESS, "OLD_TOKEN_ID")
         session_class.return_value.post.return_value = response(json_body={"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})
 
         assert not state.mint_r2(rotate=True)
 
         mock_delete.assert_not_called()
+        assert vault.get(state.VAULT_NAME_R2_ACCESS) == "OLD_TOKEN_ID"
         assert state.read_env_file(backend_env())["AWS_ACCESS_KEY_ID"] == "OLD_TOKEN_ID"
 
     def test_refuses_when_there_is_nothing_to_rotate(self):
@@ -186,7 +196,7 @@ class TestMintB2:
 
     @patch.object(state, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
-    def test_mints_a_write_only_key_on_the_copy_bucket_and_writes_the_copy_env(self, mock_api_cls, mock_verify, b2_api):
+    def test_mints_a_write_only_key_on_the_copy_bucket_and_writes_the_copy_env(self, mock_api_cls, mock_verify, b2_api, vault, fake_vault):
         api = mock_api_cls.return_value = b2_api
         api.get_bucket_by_name.return_value = bucket(api)
         api.create_key.return_value = full_application_key("KEY_ID", "APP_KEY")
@@ -206,10 +216,12 @@ class TestMintB2:
         assert env["STATE_COPY_ENDPOINT"] == "https://s3.us-west-004.backblazeb2.com"
         assert env["STATE_COPY_BUCKET"] == state.STATE_BUCKET_B2
         assert stat.S_IMODE(copy_env().stat().st_mode) == 0o600
+        assert vault.get(state.VAULT_NAME_B2_ACCESS) == "KEY_ID"
+        assert "APP_KEY" not in fake_vault.store.values(), "only the ID is registered, never the secret"
 
     @patch.object(state, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
-    def test_writes_nothing_for_a_key_that_fails_verification(self, mock_api_cls, _verify, b2_api):
+    def test_writes_nothing_for_a_key_that_fails_verification(self, mock_api_cls, _verify, b2_api, vault):
         api = mock_api_cls.return_value = b2_api
         api.get_bucket_by_name.return_value = bucket(api)
         api.create_key.return_value = full_application_key("KEY_ID", "APP_KEY")
@@ -217,21 +229,27 @@ class TestMintB2:
         assert not state.mint_b2()
 
         assert not copy_env().exists()
+        assert vault.get(state.VAULT_NAME_B2_ACCESS) is None
 
     @patch.object(state, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
-    def test_rotation_writes_the_new_key_before_revoking_the_old_one(self, mock_api_cls, _verify, b2_api):
+    def test_rotation_writes_the_new_key_before_revoking_the_old_one(self, mock_api_cls, _verify, b2_api, vault):
         api = mock_api_cls.return_value = b2_api
         api.get_bucket_by_name.return_value = bucket(api)
         api.create_key.return_value = full_application_key("NEW_KEY_ID", "NEW_APP_KEY")
         state.write_env_file(copy_env(), {"STATE_COPY_ACCESS_KEY_ID": "OLD_KEY_ID", "STATE_COPY_SECRET_ACCESS_KEY": "old"})
         seen_at_revoke = {}
-        api.session.delete_key.side_effect = lambda _id: seen_at_revoke.update(state.read_env_file(copy_env()))
+        registered_at_revoke = []
+        api.session.delete_key.side_effect = lambda _id: (
+            seen_at_revoke.update(state.read_env_file(copy_env())),
+            registered_at_revoke.append(vault.get(state.VAULT_NAME_B2_ACCESS)),
+        )
 
         assert state.mint_b2(rotate=True)
 
         api.session.delete_key.assert_called_once_with("OLD_KEY_ID")
         assert seen_at_revoke["STATE_COPY_ACCESS_KEY_ID"] == "NEW_KEY_ID"
+        assert registered_at_revoke == ["NEW_KEY_ID"], "the freshness check must already see the new ID when the old key goes"
 
     @patch.object(state, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)

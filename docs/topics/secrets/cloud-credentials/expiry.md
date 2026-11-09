@@ -43,9 +43,10 @@ missing cache file, HTTP error). Only the last of those fails the
 run's own exit code — `systemctl --user status` reflects whether the
 check itself is healthy, not whether a credential happens to be due.
 
-Besides the cloud-sync leaves, it covers the OpenBao snapshot write keys, each looked up by the key ID the leaf tier
-holds, which names the key to the provider and authenticates nothing. The break-glass snapshot read key is minted
-without an expiry and is not checked.
+Besides the cloud-sync leaves, it covers the OpenBao snapshot write keys and the Tofu state keys, each looked up by
+the key ID the leaf tier holds, which names the key to the provider and authenticates nothing. The Tofu keys' secrets
+stay in files on the host that runs Tofu ([`state-and-credentials.md`](../../infra/tofu/state-and-credentials.md)). The
+break-glass snapshot read key is minted without an expiry and is not checked.
 
 **The R2 rotation token is checked via `GET /user/tokens/verify`, not
 any `/accounts/{account_id}/tokens` endpoint:** this admin token is a

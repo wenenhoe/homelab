@@ -3,7 +3,7 @@
 `s3` backend reads, writes, locks and deletes with, and the B2 key that can
 only add the encrypted copy pushed after each apply.
 
-Unlike create_snapshot_write_keys.py, neither key is cached to OpenBao. Tofu
+Unlike create_snapshot_write_keys.py, neither key's secret is cached to OpenBao. Tofu
 has to be able to rebuild the host that runs OpenBao, so its state credentials
 sit with its other credentials in files on the host that runs Tofu (ADR 0048),
 mode 0600 in a 0700 directory, and this script runs there:
@@ -13,6 +13,9 @@ mode 0600 in a 0700 directory, and this script runs there:
   it. Source it before running tofu.
 - ~/.config/tofu/state-copy.env: the B2 key and where the copy goes. Write-only,
   no `deleteFiles`, the same shape as the snapshot write leaf.
+
+Each key's ID is registered in OpenBao's leaf tier, and only the ID: it names the
+key for check_freshness.py to ask the provider about, and authenticates nothing.
 
 Both keys carry the quarterly native expiry every other leaf gets, are verified
 over rclone before a file is written, and rotate with --rotate (mint, verify,
@@ -44,13 +47,17 @@ from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_delete_token
 from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
-# Only reads: both secrets below are written by create_leaf_keys.py and bootstrap.
-_, _, _, require_secret = scoped("leaf")
+# Reads the account id and B2 region that create_leaf_keys.py and bootstrap write,
+# and writes the two key IDs below.
+has_secret, read_secret, write_secret, require_secret = scoped("leaf")
 
 STATE_BUCKET_R2 = "opentofu-state"
 STATE_BUCKET_B2 = "opentofu-state-b2"
 TOKEN_NAME_R2 = "opentofu-state"  # noqa: S105 - display label for token, not token value
 KEY_NAME_B2 = "opentofu-state-copy"
+
+VAULT_NAME_R2_ACCESS = "cloudflare-r2-opentofu-state-access-key"
+VAULT_NAME_B2_ACCESS = "backblaze-b2-opentofu-state-copy-access-key"
 
 BACKEND_ENV = "state-backend.env"
 COPY_ENV = "state-copy.env"
@@ -176,6 +183,7 @@ def mint_r2(*, rotate: bool = False) -> bool:
             "TOFU_STATE_KEY_MINTED": utcnow_iso(),
         },
     )
+    write_secret(VAULT_NAME_R2_ACCESS, access_key)
     if not rotate:
         print(f"r2 {TOKEN_NAME_R2}: state encryption passphrase, shown once. Put its offline copy where the backup GPG key is kept before going on:")
         print(f"    {passphrase}")
@@ -228,6 +236,7 @@ def mint_b2(*, rotate: bool = False) -> bool:
             "TOFU_STATE_KEY_MINTED": utcnow_iso(),
         },
     )
+    write_secret(VAULT_NAME_B2_ACCESS, access_key)
     print(f"b2 {KEY_NAME_B2}: written to {path}, verified ({detail})")
 
     if rotate:

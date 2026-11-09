@@ -2,7 +2,7 @@
 id: PROJ-landing-a-patch-series
 title: Landing a patch series
 type: project
-status: de-risking
+status: building
 blocked: false
 summary: A maintainer-run tool that lands a series of patches as pull requests into main, one at a time from fresh branches, after replaying the series and running the checks.
 decision: ADR-0112/0
@@ -25,7 +25,7 @@ A `tools/land_series` package, its tests and a topic doc. Not in scope: the rule
 
 ## Decision
 
-Implements [ADR 0112 (Landing a patch series)](../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-000.md), `working`, so this project is `de-risking` until its one assumption is resolved.
+Implements [ADR 0112 (Landing a patch series)](../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-000.md), `approved`: the merge flag works against the bypass, so the tool can be built.
 
 ## Execution plan
 
@@ -33,7 +33,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike: `gh pr merge --admin` against the `main-review` bypass | In progress | A pull request is merged into `main` from the command line with the flag, or is refused and the outcome is recorded in the decision; the assumption is resolved and the revision is `approved` |
+| 1 | Spike: `gh pr merge --admin` against the `main-review` bypass | Done | A pull request is merged into `main` from the command line with the flag, or is refused and the outcome is recorded in the decision; the assumption is resolved and the revision is `approved` |
 | 2 | The manifest and the replay | Not started | A file of a manifest and an mbox is parsed, and its layers replay in order on a scratch worktree of `origin/main`, one `git am` per patch with the views reset, and the no-Docker checks run at each state; a layer already in `main` is skipped, and a layer on the stop list halts the run until confirmed |
 | 3 | The pull requests | Not started | Each layer is pushed on a branch fresh from `main`, opened, waited on and merged with the admin flag, and an open pull request whose patch changed is replaced; a series of three layers lands in order |
 | 4 | The topic doc | Not started | `landing-a-series.md` describes the input, the stops and how to run the tool, has its row in `topics/README.md`, and ADR 0112 is `accepted` |

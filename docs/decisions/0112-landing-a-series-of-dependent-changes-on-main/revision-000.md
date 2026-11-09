@@ -7,7 +7,7 @@ short: Landing a patch series
 solution: A maintainer-run tool lands a series one pull request at a time, each from a fresh branch off main, replaying the series first and merging each layer with the admin bypass
 summary: How a series of patches reaches main as pull requests when main refuses any update outside a merged pull request and a pull request based on another branch sees neither main's project docs nor a stable head.
 topic: repository-tooling
-status: working
+status: approved
 related: [ADR-0076]
 ---
 
@@ -19,7 +19,7 @@ Work is written as a series of patches, and a project's stages are each meant to
 
 ## Context
 
-- `main` accepts a change only through a pull request merged with the Admin bypass, and the `main-review` ruleset's `update` rule refuses every other actor ([`branching.md`](../../topics/engineering/branching.md#the-rulesets), [ADR 0076 (Branch separation)](../0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). GitHub's stacked pull requests merge a whole stack as one update, which that rule refuses. Merging one pull request at a time with the bypass works. `gh pr merge` has an `--admin` flag, and `main` has no "require branches to be up to date" rule.
+- `main` accepts a change only through a pull request merged with the Admin bypass, and the `main-review` ruleset's `update` rule refuses every other actor ([`branching.md`](../../topics/engineering/branching.md#the-rulesets), [ADR 0076 (Branch separation)](../0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). GitHub's stacked pull requests merge a whole stack as one update, which that rule refuses. Merging one pull request at a time with the bypass works. `gh pr merge --admin --merge` merges a pull request into `main` through that bypass from the command line, and `main` has no "require branches to be up to date" rule.
 - A stacked layer is based on the branch below it. The `pull_request` branch filter lists no `stack/**`, so an upper layer gets no run and its required checks never report. GitHub rebases the remaining layers after each merge, each with a new head SHA and a full run, which for N layers merged one at a time is N(N-1)/2 extra runs. The runs cost waiting, not money, on a public repository's hosted runners.
 - The project scope check judges a pull request against the project docs as they stood on its base, so a layer that needs a widened `allowed_paths` fails until the widening has merged, and a pull request based on another branch does not see a widening that is only there.
 - `git am` runs hooks that regenerate the generated views ([`.githooks/`](../../../.githooks)) and leave them unstaged, so a second patch in one invocation fails. One patch per invocation, with the views reset between, avoids it.
@@ -43,12 +43,6 @@ A small tool, run by the maintainer under their own `gh` login, lands a series o
 - **Plain pull requests chained on each other, retargeted to `main` as the one below merges.** No rebase and no rerun, but a branch still carries its ancestors' commits, and the scope check sees the project docs of a branch, not of `main`.
 - **Opening independent layers together from a dependency graph.** It needs the author to state dependencies, since sharing no file does not prove independence, and the series and projects on record give it little to shorten.
 - **Squash or rebase merges.** A squash drops the commits from `main`'s history, which [`branching.md`](../../topics/engineering/branching.md#promoting) rules out.
-
-## Assumptions
-
-- **Claim:** `gh pr merge --admin` merges a pull request into `main` through the `main-review` bypass.
-  **Breaks if wrong:** No layer can be merged from the command line, and the tool would stop at opening pull requests for the maintainer to merge in the web interface.
-  **Checked by:** a spike: merging a pull request into `main` with the flag.
 
 ## Consequences
 

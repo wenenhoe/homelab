@@ -13,7 +13,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from land_series.kept import KeptError, branch_of, keep
+from land_series.kept import KeptError, branch_of, keep, leftovers
 from land_series.land import Landed, LandError, fetch, land
 from land_series.manifest import Layer, SeriesError, order_layers, parse_series
 from land_series.replay import Check, ReplayError, replay
@@ -83,6 +83,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{result.layer.id}  {status}  {result.layer.subject}")
     if kept:
         print("Review the branches, then run again with --land to push them.")
+        stale = leftovers(args.repo, [result.layer for result in results if result.applied])
+        if stale:
+            print(f"Left from an earlier run, not in this series: {', '.join(stale)}\nDelete each with `git branch -D <branch>` once you no longer need it.")
     return 0
 
 

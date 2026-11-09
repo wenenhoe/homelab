@@ -8,7 +8,7 @@ import pytest
 from _series_repo import Author, Repo, git, series_file
 from conftest import FakeGitHub
 from land_series import __main__ as cli
-from land_series.kept import KeptError, keep
+from land_series.kept import KeptError, keep, leftovers
 from land_series.land import LandError, land
 from land_series.manifest import Layer, SeriesError, order_layers, parse_series
 from land_series.replay import replay
@@ -306,3 +306,54 @@ def test_a_series_that_fails_the_replay_leaves_nothing_to_land(
     assert "has no series/write-one" in capsys.readouterr().err
     assert github.branches() == ["main"]
     assert not github.state_file.exists()
+
+
+def keep_series(repo: Repo, tmp_path, patches: list[tuple[str, str, bytes]], name: str) -> list[Layer]:
+    series = tmp_path / name
+    series.write_bytes(series_file([(f"{layer_id} {slug}", patch) for layer_id, slug, patch in patches]))
+    assert run(series, repo) == 0
+    return layers_of(*patches)
+
+
+@pytest.mark.usefixtures("github")
+def test_a_branch_for_a_layer_no_longer_in_the_series_is_reported_once(repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
+    first = author.patch("docs: write one", {"a.txt": "one\n"})
+    keep_series(repo, tmp_path, [("0001a", "write-one", first)], "first.txt")
+    second = Author(repo, author.path.parent / "second").patch("docs: write other", {"b.txt": "other\n"})
+    capsys.readouterr()
+
+    keep_series(repo, tmp_path, [("0001a", "write-other", second)], "second.txt")
+
+    assert "Left from an earlier run, not in this series: series/write-one" in capsys.readouterr().out
+    assert leftovers(repo.path, layers_of(("0001a", "write-other", second))) == ["series/write-one"]
+
+
+@pytest.mark.usefixtures("github")
+def test_a_leftover_branch_deleted_by_hand_is_not_reported_again(repo: Repo, author: Author, tmp_path) -> None:
+    first = author.patch("docs: write one", {"a.txt": "one\n"})
+    keep_series(repo, tmp_path, [("0001a", "write-one", first)], "first.txt")
+    git(repo.path, "branch", "-D", "series/write-one")
+
+    assert leftovers(repo.path, []) == []
+    assert leftovers(repo.path, []) == []
+
+
+@pytest.mark.usefixtures("github")
+def test_the_branch_of_a_layer_already_landed_is_reported(repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
+    first = author.patch("docs: write one", {"a.txt": "one\n"})
+    second = author.patch("docs: write two", {"b.txt": "two\n"})
+    keep_series(repo, tmp_path, [("0001a", "write-one", first)], "first.txt")
+    git(repo.path, "am", "--quiet", stdin=first)
+    git(repo.path, "push", "-q", "origin", "main")
+    capsys.readouterr()
+
+    keep_series(repo, tmp_path, [("0001a", "write-one", first), ("0001b", "write-two", second)], "both.txt")
+
+    assert "Left from an earlier run, not in this series: series/write-one" in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("github")
+def test_a_series_with_nothing_left_over_says_nothing_about_it(repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
+    keep_series(repo, tmp_path, [("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"}))], "first.txt")
+
+    assert "Left from an earlier run" not in capsys.readouterr().out

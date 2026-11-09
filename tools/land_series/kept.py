@@ -28,9 +28,12 @@ def branch_of(layer: Layer) -> str:
     return f"{BRANCH_PREFIX}{layer.slug}"
 
 
+def _records_dir(repo: Path) -> Path:
+    return Path(git_text(git_run(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))) / RECORDS_DIR
+
+
 def _record_path(repo: Path, layer: Layer) -> Path:
-    common = git_text(git_run(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))
-    return Path(common) / RECORDS_DIR / f"{layer.slug}.json"
+    return _records_dir(repo) / f"{layer.slug}.json"
 
 
 def _recorded(repo: Path, layer: Layer) -> dict[str, str] | None:
@@ -38,9 +41,13 @@ def _recorded(repo: Path, layer: Layer) -> dict[str, str] | None:
     return json.loads(path.read_text()) if path.exists() else None
 
 
-def _tip(repo: Path, layer: Layer) -> str | None:
-    result = git_run(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch_of(layer)}")
+def _branch_tip(repo: Path, branch: str) -> str | None:
+    result = git_run(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}")
     return git_text(result) if result.returncode == 0 else None
+
+
+def _tip(repo: Path, layer: Layer) -> str | None:
+    return _branch_tip(repo, branch_of(layer))
 
 
 def _patch_hash(layer: Layer) -> str:
@@ -93,3 +100,21 @@ def forget(repo: Path, layer: Layer) -> None:
     """Delete a merged layer's branch and record; a branch that is checked out stays, and the record goes either way."""
     git_run(repo, "branch", "--delete", "--force", branch_of(layer))
     _record_path(repo, layer).unlink(missing_ok=True)
+
+
+def leftovers(repo: Path, active: Sequence[Layer]) -> list[str]:
+    """The kept branches the tool left for layers that are not in `active`: dropped from the series, renamed, or already landed.
+
+    A record whose branch is gone is deleted here, so a branch removed by hand is not reported again.
+    """
+    wanted = {layer.slug for layer in active}
+    found = []
+    for path in sorted(_records_dir(repo).glob("*.json")):
+        if path.stem in wanted:
+            continue
+        branch = f"{BRANCH_PREFIX}{path.stem}"
+        if _branch_tip(repo, branch) is None:
+            path.unlink()
+        else:
+            found.append(branch)
+    return found

@@ -35,7 +35,7 @@ A small tool, run by the maintainer under their own `gh` login, lands a series o
 - **Layers land in id order.** The input is one plain-text file: a manifest followed by the patches as a single mbox, so it can be read before it is applied. Each layer has an id in the existing letter scheme and a branch slug; an `after:` or `before:` id places an inserted layer. A fix or an inserted layer is a small file holding only the new layer, and the tool takes several files, so nothing already delivered is regenerated.
 - **State comes from git.** A layer whose commits are in `main` is skipped, and an open pull request is replaced if its patch changed. No state file.
 - **Before pushing anything, the series is replayed** in order on a scratch worktree of `origin/main`, one `git am` per patch with the views reset between, and the checks that need no Docker run at each state, including the project scope check with its base set to `main`. A scope failure then shows as a missing widening layer, before a pull request exists.
-- **The tool stops for the maintainer** when a layer changes `.githooks/`, the pre-commit configuration, a workflow, an action or `tools/`.
+- **The tool stops for the maintainer** when a layer changes `.githooks/`, the pre-commit configuration, a workflow, an action, `tools/`, or the Python dependencies (`pyproject.toml`, `uv.lock`), which `uv run` installs and runs.
 
 ## Alternatives considered
 
@@ -53,7 +53,7 @@ Each layer waits for its run before the next branch exists, so a series of N lay
 - A layer reaches `main` only by a pull request merged with a merge commit.
 - A branch holds only its own layer's commits.
 - Nothing is pushed before the whole series has replayed and passed the checks that need no Docker.
-- The tool never runs a layer's changes to `.githooks/`, the pre-commit configuration, a workflow, an action or `tools/` without the maintainer's confirmation.
+- The tool never runs a layer's changes to `.githooks/`, the pre-commit configuration, a workflow, an action, `tools/` or the Python dependencies without the maintainer's confirmation.
 - No credential other than the maintainer's own `gh` login is used, and none is given to a session that writes a series.
 
 ## Non-goals

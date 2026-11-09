@@ -111,6 +111,8 @@ def test_layers_that_cannot_be_ordered_are_refused(layers: list[Layer], message:
         pytest.param(("a/.github/workflows/pr-checks.yml b/.github/workflows/pr-checks.yml",), [".github/workflows/pr-checks.yml"], id="a workflow"),
         pytest.param(("a/.github/actions/setup/action.yml b/.github/actions/setup/action.yml",), [".github/actions/setup/action.yml"], id="an action"),
         pytest.param(("a/tools/doc_scripts/x.py b/tools/doc_scripts/x.py",), ["tools/doc_scripts/x.py"], id="a tool"),
+        pytest.param(("a/pyproject.toml b/pyproject.toml",), ["pyproject.toml"], id="the project dependencies"),
+        pytest.param(("a/uv.lock b/uv.lock",), ["uv.lock"], id="the lock file"),
         pytest.param(("a/docs/old.md b/tools/moved.py",), ["tools/moved.py"], id="a file renamed into tools"),
         pytest.param(("a/tools/old.py b/docs/moved.md",), ["tools/old.py"], id="a file renamed out of tools"),
         pytest.param(("a/docs/x y.md b/tools/x y.md",), ["tools/x y.md"], id="a path with a space"),

@@ -20,8 +20,9 @@ from pathlib import Path
 from land_series.manifest import Layer
 
 # A layer touching one of these changes code or configuration that `git am`'s hooks or the checks run on this machine
-# before CI sees it. Prefixes, so a path with a space in it, which a diff header cannot split reliably, still matches.
-STOP_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".github/workflows/", ".github/actions/", "tools/")
+# before CI sees it; `pyproject.toml` and `uv.lock` decide which packages `uv run` installs and runs. Prefixes, so a path
+# with a space in it, which a diff header cannot split reliably, still matches.
+STOP_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".github/workflows/", ".github/actions/", "tools/", "pyproject.toml", "uv.lock")
 OUTPUT_TAIL_LINES = 40
 _PATH_START = re.compile(r'(?:^|(?<=[ "]))[ab]/')
 

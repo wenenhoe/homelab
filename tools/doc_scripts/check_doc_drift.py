@@ -10,6 +10,7 @@ docs/topics/engineering/ci/doc-checks.md#docs-drift-check for the summary.
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -20,6 +21,7 @@ from doc_scripts.doc_explorations import exploration_errors
 from doc_scripts.doc_frontmatter import DECISION_INDEX, LINEAGE_DIR_RE, doc_kind, is_template, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import heading_errors, lineage_errors, open_assumption_errors, project_errors, weight_errors
 from doc_scripts.doc_records import record_errors
+from doc_scripts.doc_reliance import reliance_warnings
 from doc_scripts.doc_removed import ledger_errors
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -389,7 +391,11 @@ def check_nist_alignment_currency() -> None:
             )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--strict", action="store_true", help="fail on an unmet reliance between decisions, which is otherwise a warning")
+    args = parser.parse_args(argv or [])
+
     check_doc_indexes()
     check_ansible_reference()
     check_molecule_matrix()
@@ -408,6 +414,14 @@ def main() -> int:
     errors.extend(record_errors(ROOT))
     errors.extend(ledger_errors(ROOT))
 
+    # An unmet reliance on a decision that is not settled yet (ADR 0080) is a warning until CI runs with --strict.
+    warnings = reliance_warnings(ROOT)
+    if args.strict:
+        errors.extend(warnings)
+    else:
+        for w in warnings:
+            print(f"::warning::{w}")
+
     if errors:
         for e in errors:
             print(f"::error::{e}")
@@ -418,4 +432,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

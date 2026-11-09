@@ -28,6 +28,8 @@ _ENVELOPE = re.compile(rb"^From [0-9a-f]{40,64} ", re.MULTILINE)
 _SUBJECT_TAG = re.compile(r"^\[[^\]]*\]\s*")
 _DIFF_HEADER = re.compile(r"^diff --git (.*)$", re.MULTILINE)
 _PLACEMENT_KEYS = ("after", "before")
+# Branches the rulesets protect; a layer's branch is pushed, force-pushed and deleted, so it is never one of these.
+RESERVED_SLUGS = ("main", "maintenance", "develop")
 
 
 class SeriesError(Exception):
@@ -74,6 +76,8 @@ def _manifest_entries(text: str, source: str) -> list[tuple[str, str, dict[str, 
             raise SeriesError(f"{where}: {layer_id!r} is not a layer id (four digits and a lowercase letter)")
         if not SLUG.fullmatch(slug):
             raise SeriesError(f"{where}: {slug!r} is not a branch slug (lowercase words joined by hyphens)")
+        if slug in RESERVED_SLUGS:
+            raise SeriesError(f"{where}: {slug!r} is a protected branch, not a layer branch")
         placement = {}
         for option in options:
             key, _, value = option.partition("=")

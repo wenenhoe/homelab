@@ -60,19 +60,19 @@ def stopped_by(layer: Layer) -> list[str]:
     return sorted(hits)
 
 
-def _git(repo: Path, *args: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
+def git_run(repo: Path, *args: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(["git", "-C", str(repo), *args], input=stdin, capture_output=True, check=False)
 
 
-def _text(result: subprocess.CompletedProcess[bytes]) -> str:
+def git_text(result: subprocess.CompletedProcess[bytes]) -> str:
     return (result.stdout + result.stderr).decode("utf-8", errors="replace").strip()
 
 
-def _landed(repo: Path, base: str) -> set[tuple[int, str]]:
+def landed_in(repo: Path, base: str) -> set[tuple[int, str]]:
     """The (author time, subject) of every commit in the base: `git am` keeps both, so a landed layer matches its own commit."""
-    result = _git(repo, "log", base, "--format=%at%x09%s")
+    result = git_run(repo, "log", base, "--format=%at%x09%s")
     if result.returncode != 0:
-        raise ReplayError(f"cannot read the history of {base}: {_text(result)}")
+        raise ReplayError(f"cannot read the history of {base}: {git_text(result)}")
     pairs = set()
     for line in result.stdout.decode("utf-8", errors="replace").splitlines():
         stamp, _, subject = line.partition("\t")
@@ -85,22 +85,31 @@ def scratch_worktree(repo: Path, base: str) -> Iterator[Path]:
     parent = Path(tempfile.mkdtemp(prefix="land-series-"))
     tree = parent / "tree"
     try:
-        added = _git(repo, "worktree", "add", "--detach", str(tree), base)
+        added = git_run(repo, "worktree", "add", "--detach", str(tree), base)
         if added.returncode != 0:
-            raise ReplayError(f"cannot create a worktree of {base}: {_text(added)}")
+            raise ReplayError(f"cannot create a worktree of {base}: {git_text(added)}")
         try:
             yield tree
         finally:
-            _git(repo, "worktree", "remove", "--force", str(tree))
+            git_run(repo, "worktree", "remove", "--force", str(tree))
     finally:
         shutil.rmtree(parent, ignore_errors=True)
-        _git(repo, "worktree", "prune")
+        git_run(repo, "worktree", "prune")
 
 
 def _reset(tree: Path) -> None:
     """Drop what the apply hooks and the checks leave unstaged: the generated views, which stop a second `git am`."""
-    _git(tree, "reset", "--hard", "--quiet")
-    _git(tree, "clean", "--force", "-d", "--quiet")
+    git_run(tree, "reset", "--hard", "--quiet")
+    git_run(tree, "clean", "--force", "-d", "--quiet")
+
+
+def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
+    """`git am` the layer in `tree` (its apply hooks run), then drop what the hooks left unstaged."""
+    applied = git_run(tree, "am", "--quiet", stdin=layer.patch)
+    if applied.returncode != 0:
+        git_run(tree, "am", "--abort")
+        raise ReplayError(f"layer {layer.id} does not apply on {onto}:\n{git_text(applied)}")
+    _reset(tree)
 
 
 def _run_check(tree: Path, check: Check) -> str | None:
@@ -121,7 +130,7 @@ def replay(repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm
 
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
     """
-    landed = _landed(repo, base)
+    landed = landed_in(repo, base)
     results: list[LayerResult] = []
     with scratch_worktree(repo, base) as tree:
         for layer in layers:
@@ -131,11 +140,7 @@ def replay(repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm
             stops = stopped_by(layer)
             if stops and not confirm(layer, stops):
                 raise ReplayError(f"layer {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
-            applied = _git(tree, "am", "--quiet", stdin=layer.patch)
-            if applied.returncode != 0:
-                _git(tree, "am", "--abort")
-                raise ReplayError(f"layer {layer.id} does not apply on {base}{' plus the layers before it' if results else ''}:\n{_text(applied)}")
-            _reset(tree)
+            apply_layer(tree, layer, f"{base}{' plus the layers before it' if results else ''}")
             for check in checks:
                 failure = _run_check(tree, check)
                 _reset(tree)

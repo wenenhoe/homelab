@@ -35,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: `gh pr merge --admin` against the `main-review` bypass | Done | A pull request is merged into `main` from the command line with the flag, or is refused and the outcome is recorded in the decision; the assumption is resolved and the revision is `approved` |
 | 2 | The manifest and the replay | Done | A file of a manifest and an mbox is parsed, and its layers replay in order on a scratch worktree of `origin/main`, one `git am` per patch with the views reset, and the no-Docker checks run at each state; a layer already in `main` is skipped, and a layer on the stop list halts the run until confirmed |
-| 3 | The pull requests | Not started | Each layer is pushed on a branch fresh from `main`, opened, waited on and merged with the admin flag, and an open pull request whose patch changed is replaced; a series of three layers lands in order |
+| 3 | The pull requests | In progress | Each layer is pushed on a branch fresh from `main`, opened, waited on, shown to the maintainer and merged with the admin flag only on their confirmation, and an open pull request whose patch changed is replaced; a series of three layers lands in order against the real repository |
 | 4 | The topic doc | Not started | `landing-a-series.md` describes the input, the stops and how to run the tool, has its row in `topics/README.md`, and ADR 0112 is `accepted` |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -43,6 +43,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Acceptance criteria
 
 - [ ] A series of at least three layers lands as three pull requests, each with a merge commit and each reverting alone.
+- [ ] No layer is merged until the maintainer confirms it, or the run was started with `--yes`.
 - [ ] A layer that changes a path on the stop list does not run until the maintainer confirms.
 - [ ] A scope failure that a missing widening layer causes shows before any pull request exists.
 

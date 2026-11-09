@@ -35,6 +35,7 @@ A small tool, run by the maintainer under their own `gh` login, lands a series o
 - **Layers land in id order.** The input is one plain-text file: a manifest followed by the patches as a single mbox, so it can be read before it is applied. Each layer has an id in the existing letter scheme and a branch slug; an `after:` or `before:` id places an inserted layer. A fix or an inserted layer is a small file holding only the new layer, and the tool takes several files, so nothing already delivered is regenerated.
 - **State comes from git.** A layer whose commits are in `main` is skipped, and an open pull request is replaced if its patch changed. No state file.
 - **Before pushing anything, the series is replayed** in order on a scratch worktree of `origin/main`, one `git am` per patch with the views reset between, and the checks that need no Docker run at each state, including the project scope check with its base set to `main`. A scope failure then shows as a missing widening layer, before a pull request exists.
+- **The maintainer reviews each layer before it merges.** When a layer's pull request has its required checks green, the tool prints its address and waits for a confirmation. With no terminal, or no confirmation, it stops there and leaves the pull request open; a run started again picks up from it, and a pull request whose branch already holds the same patch on the same base is reused, not pushed again. A run started with `--yes` confirms every merge in it, though a layer on the stop list is still asked about first.
 - **The tool stops for the maintainer** when a layer changes `.githooks/`, the pre-commit configuration, a workflow, an action, `tools/`, or the Python dependencies (`pyproject.toml`, `uv.lock`), which `uv run` installs and runs.
 
 ## Alternatives considered
@@ -51,6 +52,7 @@ Each layer waits for its run before the next branch exists, so a series of N lay
 ## Invariants
 
 - A layer reaches `main` only by a pull request merged with a merge commit.
+- No layer is merged without the maintainer's confirmation at that layer, or `--yes` on the run.
 - A branch holds only its own layer's commits.
 - Nothing is pushed before the whole series has replayed and passed the checks that need no Docker.
 - The tool never runs a layer's changes to `.githooks/`, the pre-commit configuration, a workflow, an action, `tools/` or the Python dependencies without the maintainer's confirmation.
@@ -64,7 +66,7 @@ Each layer waits for its run before the next branch exists, so a series of N lay
 
 ## Validation
 
-The tool's tests cover the manifest, the replay and the skip of a layer already in `main`, and the stop list is a test over the paths that stop it.
+The tool's tests cover the manifest, the replay, the skip of a layer already in `main`, the pull request and merge steps against a stand-in `gh` that merges into a real repository, and the review gate; the stop list is a test over the paths that stop it.
 
 ## Reconsideration triggers
 

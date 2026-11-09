@@ -14,6 +14,7 @@ bookkeeping values written by rotation code, which only this list knows about.
 from __future__ import annotations
 
 from cloud_credentials import create_snapshot_write_keys as snap
+from cloud_credentials import create_state_keys as state
 from cloud_credentials.leaf_keys import b2 as leaf_b2
 from cloud_credentials.leaf_keys import oci as leaf_oci
 from cloud_credentials.leaf_keys import r2 as leaf_r2
@@ -54,4 +55,6 @@ SECRET_OWNERS = [
     (snap.VAULT_NAME_B2_SECRET, snap),
     (snap.VAULT_NAME_R2_ACCESS, snap),
     (snap.VAULT_NAME_R2_SECRET, snap),
+    (state.VAULT_NAME_R2_ACCESS, state),
+    (state.VAULT_NAME_B2_ACCESS, state),
 ]

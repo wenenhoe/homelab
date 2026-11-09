@@ -43,6 +43,8 @@ import requests
 from b2sdk.v2.exception import B2Error
 from oci.identity_domains import IdentityDomainsClient
 
+from cloud_credentials import create_snapshot_write_keys as snap
+from cloud_credentials import create_state_keys as state
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_api
 from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
@@ -57,6 +59,13 @@ FRESH, WARNING, URGENT, STALE, CHECK_FAILED = "fresh", "expiring soon", "expirin
 # never matches what its client raises: a non-2xx is a ServiceError, a
 # timeout a ConnectTimeout, any other transport failure a RequestException.
 _OCI_SDK_ERRORS = (oci.exceptions.ServiceError, oci.exceptions.ConnectTimeout, oci.exceptions.RequestException)
+
+
+# (label, Vault name of the key's ID) for the keys the write/read leaf loop does
+# not cover. Only the ID is read: it names the key to ask the provider about
+# and authenticates nothing.
+B2_EXTRA_KEYS = (("openbao-snapshot-write", snap.VAULT_NAME_B2_ACCESS), (state.KEY_NAME_B2, state.VAULT_NAME_B2_ACCESS))
+R2_EXTRA_KEYS = (("openbao-snapshot-write", snap.VAULT_NAME_R2_ACCESS), (state.TOKEN_NAME_R2, state.VAULT_NAME_R2_ACCESS))
 
 
 def _report(name: str, status: str, detail: str = "") -> str:
@@ -92,12 +101,14 @@ def check_b2() -> list[tuple[str, str, str]]:
         keys_by_id = {k.id_: k for k in b2_list_keys(api)}
     except (B2Error, SystemExit) as exc:
         detail = str(exc)
-        return [(f"b2 {name}", CHECK_FAILED, detail) for name in (*B2_LEAF_CAPABILITIES, "rotation key")]
+        return [(f"b2 {name}", CHECK_FAILED, detail) for name in (*B2_LEAF_CAPABILITIES, *(label for label, _ in B2_EXTRA_KEYS), "rotation key")]
 
     results = []
     for leaf in B2_LEAF_CAPABILITIES:
         key_id = _leaf_read_secret(f"backblaze-b2-{leaf}-access-key")
         results.append(_b2_key_result(f"b2 {leaf}", keys_by_id.get(key_id)))
+    for label, vault_name in B2_EXTRA_KEYS:
+        results.append(_b2_key_result(f"b2 {label}", keys_by_id.get(_leaf_read_secret(vault_name))))
     rotation_key_id = _rotation_read_secret("_rotation-key-backblaze-b2-key-id")
     results.append(_b2_key_result("b2 rotation key", keys_by_id.get(rotation_key_id)))
     return results
@@ -159,7 +170,7 @@ def check_r2() -> list[tuple[str, str, str]]:
     if token is None or account_id is None:
         missing = "rotation token" if token is None else "account id"
         detail = f"no cached {missing} - can't query Cloudflare without prompting"
-        return [(f"r2 {name}", CHECK_FAILED, detail) for name in ("write", "read", "rotation token")]
+        return [(f"r2 {name}", CHECK_FAILED, detail) for name in ("write", "read", *(label for label, _ in R2_EXTRA_KEYS), "rotation token")]
 
     session = requests.Session()
     session.headers["Authorization"] = f"Bearer {token}"
@@ -168,6 +179,8 @@ def check_r2() -> list[tuple[str, str, str]]:
     for leaf in ("write", "read"):
         token_id = _leaf_read_secret(f"cloudflare-r2-{leaf}-access-key")
         results.append(_r2_get_token_result(f"r2 {leaf}", session, account_id, token_id))
+    for label, vault_name in R2_EXTRA_KEYS:
+        results.append(_r2_get_token_result(f"r2 {label}", session, account_id, _leaf_read_secret(vault_name)))
 
     results.append(_r2_rotation_token_result(session))
     return results

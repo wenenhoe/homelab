@@ -30,7 +30,7 @@ so an R2 rotation token missing from Vault is reported as a check
 failure for R2's two entries, not a hang.
 
 Usage (run from tools/):
-    python3 -m cloud_credentials.check_freshness
+    python3 -m cloud_credentials.check_credential_expiry
 """
 
 from __future__ import annotations
@@ -277,7 +277,7 @@ def _send_telegram_alert(lines: list[str]) -> None:
     topic_id = _read_telegram_secret("telegram-topic-id-backups")
     data = {
         "chat_id": chat_id,
-        "text": "<b>cloud_credentials freshness check</b>\n\n" + "\n".join(lines),
+        "text": "<b>cloud_credentials credential expiry check</b>\n\n" + "\n".join(lines),
         "parse_mode": "HTML",
     }
     if topic_id:

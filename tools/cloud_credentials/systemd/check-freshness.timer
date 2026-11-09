@@ -1,5 +1,5 @@
 [Unit]
-Description=Timer for the cloud_credentials freshness check
+Description=Timer for the cloud_credentials credential expiry check
 
 [Timer]
 # Persistent=true: this is a laptop/workstation, not an always-on

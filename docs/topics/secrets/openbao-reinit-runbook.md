@@ -167,5 +167,5 @@ can't fix.
 ## Downtime
 
 Every consumer of OpenBao is unusable for the duration - schedule this
-when nothing else needs `check_freshness.py`, `snapshot-push.sh`, or a
+when nothing else needs `check_credential_expiry.py`, `snapshot-push.sh`, or a
 `deploy.yaml` run to succeed.

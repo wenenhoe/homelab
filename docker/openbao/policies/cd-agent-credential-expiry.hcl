@@ -1,8 +1,8 @@
-# cd-agent-freshness's policy (ADR 0020 revision 1,
+# cd-agent-credential-expiry's policy (ADR 0020 revision 1,
 # docs/topics/secrets/openbao-cd-agent-approles.md). Applied by hand via
 # vault-bootstrap, same convention as controller.hcl's header comment.
 #
-# Read-only on everything check_freshness.py reads: both
+# Read-only on everything check_credential_expiry.py reads: both
 # cloud_credentials tiers (it asks each provider when a key expires) and
 # the Telegram credentials it alerts with (ADR 0021). Reading the R2
 # admin token's path is what makes rotation-read-watcher name this role in the

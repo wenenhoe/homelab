@@ -13,7 +13,7 @@ fake scoped to Vault I/O only, regardless of what else a test mocks.
 FakeVault.seed()/get()/delete() key by category+name (the
 cloud_credentials/{leaf,rotation}/* taxonomy scoped() builds);
 seed_path()/get_path() key by a full Vault path directly, for
-read_vault_path()'s callers (e.g. check_freshness.py's
+read_vault_path()'s callers (e.g. check_credential_expiry.py's
 hosts/all/telegram/* reads, outside that taxonomy).
 
 conftest.py's fake_vault fixture installs it.

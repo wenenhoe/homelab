@@ -80,7 +80,7 @@ def create_oci() -> None:
         # one-time disclosure as the classic API's own `key` field.
         write_secret(f"oci-{leaf}-secret-key", key.secret_key)
         # The SCIM resource id, not the access key itself — needed
-        # later to GET/DELETE this exact key (rotation, freshness
+        # later to GET/DELETE this exact key (rotation, expiry
         # checks). expiresOn is native, so there is no companion
         # -created-at secret to write. See ADR 0109.
         write_secret(f"oci-{leaf}-scim-id", key.id)

@@ -1,5 +1,5 @@
 [Unit]
-Description=Check whether every cloud_credentials leaf/rotation credential is still fresh
+Description=Warn before a cloud_credentials leaf or rotation credential expires
 
 [Service]
 Type=oneshot
@@ -9,4 +9,4 @@ Type=oneshot
 # Scheduling section. The interpreter is the clone's .venv, which holds the
 # dependencies; the system python3 does not.
 WorkingDirectory=CHANGE-ME-path-to-this-repo/tools
-ExecStart=CHANGE-ME-path-to-this-repo/.venv/bin/python -m cloud_credentials.check_freshness
+ExecStart=CHANGE-ME-path-to-this-repo/.venv/bin/python -m cloud_credentials.check_credential_expiry

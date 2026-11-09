@@ -4,7 +4,7 @@ revision: 1
 type: adr
 title: Automation identity and access scope
 short: Automation identity scope
-solution: Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot), retiring controller's broad grant
+solution: Four CIDR-bound AppRoles for the CD agent (deploy, rotation, credential expiry and snapshot), retiring controller's broad grant
 summary: Which identities may read and write which secret paths, once unattended prod-touching work has more than one category.
 topic: secrets-store
 status: approved
@@ -20,10 +20,10 @@ related: [ADR-0111, ADR-0023, ADR-0025, ADR-0044, ADR-0047]
 one broad AppRole because it's the only automation identity that
 exists today. [ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)
 adds a dedicated automation host (`cd_agent`) that becomes the sole
-path to prod deploys and takes over the rotation/freshness jobs
+path to prod deploys and takes over the rotation and credential expiry jobs
 [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) schedules.
 `cd_agent` runs four categories of unattended, prod-touching work
-(deploy/maintenance, credential rotation, the freshness check, and the
+(deploy/maintenance, credential rotation, the credential expiry check, and the
 OpenBao snapshot push) that don't need the same access to each other's
 material, so one broad identity stops being the right shape. ADR 0044 gives each job its own timer and
 its own Unix user, and requires the host to have a fixed address, unlike
@@ -43,7 +43,7 @@ This table shows what each of the four AppRoles reaches, as this revision decide
 | :--- | :--- | :--- |
 | `cd-agent-deploy` | Read on `secret/data/hosts/*` and `secret/data/cloud_credentials/leaf/*`; `create` but not `update` on `secret/data/hosts/*` | `cloud_credentials/rotation/*` |
 | `cd-agent-rotation` | Create, update and read on `secret/data/cloud_credentials/leaf/*` and `secret/data/cloud_credentials/rotation/*` | `secret/data/hosts/*` |
-| `cd-agent-freshness` | Read on `secret/data/cloud_credentials/leaf/*`, `secret/data/cloud_credentials/rotation/*` and `secret/data/hosts/all/telegram/*` | Writing or rotating anything |
+| `cd-agent-credential-expiry` | Read on `secret/data/cloud_credentials/leaf/*`, `secret/data/cloud_credentials/rotation/*` and `secret/data/hosts/all/telegram/*` | Writing or rotating anything |
 | `cd-agent-snapshot` | Read on `sys/storage/raft/snapshot` and six named paths under `secret/data/cloud_credentials/leaf/` | The rest of `leaf/*` |
 
 Four AppRoles, all bound to `cd_agent`'s fixed LAN IP via
@@ -64,10 +64,10 @@ Four AppRoles, all bound to `cd_agent`'s fixed LAN IP via
   `secret/data/cloud_credentials/rotation/*`. No access to
   `secret/data/hosts/*` — the rotation job has no business touching
   app secrets.
-- `cd-agent-freshness` — read-only on
+- `cd-agent-credential-expiry` — read-only on
   `secret/data/cloud_credentials/leaf/*`,
   `secret/data/cloud_credentials/rotation/*` and
-  `secret/data/hosts/all/telegram/*`. The freshness check reads the
+  `secret/data/hosts/all/telegram/*`. The credential expiry check reads the
   rotation-tier credentials to ask each provider when its keys expire,
   and the Telegram credentials ([ADR 0021 (Ownerless secret paths)](../0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md))
   to send its alert, as the watcher in
@@ -124,9 +124,9 @@ drill), narrowly scoped and short-lived, never persisted to disk.
 
 - A compromised deploy job can plant a value for a generated secret that
   does not exist yet, which `controller`'s grant allows today too.
-- The freshness role reads the R2 admin token's path, which the watcher
-  in ADR 0026 alerts on for any read, so each weekly freshness run's
-  alert names `cd-agent-freshness` as the role. That alert is accepted
+- The credential expiry role reads the R2 admin token's path, which the watcher
+  in ADR 0026 alerts on for any read, so each weekly credential expiry run's
+  alert names `cd-agent-credential-expiry` as the role. That alert is accepted
   as the weekly signal that the check ran.
 - The snapshot role downloads the whole raft database, sealed under a
   key that is not on `cd_agent`, and GPG-encrypts it again before it

@@ -160,7 +160,7 @@ def _read_vault_secret(client: hvac.Client, name: str) -> str | None:
 
 
 def _escape_telegram_html(text: str) -> str:
-    """Same reasoning as check_freshness.py's own escaper: HTML
+    """Same reasoning as check_credential_expiry.py's own escaper: HTML
     parse_mode, not legacy Markdown - only &, <, > are ever special."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 

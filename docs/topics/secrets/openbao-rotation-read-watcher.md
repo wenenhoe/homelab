@@ -39,13 +39,13 @@ live).
 
 ## Expected alerts
 
-`check_freshness.py` reads all three watched secrets on every run: the R2
+`check_credential_expiry.py` reads all three watched secrets on every run: the R2
 token in `check_r2()`, the B2 application key through `b2_rotation_api()`, and
 the OCI client secret through `oci_identity_domains_client()`. Each weekly run
 therefore raises three alerts, one per secret, all naming the role that ran it:
-`controller` today, and `cd-agent-freshness` once the check moves to `cd_agent`
+`controller` today, and `cd-agent-credential-expiry` once the check moves to `cd_agent`
 ([ADR 0020 revision 1 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)).
-The trio is the accepted weekly signal that the freshness check ran. The
+The trio is the accepted weekly signal that the credential expiry check ran. The
 rotation commands read the same paths when they run, which is also expected. An
 alert at any other time, or naming any other role, is not.
 

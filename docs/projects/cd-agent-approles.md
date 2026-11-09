@@ -19,7 +19,7 @@ against — which it now does. The project also turns the runbook that hands eac
 
 ## Scope
 
-The four AppRoles `cd-agent-deploy`, `cd-agent-rotation`, `cd-agent-freshness` and `cd-agent-snapshot`, their policies, and their CIDR binding; a command run from the operator host that delivers one job's credential files to `cd_agent`; and the rotation of a job's `secret_id` using the same command. Not in scope: the host itself ([`cd-agent.md`](cd-agent.md)) and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The four AppRoles `cd-agent-deploy`, `cd-agent-rotation`, `cd-agent-credential-expiry` and `cd-agent-snapshot`, their policies, and their CIDR binding; a command run from the operator host that delivers one job's credential files to `cd_agent`; and the rotation of a job's `secret_id` using the same command. Not in scope: the host itself ([`cd-agent.md`](cd-agent.md)) and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -41,7 +41,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-freshness` / `cd-agent-snapshot` AppRoles, CIDR-bound | In progress | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
+| 1 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-credential-expiry` / `cd-agent-snapshot` AppRoles, CIDR-bound | In progress | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
 | 2 | Jobs read their credential where it is delivered | In progress | a job's unit names its credentials directory, and `tools/` and the `secrets` role log in to OpenBao and resolve `main-domain` from it |
 | 3 | Jobs verify OpenBao against a delivered root cert | In progress | `tools/` uses a `step-ca-root.crt` delivered to the credentials directory, and the `secrets` role fails when a delivered copy differs from the root it just fetched |
 | 4 | Deliver a job's credentials | Not started | one command writes a job's `openbao-controller-secret-id`, `openbao-controller-role-id`, `main-domain` and `step-ca-root.crt` into its credentials directory with the owner and modes the job expects, and the job logs in |
@@ -57,11 +57,11 @@ Four CIDR-bound AppRoles, per the
 `create` but not `update` on `hosts/*`), `cd-agent-rotation`
 (create/update on both `cloud_credentials/leaf/*` and
 `cloud_credentials/rotation/*`, nothing under `hosts/*`) and
-`cd-agent-freshness` (read-only on `cloud_credentials/leaf/*`,
+`cd-agent-credential-expiry` (read-only on `cloud_credentials/leaf/*`,
 `cloud_credentials/rotation/*` and `hosts/all/telegram/*`) and
 `cd-agent-snapshot` (read on `sys/storage/raft/snapshot` and six named
 snapshot-push leaf paths) — a compromised deploy run shouldn't be able
-to reach rotation-tier credentials, the freshness check shouldn't be able
+to reach rotation-tier credentials, the credential expiry check shouldn't be able
 to write any, and the snapshot job shouldn't be able to read any other
 leaf.
 
@@ -120,7 +120,7 @@ credentials change, on any suspected exposure, and every 90 days. The
 - [ ] `cd-agent-deploy` cannot read `cloud_credentials/rotation/*`, verified.
 - [ ] `cd-agent-deploy` can create a missing `hosts/*` path and cannot update an existing one, verified.
 - [ ] `cd-agent-rotation` can read no `hosts/*` path, verified.
-- [ ] `cd-agent-freshness` can read the leaf, rotation and Telegram paths and write none of them, verified.
+- [ ] `cd-agent-credential-expiry` can read the leaf, rotation and Telegram paths and write none of them, verified.
 - [ ] `cd-agent-snapshot` can save a snapshot and read its six named leaf paths, and can read no other leaf path, verified.
 - [ ] A job's unit sets `HOMELAB_SECRETS_DIR` to its credentials directory, verified.
 - [ ] With it set, `tools/` and the `secrets` role log in and resolve `main-domain` from that directory and not from the checkout, and a relative value is refused, verified.
@@ -131,7 +131,7 @@ credentials change, on any suspected exposure, and every 90 days. The
 - [ ] A rotation leaves exactly one valid `secret_id` for that job and no failed run, verified.
 - [ ] A step-ca root change is covered by re-running delivery for every job, and the deploy-side check then passes, verified.
 - [ ] The rotation cadence and its triggers are in a topic doc.
-- [ ] The `freshness` job pushes to its Gatus endpoint on success only, so a run that fails, including one that cannot log in to OpenBao, alerts as a missed heartbeat without needing OpenBao to send it, verified on the host.
+- [ ] The `credential-expiry` job pushes to its Gatus endpoint on success only, so a run that fails, including one that cannot log in to OpenBao, alerts as a missed heartbeat without needing OpenBao to send it, verified on the host.
 
 ## Risks
 
@@ -140,8 +140,8 @@ credentials change, on any suspected exposure, and every 90 days. The
 
 ## Open items
 
-- The `freshness` job's Gatus push token is a file the host needs besides the four credential files, written by hand today ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md#heartbeats)). Whether the delivery command also writes it is not decided.
-- What reminds the maintainer that a 90-day rotation is due is not decided. The freshness job cannot read the `secret_id`'s age, since its policy grants no `auth/approle` capability.
+- The `credential-expiry` job's Gatus push token is a file the host needs besides the four credential files, written by hand today ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md#heartbeats)). Whether the delivery command also writes it is not decided.
+- What reminds the maintainer that a 90-day rotation is due is not decided. The `credential-expiry` job cannot read the `secret_id`'s age, since its policy grants no `auth/approle` capability.
 
 ## Closing checklist
 

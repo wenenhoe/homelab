@@ -1,4 +1,4 @@
-"""Unit tests for cloud_credentials.check_freshness.
+"""Unit tests for cloud_credentials.check_credential_expiry.
 
 Run via `uv run pytest tools/tests/ -v`. Every provider HTTP call is
 mocked — this only exercises the fresh/stale/check-failed triage logic,
@@ -17,18 +17,18 @@ from _b2_objects import application_key
 from _oci_objects import customer_secret_key
 from _oci_objects import response as oci_response
 from _responses import response
-from cloud_credentials import check_freshness
+from cloud_credentials import check_credential_expiry
 from cloud_credentials import create_snapshot_write_keys as snap
 from cloud_credentials import create_state_keys as state
 from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
 
 def seed_telegram(fake_vault, name: str, value: str) -> None:
-    fake_vault.seed_path(f"{check_freshness._TELEGRAM_VAULT_SCOPE}/{name}", value)
+    fake_vault.seed_path(f"{check_credential_expiry._TELEGRAM_VAULT_SCOPE}/{name}", value)
 
 
 def delete_telegram(fake_vault, name: str) -> None:
-    fake_vault.store.pop(f"{check_freshness._TELEGRAM_VAULT_SCOPE}/{name}", None)
+    fake_vault.store.pop(f"{check_credential_expiry._TELEGRAM_VAULT_SCOPE}/{name}", None)
 
 
 def has_a_timeout(call) -> bool:
@@ -46,26 +46,28 @@ class TestClassify:
     @pytest.mark.parametrize(
         ("until_expiry", "status", "detail"),
         [
-            pytest.param(timedelta(hours=-1), check_freshness.STALE, "expired {at}", id="an-hour-past-expiry"),
-            pytest.param(timedelta(hours=1), check_freshness.URGENT, "expires in 0d ({at})", id="an-hour-before-expiry"),
-            pytest.param(timedelta(days=URGENT_DAYS, hours=1), check_freshness.URGENT, f"expires in {URGENT_DAYS}d ({{at}})", id="last-day-of-urgent"),
+            pytest.param(timedelta(hours=-1), check_credential_expiry.STALE, "expired {at}", id="an-hour-past-expiry"),
+            pytest.param(timedelta(hours=1), check_credential_expiry.URGENT, "expires in 0d ({at})", id="an-hour-before-expiry"),
+            pytest.param(timedelta(days=URGENT_DAYS, hours=1), check_credential_expiry.URGENT, f"expires in {URGENT_DAYS}d ({{at}})", id="last-day-of-urgent"),
             pytest.param(
-                timedelta(days=URGENT_DAYS + 1, hours=1), check_freshness.WARNING, f"expires in {URGENT_DAYS + 1}d ({{at}})", id="first-day-of-warning"
+                timedelta(days=URGENT_DAYS + 1, hours=1), check_credential_expiry.WARNING, f"expires in {URGENT_DAYS + 1}d ({{at}})", id="first-day-of-warning"
             ),
-            pytest.param(timedelta(days=WARNING_DAYS, hours=1), check_freshness.WARNING, f"expires in {WARNING_DAYS}d ({{at}})", id="last-day-of-warning"),
-            pytest.param(timedelta(days=WARNING_DAYS + 1, hours=1), check_freshness.FRESH, "", id="first-day-of-fresh"),
+            pytest.param(
+                timedelta(days=WARNING_DAYS, hours=1), check_credential_expiry.WARNING, f"expires in {WARNING_DAYS}d ({{at}})", id="last-day-of-warning"
+            ),
+            pytest.param(timedelta(days=WARNING_DAYS + 1, hours=1), check_credential_expiry.FRESH, "", id="first-day-of-fresh"),
         ],
     )
     def test_status_and_detail_either_side_of_each_boundary(self, until_expiry, status, detail):
         expires_at = datetime.now(UTC) + until_expiry
 
-        assert check_freshness._classify(expires_at) == (status, detail.format(at=expires_at.isoformat()))
+        assert check_credential_expiry._classify(expires_at) == (status, detail.format(at=expires_at.isoformat()))
 
 
 @pytest.mark.usefixtures("fake_vault")
 class TestCheckB2:
-    @patch.object(check_freshness, "b2_list_keys", autospec=True)
-    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    @patch.object(check_credential_expiry, "b2_list_keys", autospec=True)
+    @patch.object(check_credential_expiry, "b2_rotation_api", autospec=True)
     def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_api, mock_list_keys, vault, b2_api):
         mock_api.return_value = b2_api
         future_ms = (datetime.now(UTC) + timedelta(days=45)).timestamp() * 1000
@@ -84,35 +86,35 @@ class TestCheckB2:
             # rotation key deliberately absent from the response
         ]
 
-        results = check_freshness.check_b2()
+        results = check_credential_expiry.check_b2()
 
         mock_list_keys.assert_called_once_with(b2_api)
         statuses = {name: status for name, status, _ in results}
-        assert statuses["b2 write"] == check_freshness.FRESH
-        assert statuses["b2 read"] == check_freshness.STALE
-        assert statuses["b2 openbao-snapshot-write"] == check_freshness.WARNING
-        assert statuses["b2 opentofu-state-copy"] == check_freshness.STALE
-        assert statuses["b2 rotation key"] == check_freshness.CHECK_FAILED
+        assert statuses["b2 write"] == check_credential_expiry.FRESH
+        assert statuses["b2 read"] == check_credential_expiry.STALE
+        assert statuses["b2 openbao-snapshot-write"] == check_credential_expiry.WARNING
+        assert statuses["b2 opentofu-state-copy"] == check_credential_expiry.STALE
+        assert statuses["b2 rotation key"] == check_credential_expiry.CHECK_FAILED
 
-    @patch.object(check_freshness, "b2_list_keys", autospec=True)
-    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    @patch.object(check_credential_expiry, "b2_list_keys", autospec=True)
+    @patch.object(check_credential_expiry, "b2_rotation_api", autospec=True)
     def test_a_snapshot_write_key_the_account_no_longer_lists_is_a_check_failure(self, mock_api, mock_list_keys, vault, b2_api):
         mock_api.return_value = b2_api
         vault.seed(snap.VAULT_NAME_B2_ACCESS, "key-snap-revoked")
         mock_list_keys.return_value = []
 
-        statuses = {name: status for name, status, _ in check_freshness.check_b2()}
+        statuses = {name: status for name, status, _ in check_credential_expiry.check_b2()}
 
-        assert statuses["b2 openbao-snapshot-write"] == check_freshness.CHECK_FAILED
+        assert statuses["b2 openbao-snapshot-write"] == check_credential_expiry.CHECK_FAILED
 
-    @patch.object(check_freshness, "b2_rotation_api", side_effect=SystemExit(1), autospec=True)
+    @patch.object(check_credential_expiry, "b2_rotation_api", side_effect=SystemExit(1), autospec=True)
     def test_auth_failure_reports_check_failed_for_every_key(self, mock_api):
-        results = check_freshness.check_b2()
-        assert all(status == check_freshness.CHECK_FAILED for _, status, _ in results)
+        results = check_credential_expiry.check_b2()
+        assert all(status == check_credential_expiry.CHECK_FAILED for _, status, _ in results)
         assert [name for name, _, _ in results] == ["b2 write", "b2 read", "b2 openbao-snapshot-write", "b2 opentofu-state-copy", "b2 rotation key"]
 
-    @patch.object(check_freshness, "b2_list_keys", autospec=True)
-    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    @patch.object(check_credential_expiry, "b2_list_keys", autospec=True)
+    @patch.object(check_credential_expiry, "b2_rotation_api", autospec=True)
     def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_api, mock_list_keys, vault, b2_api):
         mock_api.return_value = b2_api
         # This is the whole point of WARNING_DAYS: B2 enforces its own
@@ -122,12 +124,12 @@ class TestCheckB2:
         soon_ms = (datetime.now(UTC) + timedelta(days=WARNING_DAYS - 1)).timestamp() * 1000
         vault.seed("backblaze-b2-write-access-key", "key-write-1")
         mock_list_keys.return_value = [_b2_key("key-write-1", soon_ms)]
-        results = check_freshness.check_b2()
+        results = check_credential_expiry.check_b2()
         statuses = {name: status for name, status, _ in results}
-        assert statuses["b2 write"] == check_freshness.WARNING
+        assert statuses["b2 write"] == check_credential_expiry.WARNING
 
-    @patch.object(check_freshness, "b2_list_keys", autospec=True)
-    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    @patch.object(check_credential_expiry, "b2_list_keys", autospec=True)
+    @patch.object(check_credential_expiry, "b2_rotation_api", autospec=True)
     def test_within_urgent_window_escalates_past_plain_warning(self, mock_api, mock_list_keys, vault, b2_api):
         mock_api.return_value = b2_api
         # The whole point of a second tier: 10 days out is a different
@@ -136,9 +138,9 @@ class TestCheckB2:
         soon_ms = (datetime.now(UTC) + timedelta(days=URGENT_DAYS - 1)).timestamp() * 1000
         vault.seed("backblaze-b2-write-access-key", "key-write-1")
         mock_list_keys.return_value = [_b2_key("key-write-1", soon_ms)]
-        results = check_freshness.check_b2()
+        results = check_credential_expiry.check_b2()
         statuses = {name: status for name, status, _ in results}
-        assert statuses["b2 write"] == check_freshness.URGENT
+        assert statuses["b2 write"] == check_credential_expiry.URGENT
 
 
 def _secret_key_response(expires_on: str | None):
@@ -153,7 +155,7 @@ def _rfc3339_in(**delta) -> str:
 class TestCheckOci:
     @pytest.fixture(autouse=True)
     def oci_client_factory(self, identity_domains_client):
-        with patch.object(check_freshness, "oci_identity_domains_client", return_value=identity_domains_client, autospec=True) as factory:
+        with patch.object(check_credential_expiry, "oci_identity_domains_client", return_value=identity_domains_client, autospec=True) as factory:
             yield factory
 
     def test_fresh_stale_and_missing_all_reported(self, identity_domains_client, vault):
@@ -165,38 +167,38 @@ class TestCheckOci:
             _secret_key_response(_rfc3339_in(days=-1)),
         ]
 
-        results = check_freshness.check_oci()
+        results = check_credential_expiry.check_oci()
 
         statuses = {name: status for name, status, _ in results}
-        assert statuses["oci write"] == check_freshness.FRESH
-        assert statuses["oci read"] == check_freshness.STALE
-        assert statuses["oci rotation credential"] == check_freshness.CHECK_FAILED
+        assert statuses["oci write"] == check_credential_expiry.FRESH
+        assert statuses["oci read"] == check_credential_expiry.STALE
+        assert statuses["oci rotation credential"] == check_credential_expiry.CHECK_FAILED
 
     def test_each_leaf_is_fetched_by_its_stored_scim_id(self, identity_domains_client, vault):
         vault.seed("oci-write-scim-id", "scim-write-1")
         vault.seed("oci-read-scim-id", "scim-read-1")
         identity_domains_client.get_customer_secret_key.return_value = _secret_key_response("2099-01-01T00:00:00Z")
 
-        check_freshness.check_oci()
+        check_credential_expiry.check_oci()
 
         assert identity_domains_client.get_customer_secret_key.call_args_list == [call("scim-write-1"), call("scim-read-1")]
 
     def test_missing_scim_id_is_a_check_failure_not_a_crash(self, identity_domains_client):
         # oci-write-scim-id deliberately not seeded.
-        results = check_freshness.check_oci()
+        results = check_credential_expiry.check_oci()
 
         statuses = {name: status for name, status, _ in results}
-        assert statuses["oci write"] == check_freshness.CHECK_FAILED
+        assert statuses["oci write"] == check_credential_expiry.CHECK_FAILED
         identity_domains_client.get_customer_secret_key.assert_not_called()  # no scim_id, so no point calling out
 
     def test_key_without_an_expiry_is_a_check_failure(self, identity_domains_client, vault):
         vault.seed("oci-write-scim-id", "scim-write-1")
         identity_domains_client.get_customer_secret_key.return_value = _secret_key_response(None)
 
-        results = check_freshness.check_oci()
+        results = check_credential_expiry.check_oci()
 
         assert next((status, detail) for name, status, detail in results if name == "oci write") == (
-            check_freshness.CHECK_FAILED,
+            check_credential_expiry.CHECK_FAILED,
             "key has no expiresOn",
         )
 
@@ -213,13 +215,13 @@ class TestCheckOci:
         vault.seed("oci-read-scim-id", "scim-read-1")
         identity_domains_client.get_customer_secret_key.side_effect = [error, _secret_key_response("2099-01-01T00:00:00Z")]
 
-        results = check_freshness.check_oci()
+        results = check_credential_expiry.check_oci()
 
         by_name = {name: (status, text) for name, status, text in results}
-        assert by_name["oci write"][0] == check_freshness.CHECK_FAILED
+        assert by_name["oci write"][0] == check_credential_expiry.CHECK_FAILED
         assert "request failed: " in by_name["oci write"][1]
         assert detail in by_name["oci write"][1]
-        assert by_name["oci read"] == (check_freshness.FRESH, "")
+        assert by_name["oci read"] == (check_credential_expiry.FRESH, "")
 
     def test_rotation_credential_age_is_reported_alongside_healthy_leaf_keys(self, identity_domains_client, vault):
         vault.seed("oci-write-scim-id", "scim-write-1")
@@ -227,12 +229,12 @@ class TestCheckOci:
         vault.seed("_rotation-key-oci-created-at", datetime.now(UTC).isoformat(), category="rotation")
         identity_domains_client.get_customer_secret_key.return_value = _secret_key_response(_rfc3339_in(days=45))
 
-        results = check_freshness.check_oci()
+        results = check_credential_expiry.check_oci()
 
         assert [(name, status) for name, status, _ in results] == [
-            ("oci write", check_freshness.FRESH),
-            ("oci read", check_freshness.FRESH),
-            ("oci rotation credential", check_freshness.FRESH),
+            ("oci write", check_credential_expiry.FRESH),
+            ("oci read", check_credential_expiry.FRESH),
+            ("oci rotation credential", check_credential_expiry.FRESH),
         ]
 
     @pytest.mark.parametrize(
@@ -247,18 +249,18 @@ class TestCheckOci:
         vault.seed("_rotation-key-oci-created-at", datetime.now(UTC).isoformat(), category="rotation")
         oci_client_factory.side_effect = error
 
-        results = check_freshness.check_oci()
+        results = check_credential_expiry.check_oci()
 
         statuses = {name: status for name, status, _ in results}
-        assert statuses["oci write"] == check_freshness.CHECK_FAILED
-        assert statuses["oci read"] == check_freshness.CHECK_FAILED
+        assert statuses["oci write"] == check_credential_expiry.CHECK_FAILED
+        assert statuses["oci read"] == check_credential_expiry.CHECK_FAILED
         # What the alert shows for each leaf is the cause of the failure.
         details = {name: detail for name, _, detail in results}
         assert details["oci write"] == details["oci read"] == str(error)
         # The rotation credential's own check is self-tracked and
         # doesn't depend on the SCIM client at all — an OAuth2 auth
         # failure for the leaf checks shouldn't also break this one.
-        assert statuses["oci rotation credential"] == check_freshness.FRESH
+        assert statuses["oci rotation credential"] == check_credential_expiry.FRESH
 
 
 class TestCheckR2:
@@ -292,20 +294,20 @@ class TestCheckR2:
 
         session.get.side_effect = get
 
-        results = check_freshness.check_r2()
+        results = check_credential_expiry.check_r2()
 
         statuses = {name: status for name, status, _ in results}
-        assert statuses["r2 write"] == check_freshness.FRESH
-        assert statuses["r2 read"] == check_freshness.STALE
-        assert statuses["r2 openbao-snapshot-write"] == check_freshness.WARNING
-        assert statuses["r2 opentofu-state"] == check_freshness.STALE
-        assert statuses["r2 rotation token"] == check_freshness.FRESH
+        assert statuses["r2 write"] == check_credential_expiry.FRESH
+        assert statuses["r2 read"] == check_credential_expiry.STALE
+        assert statuses["r2 openbao-snapshot-write"] == check_credential_expiry.WARNING
+        assert statuses["r2 opentofu-state"] == check_credential_expiry.STALE
+        assert statuses["r2 rotation token"] == check_credential_expiry.FRESH
 
     def test_requests_carry_the_cached_rotation_token_as_a_bearer_header(self, session_class):
         session = session_class.return_value
         session.get.return_value = response(json_body={"success": True, "result": {"expires_on": "2099-01-01T00:00:00Z"}})
 
-        check_freshness.check_r2()
+        check_credential_expiry.check_r2()
 
         assert session.headers["Authorization"] == "Bearer admin-token"
 
@@ -313,7 +315,7 @@ class TestCheckR2:
         session = session_class.return_value
         session.get.return_value = response(json_body={"success": True, "result": {"expires_on": "2099-01-01T00:00:00Z"}})
 
-        check_freshness.check_r2()
+        check_credential_expiry.check_r2()
 
         assert len(session.get.call_args_list) == 5
         assert all(has_a_timeout(call) for call in session.get.call_args_list)
@@ -328,10 +330,10 @@ class TestCheckR2:
     def test_either_missing_credential_fails_every_entry_and_is_named(self, session_class, vault, name, category, missing):
         vault.delete(name, category=category)
 
-        results = check_freshness.check_r2()
+        results = check_credential_expiry.check_r2()
 
         assert [(label, status) for label, status, _ in results] == [
-            (f"r2 {entry}", check_freshness.CHECK_FAILED) for entry in ("write", "read", "openbao-snapshot-write", "opentofu-state", "rotation token")
+            (f"r2 {entry}", check_credential_expiry.CHECK_FAILED) for entry in ("write", "read", "openbao-snapshot-write", "opentofu-state", "rotation token")
         ]
         assert all(f"no cached {missing} " in detail for _, _, detail in results)
         session_class.assert_not_called()
@@ -353,18 +355,18 @@ class TestCheckR2:
 
         session.get.side_effect = get
 
-        result = check_freshness._r2_rotation_token_result(session)
+        result = check_credential_expiry._r2_rotation_token_result(session)
 
         assert result[0] == "r2 rotation token"
-        assert result[1] == check_freshness.FRESH
+        assert result[1] == check_credential_expiry.FRESH
 
     def test_rotation_token_verify_failure_is_check_failed(self, session_class):
         session = session_class.return_value
         session.get.return_value = response(json_body={"success": False, "errors": [{"code": 1000, "message": "Invalid API Token"}]})
 
-        result = check_freshness._r2_rotation_token_result(session)
+        result = check_credential_expiry._r2_rotation_token_result(session)
 
-        assert result[1] == check_freshness.CHECK_FAILED
+        assert result[1] == check_credential_expiry.CHECK_FAILED
 
     def test_missing_rotation_token_never_prompts_and_reports_check_failed(self, vault):
         # Overwrite setUp's seeded token — this test wants the "nothing
@@ -372,28 +374,28 @@ class TestCheckR2:
         vault.delete("_rotation-key-cloudflare-r2-token", category="rotation")
 
         with patch("getpass.getpass", autospec=True) as mock_prompt:
-            results = check_freshness.check_r2()
+            results = check_credential_expiry.check_r2()
 
         mock_prompt.assert_not_called()
-        assert all(status == check_freshness.CHECK_FAILED for _, status, _ in results)
+        assert all(status == check_credential_expiry.CHECK_FAILED for _, status, _ in results)
 
 
 @pytest.mark.usefixtures("fake_vault")
 class TestMainExitCode:
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")], autospec=True)
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.STALE, "old")], autospec=True)
+    @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.FRESH, "")], autospec=True)
     def test_stale_alone_does_not_fail_the_run(self, mock_b2, mock_oci, mock_r2):
         # Matches backup_agent's check-freshness.sh: ordinary expiry is
         # an alert to read in the journal, not a run failure — only an
         # actual check error should make the unit itself fail.
-        assert check_freshness.main() == 0
+        assert check_credential_expiry.main() == 0
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")], autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.CHECK_FAILED, "boom")], autospec=True)
     def test_check_failure_fails_the_run(self, mock_b2, mock_oci, mock_r2):
-        assert check_freshness.main() == 1
+        assert check_credential_expiry.main() == 1
 
 
 class TestTelegramAlert:
@@ -402,20 +404,20 @@ class TestTelegramAlert:
         seed_telegram(fake_vault, "telegram-token", "123:abc")
         seed_telegram(fake_vault, "telegram-chat-id", "-100999")
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness.requests, "post", autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
     def test_all_fresh_sends_no_telegram_message(self, mock_post, mock_b2, mock_oci, mock_r2):
         # The whole point of alerting only on non-fresh outcomes: a
         # healthy weekly run shouldn't page anyone.
-        assert check_freshness.main() == 0
+        assert check_credential_expiry.main() == 0
         mock_post.assert_not_called()
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.WARNING, "expires in 5d")], autospec=True)
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness.requests, "post", autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.WARNING, "expires in 5d")], autospec=True)
+    @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
     def test_warning_alone_still_sends_a_telegram_alert(self, mock_post, mock_b2, mock_oci, mock_r2, fake_vault):
         # A WARNING ("expiring soon") must alert: it's the only outcome
         # that gives any lead time before B2/R2 actually reject the
@@ -423,7 +425,7 @@ class TestTelegramAlert:
         seed_telegram(fake_vault, "telegram-topic-id-backups", "42")
         mock_post.return_value = response()
 
-        check_freshness.main()
+        check_credential_expiry.main()
 
         mock_post.assert_called_once()
         url, kwargs = mock_post.call_args.args[0], mock_post.call_args.kwargs
@@ -432,41 +434,41 @@ class TestTelegramAlert:
         assert kwargs["data"]["message_thread_id"] == "42"
         assert "oci write" in kwargs["data"]["text"]
 
-    @patch.object(check_freshness.requests, "post", autospec=True)
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
     def test_the_send_has_a_timeout(self, mock_post):
         mock_post.return_value = response()
 
-        check_freshness._send_telegram_alert(["<b>oci write</b>: past its window"])
+        check_credential_expiry._send_telegram_alert(["<b>oci write</b>: past its window"])
 
         mock_post.assert_called_once()
         assert has_a_timeout(mock_post.call_args)
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")], autospec=True)
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness.requests, "post", autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.STALE, "old")], autospec=True)
+    @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
     def test_no_topic_id_cached_omits_the_param_instead_of_sending_empty(self, mock_post, mock_b2, mock_oci, mock_r2):
         # Telegram's API rejects message_thread_id outright if it's
         # passed empty rather than ignoring it (see
         # docs/topics/monitoring/telegram-notifications.md) - must be omitted, not "".
         mock_post.return_value = response()
-        check_freshness.main()
+        check_credential_expiry.main()
         assert "message_thread_id" not in mock_post.call_args.kwargs["data"]
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")], autospec=True)
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness.requests, "post", autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.STALE, "old")], autospec=True)
+    @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
     def test_missing_telegram_credentials_does_not_crash_the_run(self, mock_post, mock_b2, mock_oci, mock_r2, fake_vault):
         delete_telegram(fake_vault, "telegram-token")
-        rc = check_freshness.main()
+        rc = check_credential_expiry.main()
         mock_post.assert_not_called()
         assert rc == 0  # STALE alone still doesn't fail the run, even unalerted
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")], autospec=True)
-    @patch.object(check_freshness.requests, "post", autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.CHECK_FAILED, "boom")], autospec=True)
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
     def test_uses_html_parse_mode_not_legacy_markdown(self, mock_post, mock_b2, mock_oci, mock_r2):
         """Legacy Markdown fails twice over here: an unescaped underscore
         in the static header makes Telegram reject the alert (400), and
@@ -476,28 +478,28 @@ class TestTelegramAlert:
         parse_mode and tag shape actually sent, not just that a message
         went out."""
         mock_post.return_value = response()
-        check_freshness.main()
+        check_credential_expiry.main()
         data = mock_post.call_args.kwargs["data"]
         assert data["parse_mode"] == "HTML"
-        assert "<b>cloud_credentials freshness check</b>" in data["text"]
+        assert "<b>cloud_credentials credential expiry check</b>" in data["text"]
         assert "\\_" not in data["text"]  # no leftover Markdown-escape artifact
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
+    @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.FRESH, "")], autospec=True)
     @patch.object(
-        check_freshness,
+        check_credential_expiry,
         "check_b2",
-        return_value=[("b2 write", check_freshness.CHECK_FAILED, "provider said <b>bad</b> & broken")],
+        return_value=[("b2 write", check_credential_expiry.CHECK_FAILED, "provider said <b>bad</b> & broken")],
         autospec=True,
     )
-    @patch.object(check_freshness.requests, "post", autospec=True)
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
     def test_detail_containing_html_special_chars_is_escaped(self, mock_post, mock_b2, mock_oci, mock_r2):
         # Detail strings embed arbitrary provider error text and URLs -
         # unlike telegram_notify's other callers (all static templates),
         # this one will eventually interpolate a literal &, <, or > and
         # must not let it be interpreted as real markup.
         mock_post.return_value = response()
-        check_freshness.main()
+        check_credential_expiry.main()
         text = mock_post.call_args.kwargs["data"]["text"]
         assert "provider said &lt;b&gt;bad&lt;/b&gt; &amp; broken" in text
         assert "<b>bad</b>" not in text

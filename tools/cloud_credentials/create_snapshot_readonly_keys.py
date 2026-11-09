@@ -40,7 +40,7 @@ in") rather than handing back something unverified.
 No native or self-tracked expiry, deliberately: this credential isn't
 part of the quarterly leaf-rotation cycle create_leaf_keys.py drives
 (nothing here re-mints or refreshes it), it lives offline like the GPG
-key (`expiration: 0` there too), and check_freshness.py has no cache
+key (`expiration: 0` there too), and check_credential_expiry.py has no cache
 file to alert on since one was never written. Re-run this script by hand
 if you ever want to replace it — same discipline as regenerating the
 GPG key.

@@ -1,9 +1,9 @@
 """Shared expiry constants and timestamp helpers for cloud_credentials'
-create/rotate flows and check_freshness.py.
+create/rotate flows and check_credential_expiry.py.
 
 One window for everything created by this package - leaf credentials
 and rotation keys/tokens alike, all providers - so a credential's
-actual lifetime always matches what check_freshness.py alerts against.
+actual lifetime always matches what check_credential_expiry.py alerts against.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 QUARTERLY_DAYS = 90
 
-# How far ahead of the actual deadline check_freshness.py should start
+# How far ahead of the actual deadline check_credential_expiry.py should start
 # warning, and when that escalates to urgent. B2/R2 enforce their own
 # expiry server-side - once a credential goes stale there, it's not
 # "advisory", cloud_sync is already broken. These are what buy time to

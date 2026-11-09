@@ -14,10 +14,10 @@ cd_agent_jobs:
     on_calendar: "*-*-01,15 03:00:00"
     cwd: ansible
     command: [python3, -m, cd_agent.toolchain, --collections, requirements.yml, --, ansible-playbook, playbooks/maintenance.yaml]
-  - name: freshness
+  - name: credential-expiry
     on_calendar: weekly
     cwd: tools
-    command: [python3, -m, cd_agent.toolchain, --, python, -m, cloud_credentials.check_freshness]
+    command: [python3, -m, cd_agent.toolchain, --, python, -m, cloud_credentials.check_credential_expiry]
   - name: rotation
     on_calendar: "*-*-08 02:00:00"
     cwd: tools

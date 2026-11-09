@@ -57,7 +57,7 @@ the set of parties exposed.
 - **Keep it in OpenBao KV v2** alongside the other credentials, scoped to one Vault path, so no
   flat-file exception remains.
 - **Alert on every read of that path,** not only on its expiry. The source is Vault's audit log, an
-  event-triggered alert and not a poll like `check_freshness.py`, because a read alert has to fire
+  event-triggered alert and not a poll like `check_freshness.py` (renamed: `check_credential_expiry.py`), because a read alert has to fire
   per access ([ADR 0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md)). Today the
   path is reachable under `controller`'s single broad policy
   ([ADR 0020](../0020-automation-identity-and-access-scope/revision-000.md)); a dedicated

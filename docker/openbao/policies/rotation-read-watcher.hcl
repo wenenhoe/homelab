@@ -3,7 +3,7 @@
 # controller.hcl/vault-bootstrap.hcl's own header comments - not
 # seeded via docker/openbao/configs/, not written by Ansible.
 #
-# Read-only on exactly the Telegram secrets check_freshness.py already
+# Read-only on exactly the Telegram secrets check_credential_expiry.py already
 # reads (ADR 0021's hosts/all/telegram/* convention) - nothing else.
 # This identity never touches cloud_credentials/{leaf,rotation}/* or
 # any other hosts/* path; alerting on a detected R2-token read needs

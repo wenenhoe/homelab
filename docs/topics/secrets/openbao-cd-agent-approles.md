@@ -17,7 +17,7 @@ in Ansible creates them.
 | :--- | :--- | :--- | :--- |
 | `cd-agent-deploy` | [`cd-agent-deploy.hcl`](../../../docker/openbao/policies/cd-agent-deploy.hcl) | Read `hosts/*` and `cloud_credentials/leaf/*`; create a `hosts/*` path that does not exist yet. | Update an existing `hosts/*` path; touch `cloud_credentials/rotation/*`; write any leaf. |
 | `cd-agent-rotation` | [`cd-agent-rotation.hcl`](../../../docker/openbao/policies/cd-agent-rotation.hcl) | Read, create and update `cloud_credentials/leaf/*` and `cloud_credentials/rotation/*`. | Read or write anything under `hosts/*`. |
-| `cd-agent-freshness` | [`cd-agent-freshness.hcl`](../../../docker/openbao/policies/cd-agent-freshness.hcl) | Read `cloud_credentials/leaf/*`, `cloud_credentials/rotation/*` and `hosts/all/telegram/*`. | Create or update any path. |
+| `cd-agent-credential-expiry` | [`cd-agent-credential-expiry.hcl`](../../../docker/openbao/policies/cd-agent-credential-expiry.hcl) | Read `cloud_credentials/leaf/*`, `cloud_credentials/rotation/*` and `hosts/all/telegram/*`. | Create or update any path. |
 | `cd-agent-snapshot` | [`cd-agent-snapshot.hcl`](../../../docker/openbao/policies/cd-agent-snapshot.hcl) | Save a raft snapshot; read the six leaf paths `snapshot-push.sh` reads. | Read any other leaf, any rotation-tier path, or anything under `hosts/*`; write any path. |
 
 All paths are KV v2 data paths under `secret/data/`. Every `Cannot` above
@@ -33,7 +33,7 @@ the checkout:
 
 ```sh
 cd_agent_ip=<cd_agent's fixed LAN IP>
-for job in deploy rotation freshness snapshot; do
+for job in deploy rotation credential-expiry snapshot; do
   bao policy write "cd-agent-$job" - < "../docker/openbao/policies/cd-agent-$job.hcl"
   bao write "auth/approle/role/cd-agent-$job" \
     token_policies="cd-agent-$job" \

@@ -87,7 +87,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   The R2 file also holds the state encryption passphrase, made once and
   shown once for its offline copy. `--rotate` swaps a file and then
   revokes the old key, and keeps the passphrase. Because the keys are not
-  cached, `check_freshness.py` does not see them; the file records when each was
+  cached, `check_credential_expiry.py` does not see them; the file records when each was
   minted.
 
 Restoring cloud_credentials' Vault state after a genuine OpenBao re-init is
@@ -134,7 +134,7 @@ are in
 
 `openbao_utils/audit.py`'s B2 and OCI listings use the same SDKs
 (`b2sdk`'s `list_keys`, `IdentityDomainsClient.list_customer_secret_keys`).
-`check_freshness.py`'s Telegram `sendMessage` call stays on `requests`:
+`check_credential_expiry.py`'s Telegram `sendMessage` call stays on `requests`:
 it is one endpoint, with no SDK worth adding. So does `oci_scim.py`'s
 OAuth2 client-credentials token request, which produces the bearer token
 the SCIM client sends: the SDK has no bearer-token mode of its own.

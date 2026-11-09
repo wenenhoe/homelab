@@ -18,7 +18,7 @@ The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the 
 | :--- | :--- | :--- |
 | `deploy` | A minute after boot, then 5 minutes after each run ends; acts only when `main` has a commit it has not deployed | `ansible-playbook playbooks/deploy.yaml` in `ansible/`, with `ansible/requirements.yml`'s collections |
 | `maintenance` | The 1st and 15th of each month at 03:00 | `ansible-playbook playbooks/maintenance.yaml` in `ansible/`, with the same collections |
-| `freshness` | Weekly, Monday at 00:00 | `python -m cloud_credentials.check_freshness` in `tools/` |
+| `credential-expiry` | Weekly, Monday at 00:00 | `python -m cloud_credentials.check_credential_expiry` in `tools/` |
 | `rotation` | The 8th of each month at 02:00 | `python -m cloud_credentials.rotate_leaf_keys` in `tools/`, which rotates the leaf credentials ([`rotation.md`](../secrets/cloud-credentials/rotation.md#rotation)) |
 | `redeploy-storage` | When `rotation` ends, however it ends; no timer | `ansible-playbook playbooks/deploy.yaml --limit storage,localhost` in `ansible/`, with the same collections, and without waiting for a new commit |
 
@@ -112,14 +112,14 @@ The role installs `git`, `python3`, `unzip`, `openssh-client`, `openssh-server` 
 
 ## Heartbeats
 
-A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push-<id>.service` that its own unit starts with `OnSuccess=` and never `OnFailure=`, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. No job names one yet: the `freshness` job's endpoint is added when the host is deployed, because an endpoint nothing pushes to alerts once its first interval passes.
+A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push-<id>.service` that its own unit starts with `OnSuccess=` and never `OnFailure=`, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. No job names one yet: the `credential-expiry` job's endpoint is added when the host is deployed, because an endpoint nothing pushes to alerts once its first interval passes.
 
-To give `freshness` its heartbeat, add `{id: cd-agent-freshness, group: backups, period_minutes: 10080}` to `heartbeat_jobs`, a `gatus-token-cd-agent-freshness` entry (`source: hex`, `length: 64`, `store: openbao`, `scope: hosts/security`) to the secret catalog, and `heartbeat: cd-agent-freshness` to the job. Deploy `security` (`--limit security,localhost`) and then apply this role.
+To give `credential-expiry` its heartbeat, add `{id: cd-agent-credential-expiry, group: backups, period_minutes: 10080}` to `heartbeat_jobs`, a `gatus-token-cd-agent-credential-expiry` entry (`source: hex`, `length: 64`, `store: openbao`, `scope: hosts/security`) to the secret catalog, and `heartbeat: cd-agent-credential-expiry` to the job. Deploy `security` (`--limit security,localhost`) and then apply this role.
 
 The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, after the role has run. `sudo` on the host needs a terminal, so the token goes into a temporary file first, from a `vault-bootstrap` session on the operator host ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)):
 
 ```sh
-bao kv get -mount=secret -field=value hosts/security/gatus-token-cd-agent-freshness \
+bao kv get -mount=secret -field=value hosts/security/gatus-token-cd-agent-credential-expiry \
   | ssh cdadmin@192.168.30.3 'umask 077; cat > ~/.gatus-token'
 ```
 
@@ -128,8 +128,8 @@ Then on the CD agent host (`ssh -t cdadmin@192.168.30.3`):
 ```sh
 t=$(cat ~/.gatus-token)
 printf 'header = "Authorization: Bearer %s"\n' "$t" \
-  | sudo tee /etc/gatus-push/cd-agent-freshness.curlrc >/dev/null
-sudo chmod 600 /etc/gatus-push/cd-agent-freshness.curlrc
+  | sudo tee /etc/gatus-push/cd-agent-credential-expiry.curlrc >/dev/null
+sudo chmod 600 /etc/gatus-push/cd-agent-credential-expiry.curlrc
 unset t; shred -u ~/.gatus-token
 ```
 

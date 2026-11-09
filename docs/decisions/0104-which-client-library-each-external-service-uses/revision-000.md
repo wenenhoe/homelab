@@ -67,7 +67,7 @@ improvement, and leave the rest on `requests`:
 R2's account-token calls and OCI's classic-IAM bootstrap
 (`rotation_keys/oci_iam.py`) stay on `requests`: the R2 surface is small and
 stable, so an SDK would save boilerplate and no drift risk. The single Telegram
-`sendMessage` call in `check_freshness.py` stays as it is. The one SCIM call the
+`sendMessage` call in `check_freshness.py` (renamed: `check_credential_expiry.py`) stays as it is. The one SCIM call the
 SDK does not cover, regenerating an application client secret, stays on raw
 `requests`.
 

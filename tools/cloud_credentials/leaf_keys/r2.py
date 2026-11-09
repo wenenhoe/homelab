@@ -34,7 +34,7 @@ def _prompt_r2_admin_token() -> str:
         "permission, scoped to this account (dashboard.cloudflare.com > My "
         "Profile > API Tokens) — set an expiration date on it in the "
         "Console (this script can't set one after the fact; "
-        "check_freshness.py reads it back live either way) — input "
+        "check_credential_expiry.py reads it back live either way) — input "
         "hidden, cached after this:"
     )
     return getpass.getpass("> ")
@@ -127,7 +127,7 @@ def r2_create_leaf_token(
         # reference (top-level `expires_on`, RFC 3339, on the same
         # POST /accounts/{account_id}/tokens this already calls) -
         # unlike OCI, no self-tracked secret needed here.
-        # check_freshness.py reads this back live via Get Token
+        # check_credential_expiry.py reads this back live via Get Token
         # rather than trusting a local clock.
         policy["expires_on"] = rfc3339_in(QUARTERLY_DAYS)
     resp = session.post(

@@ -15,7 +15,10 @@ Projects, Decisions awaiting a project and Open explorations views, and
 views in place, validating each doc's frontmatter as it goes.
 The Unblocks counts, the Status and Blocker cells, the order of the
 project tables, and the approved-first order of the decisions table are computed from that
-frontmatter alone, with nothing stored for them
+frontmatter alone, with nothing stored for them. The same holds for the
+"Relies on" note a lineage carries in the decision index, with the target's
+state, and the "rests on ADR-NNNN (state)" label a project shows in its
+Blocker cell while its decision revision has an unmet `relies_on:`
 ([ADR 0082 (Choosing the next project)](../../../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)). Same
 auto-fix pattern as the `ruff --fix` and `dclint-docker` hooks: a stale table
 fails the commit and shows the regenerated diff, rather than silently

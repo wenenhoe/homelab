@@ -31,11 +31,12 @@ Work is written as a series of patches, and a project's stages are each meant to
 
 A small tool, run by the maintainer under their own `gh` login, lands a series one pull request at a time. Claude hands it a series and never holds a credential.
 
-- **Each layer is a branch made fresh from the current `main`**, with only its own patch applied, opened as an ordinary pull request against `main`, run once, and merged with a merge commit using `gh pr merge --admin`. The next branch is made from `main` after that merge.
+- **Each layer is a local branch, `series/<slug>`, holding only its own commit.** The branches form a chain, the first on `main` and each next on the one before. A layer is pushed as built, opened as an ordinary pull request against `main`, run once, and merged with a merge commit using `gh pr merge --admin`. The merge commit brings the layer's commit into `main`, so the next layer's pull request shows only its own commit.
 - **Layers land in id order.** The input is one plain-text file: a manifest followed by the patches as a single mbox, so it can be read before it is applied. Each layer has an id in the existing letter scheme and a branch slug; an `after:` or `before:` id places an inserted layer. A fix or an inserted layer is a small file holding only the new layer, and the tool takes several files, so nothing already delivered is regenerated.
-- **State comes from git.** A layer whose commits are in `main` is skipped, and an open pull request is replaced if its patch changed. No state file.
-- **Before pushing anything, the series is replayed** in order on a scratch worktree of `origin/main`, one `git am` per patch with the views reset between, and the checks that need no Docker run at each state, including the project scope check with its base set to `main`. A scope failure then shows as a missing widening layer, before a pull request exists.
-- **The maintainer reviews each layer before it merges.** When a layer's pull request has its required checks green, the tool prints its address and waits for a confirmation. With no terminal, or no confirmation, it stops there and leaves the pull request open; a run started again picks up from it, and a pull request whose branch already holds the same patch on the same base is reused, not pushed again. A run started with `--yes` confirms every merge in it, though a layer on the stop list is still asked about first.
+- **State comes from git.** A layer whose commits are in `main` is skipped, a remote branch already at the kept commit is not pushed again, and an open pull request is updated when its branch changed. The only record beside git is the one that shows a kept branch is unchanged, below.
+- **Before pushing anything, the series is replayed** in order on a scratch worktree of `origin/main`, one `git am` per patch with the views reset between, and the checks that need no Docker run at each state, including the project scope check with its base set to `main`. A scope failure then shows as a missing widening layer, before a pull request exists. Unless the run is a `--dry-run`, it then leaves the layers as the local branches above for the maintainer to review, and records beside the repository's git directory the commit and the patch each was built from.
+- **A branch is pushed only as built.** `--land` pushes the kept branches and does not replay. It refuses a branch whose tip is not the recorded commit, one built from a patch other than the series file's, and one built on a tree other than `main`'s now; the run is then repeated without `--land`, which rebuilds the branches. It compares nothing with a rebuilt commit, because the generated views carry the date of the apply and a rebuilt commit differs from the kept one in content nobody changed.
+- **The maintainer reviews each layer before it merges.** When a layer's pull request has its required checks green, the tool prints its address and waits for a confirmation. With no terminal, or no confirmation, it stops there and leaves the pull request open; a run started again with `--land` picks up from it, and a pull request whose branch is already at the kept commit is reused, not pushed again. A run started with `--yes` confirms every merge in it, though a layer on the stop list is still asked about in the replay.
 - **The tool stops for the maintainer** when a layer changes `.githooks/`, the pre-commit configuration, a workflow, an action, `tools/`, or the Python dependencies (`pyproject.toml`, `uv.lock`), which `uv run` installs and runs.
 
 ## Alternatives considered
@@ -43,17 +44,19 @@ A small tool, run by the maintainer under their own `gh` login, lands a series o
 - **GitHub stacked pull requests, merged a layer at a time.** Needs `gh stack` (a preview) and its metadata, every lower branch carries its ancestors' commits, every merge reruns the layers above, and `stack/**` would have to return to the branch filter.
 - **Plain pull requests chained on each other, retargeted to `main` as the one below merges.** No rebase and no rerun, but a branch still carries its ancestors' commits, and the scope check sees the project docs of a branch, not of `main`.
 - **Opening independent layers together from a dependency graph.** It needs the author to state dependencies, since sharing no file does not prove independence, and the series and projects on record give it little to shorten.
+- **Rebuilding each branch from its patch when landing.** It would push a commit nobody reviewed, and it cannot be compared with the kept one.
 - **Squash or rebase merges.** A squash drops the commits from `main`'s history, which [`branching.md`](../../topics/engineering/branching.md#promoting) rules out.
 
 ## Consequences
 
-Each layer waits for its run before the next branch exists, so a series of N layers takes N runs in turn. A tool and its tests are code to maintain. The tool's use is described in a topic doc once it exists.
+Each layer waits for its run before the next is opened, so a series of N layers takes N runs in turn. A series is replayed again when `main` changes between the replay and the landing. A tool and its tests are code to maintain. The tool's use is described in a topic doc once it exists.
 
 ## Invariants
 
 - A layer reaches `main` only by a pull request merged with a merge commit.
 - No layer is merged without the maintainer's confirmation at that layer, or `--yes` on the run.
-- A branch holds only its own layer's commits.
+- A layer's pull request holds only its own commit.
+- A kept branch that has changed since the tool built it is never pushed.
 - Nothing is pushed before the whole series has replayed and passed the checks that need no Docker.
 - The tool never runs a layer's changes to `.githooks/`, the pre-commit configuration, a workflow, an action, `tools/` or the Python dependencies without the maintainer's confirmation.
 - No credential other than the maintainer's own `gh` login is used, and none is given to a session that writes a series.
@@ -66,7 +69,7 @@ Each layer waits for its run before the next branch exists, so a series of N lay
 
 ## Validation
 
-The tool's tests cover the manifest, the replay, the skip of a layer already in `main`, the pull request and merge steps against a stand-in `gh` that merges into a real repository, and the review gate; the stop list is a test over the paths that stop it.
+The tool's tests cover the manifest, the replay, the skip of a layer already in `main`, the kept branches, the pull request and merge steps against a stand-in `gh` that merges into a real repository, and the review gate; the stop list is a test over the paths that stop it.
 
 ## Reconsideration triggers
 

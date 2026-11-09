@@ -2,7 +2,7 @@
 
 It keeps its pull requests in the JSON file named by FAKE_GH_STATE and records every call there. `pr merge` really merges the
 branch into the bare repository named by FAKE_GH_REMOTE, as GitHub would. FAKE_GH_CHECKS sets what `pr checks` reports:
-`pass`, `fail`, or `late` (nothing reported on the first call, then pass).
+`pass`, `fail`, `late` (nothing reported on the first call, then pass) or `fail-second` (fail once a second pull request exists).
 """
 
 import json
@@ -62,7 +62,7 @@ def main(args: list[str]) -> int:
     elif verb == ["pr", "checks"]:
         state["checks_calls"] += 1
         mode = os.environ.get("FAKE_GH_CHECKS", "pass")
-        if mode == "fail" or (mode == "late" and state["checks_calls"] == 1):
+        if mode == "fail" or (mode == "fail-second" and len(state["prs"]) >= 2) or (mode == "late" and state["checks_calls"] == 1):
             print("no required checks reported on the 'x' branch" if mode == "late" else "build  fail  1m  https://example.test/run", file=sys.stderr)
             save(state)
             return 1

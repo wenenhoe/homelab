@@ -10,7 +10,7 @@ import pytest
 from _series_repo import Author, Repo, git, series_file
 from land_series import __main__ as cli
 from land_series.manifest import Layer, order_layers, parse_series
-from land_series.replay import Check, LayerResult, ReplayError, replay
+from land_series.replay import Check, ReplayError, replay
 
 # Appends one line per run to the log: each named file's contents, with newlines shown as "/", so a test reads back the tree a check saw.
 RECORD = (
@@ -130,10 +130,13 @@ def test_a_confirmed_layer_on_the_stop_list_replays(repo: Repo, author: Author, 
 
     assert consent.asked == [("0001a", ["tools/run.py"])]
     assert log.read_text().splitlines() == ["print()"]
-    assert results == [LayerResult(layers[0], applied=True)]
+    assert [(result.layer.id, result.applied) for result in results] == [("0001a", True)]
+    assert git(repo.path, "log", "-1", "--format=%s", results[0].commit or "") == "chore: change a tool"
 
 
-def test_a_series_file_replays_from_the_command_line(repo: Repo, author: Author, log: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_a_series_file_replays_and_keeps_a_branch_per_layer_from_the_command_line(
+    repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     patch = author.patch("docs: write one", {"a.txt": "one\n"})
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a write-one", patch)]))
@@ -141,7 +144,31 @@ def test_a_series_file_replays_from_the_command_line(repo: Repo, author: Author,
     status = cli.main([str(series), "--repo", str(repo.path), "--base", "main", "--no-fetch", "--check", f"{sys.executable} -c pass"])
 
     assert status == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "0001a  kept as series/write-one  docs: write one",
+        "Review the branches, then run again with --land to push them.",
+    ]
+    assert git(repo.path, "log", "-1", "--format=%s", "series/write-one") == "docs: write one"
+
+
+def test_a_dry_run_replays_without_leaving_a_branch(repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    patch = author.patch("docs: write one", {"a.txt": "one\n"})
+    series = tmp_path / "series.txt"
+    series.write_bytes(series_file([("0001a write-one", patch)]))
+
+    status = cli.main([str(series), "--repo", str(repo.path), "--base", "main", "--no-fetch", "--dry-run", "--check", f"{sys.executable} -c pass"])
+
+    assert status == 0
     assert capsys.readouterr().out.strip() == "0001a  replayed  docs: write one"
+    assert git(repo.path, "branch", "--list", "series/*") == ""
+
+
+def test_land_and_dry_run_together_are_refused(repo: Repo, tmp_path: Path) -> None:
+    series = tmp_path / "series.txt"
+    series.write_text("")
+
+    with pytest.raises(SystemExit):
+        cli.main([str(series), "--repo", str(repo.path), "--land", "--dry-run"])
 
 
 def test_a_failing_replay_exits_one_and_says_which_layer(repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

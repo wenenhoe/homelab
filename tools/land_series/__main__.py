@@ -13,6 +13,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from land_series.kept import KeptError, branch_of, keep
 from land_series.land import Landed, LandError, fetch, land
 from land_series.manifest import Layer, SeriesError, order_layers, parse_series
 from land_series.replay import Check, ReplayError, replay
@@ -53,27 +54,36 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--base", default=DEFAULT_BASE)
     parser.add_argument("--no-fetch", action="store_true")
     parser.add_argument("--check", action="append", default=[], metavar="COMMAND")
-    parser.add_argument("--land", action="store_true", help="after the replay passes, open, wait for and merge a pull request per layer")
+    parser.add_argument("--dry-run", action="store_true", help="replay and check only; leave no branches")
+    parser.add_argument("--land", action="store_true", help="push the kept branches, open, wait for and merge a pull request per layer")
     parser.add_argument("--yes", action="store_true", help="with --land, merge without asking after each layer's checks pass")
     parser.add_argument("--skip-hook", action="append", default=[], metavar="ID")
     args = parser.parse_args(argv)
+    if args.land and args.dry_run:
+        parser.error("--land lands the branches a replay kept, so it cannot be combined with --dry-run")
     try:
         layers = order_layers([layer for path in args.files for layer in parse_series(path.read_bytes(), path.name)])
         if not args.no_fetch:
             fetch(args.repo, args.base)
+        if args.land:
+            landed = land(args.repo, layers, lambda layer, url: args.yes or ask_merge(layer, url), base=args.base)
+            return report(landed)
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks(args.base, args.skip_hook)
         results = replay(args.repo, layers, checks, ask, base=args.base)
-        landed = land(args.repo, layers, lambda layer, url: args.yes or ask_merge(layer, url), base=args.base) if args.land else []
+        kept = [] if args.dry_run else keep(args.repo, results)
     except LandError as error:
         report(error.landed)
         print(f"land_series: {error}", file=sys.stderr)
         return 1
-    except (SeriesError, ReplayError, OSError) as error:
+    except (SeriesError, ReplayError, KeptError, OSError) as error:
         print(f"land_series: {error}", file=sys.stderr)
         return 1
     for result in results:
-        print(f"{result.layer.id}  {'replayed' if result.applied else 'already in ' + args.base}  {result.layer.subject}")
-    return report(landed)
+        status = "already in " + args.base if not result.applied else "replayed" if args.dry_run else f"kept as {branch_of(result.layer)}"
+        print(f"{result.layer.id}  {status}  {result.layer.subject}")
+    if kept:
+        print("Review the branches, then run again with --land to push them.")
+    return 0
 
 
 def report(landed: Sequence[Landed]) -> int:

@@ -1,15 +1,17 @@
-"""Landing layers as pull requests: branches, the pull request, the checks, the review and the merge."""
+"""Landing kept branches as pull requests: the push, the pull request, the checks, the review and the merge."""
 
 from __future__ import annotations
 
 import sys
 
 import pytest
-from _series_repo import Author, git, series_file
+from _series_repo import Author, Repo, git, series_file
 from conftest import FakeGitHub
 from land_series import __main__ as cli
+from land_series.kept import KeptError, keep
 from land_series.land import LandError, land
 from land_series.manifest import Layer, SeriesError, order_layers, parse_series
+from land_series.replay import replay
 
 
 class Reviews:
@@ -28,11 +30,21 @@ def layers_of(*layers: tuple[str, str, bytes]) -> list[Layer]:
     return order_layers(parse_series(series_file([(f"{layer_id} {slug}", patch) for layer_id, slug, patch in layers])))
 
 
-def test_each_layer_becomes_a_pull_request_merged_in_order_from_a_branch_with_only_its_own_commit(github: FakeGitHub, repo, author: Author) -> None:
-    layers = layers_of(
+def kept(repo: Repo, layers: list[Layer]) -> None:
+    """What a run without --land does: replay on a scratch worktree, then leave a branch per layer."""
+    keep(repo.path, replay(repo.path, layers, [], lambda layer, paths: False))
+
+
+def two_layers(author: Author) -> list[Layer]:
+    return layers_of(
         ("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})),
         ("0001b", "write-two", author.patch("docs: write two", {"b.txt": "two\n"})),
     )
+
+
+def test_each_kept_layer_becomes_a_pull_request_merged_in_order_showing_only_its_own_commit(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
     reviews = Reviews(True, True)
 
     landed = land(repo.path, layers, reviews, sleep=lambda _: None)
@@ -43,41 +55,54 @@ def test_each_layer_becomes_a_pull_request_merged_in_order_from_a_branch_with_on
     assert github.merges_on_main() == ["Merge pull request #2", "Merge pull request #1"]
     assert (github.file_on_main("a.txt"), github.file_on_main("b.txt")) == ("one", "two")
     assert github.branches() == ["main"]
+    assert git(repo.path, "branch", "--list", "series/*") == ""
     assert reviews.asked == [("0001a", "https://example.test/pull/1"), ("0001b", "https://example.test/pull/2")]
 
 
-def test_a_declined_review_leaves_the_pull_request_open_and_the_later_layers_untouched(github: FakeGitHub, repo, author: Author) -> None:
-    layers = layers_of(
-        ("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})),
-        ("0001b", "write-two", author.patch("docs: write two", {"b.txt": "two\n"})),
-    )
+def test_the_pushed_commit_is_the_kept_one_with_what_the_apply_hooks_folded_into_it(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    repo.install_hook("post-applypatch", "echo regenerated >> base.txt\ngit add base.txt\ngit commit --amend --no-edit --quiet --no-verify\n")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    reviewed = git(repo.path, "rev-parse", "series/write-one")
+    land(repo.path, layers, Reviews(False), sleep=lambda _: None)
+
+    assert git(github.remote, "rev-parse", "write-one") == reviewed
+    assert git(github.remote, "show", "write-one:base.txt").splitlines()[-1] == "regenerated"
+
+
+def test_a_declined_review_leaves_the_pull_request_and_the_kept_branches_in_place(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
 
     landed = land(repo.path, layers, Reviews(False), sleep=lambda _: None)
 
     assert [(item.layer.id, item.merged, item.url) for item in landed] == [("0001a", False, "https://example.test/pull/1")]
     assert github.merges_on_main() == []
     assert github.branches() == ["main", "write-one"]
+    assert git(repo.path, "branch", "--list", "series/*").split() == ["series/write-one", "series/write-two"]
     assert len(github.calls("pr", "create")) == 1
 
 
-def test_running_again_reuses_the_open_pull_request_without_pushing_it_again(github: FakeGitHub, repo, author: Author) -> None:
+def test_running_again_reuses_the_open_pull_request_without_pushing_it_again(github: FakeGitHub, repo: Repo, author: Author) -> None:
     layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
     land(repo.path, layers, Reviews(False), sleep=lambda _: None)
     pushed = git(github.remote, "rev-parse", "write-one")
 
     landed = land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
     assert [item.merged for item in landed] == [True]
+    assert pushed == git(github.remote, "rev-parse", "main^2")
     assert len(github.calls("pr", "create")) == 1
     assert github.calls("pr", "edit") == []
-    assert git(github.remote, "rev-parse", "main^2") == pushed
 
 
-def test_a_changed_patch_replaces_the_branch_and_updates_the_open_pull_request(github: FakeGitHub, repo, author: Author) -> None:
+def test_a_rebuilt_layer_replaces_the_remote_branch_and_updates_the_open_pull_request(github: FakeGitHub, repo: Repo, author: Author) -> None:
     first = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, first)
     land(repo.path, first, Reviews(False), sleep=lambda _: None)
-    revised = Author(repo, author.path.parent / "second")
-    replacement = layers_of(("0001a", "write-one", revised.patch("docs: write one, revised", {"a.txt": "uno\n"})))
+    replacement = layers_of(("0001a", "write-one", Author(repo, author.path.parent / "second").patch("docs: write one, revised", {"a.txt": "uno\n"})))
+    kept(repo, replacement)
 
     land(repo.path, replacement, Reviews(True), sleep=lambda _: None)
 
@@ -86,21 +111,27 @@ def test_a_changed_patch_replaces_the_branch_and_updates_the_open_pull_request(g
     assert github.file_on_main("a.txt") == "uno"
 
 
-def test_a_layer_already_in_the_base_gets_no_pull_request(github: FakeGitHub, repo, author: Author) -> None:
+def test_a_layer_already_in_the_base_gets_no_branch_and_no_pull_request(github: FakeGitHub, repo: Repo, author: Author) -> None:
     first = author.patch("docs: write one", {"a.txt": "one\n"})
     second = author.patch("docs: write two", {"b.txt": "two\n"})
     git(repo.path, "am", "--quiet", stdin=first)
     git(repo.path, "push", "-q", "origin", "main")
+    layers = layers_of(("0001a", "write-one", first), ("0001b", "write-two", second))
+    kept(repo, layers)
 
-    landed = land(repo.path, layers_of(("0001a", "write-one", first), ("0001b", "write-two", second)), Reviews(True), sleep=lambda _: None)
+    landed = land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
+    assert git(repo.path, "branch", "--list", "series/*") == ""
     assert [item.layer.id for item in landed] == ["0001b"]
     assert [pr["head"] for pr in github.state()["prs"]] == ["write-two"]
 
 
-def test_checks_that_fail_stop_before_the_review_and_name_the_pull_request(github: FakeGitHub, repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_checks_that_fail_stop_before_the_review_and_name_the_pull_request(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("FAKE_GH_CHECKS", "fail")
     layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
     reviews = Reviews(True)
 
     with pytest.raises(LandError, match=r"required checks on https://example.test/pull/1 did not pass:\nbuild {2}fail") as raised:
@@ -111,9 +142,10 @@ def test_checks_that_fail_stop_before_the_review_and_name_the_pull_request(githu
     assert github.merges_on_main() == []
 
 
-def test_checks_that_have_not_started_are_waited_for(github: FakeGitHub, repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_checks_that_have_not_started_are_waited_for(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FAKE_GH_CHECKS", "late")
     layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
     waits: list[float] = []
 
     landed = land(repo.path, layers, Reviews(True), sleep=waits.append)
@@ -122,15 +154,102 @@ def test_checks_that_have_not_started_are_waited_for(github: FakeGitHub, repo, a
     assert waits == [10]
 
 
-def test_a_failure_after_a_merge_reports_what_already_landed(github: FakeGitHub, repo, author: Author) -> None:
-    first = author.patch("docs: write one", {"a.txt": "one\n"})
-    broken = author.patch("docs: edit a missing file", {"a.txt": "two\n"})
-    layers = layers_of(("0001a", "write-one", first), ("0001b", "write-two", broken.replace(b"-one", b"-zzz")))
+def test_a_failure_after_a_merge_reports_what_already_landed(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_GH_CHECKS", "fail-second")
+    layers = two_layers(author)
+    kept(repo, layers)
 
-    with pytest.raises(LandError, match="layer 0001b does not apply") as raised:
+    with pytest.raises(LandError, match="did not pass") as raised:
         land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
     assert [(item.layer.id, item.merged) for item in raised.value.landed] == [("0001a", True)]
+    assert git(repo.path, "branch", "--list", "series/*").split() == ["series/write-two"]
+
+
+@pytest.mark.usefixtures("github")
+def test_keeping_leaves_a_chain_of_branches_each_on_the_one_before(repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+
+    kept(repo, layers)
+
+    assert git(repo.path, "rev-parse", "series/write-two^") == git(repo.path, "rev-parse", "series/write-one")
+    assert git(repo.path, "rev-parse", "series/write-one^") == git(repo.path, "rev-parse", "main")
+
+
+@pytest.mark.usefixtures("github")
+def test_keeping_again_replaces_the_branches_the_tool_left(repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+
+    kept(repo, layers)
+
+    assert git(repo.path, "branch", "--list", "series/*").split() == ["series/write-one", "series/write-two"]
+
+
+@pytest.mark.usefixtures("github")
+def test_keeping_refuses_a_branch_the_tool_did_not_leave_and_changes_nothing(repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    git(repo.path, "branch", "series/write-two", "main")
+
+    with pytest.raises(KeptError, match="series/write-two exists and is not as this tool left it"):
+        kept(repo, layers)
+
+    assert git(repo.path, "branch", "--list", "series/write-one") == ""
+    assert git(repo.path, "rev-parse", "series/write-two") == git(repo.path, "rev-parse", "main")
+
+
+def edit_branch(repo: Repo, branch: str) -> None:
+    """Add a commit to the branch, as a fix made in a git client would."""
+    tip = git(repo.path, "rev-parse", branch)
+    edited = git(repo.path, "commit-tree", f"{tip}^{{tree}}", "-p", tip, "-m", "edit")
+    git(repo.path, "branch", "--force", branch, edited)
+
+
+def test_an_edited_branch_is_neither_replaced_nor_landed(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    edit_branch(repo, "series/write-one")
+
+    with pytest.raises(KeptError, match="not as this tool left it"):
+        kept(repo, layers)
+    with pytest.raises(LandError, match="series/write-one has changed since the tool built it"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.branches() == ["main"]
+
+
+def test_landing_without_a_kept_branch_says_to_build_it_first(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+
+    with pytest.raises(LandError, match="layer 0001a has no series/write-one; run without --land first"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.branches() == ["main"]
+
+
+def test_a_branch_built_from_another_patch_is_not_landed(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    kept(repo, layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"}))))
+    other = Author(repo, author.path.parent / "other").patch("docs: write one", {"a.txt": "uno\n"})
+
+    with pytest.raises(LandError, match="built from a different patch than layer 0001a now has"):
+        land(repo.path, layers_of(("0001a", "write-one", other)), Reviews(True), sleep=lambda _: None)
+
+    assert github.branches() == ["main"]
+
+
+def test_a_moved_base_stops_the_landing_before_anything_is_pushed(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    (repo.path / "elsewhere.txt").write_text("someone else's change\n")
+    git(repo.path, "add", "-A")
+    git(repo.path, "commit", "-q", "-m", "docs: elsewhere")
+    git(repo.path, "push", "-q", "origin", "main")
+
+    with pytest.raises(LandError, match="origin/main has changed since layer 0001a was built; run without --land to rebuild"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.branches() == ["main"]
+    assert not github.state_file.exists()
 
 
 def test_a_protected_branch_cannot_be_a_layer_branch() -> None:
@@ -138,26 +257,34 @@ def test_a_protected_branch_cannot_be_a_layer_branch() -> None:
         parse_series(b"0001a main\n\nFrom 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001\n")
 
 
-def test_the_command_line_lands_a_series_and_prints_each_pull_request(
-    github: FakeGitHub, repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]
+def run(series, repo: Repo, *flags: str) -> int:
+    return cli.main([str(series), "--repo", str(repo.path), "--check", f"{sys.executable} -c pass", *flags])
+
+
+def test_the_command_line_keeps_then_lands_a_series_and_prints_each_pull_request(
+    github: FakeGitHub, repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
 
-    status = cli.main([str(series), "--repo", str(repo.path), "--check", f"{sys.executable} -c pass", "--land", "--yes"])
+    assert run(series, repo) == 0
+    assert github.branches() == ["main"]
+    capsys.readouterr()
+    assert run(series, repo, "--land", "--yes") == 0
 
-    assert status == 0
-    assert capsys.readouterr().out.splitlines() == ["0001a  replayed  docs: write one", "0001a  merged  https://example.test/pull/1"]
+    assert capsys.readouterr().out.splitlines() == ["0001a  merged  https://example.test/pull/1"]
     assert github.file_on_main("a.txt") == "one"
 
 
 def test_with_no_terminal_the_command_line_stops_before_the_merge_and_says_where(
-    github: FakeGitHub, repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]
+    github: FakeGitHub, repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+    run(series, repo)
+    capsys.readouterr()
 
-    status = cli.main([str(series), "--repo", str(repo.path), "--check", f"{sys.executable} -c pass", "--land"])
+    status = run(series, repo, "--land")
 
     captured = capsys.readouterr()
     assert status == 1
@@ -166,12 +293,16 @@ def test_with_no_terminal_the_command_line_stops_before_the_merge_and_says_where
     assert github.merges_on_main() == []
 
 
-def test_a_series_that_fails_the_replay_is_never_pushed(github: FakeGitHub, repo, author: Author, tmp_path) -> None:
+def test_a_series_that_fails_the_replay_leaves_nothing_to_land(
+    github: FakeGitHub, repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
     series = tmp_path / "series.txt"
     series.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
 
-    status = cli.main([str(series), "--repo", str(repo.path), "--check", f"{sys.executable} -c 'raise SystemExit(1)'", "--land", "--yes"])
+    failed = cli.main([str(series), "--repo", str(repo.path), "--check", f"{sys.executable} -c 'raise SystemExit(1)'"])
+    landed = run(series, repo, "--land", "--yes")
 
-    assert status == 1
+    assert (failed, landed) == (1, 1)
+    assert "has no series/write-one" in capsys.readouterr().err
     assert github.branches() == ["main"]
     assert not github.state_file.exists()

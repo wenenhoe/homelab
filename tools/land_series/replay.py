@@ -47,6 +47,7 @@ class Check:
 class LayerResult:
     layer: Layer
     applied: bool
+    commit: str | None = None
 
 
 def stopped_by(layer: Layer) -> list[str]:
@@ -146,5 +147,5 @@ def replay(repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm
                 _reset(tree)
                 if failure is not None:
                     raise ReplayError(f"layer {layer.id} fails `{check}`:\n{failure}")
-            results.append(LayerResult(layer, applied=True))
+            results.append(LayerResult(layer, applied=True, commit=git_text(git_run(tree, "rev-parse", "HEAD"))))
     return results

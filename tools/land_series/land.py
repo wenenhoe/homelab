@@ -1,7 +1,8 @@
-"""Land a replayed series: for each layer a branch fresh from the base, a pull request, green checks, the maintainer's review, the merge.
+"""Land a kept series: for each layer its branch pushed as built, a pull request, green checks, the maintainer's review, the merge.
 
-The caller replays the series first (`replay.replay`), so nothing here runs before the whole series is known to apply and
-pass the local checks. Layers go one at a time: after each merge the base is fetched, so the next branch holds only its own commit.
+The branches come from a replay (`replay.replay` then `kept.keep`), so nothing here runs before the whole series is known to
+apply and pass the local checks, and a branch is pushed only while it is exactly what the tool built. Layers go one at a time:
+a layer's commit sits on the one before it, which a merge commit has brought into the base, so its pull request shows only its own commit.
 
 Every step goes through `git` and `gh` under the maintainer's own login. Only `refs/heads/<slug>` is ever pushed.
 """
@@ -15,8 +16,9 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from land_series.kept import KeptError, forget, is_ready, kept_tip
 from land_series.manifest import RESERVED_SLUGS, Layer
-from land_series.replay import ReplayError, apply_layer, git_run, git_text, landed_in, scratch_worktree
+from land_series.replay import ReplayError, git_run, git_text, landed_in
 
 CHECKS_INTERVAL_SECONDS = 20
 NO_CHECKS_WAIT_SECONDS = 10
@@ -59,32 +61,24 @@ def _gh_ok(repo: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def _rev(tree: Path, rev: str) -> str:
-    result = git_run(tree, "rev-parse", "--verify", "--quiet", rev)
-    return result.stdout.decode().strip() if result.returncode == 0 else ""
+def _push(repo: Path, layer: Layer, tip: str, base: str) -> tuple[str, bool]:
+    """Push the kept commit as the layer's branch; return its message body and whether the remote branch changed.
 
-
-def _publish(repo: Path, layer: Layer, base: str) -> tuple[str, bool]:
-    """Apply the layer on a fresh worktree of the base and push it as its branch; return the commit's message body and whether the push changed anything.
-
-    A branch already on the remote with the same tree on the same parent is the same patch, and is left alone.
+    A remote branch already at that commit is left alone.
     """
     remote, _, _ = base.partition("/")
     ref = f"refs/heads/{layer.slug}"
-    with scratch_worktree(repo, base) as tree:
-        apply_layer(tree, layer, base)
-        listed = git_run(tree, "ls-remote", remote, ref)
-        if listed.returncode != 0:
-            raise LandError(f"cannot list {ref} on {remote}: {git_text(listed)}")
-        existing = listed.stdout.decode().split("\t")[0]
-        if existing:
-            git_run(tree, "fetch", "--quiet", remote, ref)
-            if (_rev(tree, "FETCH_HEAD^{tree}"), _rev(tree, "FETCH_HEAD^")) == (_rev(tree, "HEAD^{tree}"), _rev(tree, "HEAD^")):
-                return git_run(tree, "log", "-1", "--format=%b").stdout.decode().strip(), False
-        pushed = git_run(tree, "push", "--quiet", f"--force-with-lease={ref}:{existing}", remote, f"HEAD:{ref}")
-        if pushed.returncode != 0:
-            raise LandError(f"cannot push {ref}: {git_text(pushed)}")
-        return git_run(tree, "log", "-1", "--format=%b").stdout.decode().strip(), True
+    listed = git_run(repo, "ls-remote", remote, ref)
+    if listed.returncode != 0:
+        raise LandError(f"cannot list {ref} on {remote}: {git_text(listed)}")
+    existing = listed.stdout.decode().split("\t")[0]
+    body = git_run(repo, "log", "-1", "--format=%b", tip).stdout.decode().strip()
+    if existing == tip:
+        return body, False
+    pushed = git_run(repo, "push", "--quiet", f"--force-with-lease={ref}:{existing}", remote, f"{tip}:{ref}")
+    if pushed.returncode != 0:
+        raise LandError(f"cannot push {ref}: {git_text(pushed)}")
+    return body, True
 
 
 def _pull_request(repo: Path, layer: Layer, branch: str, body: str, changed: bool) -> str:
@@ -131,12 +125,19 @@ def _land_each(repo: Path, layers: Sequence[Layer], review: Review, base: str, b
             raise LandError(f"layer {layer.id} has the protected branch name {layer.slug!r}")
         if (layer.authored, layer.subject) in landed_in(repo, base):
             continue
-        body, changed = _publish(repo, layer, base)
+        try:
+            tip = kept_tip(repo, layer)
+        except KeptError as error:
+            raise LandError(str(error)) from error
+        if not is_ready(repo, tip, base):
+            raise LandError(f"{base} has changed since layer {layer.id} was built; run without --land to rebuild the series, review it, then land it")
+        body, changed = _push(repo, layer, tip, base)
         url = _pull_request(repo, layer, branch, body, changed)
         _wait_for_checks(repo, url, sleep)
         if not review(layer, url):
             results.append(Landed(layer, url, merged=False))
             break
         _gh_ok(repo, "pr", "merge", url, "--admin", "--merge", "--delete-branch")
+        forget(repo, layer)
         fetch(repo, base)
         results.append(Landed(layer, url, merged=True))

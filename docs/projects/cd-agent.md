@@ -68,6 +68,7 @@ The freshness job replaces the weekly user timer on `controller` (`tools/cloud_c
 - The deploy, maintenance and freshness jobs cannot log in to OpenBao yet; what is missing is delivering each job's credentials, which [`cd-agent-approles.md`](cd-agent-approles.md) owns. Applying the role before that is settled starts jobs that fail on every run.
 - Nothing can apply the role until [`operator-host.md`](operator-host.md)'s Stage 3 builds VM 302, because `sshd` accepts `192.168.30.2` alone.
 - Whether `deploy.yaml`'s `localhost` plays run under the unit's sandbox, which makes the filesystem read-only outside the job's state directory, is not confirmed.
+- The OpenBao snapshot write keys are rotated by hand with `create_snapshot_write_keys.py --rotate`: the `rotation` job runs `rotate_leaf_keys.py`, which does not include them, and the expiry check only warns. Adding them is a small change to that script and `rotation.md`. The `cd-agent-rotation` policy already grants write on the whole leaf tier, and `snapshot-push.sh` reads the keys from OpenBao on every run, so a rotation needs no redeploy. Do it when the `rotation` job goes live, so its first run exercises it; this project's `allowed_paths`, if it gains any, must then name both files.
 - The shared SSH private key across every managed host (and possibly
   the maintainer's laptop) is split per job by
   [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md).

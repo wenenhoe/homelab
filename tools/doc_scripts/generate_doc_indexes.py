@@ -29,6 +29,7 @@ from doc_scripts.doc_coverage import COVERAGE_RELATIVE, render_coverage_table
 from doc_scripts.doc_explorations import last_commit_date, load_explorations
 from doc_scripts.doc_frontmatter import DECISION_INDEX, ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
+from doc_scripts.doc_reliance import unmet_reliances
 from doc_scripts.doc_removed import LEDGER
 
 # Project status -> display text for the regenerated table.
@@ -40,12 +41,19 @@ STATUS_DISPLAY = {
 }
 
 
-def project_status_cells(fm: dict, waiting_on: list[str], decision_status: str | None = None, decision_link: str | None = None) -> tuple[str, str]:
+def project_status_cells(
+    fm: dict,
+    waiting_on: list[str],
+    decision_status: str | None = None,
+    decision_link: str | None = None,
+    rests_on: list[str] | None = None,
+) -> tuple[str, str]:
     """The Status and Blocker cells. `decision_status` is the state of the revision the
     project's `decision:` names, or None when it has none or it doesn't
     resolve (check_doc_drift.py reports the latter). `decision_link` is that
     revision as a markdown link, or None when it doesn't resolve, in which
-    case the bare reference is shown. The Blocker cell is `—` when nothing is in the
+    case the bare reference is shown. `rests_on` are the targets of the decision revision's
+    unmet reliances, each as `ADR-NNNN (state)`. The Blocker cell is `—` when nothing is in the
     way, which for a not-started project means it is ready."""
     blockers = []
     if fm.get("blocked"):
@@ -54,6 +62,8 @@ def project_status_cells(fm: dict, waiting_on: list[str], decision_status: str |
         blockers.append("waiting on " + ", ".join(waiting_on))
     elif _awaits_decision(fm, decision_status):
         blockers.append(f"waiting on {decision_link or fm['decision']}")
+    if rests_on:
+        blockers.append("rests on " + ", ".join(rests_on))
     return STATUS_DISPLAY[fm["status"]], "; ".join(blockers) or "—"
 
 
@@ -78,6 +88,16 @@ def _decision_shorts(root: Path) -> dict[str, str]:
 def _decision_paths(root: Path) -> dict[str, str]:
     """`ADR-NNNN/label` -> the revision's path under docs/decisions/."""
     return {f"{lineage.id}/{rev.label}": f"{lineage.dir.name}/{rev.path.name}" for lineage in load_lineages(root) for rev in lineage.revisions}
+
+
+def _rests_on(root: Path) -> dict[str, list[str]]:
+    """`ADR-NNNN/label` -> the unmet reliances of that revision, as `ADR-NNNN (working)`. Derived
+    on each run and never stored, so settling the target changes the label with no edit."""
+    rests_on: dict[str, list[str]] = {}
+    for unmet in unmet_reliances(root):
+        ref = f"{unmet.reliant.fm['id']}/{unmet.reliant.label}"
+        rests_on.setdefault(ref, []).append(f"{unmet.target} ({unmet.target_state})")
+    return rests_on
 
 
 def _load_projects(root: Path) -> dict[str, tuple[Path, dict]]:
@@ -106,13 +126,14 @@ def _status_cells(
     *,
     project_prefix: str,
     decision_prefix: str,
+    rests_on: dict[str, list[str]] | None = None,
 ) -> str:
     """The Status and Blocker cells for a view, as the two cells of a row. The prefixes are the paths from the file the
     view renders into to docs/projects/ and to docs/decisions/."""
     ref = fm.get("decision")
     text = f"{ref} ({decision_shorts[ref]})" if ref in decision_shorts else ref
     link = f"[{text}]({decision_prefix}{decision_paths[ref]})" if ref in decision_paths else None
-    status, blocker = project_status_cells(fm, _waiting_on(fm, projects, project_prefix), decisions.get(ref), link)
+    status, blocker = project_status_cells(fm, _waiting_on(fm, projects, project_prefix), decisions.get(ref), link, (rests_on or {}).get(ref))
     return f"{status} | {blocker}"
 
 
@@ -163,6 +184,7 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
     decision_paths = _decision_paths(root)
     decision_shorts = _decision_shorts(root)
     unblocks = _unblocks(projects)
+    rests_on = _rests_on(root)
     cells = functools.partial(
         _status_cells,
         projects=projects,
@@ -171,6 +193,7 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
         decision_shorts=decision_shorts,
         project_prefix="projects/",
         decision_prefix="decisions/",
+        rests_on=rests_on,
     )
     rows = [
         f"| [`{path.name}`](projects/{path.name}) | {_unblocks_cell(unblocks[pid])} | {cells(fm)} | {_cell(fm['summary'])} |"
@@ -212,6 +235,7 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     decision_shorts = _decision_shorts(root)
     depths = _dependency_depths(projects)
     unblocks = _unblocks(projects)
+    rests_on = _rests_on(root)
     entries = [(fm["super_project"], depths[pid], path.name, fm) for pid, (path, fm) in projects.items() if "super_project" in fm]
     labelled = sorted(entries, key=lambda e: (e[0], e[1], e[2]))
     if not labelled:
@@ -232,12 +256,10 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     for initiative, _, name, fm in labelled:
         initiative_cell = f" `{initiative}` " if initiative != prev_initiative else " "
         prev_initiative = initiative
-        rows.append(
-            f"|{initiative_cell}| [`{name}`](projects/{name}) "
-            f"| {_unblocks_cell(unblocks[fm['id']])} "
-            f"| {_status_cells(fm, projects, decisions, decision_paths, decision_shorts, project_prefix='projects/', decision_prefix='decisions/')} "
-            f"| {_cell(fm['summary'])} |"
+        cells = _status_cells(
+            fm, projects, decisions, decision_paths, decision_shorts, project_prefix="projects/", decision_prefix="decisions/", rests_on=rests_on
         )
+        rows.append(f"|{initiative_cell}| [`{name}`](projects/{name}) | {_unblocks_cell(unblocks[fm['id']])} | {cells} | {_cell(fm['summary'])} |")
     header = "| Initiative | Project | Unblocks | Status | Blocker | Covers |\n| :--- | :--- | ---: | :--- | :--- | :--- |"
     return "\n".join([header, *rows])
 
@@ -299,6 +321,14 @@ def _former_note(lineage: Lineage) -> list[str]:
     return ["Formerly " + ", ".join(former)] if former else []
 
 
+def _relies_note(lineage: Lineage, by_id: dict[str, Lineage], prefix: str) -> list[str]:
+    """What the lineage's current revision declares it relies on, each target with its state."""
+    targets = [r["adr"] for r in lineage.current().fm.get("relies_on", []) if r["adr"] in by_id]
+    if not targets:
+        return []
+    return ["Relies on " + ", ".join(f"{_lineage_link(by_id[t], prefix)} ({ADR_STATUS_DISPLAY[by_id[t].current().status].lower()})" for t in targets)]
+
+
 def _pending_notes(lineage: Lineage) -> list[str]:
     """One note per revision still being worked on after the one that answers the problem, unless
     several are open with nothing decided, which the Status cell already says."""
@@ -316,11 +346,12 @@ def render_decisions_by_number(root: Path = ROOT, prefix: str = "decisions/") ->
     lineages = load_lineages(root)
     if not lineages:
         return "No decision lineages yet."
+    by_id = {lineage.id: lineage for lineage in lineages}
     rows = []
     for lineage in lineages:
         current = lineage.current()
         adr_cell, _, status = _adr_solution_cells(lineage, prefix)
-        notes = "; ".join([*_pending_notes(lineage), *_former_note(lineage)])
+        notes = "; ".join([*_pending_notes(lineage), *_relies_note(lineage, by_id, prefix), *_former_note(lineage)])
         topic = TOPICS.get(current.fm["topic"], current.fm["topic"])
         rows.append(f"| {adr_cell} | {_cell(current.fm['short'])} | {status} | {topic} | {_cell(notes) or '—'} |")
     header = "| ADR | Decision | Status | Topic | Notes |\n| :--- | :--- | :--- | :--- | :--- |"
@@ -355,6 +386,7 @@ def render_lineages_index(root: Path = ROOT, prefix: str = "decisions/") -> str:
             notes = _pending_notes(lineage)
             if lineage.id in narrowed_by:
                 notes.append("Narrowed by " + ", ".join(_lineage_link(by_id[i], prefix) for i in sorted(narrowed_by[lineage.id])))
+            notes.extend(_relies_note(lineage, by_id, prefix))
             if lineage.id in related:
                 notes.append("Related: " + ", ".join(_lineage_link(by_id[i], prefix) for i in sorted(related[lineage.id])))
             notes.extend(_former_note(lineage))

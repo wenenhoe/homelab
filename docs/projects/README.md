@@ -91,7 +91,11 @@ decision revision is `approved` (or it has no `decision:`), it is not blocked,
 and no project it depends on remains. Neither is a status, so neither needs
 an edit when it changes. A `not-started` project that is not blocked and
 waits on no project, but whose decision revision is not yet `approved`,
-reads "waiting on" that revision, derived the same way. A risk —
+reads "waiting on" that revision, derived the same way. A project whose
+decision revision declares a `relies_on:` that is not yet met reads "rests on
+ADR-NNNN (working)", naming the target and its state, in the same cell and
+derived the same way; it never stops the project by itself
+([ADR 0080 (Reliance on working decisions)](../decisions/0080-approved-decisions-resting-on-unfinished-ones/revision-000.md)). A risk —
 something that could cause rework but blocks nothing now — goes in the
 doc's Risks list instead.
 

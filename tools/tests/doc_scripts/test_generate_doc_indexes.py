@@ -32,6 +32,25 @@ class TestProjectsTable:
             "| [`c.md`](projects/c.md) | — | Done | — | c summary |",
         ]
 
+    def test_a_project_whose_decision_rests_on_an_unsettled_one_says_so(self, root, rows):
+        revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
+        revision(root, "0002-b", 0, status="working")
+        project(root, "a", status="building", decision="ADR-0001/0")
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Building | rests on ADR-0002 (working) | a summary |"]
+
+    def test_the_label_goes_once_the_target_is_settled(self, root, rows):
+        revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
+        revision(root, "0002-b", 0, status="approved")
+        project(root, "a", status="building", decision="ADR-0001/0")
+        assert rows() == ["| [`a.md`](projects/a.md) | — | Building | — | a summary |"]
+
+    def test_the_label_sits_beside_a_predecessor_and_in_the_initiative_view(self, root):
+        revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
+        revision(root, "0002-b", 0, status="working")
+        project(root, "base", status="building", super_project="init")
+        project(root, "a", status="not-started", decision="ADR-0001/0", depends_on=[{"project": "PROJ-base", "reason": "needs it"}], super_project="init")
+        assert "waiting on [`base.md`](projects/base.md); rests on ADR-0002 (working)" in gen.render_initiatives_table(root)
+
     def test_waiting_on_an_existing_predecessor(self, root, rows):
         project(root, "base", status="building")
         project(root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
@@ -476,6 +495,20 @@ class TestLineagesIndex:
         assert "Narrowed by" not in rows["0016"]
         assert "Related: [0014](decisions/0014-r2/revision-000.md)" in rows["0016"]
         assert "Related: [0016](decisions/0016-oci/revision-000.md)" in rows["0014"]
+
+    def test_a_declared_reliance_is_noted_with_the_targets_state(self, root):
+        revision(root, "0001-a", 0, status="approved", title="A", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
+        revision(root, "0002-b", 0, status="working", title="B")
+        out = gen.render_lineages_index(root)
+        rows = {line.split("|")[1].strip()[1:5]: line for line in out.splitlines() if line.startswith("| [")}
+        assert "Relies on [0002](decisions/0002-b/revision-000.md) (working)" in rows["0001"]
+        assert "Relies on" not in rows["0002"]
+        assert "Relies on [0002](decisions/0002-b/revision-000.md) (working)" in gen.render_decisions_by_number(root).splitlines()[2]
+
+    def test_the_note_follows_the_target_once_it_is_settled(self, root):
+        revision(root, "0001-a", 0, status="approved", title="A", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
+        revision(root, "0002-b", 0, status="approved", title="B")
+        assert "Relies on [0002](decisions/0002-b/revision-000.md) (approved)" in gen.render_lineages_index(root)
 
     def test_pipes_in_text_are_escaped(self, root):
         revision(root, "0001-x", 0, status="accepted", solution="a | b")

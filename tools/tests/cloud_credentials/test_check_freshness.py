@@ -18,6 +18,7 @@ from _oci_objects import customer_secret_key
 from _oci_objects import response as oci_response
 from _responses import response
 from cloud_credentials import check_freshness
+from cloud_credentials import create_snapshot_write_keys as snap
 from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
 
@@ -70,11 +71,13 @@ class TestCheckB2:
         past_ms = (datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000
         vault.seed("backblaze-b2-write-access-key", "key-write-1")
         vault.seed("backblaze-b2-read-access-key", "key-read-1")
+        vault.seed(snap.VAULT_NAME_B2_ACCESS, "key-snap-1")
         # rotation key id deliberately not seeded, mirroring the key
         # itself being "absent from the response" below
         mock_list_keys.return_value = [
             _b2_key("key-write-1", future_ms),
             _b2_key("key-read-1", past_ms),
+            _b2_key("key-snap-1", (datetime.now(UTC) + timedelta(days=WARNING_DAYS - 1)).timestamp() * 1000),
             # rotation key deliberately absent from the response
         ]
 
@@ -84,13 +87,25 @@ class TestCheckB2:
         statuses = {name: status for name, status, _ in results}
         assert statuses["b2 write"] == check_freshness.FRESH
         assert statuses["b2 read"] == check_freshness.STALE
+        assert statuses["b2 openbao-snapshot-write"] == check_freshness.WARNING
         assert statuses["b2 rotation key"] == check_freshness.CHECK_FAILED
 
+    @patch.object(check_freshness, "b2_list_keys", autospec=True)
+    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    def test_a_snapshot_write_key_the_account_no_longer_lists_is_a_check_failure(self, mock_api, mock_list_keys, vault, b2_api):
+        mock_api.return_value = b2_api
+        vault.seed(snap.VAULT_NAME_B2_ACCESS, "key-snap-revoked")
+        mock_list_keys.return_value = []
+
+        statuses = {name: status for name, status, _ in check_freshness.check_b2()}
+
+        assert statuses["b2 openbao-snapshot-write"] == check_freshness.CHECK_FAILED
+
     @patch.object(check_freshness, "b2_rotation_api", side_effect=SystemExit(1), autospec=True)
-    def test_auth_failure_reports_check_failed_for_all_three(self, mock_api):
+    def test_auth_failure_reports_check_failed_for_every_key(self, mock_api):
         results = check_freshness.check_b2()
         assert all(status == check_freshness.CHECK_FAILED for _, status, _ in results)
-        assert len(results) == 3
+        assert [name for name, _, _ in results] == ["b2 write", "b2 read", "b2 openbao-snapshot-write", "b2 rotation key"]
 
     @patch.object(check_freshness, "b2_list_keys", autospec=True)
     @patch.object(check_freshness, "b2_rotation_api", autospec=True)
@@ -249,11 +264,13 @@ class TestCheckR2:
         vault.seed("cloudflare-r2-account-id", "acct123")
         vault.seed("cloudflare-r2-write-access-key", "TOKEN_ID_WRITE")
         vault.seed("cloudflare-r2-read-access-key", "TOKEN_ID_READ")
+        vault.seed(snap.VAULT_NAME_R2_ACCESS, "TOKEN_ID_SNAP")
 
     def test_fresh_and_stale_and_rotation_token_all_reported(self, session_class):
         session = session_class.return_value
         future = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
         past = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        soon = (datetime.now(UTC) + timedelta(days=WARNING_DAYS - 1)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         def get(url, timeout=None):
             if url.endswith("/user/tokens/verify"):
@@ -262,6 +279,8 @@ class TestCheckR2:
                 return response(json_body={"success": True, "result": {"expires_on": future}})
             if "TOKEN_ID_READ" in url:
                 return response(json_body={"success": True, "result": {"expires_on": past}})
+            if "TOKEN_ID_SNAP" in url:
+                return response(json_body={"success": True, "result": {"expires_on": soon}})
             raise AssertionError(f"unexpected URL: {url}")
 
         session.get.side_effect = get
@@ -271,6 +290,7 @@ class TestCheckR2:
         statuses = {name: status for name, status, _ in results}
         assert statuses["r2 write"] == check_freshness.FRESH
         assert statuses["r2 read"] == check_freshness.STALE
+        assert statuses["r2 openbao-snapshot-write"] == check_freshness.WARNING
         assert statuses["r2 rotation token"] == check_freshness.FRESH
 
     def test_requests_carry_the_cached_rotation_token_as_a_bearer_header(self, session_class):
@@ -287,7 +307,7 @@ class TestCheckR2:
 
         check_freshness.check_r2()
 
-        assert len(session.get.call_args_list) == 3
+        assert len(session.get.call_args_list) == 4
         assert all(has_a_timeout(call) for call in session.get.call_args_list)
 
     @pytest.mark.parametrize(
@@ -297,13 +317,13 @@ class TestCheckR2:
             pytest.param("cloudflare-r2-account-id", "leaf", "account id", id="only-the-account-id-missing"),
         ],
     )
-    def test_either_missing_credential_fails_all_three_entries_and_is_named(self, session_class, vault, name, category, missing):
+    def test_either_missing_credential_fails_every_entry_and_is_named(self, session_class, vault, name, category, missing):
         vault.delete(name, category=category)
 
         results = check_freshness.check_r2()
 
         assert [(label, status) for label, status, _ in results] == [
-            (f"r2 {entry}", check_freshness.CHECK_FAILED) for entry in ("write", "read", "rotation token")
+            (f"r2 {entry}", check_freshness.CHECK_FAILED) for entry in ("write", "read", "openbao-snapshot-write", "rotation token")
         ]
         assert all(f"no cached {missing} " in detail for _, _, detail in results)
         session_class.assert_not_called()

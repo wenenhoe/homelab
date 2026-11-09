@@ -53,6 +53,10 @@ checked-out tree, so an entry also covers the commits that added the value.
 alongside this repo's other tool configs — same documented-exception
 convention as `.github/compose-boot-test-exclusions.txt`.
 
+Every entry carries `exp:YYYY-MM-DD`. Past that date Trivy reports the finding
+again, so each accepted risk comes back for a re-check; the comment above an entry
+gives the reason and when it is due.
+
 **Two Trivy Ansible-scanner quirks** (a Trivy version bump may change them):
 
 - It never reads `ansible.cfg`'s `roles_path` (`resolveRolePath` only

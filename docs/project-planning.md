@@ -83,7 +83,6 @@ first, so one that has stood still is the first row.
 
 | Project | Unblocks | Status | Blocker | Covers |
 | :--- | ---: | :--- | :--- | :--- |
-| [`credential-expiry-rename.md`](projects/credential-expiry-rename.md) | — | Building | — | Give the cloud-credential expiry check its own name, so "freshness" means only the backup check. |
 | [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | — | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
 | [`automated-pr-review.md`](projects/automated-pr-review.md) | — | Not started | waiting on [ADR-0061/1 (Automated code review)](decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md) | Review a pull request from the private repository's CI when the maintainer labels it, describe the practice here, try it against the local CodeRabbit run, and accept the decision. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started | waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |

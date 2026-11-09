@@ -112,4 +112,5 @@ first, so one that has stood still is the first row.
 | [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? | 2026-11-07 |
 | [`molecule-runtime-without-host-privilege.md`](explorations/molecule-runtime-without-host-privilege.md) | Which container runtime can run the Molecule scenarios on the coding-agent host without giving the agent root there? | 2026-11-07 |
 | [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-07 |
+| [`host-alert-declaration.md`](explorations/host-alert-declaration.md) | Where should a host-resource alert be declared so that a rebuilt monitor brings it back? | 2026-11-09 |
 | [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? | 2026-11-09 |

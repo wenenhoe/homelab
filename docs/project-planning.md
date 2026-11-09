@@ -84,6 +84,7 @@ first, so one that has stood still is the first row.
 | Project | Unblocks | Status | Blocker | Covers |
 | :--- | ---: | :--- | :--- | :--- |
 | [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | — | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
+| [`landing-a-patch-series.md`](projects/landing-a-patch-series.md) | — | De-risking | — | A maintainer-run tool that lands a series of patches as pull requests into main, one at a time from fresh branches, after replaying the series and running the checks. |
 | [`automated-pr-review.md`](projects/automated-pr-review.md) | — | Not started | waiting on [ADR-0061/1 (Automated code review)](decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md) | Review a pull request from the private repository's CI when the maintainer labels it, describe the practice here, try it against the local CodeRabbit run, and accept the decision. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started | waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`kms-image.md`](projects/kms-image.md) | — | Not started | waiting on [ADR-0091/0 (Activation host image)](decisions/0091-where-the-activation-hosts-image-comes-from/revision-000.md) | Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app. |
@@ -114,5 +115,4 @@ first, so one that has stood still is the first row.
 | [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-07 |
 | [`host-alert-declaration.md`](explorations/host-alert-declaration.md) | Where should a host-resource alert be declared so that a rebuilt monitor brings it back? | 2026-11-09 |
 | [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? | 2026-11-09 |
-| [`landing-a-patch-series-as-pull-requests.md`](explorations/landing-a-patch-series-as-pull-requests.md) | How should a series of patches reach main as pull requests? | 2026-11-09 |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? | 2026-11-09 |

@@ -122,7 +122,16 @@ def _run_check(tree: Path, check: Check) -> str | None:
     return "\n".join((result.stdout + result.stderr).strip().splitlines()[-OUTPUT_TAIL_LINES:])
 
 
-def replay(repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm: Confirm, base: str = "origin/main") -> list[LayerResult]:
+Progress = Callable[[str], None]
+
+
+def silent(message: str) -> None:
+    """The default progress report: none."""
+
+
+def replay(
+    repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm: Confirm, base: str = "origin/main", progress: Progress = silent
+) -> list[LayerResult]:
     """Apply each layer, in the order given, on a scratch worktree of `base`; run every check after each.
 
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
@@ -137,8 +146,10 @@ def replay(repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm
             stops = stopped_by(layer)
             if stops and not confirm(layer, stops):
                 raise ReplayError(f"layer {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
+            progress(f"layer {layer.id}: applying the patch on {base}{' plus the layers before it' if results else ''}")
             apply_layer(tree, layer, f"{base}{' plus the layers before it' if results else ''}")
             for check in checks:
+                progress(f"layer {layer.id}: running `{check}`")
                 failure = _run_check(tree, check)
                 _reset(tree)
                 if failure is not None:

@@ -49,6 +49,11 @@ def ask_merge(layer: Layer, url: str) -> bool:
     return input("Review it, then type 'yes' to merge: ").strip() == "yes"
 
 
+def say(message: str) -> None:
+    """Progress goes to stderr as it happens, so a long check or a CI wait is not silence."""
+    print(message, file=sys.stderr, flush=True)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="land_series", description=__doc__)
     parser.add_argument("files", nargs="+", type=Path)
@@ -69,10 +74,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not args.no_fetch:
             fetch(args.repo, args.base)
         if args.land:
-            landed = land(args.repo, layers, lambda layer, url: args.yes or ask_merge(layer, url), base=args.base)
+            landed = land(args.repo, layers, lambda layer, url: args.yes or ask_merge(layer, url), base=args.base, progress=say)
             return report(landed)
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks(args.base)
-        results = replay(args.repo, layers, checks, ask, base=args.base)
+        results = replay(args.repo, layers, checks, ask, base=args.base, progress=say)
         kept = [] if args.dry_run else keep(args.repo, results)
     except LandError as error:
         report(error.landed)
@@ -95,6 +100,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 def report(landed: Sequence[Landed]) -> int:
     for item in landed:
         print(f"{item.layer.id}  {'merged' if item.merged else 'left open'}  {item.url}")
+        if item.kept_branch:
+            print(f"  {item.kept_branch} is checked out here, so it was kept; switch to another branch, then `git branch -D {item.kept_branch}`")
     if landed and not landed[-1].merged:
         print(f"land_series: stopped before merging layer {landed[-1].layer.id}; run it again to continue from there", file=sys.stderr)
         return 1

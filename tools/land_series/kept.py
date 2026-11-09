@@ -96,10 +96,11 @@ def is_ready(repo: Path, tip: str, base: str) -> bool:
     return built_on.returncode == 0 and current.returncode == 0 and git_text(built_on) == git_text(current)
 
 
-def forget(repo: Path, layer: Layer) -> None:
-    """Delete a merged layer's branch and record; a branch that is checked out stays, and the record goes either way."""
-    git_run(repo, "branch", "--delete", "--force", branch_of(layer))
+def forget(repo: Path, layer: Layer) -> bool:
+    """Delete a merged layer's branch and record. The record goes either way; a branch that is checked out stays, and False says so."""
+    deleted = git_run(repo, "branch", "--delete", "--force", branch_of(layer)).returncode == 0
     _record_path(repo, layer).unlink(missing_ok=True)
+    return deleted or _branch_tip(repo, branch_of(layer)) is None
 
 
 def leftovers(repo: Path, active: Sequence[Layer]) -> list[str]:

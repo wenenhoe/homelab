@@ -16,9 +16,9 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from land_series.kept import KeptError, forget, is_ready, kept_tip
+from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip
 from land_series.manifest import RESERVED_SLUGS, Layer
-from land_series.replay import ReplayError, git_run, git_text, landed_in
+from land_series.replay import Progress, ReplayError, git_run, git_text, landed_in, silent
 
 CHECKS_INTERVAL_SECONDS = 20
 NO_CHECKS_WAIT_SECONDS = 10
@@ -33,6 +33,7 @@ class Landed:
     layer: Layer
     url: str
     merged: bool
+    kept_branch: str | None = None  # set when the merged layer's local branch could not be deleted, because it is checked out
 
 
 class LandError(Exception):
@@ -104,13 +105,15 @@ def _wait_for_checks(repo: Path, url: str, sleep: Callable[[float], None]) -> No
     raise LandError(f"no required checks reported on {url} after waiting")
 
 
-def land(repo: Path, layers: Sequence[Layer], review: Review, base: str = "origin/main", sleep: Callable[[float], None] = time.sleep) -> list[Landed]:
+def land(
+    repo: Path, layers: Sequence[Layer], review: Review, base: str = "origin/main", sleep: Callable[[float], None] = time.sleep, progress: Progress = silent
+) -> list[Landed]:
     """Land the layers in the order given; stop, with its pull request left open, at the first one the maintainer does not confirm."""
     _, _, branch = base.partition("/")
     results: list[Landed] = []
     fetch(repo, base)
     try:
-        _land_each(repo, layers, review, base, branch, sleep, results)
+        _land_each(repo, layers, review, base, branch, sleep, results, progress)
     except LandError as error:
         error.landed = results
         raise
@@ -119,7 +122,9 @@ def land(repo: Path, layers: Sequence[Layer], review: Review, base: str = "origi
     return results
 
 
-def _land_each(repo: Path, layers: Sequence[Layer], review: Review, base: str, branch: str, sleep: Callable[[float], None], results: list[Landed]) -> None:
+def _land_each(
+    repo: Path, layers: Sequence[Layer], review: Review, base: str, branch: str, sleep: Callable[[float], None], results: list[Landed], progress: Progress
+) -> None:
     for layer in layers:
         if layer.slug in RESERVED_SLUGS:
             raise LandError(f"layer {layer.id} has the protected branch name {layer.slug!r}")
@@ -131,13 +136,17 @@ def _land_each(repo: Path, layers: Sequence[Layer], review: Review, base: str, b
             raise LandError(str(error)) from error
         if not is_ready(repo, tip, base):
             raise LandError(f"{base} has changed since layer {layer.id} was built; run without --land to rebuild the series, review it, then land it")
+        progress(f"layer {layer.id}: pushing {layer.slug}")
         body, changed = _push(repo, layer, tip, base)
+        progress(f"layer {layer.id}: opening or updating its pull request into {branch}")
         url = _pull_request(repo, layer, branch, body, changed)
+        progress(f"layer {layer.id}: waiting for the required checks on {url} (this is CI, it can take several minutes)")
         _wait_for_checks(repo, url, sleep)
         if not review(layer, url):
             results.append(Landed(layer, url, merged=False))
             break
+        progress(f"layer {layer.id}: merging")
         _gh_ok(repo, "pr", "merge", url, "--admin", "--merge", "--delete-branch")
-        forget(repo, layer)
+        deleted = forget(repo, layer)
         fetch(repo, base)
-        results.append(Landed(layer, url, merged=True))
+        results.append(Landed(layer, url, merged=True, kept_branch=None if deleted else branch_of(layer)))

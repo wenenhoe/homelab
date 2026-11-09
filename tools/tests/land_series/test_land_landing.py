@@ -59,6 +59,37 @@ def test_each_kept_layer_becomes_a_pull_request_merged_in_order_showing_only_its
     assert reviews.asked == [("0001a", "https://example.test/pull/1"), ("0001b", "https://example.test/pull/2")]
 
 
+def test_the_steps_are_reported_as_they_happen(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    said: list[str] = []
+
+    land(repo.path, layers, Reviews(True, True), sleep=lambda _: None, progress=said.append)
+
+    assert [line for line in said if line.startswith("layer 0001a")] == [
+        "layer 0001a: pushing write-one",
+        "layer 0001a: opening or updating its pull request into main",
+        "layer 0001a: waiting for the required checks on https://example.test/pull/1 (this is CI, it can take several minutes)",
+        "layer 0001a: merging",
+    ]
+    assert len(said) == 8
+
+
+def test_a_merged_layers_branch_that_is_checked_out_is_kept_and_reported(
+    github: FakeGitHub, repo: Repo, author: Author, capsys: pytest.CaptureFixture[str]
+) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    git(repo.path, "checkout", "series/write-two")
+
+    landed = land(repo.path, layers, Reviews(True, True), sleep=lambda _: None)
+
+    assert [item.kept_branch for item in landed] == [None, "series/write-two"]
+    assert git(repo.path, "branch", "--list", "series/*").strip().lstrip("*").strip() == "series/write-two"
+    assert cli.report(landed) == 0
+    assert "series/write-two is checked out here, so it was kept" in capsys.readouterr().out
+
+
 def test_the_pushed_commit_is_the_kept_one_with_what_the_apply_hooks_folded_into_it(github: FakeGitHub, repo: Repo, author: Author) -> None:
     repo.install_hook("post-applypatch", "echo regenerated >> base.txt\ngit add base.txt\ngit commit --amend --no-edit --quiet --no-verify\n")
     layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))

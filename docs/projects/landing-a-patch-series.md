@@ -8,6 +8,8 @@ summary: A maintainer-run tool that lands a series of patches as pull requests i
 decision: ADR-0112/0
 allowed_paths:
   - tools/land_series/**
+  - .github/detect-changes-filters.yml
+  - docs/topics/engineering/ci/change-scoping.md
   - tools/tests/land_series/**
   - docs/topics/engineering/landing-a-series.md
   - docs/topics/README.md

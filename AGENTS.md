@@ -43,7 +43,9 @@ stops there; see [`docs/projects/README.md#scope`](docs/projects/README.md#scope
 
 Verify a docs change with `pre-commit run --all-files`; it regenerates
 the indexes, lints the markdown, and runs
-[`check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py).
+[`check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py). Without
+Docker or registry access, see
+[`checks-without-docker.md`](docs/topics/engineering/checks-without-docker.md).
 
 ## Security and reliability defaults
 
@@ -71,42 +73,37 @@ the indexes, lints the markdown, and runs
 
 ## Comment discipline
 
-A comment states a fact and why it matters — not a narration of how it
-was found, and not a "verify before relying on this" hedge. The
-pre-commit config's own comments are the existing model: the
-`ansible-lint` override states the upstream `always_run` quirk and that
-it was checked "against the actual ansible/ansible-lint manifest, not
-assumed"; the locale override states what `ansible-core` requires and
-why `C.UTF-8` specifically, not that it might work.
+A comment states a fact and why it matters, not how it was found and not a
+"verify before relying on this" hedge. The pre-commit config's own comments
+are the model: the `ansible-lint` override states the upstream `always_run`
+quirk and that it was checked "against the actual ansible/ansible-lint
+manifest, not assumed"; the locale override states what `ansible-core`
+requires and why `C.UTF-8` specifically, not that it might work.
 
-A comment earns its place only if removing it could let a real bug
-back in — non-obvious ordering, a tool quirk, a security-relevant
-default. Reasoning that doesn't meet that bar goes in a commit message
-or a doc instead of padding the code. If the same explanation would
-apply in two places, it has one home and the other links to it — the
-same rule [`docs/README.md`](docs/README.md) states for docs
-cross-referencing each other, applied to code comments pointing at
-docs.
+A comment earns its place only if removing it could let a real bug back in:
+non-obvious ordering, a tool quirk, a security-relevant default. Other
+reasoning goes in a commit message or a doc. An explanation that applies in
+two places has one home and the other links to it, the rule
+[`docs/README.md`](docs/README.md) states for docs, applied to comments.
 
-A comment, error message, docstring or topic doc describes what the code
-does now. It never names a project's stage, phase or track (a label like
-"Track A" or "stage 2") or the migration it came from: that vocabulary
-belongs to the project doc and is deleted with it, and a leftover reads
-as work still pending.
+A comment, error message, docstring or topic doc describes what the code does
+now. It never names a project's stage, phase or track ("Track A", "stage 2")
+or the migration it came from: that vocabulary belongs to the project doc and
+is deleted with it, and a leftover reads as work still pending.
 
-A comment, topic doc or config names a file by its current name, and a
-file that was renamed or removed isn't mentioned by its old one. Only a
-decision revision keeps an old name, with the note
+A comment, topic doc or config names a file by its current name; a renamed or
+removed file is not mentioned by its old one. Only a decision revision keeps
+an old name, with the note
 [`docs/decisions/README.md#editing-a-revision`](docs/decisions/README.md#editing-a-revision)
 describes.
 
 ## Command blocks for the operator
 
-A block the operator pastes, in a doc or in a reply, never mixes a command
-that opens an interactive session (`openbao_utils.shell`, `ssh -t`, `sudo -i`)
-with the commands meant to run inside it: pasted whole, the later lines run
-after the session ends, in the wrong place. Split such a block into segments,
-each opened by a comment that says where it runs and when to paste it:
+A block the operator pastes, in a doc or a reply, never mixes a command that
+opens an interactive session (`openbao_utils.shell`, `ssh -t`, `sudo -i`) with
+the commands meant to run inside it: pasted whole, the later lines run after
+the session ends, in the wrong place. Split it into segments, each opened by a
+comment saying where it runs and when to paste it:
 
 ```sh
 # [1/3] controller: paste alone; it opens a shell and waits for the secret_id

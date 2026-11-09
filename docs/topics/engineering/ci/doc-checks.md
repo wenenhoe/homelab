@@ -141,6 +141,16 @@ these narrow, structural things:
 - Relative links (`./`, `../`) from a `.md` file to a config, script, or
   data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
   way `.md` links do.
+- A declared reliance (`relies_on:` in a decision revision) is met. An
+  `approved` revision needs a revision of the target lineage that is
+  `approved` or `accepted`, and an `accepted` one needs one that is
+  `accepted`; a revision in any other state is not checked. An unmet one is
+  printed as a `::warning::` naming the reliant revision, the target, its
+  state and the reason, and does not change the exit status. `--strict`
+  makes each a failure, for CI once the warnings are settled. Only declared
+  reliance is read, never `related:` or links in prose. The `doc_reliance.py`
+  module holds the rule; see
+  [`docs/decisions/README.md#relying-on-another-lineage`](../../../decisions/README.md#relying-on-another-lineage).
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a

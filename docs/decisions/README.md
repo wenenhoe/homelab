@@ -120,7 +120,9 @@ and the boundary or invariant presupposed (`reason`), in the shape of a
 project's `depends_on:`. It is not `related:`, which connects without
 depending, and a lineage never relies on itself. Adding it to an `accepted`
 revision is a metadata change. The docs check reads declared reliance only,
-never `related:` or links in prose.
+never `related:` or links in prose, and warns about one whose target is not
+settled yet; see
+[`doc-checks.md`](../topics/engineering/ci/doc-checks.md#docs-drift-check).
 
 ## Assumptions
 

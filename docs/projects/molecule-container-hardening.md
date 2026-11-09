@@ -4,7 +4,7 @@ title: "Molecule Container Hardening"
 type: project
 status: not-started
 blocked: false
-summary: "Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them."
+summary: "Give every helper container and compose fixture a Molecule scenario starts the same cap_drop and no-new-privileges defaults as a service, with only the capabilities its process needs, and add a check that a new one cannot omit them, and a check that holds the production compose files and the containers Ansible starts to the same pair."
 allowed_paths:
   - ansible/roles/molecule_helpers/**
   - ansible/roles/*/molecule/**
@@ -20,9 +20,9 @@ allowed_paths:
 
 ## Scope
 
-In: the four target services `molecule_helpers` starts (OpenBao, lldap, SeaweedFS, step-ca) and the step-cli and chmod containers beside the OpenBao one; the host paths the chmod container mounts and the modes of the directories it works in; the compose files under `ansible/roles/molecule_helpers/fixtures/` and the scenario fixtures that are not symlinks to a production file; the one-off `community.docker.docker_container` tasks in the scenarios' `converge.yml`, `verify.yml` and `prepare.yml`; a test that fails for a container in these places that sets neither default; the Molecule and container-hardening topic docs.
+In: the four target services `molecule_helpers` starts (OpenBao, lldap, SeaweedFS, step-ca) and the step-cli and chmod containers beside the OpenBao one; the host paths the chmod container mounts and the modes of the directories it works in; the compose files under `ansible/roles/molecule_helpers/fixtures/` and the scenario fixtures that are not symlinks to a production file; the one-off `community.docker.docker_container` tasks in the scenarios' `converge.yml`, `verify.yml` and `prepare.yml`; a test that fails for a container in these places that sets neither default; the Molecule and container-hardening topic docs. Also in, read-only: a test over the production compose files under `docker/` and over the `community.docker.docker_container` tasks in the roles and playbooks outside Molecule, which fails for a service or a started container that does not set both defaults.
 
-Not in: the scenario platforms (`privileged: true` systemd containers), which [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) decides; fixtures that are symlinks to a production compose file, which inherit its settings; production compose files and the playbooks under `ansible/playbooks/`, which already set both defaults; the images' versions and digests.
+Not in: the scenario platforms (`privileged: true` systemd containers), which [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) decides; fixtures that are symlinks to a production compose file, which inherit its settings; changes to production compose files and to the playbooks under `ansible/playbooks/`, which already set both defaults and are only read by the test; the images' versions and digests.
 
 ## Decision
 
@@ -38,12 +38,14 @@ Update at the start and end of each PR that works a stage.
 | 2 | The generic compose fixtures | Not started | Each fixture that is not a symlink sets both defaults, and the scenario that deploys it passes, including its idempotence step |
 | 3 | The one-off containers in scenario playbooks | Not started | Each `docker_container` task in a `converge.yml`, `verify.yml` or `prepare.yml` sets both defaults, and its scenario passes |
 | 4 | The check and the docs | Not started | A test fails for a container in these places that sets neither default, and fails when a task that sets them is changed to drop them. The Molecule and container-hardening docs say the defaults apply to what a scenario starts |
+| 5 | The check over production | Not started | A test reads every compose file under `docker/`, the `.j2` ones as they are, and every `community.docker.docker_container` task outside Molecule that does not set `state: absent`, and fails for a service or container that does not set `cap_drop: [ALL]` and `no-new-privileges:true`. It fails by name for a compose file that no longer parses, instead of skipping it, and fails on a copy of a production file with one setting removed. The container-hardening doc says where the check lives |
 
-Stage status is `Not started`, `In progress`, or `Done`. Stages 1 to 3 are independent and can merge in any order; stage 4 comes last, because it fails until they are done.
+Stage status is `Not started`, `In progress`, or `Done`. Stages 1 to 3 are independent and can merge in any order; stage 4 comes last, because it fails until they are done. Stage 5 depends on none of them, because the production files already set both defaults, and it adds its check to the test module stage 4 creates, so the two merge in either order and the second one extends the first.
 
 ## Acceptance criteria
 
 - [ ] No `community.docker.docker_container` task and no non-symlink compose file under the paths in Scope starts a container without `cap_drop: [ALL]` and `no-new-privileges:true`, shown by the check in stage 4.
+- [ ] No service in a compose file under `docker/` and no container a role or playbook starts outside Molecule omits those defaults, shown by the check in stage 5.
 - [ ] Each capability a helper keeps is one its process needs, shown by the same container failing without it.
 - [ ] Every Molecule scenario that starts one of these containers passes in CI, including its restart where it has one.
 - [ ] `pre-commit run --all-files` passes.
@@ -61,10 +63,12 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 
 - The pinned images cannot be pulled in an agent's sandbox, so a capability set is derived from the production service of the same image and shown by the scenario's run in CI, not by running the image beforehand. A set that is too small shows as a failing scenario, not as a quiet success: `CHOWN`, `FOWNER` and `FSETID` can fail without a non-zero exit ([`container-hardening.md`](../topics/deploy/container-hardening.md)), so each scenario that depends on file ownership or mode checks the result and not only the exit code.
 - A fixture that mirrors a production service is derived from its production file, not authored again from memory.
+- A compose file that gains a Jinja block, or an unquoted `{{ }}` value, stops parsing as YAML. The stage 5 check fails on it by name, so a template that can no longer be read is a decision for whoever changed it and never a silent exemption.
 
 ## Open items
 
 1. Whether the host's `/tmp` bind mount and the `0777` directories in the OpenBao helper exist for a reason the chmod container's narrower mount would break, such as a file the next container reads as another user. Stage 1 settles it by running the scenarios, and the answer goes in the topic doc.
+2. Whether the production check also holds other properties the production files have today, such as host networking, a Docker socket mount or a port published beyond loopback. `AGENTS.md` states the pair as the rule and none of the others, so each would first need a stated rule and a home for its exceptions; stage 5 holds the pair only.
 
 ## Closing checklist
 

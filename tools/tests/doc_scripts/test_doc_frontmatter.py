@@ -87,6 +87,12 @@ class TestRevisionValidation:
             pytest.param({"related": ["0014"]}, id="related isn't ADR ids"),
             pytest.param({"former_ids": "ADR-0027"}, id="former_ids isn't a list"),
             pytest.param({"weight": "heavy"}, id="unknown weight"),
+            pytest.param({"relies_on": "ADR-0014"}, id="relies_on isn't a list"),
+            pytest.param({"relies_on": ["ADR-0014"]}, id="relies_on entry is a bare id"),
+            pytest.param({"relies_on": [{"adr": "0014", "reason": "x"}]}, id="relies_on adr isn't an ADR id"),
+            pytest.param({"relies_on": [{"adr": "ADR-0014"}]}, id="relies_on without a reason"),
+            pytest.param({"relies_on": [{"adr": "ADR-0014", "reason": "  "}]}, id="relies_on with a blank reason"),
+            pytest.param({"relies_on": [{"adr": "ADR-0013", "reason": "itself"}]}, id="relies_on its own lineage"),
         ],
     )
     def test_rejected_frontmatter(self, root, overrides):
@@ -201,6 +207,10 @@ class TestRevisionValidation:
         assert path.name == "revision-000.md"
         with pytest.raises(SystemExit):
             fm_mod.read_frontmatter(revision(root, "0014-x", 0, revision=1))
+
+    def test_relies_on_entries_with_a_reason_are_accepted(self, root):
+        path = revision(root, "0013-secret-storage", 0, relies_on=[{"adr": "ADR-0014", "reason": "Presupposes the vault boundary."}])
+        assert fm_mod.read_frontmatter(path)["relies_on"][0]["adr"] == "ADR-0014"
 
     def test_relations_accepted(self, root):
         path = revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0, narrows="ADR-0015", related=["ADR-0014"], former_ids=["ADR-0027"])

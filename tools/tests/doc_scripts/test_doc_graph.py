@@ -172,6 +172,12 @@ class TestLineageErrors:
         revision(root, "0002-b", 0, narrows="ADR-0002")
         assert any("narrows its own lineage" in e for e in graph.lineage_errors(root))
 
+    def test_relies_on_must_name_a_lineage_that_exists(self, root):
+        revision(root, "0001-a", 0, relies_on=[{"adr": "ADR-0008", "reason": "Presupposes its boundary."}])
+        assert_one_error(graph.lineage_errors(root), "relies_on ADR-0008", "isn't a lineage")
+        revision(root, "0008-b", 0)
+        assert graph.lineage_errors(root) == []
+
     def test_narrows_and_related_between_real_lineages_are_clean(self, root):
         revision(root, "0015-expiry", 0, status="accepted")
         revision(root, "0016-oci", 0, status="accepted", narrows="ADR-0015", related=["ADR-0015"])

@@ -13,6 +13,9 @@ status: working              # working | approved | accepted | superseded | aban
 # superseded_by: 1           # required once status: superseded
 # narrows: ADR-NNNN          # this lineage replaced part of another lineage's scope
 # related: [ADR-NNNN]
+# relies_on:                 # this revision's reasoning holds only while that lineage's boundary does; each entry needs a reason
+#   - adr: ADR-NNNN
+#     reason: "The boundary or invariant presupposed"
 # former_ids: [ADR-NNNN]     # numbers retired into this lineage
 ---
 

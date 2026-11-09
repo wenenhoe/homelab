@@ -112,6 +112,16 @@ yet built.
   authorizes one design and never two. Letters record the order the
   candidates were written in, not which is preferred.
 
+### Relying on another lineage
+
+A revision whose reasoning holds only while another lineage's boundary does
+says so with `relies_on:`, a list of entries each naming the lineage (`adr`)
+and the boundary or invariant presupposed (`reason`), in the shape of a
+project's `depends_on:`. It is not `related:`, which connects without
+depending, and a lineage never relies on itself. Adding it to an `accepted`
+revision is a metadata change. The docs check reads declared reliance only,
+never `related:` or links in prose.
+
 ## Assumptions
 
 An **assumption** is an explicitly identified condition that must be true
@@ -149,7 +159,7 @@ short name in a link's text under [Citing a decision](#citing-a-decision).
   the file went. A table row pairing the old name with the new one needs
   none.
 - **Metadata** (`status`, `supersedes`, `superseded_by`, `narrows`,
-  `related`, `former_ids`) — any state; it records lifecycle, not
+  `related`, `former_ids`, `relies_on`) — any state; it records lifecycle, not
   reasoning.
 - **Material** (the solution, its rationale, its validity conditions) —
   in place while `working` or `approved`; a new revision once `accepted`.

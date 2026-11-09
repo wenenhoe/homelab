@@ -11,6 +11,9 @@ status: working              # working | approved | accepted | superseded | aban
 weight: light                # a light record: no Invariants, Non-goals or Validation, and a short body
 # supersedes: 0
 # related: [ADR-NNNN]
+# relies_on:                 # this revision's reasoning holds only while that lineage's boundary does; each entry needs a reason
+#   - adr: ADR-NNNN
+#     reason: "The boundary or invariant presupposed"
 ---
 
 # NNNN. Problem title

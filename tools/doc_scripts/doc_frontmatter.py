@@ -107,6 +107,20 @@ def _id_list(path: Path, data: dict, field: str) -> None:
         _fail(path, f"'{field}' must be a list of ADR ids like ADR-0013")
 
 
+def _relies_on(path: Path, data: dict) -> None:
+    """`relies_on:` entries have the shape of a project's `depends_on:`: the lineage relied on, and the boundary or invariant presupposed."""
+    entries = data.get("relies_on", [])
+    if not isinstance(entries, list):
+        _fail(path, "'relies_on' must be a list")
+    for entry in entries:
+        if not (isinstance(entry, dict) and isinstance(entry.get("adr"), str) and ADR_ID_RE.match(entry["adr"])):
+            _fail(path, "each 'relies_on' entry needs an 'adr' id like ADR-0013")
+        if entry["adr"] == data["id"]:
+            _fail(path, f"'relies_on' names {entry['adr']}, this revision's own lineage")
+        if not isinstance(entry.get("reason"), str) or not entry["reason"].strip():
+            _fail(path, f"'relies_on' entry for {entry['adr']} needs a 'reason' naming the boundary or invariant it presupposes")
+
+
 def _validate_revision(path: Path, data: dict) -> None:
     m = REVISION_PATH_RE.search(path.as_posix())
     lineage_no, revision_no, letter = m.group(1), int(m.group(2)), m.group(3)
@@ -139,6 +153,7 @@ def _validate_revision(path: Path, data: dict) -> None:
         _fail(path, "'narrows' must be a single ADR id: ADR- and four digits")
     _id_list(path, data, "related")
     _id_list(path, data, "former_ids")
+    _relies_on(path, data)
     if "weight" in data and data["weight"] not in WEIGHTS:
         _fail(path, f"'weight' must be one of {sorted(WEIGHTS)}, not {data['weight']!r}")
 

@@ -32,7 +32,7 @@ In order:
 5. Runs `COMMAND` with `DIR/tree/SUBDIR` as its working directory, inheriting the environment plus `CD_AGENT_STATE_DIR` (the job's `DIR`), with output left on the process's own stdout and stderr. `SUBDIR` defaults to the root of the tree; a path that leaves the tree (an absolute path, `..`, or a symlink out) or is not a directory fails the run before `COMMAND` starts.
 6. With `--on-change`, writes the commit to `DIR/deployed` only if `COMMAND` exited `0`. A failed run records nothing, so the same commit runs again on the next invocation, and a failed newer commit leaves the last good commit recorded.
 
-Without `--on-change` the run always uses the latest fetched `main` and writes no record: the shape for the maintenance, rotation and freshness jobs, which run on their own schedule rather than on a change.
+Without `--on-change` the run always uses the latest fetched `main` and writes no record: the shape for the maintenance, rotation and credential expiry jobs, which run on their own schedule rather than on a change.
 
 ## Exit status
 

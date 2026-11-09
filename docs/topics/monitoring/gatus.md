@@ -140,7 +140,7 @@ Three producers do not use the role:
 - **`rotation-read-watcher`** runs from units copied by hand ([`openbao-rotation-read-watcher.md`](../secrets/openbao-rotation-read-watcher.md)),
   not from Ansible. `gatus-push-rotation-read-watcher.service` has the same shape as the role's, and its curl config is written
   by hand from the job's token.
-- **The CD agent's `freshness` job** has no endpoint yet. The `cd_agent` role can install a push unit for any job that sets
+- **The CD agent's credential expiry job** has no endpoint yet. The `cd_agent` role can install a push unit for any job that sets
   `heartbeat`, and the host holds no secrets, so the curl config is written by hand; the steps, and the three lines that add the
   endpoint when the host is deployed, are in [`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats).
 

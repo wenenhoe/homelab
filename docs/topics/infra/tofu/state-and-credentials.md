@@ -56,7 +56,7 @@ tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
 
 The two keys expire a quarter after `TOFU_STATE_KEY_MINTED`. Run
 `create_state_keys.py --rotate` before then: it writes the new file before it revokes
-the old key, and keeps the passphrase. The weekly `check_freshness.py` warns ahead of
+the old key, and keeps the passphrase. The weekly credential expiry check warns ahead of
 that: the script registers each key's ID, and only the ID, in OpenBao's leaf tier
 (`cloudflare-r2-opentofu-state-access-key`, `backblaze-b2-opentofu-state-copy-access-key`),
 and the check asks the provider when that key expires. The IDs authenticate nothing, so

@@ -5,7 +5,7 @@ type: adr
 title: Monitoring that survives loss of the monitoring host
 short: Monitoring host loss
 solution: Bring the Tailscale subnet router under management, then run monitoring on a dedicated on-prem host
-summary: Beszel and Kuma keep running, and alerting, when the host they run on fails.
+summary: Beszel and Gatus keep running, and alerting, when the host they run on fails.
 topic: monitoring-alerting
 status: approved
 related: [ADR-0010, ADR-0049]
@@ -15,8 +15,8 @@ related: [ADR-0010, ADR-0049]
 
 ## Context
 
-The idea: Beszel Hub and Uptime Kuma both already exist
-(`docs/topics/monitoring/beszel.md`, `docs/topics/monitoring/uptime-kuma.md` (removed; replaced by: `docs/topics/monitoring/gatus.md`)), deployed on-prem on
+The idea: Beszel Hub and Gatus both already exist
+(`docs/topics/monitoring/beszel.md`, `docs/topics/monitoring/gatus.md`), deployed on-prem on
 `security`, with a connection model that already solves "no inbound
 port needed" for the agent/push fleet. The real gap: both live
 entirely on `security` — if `security`, or the whole homelab's
@@ -44,15 +44,8 @@ Two stages, in this order:
    are to it. Currently a blind spot; closing it is valuable
    independent of anything else here.
 2. **New Proxmox VM for monitoring**, still on-prem — isolates
-   Beszel/Kuma from `security` as a host/process, so an app crash or a
+   Beszel/Gatus from `security` as a host/process, so an app crash or a
    `security`-specific problem doesn't take monitoring down with it.
    Honest limitation, stated plainly: this is still the same site,
    same power, same internet connection as everything else — it does
    **not** solve the "whole homelab goes dark" case. Partial win only.
-
-## Not yet done
-
-- VM 202's current configuration is now read and recorded in
-  [`network-infra.md`](../../topics/infra/network-infra.md) (Stage 1, done) — the
-  tailnet-wide ACL policy itself is the one piece of that still
-  unreviewed.

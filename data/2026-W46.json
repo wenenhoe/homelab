@@ -83,6 +83,244 @@
    "bot": false,
    "group": "tools/",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e7e809b0318d1add0eac125d57fbf12e50836a65",
+   "date": "2026-11-09T16:18:29+08:00",
+   "kind": "pr",
+   "pr": 715,
+   "title": "Track additional credential expiry checks",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2c1fc6a6eb21a2a19fa042d5e1c848f4d55edcf3",
+   "date": "2026-11-09T17:11:07+08:00",
+   "kind": "pr",
+   "pr": 716,
+   "title": "Rename credential expiry processes",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: credential-expiry-rename",
+   "events": [
+    [
+     "project",
+     "credential-expiry-rename",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "9b58c73b94c23986204b8b709b9f6993fd74ec23",
+   "date": "2026-11-09T17:18:48+08:00",
+   "kind": "pr",
+   "pr": 717,
+   "title": "say what a hand rotation of the leaf keys needs deployed",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "4f4b8269552128f1249e55339dec8af2473b8a0c",
+   "date": "2026-11-09T17:32:32+08:00",
+   "kind": "pr",
+   "pr": 718,
+   "title": "add a production stage to the container hardening project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: molecule-container-hardening",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "b15c804b97c2f8caf75b42d70ae06a918dd55828",
+   "date": "2026-11-09T17:36:06+08:00",
+   "kind": "pr",
+   "pr": 719,
+   "title": "Add explorations and ideas to repo",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: backup-archive-retention-lock",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "255824a22b6081777aaad011cfe10fe5f08284ae",
+   "date": "2026-11-09T18:33:28+08:00",
+   "kind": "pr",
+   "pr": 720,
+   "title": "Maintenance",
+   "type": "other",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a8d3514f23c7f8f5516a47228614332559ff3472",
+   "date": "2026-11-09T20:49:59+08:00",
+   "kind": "pr",
+   "pr": 721,
+   "title": "run the PR checks on pull requests opened against stack branches",
+   "type": "ci",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "ee9e288dfa9729b7e8fcaf6e9a64cc3abc1c3920",
+   "date": "2026-11-09T21:01:40+08:00",
+   "kind": "pr",
+   "pr": 722,
+   "title": "open an exploration on a refactoring review lens",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "2e53c3baefa07192f8ebdd49df6e49d506f6ae4b",
+   "date": "2026-11-09T21:07:49+08:00",
+   "kind": "pr",
+   "pr": 723,
+   "title": "add a topic on running the checks without Docker or registries",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f3835d992c025eb6b805bb8d6248bed84dbf0f2f",
+   "date": "2026-11-09T21:10:07+08:00",
+   "kind": "pr",
+   "pr": 724,
+   "title": "tighten AGENTS.md and point it at the no-Docker checks topic",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3344626a907be673a40bd72204747f174c8a29c3",
+   "date": "2026-11-09T22:56:17+08:00",
+   "kind": "pr",
+   "pr": 726,
+   "title": "Add exploration on landing patches as pr seq",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "9fe1b04ec32484e84a6df0721b3c1e2578f078f1",
+   "date": "2026-11-09T23:52:24+08:00",
+   "kind": "pr",
+   "pr": 727,
+   "title": "Document and convert patches pr exploration to project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: landing-a-patch-series",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r000 \u00b7 landing a series of dependent changes on main",
+     "added (working)"
+    ],
+    [
+     "project",
+     "landing-a-patch-series",
+     "opened (de-risking)"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "e0be3cb5c955c6ac2786c0bdc55e03eadf14bc39",
+   "date": "2026-11-10T02:54:40+08:00",
+   "kind": "pr",
+   "pr": 729,
+   "title": "let the series tool project change the CI trigger filter",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: landing-a-patch-series",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5e0b3bc3a116dcfcb2c0182b706c73a7cd56c651",
+   "date": "2026-11-10T02:59:09+08:00",
+   "kind": "pr",
+   "pr": 728,
+   "title": "Implement land series tool",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: landing-a-patch-series",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r000 \u00b7 landing a series of dependent changes on main",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "landing-a-patch-series",
+     "de-risking \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "3bc0e0ea7baefcf8ff106193d8f331c9d239c088",
+   "date": "2026-11-10T03:14:36+08:00",
+   "kind": "pr",
+   "pr": 730,
+   "title": "let a decision revision declare the lineage it relies on",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: reliance-declaration",
+   "events": [
+    [
+     "project",
+     "reliance-declaration",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6714bc7aae3f4c02d769db9e01cddb2ed599c37b",
+   "date": "2026-11-10T03:18:48+08:00",
+   "kind": "pr",
+   "pr": 731,
+   "title": "warn about a decision that relies on one not yet settled",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: reliance-declaration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "721f917cee88d148ec15922ad757a85e3b05dfe3",
+   "date": "2026-11-10T03:23:13+08:00",
+   "kind": "pr",
+   "pr": 732,
+   "title": "show a declared reliance in the decision and project views",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: reliance-declaration",
+   "events": []
   }
  ]
 }

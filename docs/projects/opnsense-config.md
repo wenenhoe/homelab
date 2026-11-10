@@ -76,7 +76,7 @@ Traffic between two hosts on the same VLAN is switched on the bridge and never r
 | :-: | :--- | :--- | :--- | :--- | :--- |
 | 1 | Every VLAN | The gateway's address on that VLAN | DNS 53 tcp and udp, NTP 123 udp, ICMP echo; DHCP where Kea serves the VLAN | The VLANs' one resolver and time source; Kea's own firewall rules cover DHCP | ADR 0040, ADR 0089 |
 | 2 | Operator host (VM 401 now, VM 302 later) | The gateway's address | 443 (API and GUI), 22 | The play, and the guard rule that comes first | ADR 0089 invariants |
-| 3 | CD agent (VM 303, `192.168.30.3`) | The gateway's address | 443 | CD workflows apply the gateway's play | Maintainer. Written but off (`opnsense_gateway_cd_agent_management` is false) until the CD agent runs and ADR 0089's conditions for admitting it are met; owner [`cd-agent.md`](cd-agent.md) |
+| 3 | CD agent (VM 303, `192.168.30.3`) | The gateway's address | 443 | CD workflows apply the gateway's play | Maintainer. Written but off (`opnsense_gateway_cd_agent_management` is false) until the CD agent runs and a revision of ADR 0089 admits it once its conditions are met; owner [`cd-agent.md`](cd-agent.md) |
 | 4 | Operator host | VLAN 20 hosts | 22 | Ansible plays | `inventory.yaml` |
 | 5 | Operator host | `security` | 8200 | AppRole login and secret fetch | `secrets` role, `secrets-and-credentials-flow.md` |
 | 6 | Operator host | `storage` | 443 | Restore discovery | ADR 0058, `backup-and-restore-data-flow.md`. Tofu's state is held on R2, not `storage` ([ADR 0103](../decisions/0103-where-tofus-state-is-held/revision-000.md)), so only restore discovery needs it. Written but off (`enabled: false`) until the controller moves; owner [`operator-host-takeover.md`](operator-host-takeover.md), which enables it in that change |

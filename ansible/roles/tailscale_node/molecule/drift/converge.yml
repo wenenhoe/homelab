@@ -1,8 +1,10 @@
 ---
-# A logged-in node needs no key and no tag. The scenario repairs the node,
-# changes a preference by hand, shows that a check run reports the difference
-# and applies nothing, and repairs it again. It has no idempotence step: the
-# check run reports the difference every time it runs.
+# A logged-in node needs no key and no tag, and the first run starts with its
+# daemon down: the status read fails, the stored login says it was joined, and
+# the role reads the login again once the service is up. The scenario repairs
+# the node, changes a preference by hand, shows that a check run reports the
+# difference and applies nothing, and repairs it again. It has no idempotence
+# step: the check run reports the difference every time it runs.
 - name: Converge
   hosts: all
   become: true

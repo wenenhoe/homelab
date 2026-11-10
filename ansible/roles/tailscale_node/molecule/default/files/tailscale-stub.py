@@ -4,8 +4,10 @@
 Answers the four calls the role makes (`status --json`, `debug prefs`, `up`,
 `set`) from a state file, so the join and the preference comparison run
 without a control plane. `debug prefs` prints the keys a real node reports,
-with the values recorded from real nodes. Every call is appended to a log
-that holds the subcommand and the names of the flags, never their values.
+with the values recorded from real nodes. A state with `unreachable_reads`
+fails that many status reads first, as a client does while its daemon is down.
+Every call is appended to a log that holds the subcommand and the names of the
+flags, never their values.
 """
 
 import json
@@ -52,6 +54,10 @@ def main(argv):
     parsed = flags([a for a in argv[1:] if a.startswith("--")])
     log(" ".join([command, *sorted(parsed)]))
 
+    if argv[:2] == ["status", "--json"] and state.get("unreachable_reads", 0) > 0:
+        state["unreachable_reads"] -= 1
+        save(state)
+        sys.exit("failed to connect to local tailscaled; it doesn't appear to be running")
     if argv[:2] == ["status", "--json"]:
         backend = "Running" if state["logged_in"] else "NeedsLogin"
         print(json.dumps({"BackendState": backend}))

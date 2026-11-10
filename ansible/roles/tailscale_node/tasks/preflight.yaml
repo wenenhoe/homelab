@@ -1,7 +1,6 @@
 ---
 # Read-only commands run in a check run too, so --check sees the node's real
-# state. A missing client or a stopped tailscaled leaves stdout empty, which
-# counts as logged out.
+# state. A missing client leaves stdout empty, which counts as logged out.
 - name: Read the node's status
   ansible.builtin.command:
     argv: ["{{ tailscale_node_cli }}", status, --json]
@@ -10,14 +9,31 @@
   failed_when: false
   check_mode: false
 
+# A client that cannot reach its daemon fails the same way whether the node is
+# new or joined with tailscaled stopped (a crash, a failed upgrade). The daemon's
+# state file tells them apart: a node that ever logged in has one.
+- name: Look for the login the daemon stored
+  ansible.builtin.stat:
+    path: "{{ tailscale_node_state_file }}"
+  register: tailscale_node_state
+  when: tailscale_node_status.rc != 0
+  check_mode: false
+
+- name: Note a login that could only be read from the state file
+  ansible.builtin.set_fact:
+    tailscale_node_login_from_state_file: "{{ tailscale_node_status.rc != 0 and tailscale_node_state.stat.exists and tailscale_node_state.stat.size > 0 }}"
+
 # Stopped is a node that ran `tailscale down`: it keeps its login.
 - name: Work out whether the node is logged in
   ansible.builtin.set_fact:
     tailscale_node_logged_in: >-
       {{
-        tailscale_node_status.rc == 0
-        and (tailscale_node_status.stdout | from_json).BackendState | default('')
-          in ['Running', 'Starting', 'Stopped', 'NeedsMachineAuth']
+        tailscale_node_login_from_state_file
+        or (
+          tailscale_node_status.rc == 0
+          and (tailscale_node_status.stdout | from_json).BackendState | default('')
+            in ['Running', 'Starting', 'Stopped', 'NeedsMachineAuth']
+        )
       }}
 
 - name: Require a join key for a logged-out node

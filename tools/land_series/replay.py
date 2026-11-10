@@ -8,11 +8,10 @@ code the replay itself runs stops the replay until the maintainer confirms it.
 from __future__ import annotations
 
 import os
-import re
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,11 +19,11 @@ from pathlib import Path
 from land_series.manifest import Layer, group_pulls
 
 # A layer touching one of these changes code or configuration that `git am`'s hooks or the checks run on this machine
-# before CI sees it; `pyproject.toml` and `uv.lock` decide which packages `uv run` installs and runs. Prefixes, so a path
-# with a space in it, which a diff header cannot split reliably, still matches.
-STOP_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".github/workflows/", ".github/actions/", "tools/", "pyproject.toml", "uv.lock")
+# before CI sees it; `pyproject.toml` and `uv.lock` decide which packages `uv run` installs and runs. `.config/` holds the real
+# pre-commit configuration that `.pre-commit-config.yaml` links to, and the settings of the hooks it runs.
+STOP_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".config/", ".github/workflows/", ".github/actions/", "tools/", "pyproject.toml", "uv.lock")
 OUTPUT_TAIL_LINES = 40
-_PATH_START = re.compile(r'(?:^|(?<=[ "]))[ab]/')
+NO_HOOKS = ("-c", "core.hooksPath=/dev/null")
 
 Confirm = Callable[[Layer, Sequence[str]], bool]
 
@@ -49,15 +48,9 @@ class LayerResult:
     commit: str | None = None
 
 
-def stopped_by(layer: Layer) -> list[str]:
-    """What the layer touches that is on the stop list, as its diff headers name it."""
-    hits = set()
-    for header in layer.diff_headers:
-        for match in _PATH_START.finditer(header):
-            candidate = header[match.end() :]
-            if candidate.startswith(STOP_PREFIXES):
-                hits.add(candidate.split(" b/")[0].strip('"'))
-    return sorted(hits)
+def stopped_by(paths: Iterable[str]) -> list[str]:
+    """The paths that are on the stop list."""
+    return sorted({path for path in paths if path.startswith(STOP_PREFIXES)})
 
 
 def git_run(repo: Path, *args: str, stdin: bytes | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[bytes]:
@@ -103,12 +96,30 @@ def _reset(tree: Path) -> None:
     git_run(tree, "clean", "--force", "-d", "--quiet")
 
 
-def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
-    """`git am` the layer in `tree` (its apply hooks run), then drop what the hooks left unstaged."""
-    applied = git_run(tree, "am", "--quiet", stdin=layer.patch)
+def _am(tree: Path, layer: Layer, onto: str, *options: str) -> None:
+    applied = git_run(tree, *options, "am", "--quiet", stdin=layer.patch)
     if applied.returncode != 0:
         git_run(tree, "am", "--abort")
         raise ReplayError(f"commit {layer.id} does not apply on {onto}:\n{git_text(applied)}")
+
+
+def changed_paths(tree: Path, layer: Layer, onto: str) -> list[str]:
+    """Every path `git am` changes for the layer, read from the commits it makes, so no encoding of the patch hides one.
+
+    The layer is applied with every hook switched off, so nothing it adds runs, and then taken back out.
+    """
+    before = git_text(git_run(tree, "rev-parse", "HEAD"))
+    _am(tree, layer, onto, *NO_HOOKS)
+    changed = git_run(tree, "diff", "--no-renames", "--name-only", "-z", before, "HEAD")
+    git_run(tree, "reset", "--hard", "--quiet", before)
+    if changed.returncode != 0:
+        raise ReplayError(f"cannot read what commit {layer.id} changes: {git_text(changed)}")
+    return [path.decode("utf-8", errors="replace") for path in changed.stdout.split(b"\0") if path]
+
+
+def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
+    """`git am` the layer in `tree` (its apply hooks run), then drop what the hooks left unstaged."""
+    _am(tree, layer, onto)
     _reset(tree)
 
 
@@ -174,11 +185,12 @@ def replay(
             if (layer.authored, layer.subject) in landed:
                 results.append(LayerResult(layer, applied=False))
                 continue
-            stops = stopped_by(layer)
+            onto = f"{base}{' plus the layers before it' if results else ''}"
+            stops = stopped_by(changed_paths(tree, layer, onto))
             if stops and not confirm(layer, stops):
                 raise ReplayError(f"commit {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
-            progress(f"commit {layer.id}: applying the patch on {base}{' plus the layers before it' if results else ''}")
-            apply_layer(tree, layer, f"{base}{' plus the layers before it' if results else ''}")
+            progress(f"commit {layer.id}: applying the patch on {onto}")
+            apply_layer(tree, layer, onto)
             for check in checks:
                 progress(f"commit {layer.id}: running `{check}`")
                 failure = _run_check(tree, check)

@@ -1,7 +1,8 @@
 """A stand-in `gh` for the land_series tests, put first on PATH as an executable named `gh`.
 
 It keeps its pull requests in the JSON file named by FAKE_GH_STATE and records every call there. `pr merge` really merges the
-branch into the bare repository named by FAKE_GH_REMOTE, as GitHub would. FAKE_GH_CHECKS sets what `pr checks` reports:
+branch into the bare repository named by FAKE_GH_REMOTE, as GitHub would, and refuses when `--match-head-commit` is not the branch's tip.
+A pull request whose state has `fork` set is listed as one from another repository. FAKE_GH_CHECKS sets what `pr checks` reports:
 `pass`, `fail`, `late` (nothing reported on the first call, then pass) or `fail-second` (fail once a second pull request exists).
 """
 
@@ -47,7 +48,10 @@ def main(args: list[str]) -> int:
     verb = args[:2]
     if verb == ["pr", "list"]:
         head = option(args, "--head")
-        found = [{"number": pr["number"], "url": pr["url"]} for pr in state["prs"] if pr["head"] == head and pr["open"]]
+        found = [
+            {"number": pr["number"], "url": pr["url"], "isCrossRepository": pr.get("fork", False)} for pr in state["prs"] if pr["head"] == head and pr["open"]
+        ]
+        assert "isCrossRepository" in option(args, "--json"), args
         print(json.dumps(found))
     elif verb == ["pr", "create"]:
         number = len(state["prs"]) + 1
@@ -70,6 +74,11 @@ def main(args: list[str]) -> int:
         pr = state["prs"][number_of(args[2]) - 1]
         assert {"--admin", "--merge", "--delete-branch"} <= set(args), args
         base = pr["base"]
+        head_commit = subprocess.run(["git", "-C", REMOTE, "rev-parse", f"refs/heads/{pr['head']}"], capture_output=True, text=True, check=True).stdout.strip()
+        if option(args, "--match-head-commit") != head_commit:
+            print("Pull request head commit does not match the expected commit", file=sys.stderr)
+            save(state)
+            return 1
         with tempfile.TemporaryDirectory() as scratch:
             git("clone", "-q", REMOTE, scratch)
             git("checkout", "-q", "-B", base, f"origin/{base}", cwd=scratch)

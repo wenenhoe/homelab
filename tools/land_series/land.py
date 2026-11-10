@@ -100,8 +100,13 @@ def _push(repo: Path, pull: Pull, tip: str, base: str) -> tuple[str, bool]:
 
 
 def _pull_request(repo: Path, pull: Pull, branch: str, body: str, changed: bool) -> str:
-    """The address of the open pull request into `branch`: created, or updated when its commits changed."""
-    listed = json.loads(_gh_ok(repo, "pr", "list", "--head", pull.slug, "--base", branch, "--state", "open", "--json", "number,url") or "[]")
+    """The address of the open pull request into `branch`: created, or updated when its commits changed.
+
+    `gh pr list --head` takes a bare branch name, so a pull request from a fork's branch of the same name is listed too; only one
+    whose head branch is in this repository can be the one the tool opened.
+    """
+    found = json.loads(_gh_ok(repo, "pr", "list", "--head", pull.slug, "--base", branch, "--state", "open", "--json", "number,url,isCrossRepository") or "[]")
+    listed = [candidate for candidate in found if not candidate["isCrossRepository"]]
     if listed:
         if changed:
             _gh_ok(repo, "pr", "edit", str(listed[0]["number"]), "--title", pull.title, "--body", body)
@@ -179,7 +184,7 @@ def _land_each(
             results.append(Landed(pull, url, merged=False))
             break
         progress(f"{label}: merging")
-        _gh_ok(repo, "pr", "merge", url, "--admin", "--merge", "--delete-branch")
+        _gh_ok(repo, "pr", "merge", url, "--admin", "--merge", "--delete-branch", "--match-head-commit", tip)
         deleted = forget(repo, pull)
         results.append(Landed(pull, url, merged=True, kept_branch=None if deleted else branch_of(pull)))
         fetch(repo, base, sleep)

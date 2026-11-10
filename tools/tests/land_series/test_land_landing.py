@@ -580,3 +580,49 @@ def test_a_series_lands_on_develop_when_that_is_the_base(github: FakeGitHub, rep
     assert github.merges_on("develop") == ["Merge pull request #1"]
     assert github.merges_on_main() == []
     assert git(github.remote, "show", "develop:a.txt") == "one"
+
+
+def test_a_pull_request_from_a_fork_with_the_same_branch_name_is_never_the_one_landed(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    foreign = {"number": 1, "url": "https://example.test/pull/1", "head": "write-one", "base": "main", "open": True, "fork": True, "title": "t", "body": "b"}
+    github.state_file.write_text(json.dumps({"prs": [foreign], "calls": [], "merges": [], "checks_calls": 0}))
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    reviews = Reviews(True)
+
+    landed = land(repo.path, layers, reviews, sleep=lambda _: None)
+
+    assert [item.url for item in landed] == ["https://example.test/pull/2"]
+    assert reviews.asked == [("0001", "https://example.test/pull/2")]
+    assert github.state()["prs"][0]["open"] is True
+    assert [merge["number"] for merge in github.state()["merges"]] == [2]
+
+
+def test_the_merge_names_the_commit_that_was_pushed(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    pushed = git(repo.path, "rev-parse", "series/write-one")
+
+    land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    merge = github.calls("pr", "merge")[0]
+    assert merge[merge.index("--match-head-commit") + 1] == pushed
+
+
+def test_a_branch_that_moved_after_its_checks_is_not_merged(github: FakeGitHub, repo: Repo, author: Author, tmp_path) -> None:
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+
+    def push_another_commit(pull: Pull, url: str) -> bool:
+        clone = tmp_path / "pusher"
+        git(tmp_path, "clone", "-q", str(github.remote), "pusher")
+        git(clone, "checkout", "-q", "write-one")
+        (clone / "late.txt").write_text("late\n")
+        git(clone, "add", "-A")
+        git(clone, "commit", "-q", "-m", "chore: late")
+        git(clone, "push", "-q", "origin", "write-one")
+        return True
+
+    with pytest.raises(LandError, match="head commit does not match"):
+        land(repo.path, layers, push_another_commit, sleep=lambda _: None)
+
+    assert github.merges_on_main() == []

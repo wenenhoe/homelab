@@ -26,7 +26,7 @@ A fix to a layer that has landed is a new commit with the next letter, or a new 
 The replay applies the series on a scratch worktree of `origin/main` (fetched first; `--no-fetch` skips it), one `git am` per patch with the generated views reset between, and runs the checks that need no Docker after each commit ([`checks-without-docker.md`](checks-without-docker.md)). The project scope check runs with its base set to `origin/main`, so a layer that needs a widened `allowed_paths` fails here, before a pull request exists. `--check COMMAND` adds a check. Before it applies anything the replay checks that the apply hooks are linked ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)), that `pre-commit` is on `PATH` and that git has a committer identity, and stops naming what is missing.
 
 - A commit already in the base, matched by author time and subject, is skipped. A pull request with only some of its commits in the base is refused.
-- A layer that changes `.githooks/`, `.pre-commit-config.yaml`, a workflow, an action, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) stops for confirmation, since the replay and the checks run that code on this machine. With no terminal it stops and says why.
+- A layer that changes `.githooks/`, `.pre-commit-config.yaml`, `.config/`, a workflow, an action, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) stops for confirmation, since the replay and the checks run that code on this machine. The paths come from the commits `git am` makes with every hook off, which are then taken back out, not from the patch text, so no way of writing a patch hides one. With no terminal it stops and says why.
 - `--dry-run` stops there and leaves nothing behind.
 
 Otherwise the replay keeps each pull request as the local branch `series/<slug>`, the first on the base and each next on the last commit of the one before. Next to the git directory, in `land-series/<slug>.json`, it records the first and last commit and a hash of the patches the branch was built from. Review the branches as any other.
@@ -38,10 +38,10 @@ A branch kept by an earlier run is replaced when its record still matches; one t
 `--land` replays nothing. For each pull request in turn it:
 
 1. Refuses a branch whose tip is not the recorded commit, one built from other patches than the file's, or one built on a tree other than the base's now. If the base moved only because the pull request before it just merged, the commits are moved onto its tip with the same trees, authors, dates and messages. Otherwise the message says whether the change still applies; run the replay again.
-2. Pushes the branch (the branch name is the slug) and opens the pull request, or reuses one already at the same commit. The title is the first commit's subject; the body is the commit's body, or a list of the subjects for several.
+2. Pushes the branch (the branch name is the slug) and opens the pull request, or reuses one from that branch of this repository that is already at the same commit; a pull request from a fork's branch of the same name is ignored. The title is the first commit's subject; the body is the commit's body, or a list of the subjects for several.
 3. Waits for the required checks. This is CI and can take several minutes.
 4. Prints the pull request's address and asks for confirmation. `--yes` confirms every merge in the run; with no terminal and no `--yes` it stops and leaves the pull request open, and running `--land` again picks up from it.
-5. Merges it with `gh pr merge --admin --merge`, deletes the remote branch and the kept one, and fetches. A fetch that loses a race with another is retried; the merge is already recorded.
+5. Merges it with `gh pr merge --admin --merge`, naming the pushed commit so a branch that moved after the checks is not merged, deletes the remote branch and the kept one, and fetches. A fetch that loses a race with another is retried; the merge is already recorded.
 
 Each pull request becomes a merge commit, so one reverts alone. A merge to `main` is a deploy ([`branching.md`](branching.md)).
 

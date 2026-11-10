@@ -27,7 +27,6 @@ LAYER_ID = re.compile(r"\d{4}[a-z]")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ENVELOPE = re.compile(rb"^From [0-9a-f]{40,64} ", re.MULTILINE)
 _SUBJECT_TAG = re.compile(r"^\[[^\]]*\]\s*")
-_DIFF_HEADER = re.compile(r"^diff --git (.*)$", re.MULTILINE)
 # Branches the rulesets protect; a pull request's branch is pushed, force-pushed and deleted, so it is never one of these.
 RESERVED_SLUGS = ("main", "maintenance", "develop")
 
@@ -45,7 +44,6 @@ class Layer:
     patch: bytes
     subject: str
     authored: int
-    diff_headers: tuple[str, ...]
     source: str
 
     @property
@@ -110,14 +108,12 @@ def _layer(entry: tuple[str, str], chunk: bytes, source: str) -> Layer:
         authored = int(email.utils.parsedate_to_datetime(str(date)).timestamp())
     except (TypeError, ValueError) as error:
         raise SeriesError(f"{source}: the patch for layer {layer_id} has an unreadable Date: {date}") from error
-    headers = tuple(_DIFF_HEADER.findall(chunk.decode("utf-8", errors="replace")))
     return Layer(
         id=layer_id,
         slug=slug,
         patch=chunk,
         subject=" ".join(_SUBJECT_TAG.sub("", str(subject)).split()),
         authored=authored,
-        diff_headers=headers,
         source=source,
     )
 

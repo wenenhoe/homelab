@@ -9,6 +9,9 @@ summary: "How this repo gets automated code review without any of it becoming vi
 topic: security-hardening
 status: accepted
 related: [ADR-0020, ADR-0044, ADR-0050, ADR-0051, ADR-0060]
+relies_on:
+  - adr: ADR-0051
+    reason: "It sets the review agent apart from the coding-agent host, which it presupposes holds no standing credential."
 ---
 
 # 0061. Where automated code review runs, and what it may write

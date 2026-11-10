@@ -10,6 +10,11 @@ summary: How deploys and rotations that touch prod are triggered and run, withou
 topic: deployment-platform
 status: approved
 related: [ADR-0020, ADR-0023, ADR-0043, ADR-0047, ADR-0050, ADR-0054, ADR-0058, ADR-0072]
+relies_on:
+  - adr: ADR-0058
+    reason: "It sets the CD agent apart from the operator host, so it presupposes which machine the operator host is and what it does."
+  - adr: ADR-0053
+    reason: "It states that the coding-agent host has no network path to the CD agent, which is the reach boundary ADR 0053 draws."
 ---
 
 # 0044. Trigger and execution of prod-touching automation

@@ -9,6 +9,9 @@ summary: How a host's Tailscale client is installed, joined to the tailnet and k
 topic: deployment-platform
 status: accepted
 related: [ADR-0109, ADR-0040, ADR-0043, ADR-0049, ADR-0053, ADR-0058, ADR-0059, ADR-0089]
+relies_on:
+  - adr: ADR-0058
+    reason: "It sizes the subnet router as always on because the operator host is reached only through a Tailscale route to VLAN 30, which ADR 0058 makes so."
 ---
 
 # 0097. How a Tailscale node is configured

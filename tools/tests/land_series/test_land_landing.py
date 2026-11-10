@@ -59,6 +59,37 @@ def test_each_kept_layer_becomes_a_pull_request_merged_in_order_showing_only_its
     assert reviews.asked == [("0001a", "https://example.test/pull/1"), ("0001b", "https://example.test/pull/2")]
 
 
+def test_the_steps_are_reported_as_they_happen(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    said: list[str] = []
+
+    land(repo.path, layers, Reviews(True, True), sleep=lambda _: None, progress=said.append)
+
+    assert [line for line in said if line.startswith("layer 0001a")] == [
+        "layer 0001a: pushing write-one",
+        "layer 0001a: opening or updating its pull request into main",
+        "layer 0001a: waiting for the required checks on https://example.test/pull/1 (this is CI, it can take several minutes)",
+        "layer 0001a: merging",
+    ]
+    assert len(said) == 8
+
+
+def test_a_merged_layers_branch_that_is_checked_out_is_kept_and_reported(
+    github: FakeGitHub, repo: Repo, author: Author, capsys: pytest.CaptureFixture[str]
+) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    git(repo.path, "checkout", "series/write-two")
+
+    landed = land(repo.path, layers, Reviews(True, True), sleep=lambda _: None)
+
+    assert [item.kept_branch for item in landed] == [None, "series/write-two"]
+    assert git(repo.path, "branch", "--list", "series/*").strip().lstrip("*").strip() == "series/write-two"
+    assert cli.report(landed) == 0
+    assert "series/write-two is checked out here, so it was kept" in capsys.readouterr().out
+
+
 def test_the_pushed_commit_is_the_kept_one_with_what_the_apply_hooks_folded_into_it(github: FakeGitHub, repo: Repo, author: Author) -> None:
     repo.install_hook("post-applypatch", "echo regenerated >> base.txt\ngit add base.txt\ngit commit --amend --no-edit --quiet --no-verify\n")
     layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
@@ -245,11 +276,46 @@ def test_a_moved_base_stops_the_landing_before_anything_is_pushed(github: FakeGi
     git(repo.path, "commit", "-q", "-m", "docs: elsewhere")
     git(repo.path, "push", "-q", "origin", "main")
 
-    with pytest.raises(LandError, match="origin/main has changed since layer 0001a was built; run without --land to rebuild"):
+    with pytest.raises(LandError, match="origin/main has changed since layer 0001a was built, and its change still applies, but no check has run"):
         land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
     assert github.branches() == ["main"]
     assert not github.state_file.exists()
+
+
+def test_a_moved_base_that_the_layer_conflicts_with_says_so(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    (repo.path / "a.txt").write_text("someone else's a\n")
+    git(repo.path, "add", "-A")
+    git(repo.path, "commit", "-q", "-m", "docs: elsewhere")
+    git(repo.path, "push", "-q", "origin", "main")
+
+    with pytest.raises(LandError, match="origin/main has changed since layer 0001a was built, and its change now conflicts with it"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert not github.state_file.exists()
+
+
+def test_each_layer_after_the_first_is_pushed_on_top_of_the_previous_merge(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    reviewed = git(repo.path, "rev-parse", "series/write-two")
+    reviewed_tree = git(repo.path, "rev-parse", "series/write-two^{tree}")
+    seen: list[tuple[str, str, str]] = []
+
+    def review(layer: Layer, url: str) -> bool:
+        seen.append((layer.id, git(github.remote, "rev-parse", f"{layer.slug}^"), git(github.remote, "rev-parse", "main")))
+        return True
+
+    land(repo.path, layers, review, sleep=lambda _: None)
+
+    assert seen[0][1] == seen[0][2]
+    first_merge = seen[1][2]
+    assert seen[1][1] == first_merge
+    assert git(repo.path, "rev-parse", "origin/main^2^{tree}") == reviewed_tree
+    assert git(repo.path, "log", "-1", "--format=%an|%s", "origin/main^2") == "Test Author|docs: write two"
+    assert reviewed not in git(repo.path, "rev-list", "origin/main")
 
 
 def test_a_protected_branch_cannot_be_a_layer_branch() -> None:

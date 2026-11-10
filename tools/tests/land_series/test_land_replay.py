@@ -185,7 +185,7 @@ def test_a_failing_replay_exits_one_and_says_which_layer(repo: Repo, author: Aut
     status = cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--check", f"{sys.executable} -c 'raise SystemExit(3)'"])
 
     assert status == 1
-    assert capsys.readouterr().err.startswith("land_series: layer 0001a fails")
+    assert "land_series: layer 0001a fails" in capsys.readouterr().err
 
 
 @pytest.mark.usefixtures("github")
@@ -228,3 +228,13 @@ def test_default_checks_are_the_scope_check_against_the_base_and_pre_commit() ->
     assert scope.argv[-2:] == ("--base", "origin/main")
     assert scope.cwd == "tools"
     assert hooks.argv == ("pre-commit", "run", "--all-files")
+
+
+def test_each_step_of_a_replay_is_reported(repo: Repo, author: Author) -> None:
+    layers = order_layers(parse_series(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))])))
+    said: list[str] = []
+
+    replay(repo.path, layers, [Check((sys.executable, "-c", "pass"))], lambda layer, paths: False, base="main", progress=said.append)
+
+    assert said[0].startswith("layer 0001a: applying the patch on main")
+    assert said[1].startswith("layer 0001a: running `")

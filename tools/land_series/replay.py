@@ -7,6 +7,7 @@ code the replay itself runs stops the replay until the maintainer confirms it.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -59,8 +60,8 @@ def stopped_by(layer: Layer) -> list[str]:
     return sorted(hits)
 
 
-def git_run(repo: Path, *args: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(["git", "-C", str(repo), *args], input=stdin, capture_output=True, check=False)
+def git_run(repo: Path, *args: str, stdin: bytes | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(["git", "-C", str(repo), *args], input=stdin, capture_output=True, check=False, env={**os.environ, **env} if env else None)
 
 
 def git_text(result: subprocess.CompletedProcess[bytes]) -> str:
@@ -122,7 +123,16 @@ def _run_check(tree: Path, check: Check) -> str | None:
     return "\n".join((result.stdout + result.stderr).strip().splitlines()[-OUTPUT_TAIL_LINES:])
 
 
-def replay(repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm: Confirm, base: str = "origin/main") -> list[LayerResult]:
+Progress = Callable[[str], None]
+
+
+def silent(message: str) -> None:
+    """The default progress report: none."""
+
+
+def replay(
+    repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm: Confirm, base: str = "origin/main", progress: Progress = silent
+) -> list[LayerResult]:
     """Apply each layer, in the order given, on a scratch worktree of `base`; run every check after each.
 
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
@@ -137,8 +147,10 @@ def replay(repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm
             stops = stopped_by(layer)
             if stops and not confirm(layer, stops):
                 raise ReplayError(f"layer {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
+            progress(f"layer {layer.id}: applying the patch on {base}{' plus the layers before it' if results else ''}")
             apply_layer(tree, layer, f"{base}{' plus the layers before it' if results else ''}")
             for check in checks:
+                progress(f"layer {layer.id}: running `{check}`")
                 failure = _run_check(tree, check)
                 _reset(tree)
                 if failure is not None:

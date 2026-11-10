@@ -96,10 +96,37 @@ def is_ready(repo: Path, tip: str, base: str) -> bool:
     return built_on.returncode == 0 and current.returncode == 0 and git_text(built_on) == git_text(current)
 
 
-def forget(repo: Path, layer: Layer) -> None:
-    """Delete a merged layer's branch and record; a branch that is checked out stays, and the record goes either way."""
-    git_run(repo, "branch", "--delete", "--force", branch_of(layer))
+def rebase(repo: Path, layer: Layer, tip: str, base: str) -> str:
+    """Move the kept commit onto `base`'s current commit, and return it; the commit itself when it is already there.
+
+    Only valid once `is_ready` holds: `base` has the tree the commit was built on, so the new commit has the very
+    tree that was reviewed and author, committer, dates and message carry over. Its parent is the commit the
+    previous layer's merge left on `base`, so the layers land on one line instead of a chain of side branches.
+    """
+    base_commit = git_text(git_run(repo, "rev-parse", f"{base}^{{commit}}"))
+    if git_text(git_run(repo, "rev-parse", f"{tip}^1")) == base_commit:
+        return tip
+    who = git_text(git_run(repo, "log", "-1", "--format=%an%n%ae%n%aI%n%cn%n%ce%n%cI", tip)).split("\n")
+    names = ("AUTHOR_NAME", "AUTHOR_EMAIL", "AUTHOR_DATE", "COMMITTER_NAME", "COMMITTER_EMAIL", "COMMITTER_DATE")
+    message = git_run(repo, "log", "-1", "--format=%B", tip).stdout
+    made = git_run(
+        repo, "commit-tree", f"{tip}^{{tree}}", "-p", base_commit, stdin=message, env={f"GIT_{name}": value for name, value in zip(names, who, strict=True)}
+    )
+    if made.returncode != 0:
+        raise KeptError(f"cannot move {branch_of(layer)} onto {base}: {git_text(made)}")
+    new = git_text(made)
+    moved = git_run(repo, "update-ref", f"refs/heads/{branch_of(layer)}", new, tip)
+    if moved.returncode != 0:
+        raise KeptError(f"cannot move {branch_of(layer)} onto {base}: {git_text(moved)}")
+    _record_path(repo, layer).write_text(json.dumps({"tip": new, "patch": _patch_hash(layer)}))
+    return new
+
+
+def forget(repo: Path, layer: Layer) -> bool:
+    """Delete a merged layer's branch and record. The record goes either way; a branch that is checked out stays, and False says so."""
+    deleted = git_run(repo, "branch", "--delete", "--force", branch_of(layer)).returncode == 0
     _record_path(repo, layer).unlink(missing_ok=True)
+    return deleted or _branch_tip(repo, branch_of(layer)) is None
 
 
 def leftovers(repo: Path, active: Sequence[Layer]) -> list[str]:

@@ -6,12 +6,14 @@ The reasoning and the alternatives considered are in [ADR 0006 (Offsite backup c
 
 ## Constraints
 
-- **Cloud credentials never touch an app host.** R2/B2/OCI write access exists only on `storage` (`cloud_sync`), so compromising `services`, `security`, or `play` yields no cloud credential.
+- **No app host's backup path holds a cloud credential.** R2/B2/OCI write access is used only on `storage` (`cloud_sync`), so compromising `services` or `play` yields no cloud credential. `security` is the exception: it runs the secrets store, OpenBao, which holds every cloud write credential and the three rotation credentials, so a compromised `security` is treated as exposing them (see [Accepted residual risk](#accepted-residual-risk)).
 - **Each app host's SeaweedFS identity is scoped to its own prefix only.** The identities are defined in `docker/seaweedfs/configs/s3-identity.json.j2` and listed under [Storage host](backup.md#storage-host).
 
-Compromising one app host therefore caps the damage at that host's own SeaweedFS archives.
+Compromising `services` or `play` therefore caps the damage at that host's own SeaweedFS archives.
 
 ## Accepted residual risk
+
+A compromised `security` host reaches the secrets store, and through it the cloud write credentials and the rotation credentials. The offsite copy of every host then rests on the provider-side lock alone, and for R2 the admin token can change the lock rules. Whether the secrets store should leave an app host is not decided.
 
 A compromised app host can still tamper with its own SeaweedFS archives: whatever produces a backup needs some write path to stage it, and that path is equally available to whatever is compromised on the host.
 

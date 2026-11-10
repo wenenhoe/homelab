@@ -165,7 +165,8 @@ def _escape_telegram_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def send_alert(telegram: dict[str, str], match: dict[str, Any]) -> None:
+def send_alert(telegram: dict[str, str], match: dict[str, Any]) -> bool:
+    """Send the alert; whether Telegram accepted it."""
     lines = [
         "<b>Rotation credential read</b>",
         "",
@@ -188,13 +189,15 @@ def send_alert(telegram: dict[str, str], match: dict[str, Any]) -> None:
         resp.raise_for_status()
     except requests.RequestException as exc:
         print(f"telegram: alert send failed: {exc}", file=sys.stderr)
+        return False
+    return True
 
 
 def _fetch_telegram_secrets(client: hvac.Client) -> dict[str, str] | None:
     tg_token = _read_vault_secret(client, "telegram-token")
     chat_id = _read_vault_secret(client, "telegram-chat-id")
     if not tg_token or not chat_id:
-        print("telegram-token/telegram-chat-id not cached - watcher will run but can't alert", file=sys.stderr)
+        print("telegram-token/telegram-chat-id not cached - the next watched read is reported and the watcher restarts", file=sys.stderr)
         return None
     return {
         "token": tg_token,
@@ -228,8 +231,12 @@ def watch(telegram: dict[str, str] | None, prior_state: dict[str, str] | None) -
             skip_request_id = None  # --since is inclusive; this is that boundary line, not a new read
             continue
         print(f"Rotation credential read: {match}", file=sys.stderr)
-        if telegram is not None:
-            send_alert(telegram, match)
+        if telegram is None or not send_alert(telegram, match):
+            # Not saved: the unit restarts the watcher, which resumes from the last saved read and so sends this one again.
+            print("rotation read not alerted - exiting so the restart sends it again", file=sys.stderr)
+            proc.terminate()
+            proc.wait()
+            return 1
         _save_state(STATE_PATH, match)
     return proc.wait()
 

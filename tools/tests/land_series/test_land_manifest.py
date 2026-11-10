@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 from _series_repo import Author, series_file
-from land_series.manifest import Layer, SeriesError, order_layers, parse_series
+from land_series.manifest import Layer, SeriesError, group_pulls, order_layers, parse_series
 from land_series.replay import stopped_by
 
 
 def layer(layer_id: str, slug: str | None = None, source: str = "series") -> Layer:
-    return Layer(id=layer_id, slug=slug or f"slug-{layer_id}", patch=b"", subject="s", authored=0, diff_headers=(), source=source)
+    return Layer(id=layer_id, slug=slug or f"slug-{layer_id[:4]}", patch=b"", subject="s", authored=0, diff_headers=(), source=source)
 
 
 def test_each_layer_carries_its_slug_subject_date_and_touched_files(author: Author) -> None:
@@ -47,8 +47,8 @@ def test_comments_and_blank_lines_in_the_manifest_are_skipped(author: Author) ->
         pytest.param("0001A one\n", "not a layer id", id="uppercase letter"),
         pytest.param("S0001a one\n", "not a layer id", id="security series id"),
         pytest.param("0001a Bad_Slug\n", "not a branch slug", id="slug with capitals"),
-        pytest.param("0001a\n", "an id and a branch slug", id="no slug"),
-        pytest.param("0001a one two\n", "an id and a branch slug", id="a third word"),
+        pytest.param("0001a\n", "a patch id and a branch slug", id="no slug"),
+        pytest.param("0001a one two\n", "a patch id and a branch slug", id="a third word"),
     ],
 )
 def test_a_malformed_manifest_names_the_problem(author: Author, manifest: str, message: str) -> None:
@@ -63,6 +63,16 @@ def test_a_file_with_no_patches_is_refused() -> None:
         parse_series(b"0001a one\n")
 
 
+def test_commits_with_one_number_make_one_pull_request_in_letter_order() -> None:
+    pulls = group_pulls(order_layers([layer("0002a"), layer("0001b"), layer("0001a"), layer("0001c")]))
+
+    assert [(pull.number, pull.slug, [item.id for item in pull.layers]) for pull in pulls] == [
+        ("0001", "slug-0001", ["0001a", "0001b", "0001c"]),
+        ("0002", "slug-0002", ["0002a"]),
+    ]
+    assert pulls[0].title == "s"
+
+
 def test_layers_from_several_files_land_in_id_order() -> None:
     ordered = order_layers([layer("0002a"), layer("0001b"), layer("0001a")])
 
@@ -72,8 +82,9 @@ def test_layers_from_several_files_land_in_id_order() -> None:
 @pytest.mark.parametrize(
     ("layers", "message"),
     [
-        pytest.param([layer("0001a"), layer("0001a", slug="other", source="b")], "layer 0001a is listed twice", id="duplicate id"),
-        pytest.param([layer("0001a", slug="same"), layer("0002a", slug="same")], "share the branch slug", id="duplicate slug"),
+        pytest.param([layer("0001a"), layer("0001a", source="b")], "0001a is listed twice", id="duplicate id"),
+        pytest.param([layer("0001a", slug="same"), layer("0002a", slug="same")], "'same' is used by 0001 and 0002", id="one slug on two numbers"),
+        pytest.param([layer("0001a"), layer("0001b", slug="other")], "0001 has the branch slugs 'slug-0001' and 'other'", id="two slugs on one number"),
     ],
 )
 def test_layers_that_cannot_be_ordered_are_refused(layers: list[Layer], message: str) -> None:

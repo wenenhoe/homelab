@@ -46,7 +46,7 @@ def recording_check(*files: str, script: str = RECORD) -> Check:
 
 
 def layers_of(*patches: tuple[str, bytes]) -> list[Layer]:
-    return order_layers(parse_series(series_file([(f"{layer_id} slug-{layer_id}", patch) for layer_id, patch in patches])))
+    return order_layers(parse_series(series_file([(f"{layer_id} slug-{layer_id[:4]}", patch) for layer_id, patch in patches])))
 
 
 def test_each_layer_is_checked_on_the_tree_the_layers_before_it_made(repo: Repo, author: Author, log: Path) -> None:
@@ -84,16 +84,16 @@ def test_a_layer_already_in_the_base_is_skipped_and_the_ones_after_it_replay(rep
     second = author.patch("docs: write two", {"a.txt": "two\n"})
     git(repo.path, "am", "--quiet", stdin=first)
 
-    results = replay(repo.path, layers_of(("0001a", first), ("0001b", second)), [recording_check("a.txt")], Confirmations(False), base="main")
+    results = replay(repo.path, layers_of(("0001a", first), ("0002a", second)), [recording_check("a.txt")], Confirmations(False), base="main")
 
-    assert [(result.layer.id, result.applied) for result in results] == [("0001a", False), ("0001b", True)]
+    assert [(result.layer.id, result.applied) for result in results] == [("0001a", False), ("0002a", True)]
     assert log.read_text().splitlines() == ["two"]
 
 
 def test_a_failing_check_stops_the_replay_and_quotes_its_output(repo: Repo, author: Author, log: Path) -> None:
     layers = layers_of(("0001a", author.patch("docs: one", {"a.txt": "one\n"})), ("0001b", author.patch("docs: two", {"a.txt": "two\n"})))
 
-    with pytest.raises(ReplayError, match=r"(?s)layer 0001a fails `.*`:\nlint says no"):
+    with pytest.raises(ReplayError, match=r"(?s)commit 0001a fails `.*`:\nlint says no"):
         replay(repo.path, layers, [recording_check("a.txt", script=FAIL)], Confirmations(False), base="main")
 
     assert log.read_text().splitlines() == ["one"]
@@ -104,7 +104,7 @@ def test_a_layer_that_does_not_apply_is_named_and_leaves_no_worktree(repo: Repo,
     author.patch("docs: write one", {"a.txt": "one\n"})
     second = author.patch("docs: write two", {"a.txt": "two\n"})
 
-    with pytest.raises(ReplayError, match="layer 0001b does not apply on main"):
+    with pytest.raises(ReplayError, match="commit 0001b does not apply on main"):
         replay(repo.path, layers_of(("0001b", second)), [recording_check("a.txt")], Confirmations(False), base="main")
 
     assert not log.exists()
@@ -118,7 +118,7 @@ def test_a_layer_on_the_stop_list_is_not_applied_unless_confirmed(repo: Repo, au
     )
     refusal = Confirmations(False)
 
-    with pytest.raises(ReplayError, match=r"layer 0001b changes code the replay runs \(tools/run.py\) and was not confirmed"):
+    with pytest.raises(ReplayError, match=r"commit 0001b changes code the replay runs \(tools/run.py\) and was not confirmed"):
         replay(repo.path, layers, [recording_check("a.txt")], refusal, base="main")
 
     assert refusal.asked == [("0001b", ["tools/run.py"])]
@@ -185,7 +185,7 @@ def test_a_failing_replay_exits_one_and_says_which_layer(repo: Repo, author: Aut
     status = cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--check", f"{sys.executable} -c 'raise SystemExit(3)'"])
 
     assert status == 1
-    assert "land_series: layer 0001a fails" in capsys.readouterr().err
+    assert "land_series: commit 0001a fails" in capsys.readouterr().err
 
 
 @pytest.mark.usefixtures("github")
@@ -236,5 +236,14 @@ def test_each_step_of_a_replay_is_reported(repo: Repo, author: Author) -> None:
 
     replay(repo.path, layers, [Check((sys.executable, "-c", "pass"))], lambda layer, paths: False, base="main", progress=said.append)
 
-    assert said[0].startswith("layer 0001a: applying the patch on main")
-    assert said[1].startswith("layer 0001a: running `")
+    assert said[0].startswith("commit 0001a: applying the patch on main")
+    assert said[1].startswith("commit 0001a: running `")
+
+
+def test_a_pull_request_with_some_of_its_commits_in_the_base_is_refused(repo: Repo, author: Author) -> None:
+    first = author.patch("docs: write one", {"a.txt": "one\n"})
+    second = author.patch("docs: write two", {"b.txt": "two\n"})
+    git(repo.path, "am", "--quiet", stdin=first)
+
+    with pytest.raises(ReplayError, match="pull request 0001 is partly in main"):
+        replay(repo.path, layers_of(("0001a", first), ("0001b", second)), [], Confirmations(False), base="main")

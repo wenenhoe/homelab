@@ -301,10 +301,13 @@ def rclone_lsjson(remote: str, bucket: str, prefix: str) -> list[dict] | None:
 
 
 def pick_latest(objects: list[dict], host: str, app: str, timezone: str) -> tuple[str, datetime] | None:
+    """The newest object named for the app. A key such as `<name>.gpg/part` is listed as a directory entry, which is skipped."""
     pattern = re.compile(r"^" + re.escape(f"{host}-{app}-") + _TIMESTAMP_RE + r"\.")
     zone = ZoneInfo(timezone)
     best: tuple[str, datetime] | None = None
     for obj in objects:
+        if obj.get("IsDir"):
+            continue
         name = obj.get("Name", "")
         match = pattern.match(name)
         if not match:

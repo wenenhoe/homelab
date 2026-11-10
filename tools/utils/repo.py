@@ -124,16 +124,34 @@ def security_ssh_target() -> tuple[str, str, str]:
     return ssh_target("security")
 
 
+KNOWN_HOSTS = Path("~/.ssh/known_hosts")
+
+
+class RememberFirstKey(paramiko.MissingHostKeyPolicy):
+    """Trust a host's key the first time and write it to a known_hosts file, as OpenSSH's `StrictHostKeyChecking=accept-new` does.
+
+    paramiko's own `AutoAddPolicy` saves only to a file passed to `load_host_keys`, so with the system keys alone it accepts an
+    unknown host on every run and remembers nothing. Once the line is written the next connection finds the key, and paramiko
+    raises `BadHostKeyException` when a known host presents another.
+    """
+
+    def __init__(self, known_hosts: Path) -> None:
+        self.known_hosts = known_hosts
+
+    def missing_host_key(self, client: paramiko.SSHClient, hostname: str, key: paramiko.PKey) -> None:
+        path = self.known_hosts.expanduser()
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        line = paramiko.hostkeys.HostKeyEntry([hostname], key).to_line()
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(line)
+        client.get_host_keys().add(hostname, key.get_name(), key)
+        print(f"ssh: {hostname} was not in {path}; remembering its {key.get_name()} key {key.fingerprint}", file=sys.stderr)
+
+
 def connect_ssh(user: str, host: str, key_path: str) -> paramiko.SSHClient:
     client = paramiko.SSHClient()
     client.load_system_host_keys()
-    # Trust-on-first-use, same as the previous StrictHostKeyChecking=
-    # accept-new: system known_hosts is checked first, and paramiko's
-    # transport still raises BadHostKeyException on a mismatch against
-    # an already-known host regardless of this policy - fail-closed on
-    # a changed key, not blanket trust. Confirmed live against a real
-    # host - see docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md.
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.set_missing_host_key_policy(RememberFirstKey(KNOWN_HOSTS))
     try:
         client.connect(host, username=user, key_filename=key_path, timeout=TIMEOUT_SECONDS)
     except BaseException:

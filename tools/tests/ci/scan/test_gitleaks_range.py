@@ -90,8 +90,17 @@ class TestBinary:
 
 
 class TestCommand:
-    def test_scans_the_commits_between_base_and_head_with_redaction(self):
-        assert gr.command(Path("/b/gitleaks"), "aaa", "bbb") == ["/b/gitleaks", "git", "--redact", "--verbose", "--no-banner", "--log-opts=aaa..bbb", "."]
+    def test_scans_the_commits_between_base_and_head_merges_included_with_redaction_and_no_inline_allowance(self):
+        assert gr.command(Path("/b/gitleaks"), "aaa", "bbb") == [
+            "/b/gitleaks",
+            "git",
+            "--redact",
+            "--verbose",
+            "--no-banner",
+            "--ignore-gitleaks-allow",
+            "--log-opts=-m aaa..bbb",
+            ".",
+        ]
 
 
 class TestMain:

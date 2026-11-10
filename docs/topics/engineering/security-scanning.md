@@ -37,7 +37,7 @@ commit time on a developer's machine and finds nothing under
 hooks. That job therefore skips the hook (`SKIP: gitleaks`) and runs
 [`ci.scan.gitleaks_range`](../../../tools/ci/scan/gitleaks_range.py) as its
 own step: the same gitleaks build the hook uses, over every commit from the
-PR's base to its head, with matches redacted in the log. It runs on the
+PR's base to its head, merge commits included, with matches redacted in the log and no inline allow comment honoured. It runs on the
 build pre-commit already compiled for the rev pinned in
 `.config/.pre-commit-config.yaml`, so a Renovate bump of that rev moves both,
 and the job checks out full history for it. The step fails the job, and

@@ -1,7 +1,7 @@
-"""Replay a series on a scratch worktree of the base branch, running the checks at every layer's state.
+"""Replay a series on a scratch worktree of the base branch, running the checks at every commit's state.
 
 Nothing is pushed or opened: the worktree is created from the base commit and removed afterwards, and the
-repository's own branches are not touched. A layer already in the base is skipped, and a layer that changes
+repository's own branches are not touched. A commit already in the base is skipped, and a commit that changes
 code the replay itself runs stops the replay until the maintainer confirms it.
 """
 
@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from land_series.manifest import Layer
+from land_series.manifest import Layer, group_pulls
 
 # A layer touching one of these changes code or configuration that `git am`'s hooks or the checks run on this machine
 # before CI sees it; `pyproject.toml` and `uv.lock` decide which packages `uv run` installs and runs. Prefixes, so a path
@@ -108,7 +108,7 @@ def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
     applied = git_run(tree, "am", "--quiet", stdin=layer.patch)
     if applied.returncode != 0:
         git_run(tree, "am", "--abort")
-        raise ReplayError(f"layer {layer.id} does not apply on {onto}:\n{git_text(applied)}")
+        raise ReplayError(f"commit {layer.id} does not apply on {onto}:\n{git_text(applied)}")
     _reset(tree)
 
 
@@ -138,6 +138,12 @@ def replay(
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
     """
     landed = landed_in(repo, base)
+    for pull in group_pulls(list(layers)):
+        present = [(layer.authored, layer.subject) in landed for layer in pull.layers]
+        if any(present) and not all(present):
+            raise ReplayError(
+                f"pull request {pull.number} is partly in {base}: some of its commits are there and some are not; give the rest a number of their own"
+            )
     results: list[LayerResult] = []
     with scratch_worktree(repo, base) as tree:
         for layer in layers:
@@ -146,14 +152,14 @@ def replay(
                 continue
             stops = stopped_by(layer)
             if stops and not confirm(layer, stops):
-                raise ReplayError(f"layer {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
-            progress(f"layer {layer.id}: applying the patch on {base}{' plus the layers before it' if results else ''}")
+                raise ReplayError(f"commit {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
+            progress(f"commit {layer.id}: applying the patch on {base}{' plus the layers before it' if results else ''}")
             apply_layer(tree, layer, f"{base}{' plus the layers before it' if results else ''}")
             for check in checks:
-                progress(f"layer {layer.id}: running `{check}`")
+                progress(f"commit {layer.id}: running `{check}`")
                 failure = _run_check(tree, check)
                 _reset(tree)
                 if failure is not None:
-                    raise ReplayError(f"layer {layer.id} fails `{check}`:\n{failure}")
+                    raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")
             results.append(LayerResult(layer, applied=True, commit=git_text(git_run(tree, "rev-parse", "HEAD"))))
     return results

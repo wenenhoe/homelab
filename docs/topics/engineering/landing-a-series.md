@@ -38,10 +38,10 @@ A branch kept by an earlier run is replaced when its record still matches; one t
 `--land` replays nothing. For each pull request in turn it:
 
 1. Refuses a branch whose tip is not the recorded commit, one built from other patches than the file's, or one built on a tree other than the base's now. If the base moved only because the pull request before it just merged, the commits are moved onto its tip with the same trees, authors, dates and messages. Otherwise the message says whether the change still applies; run the replay again.
-2. Pushes the branch (the branch name is the slug) and opens the pull request, or reuses one already at the same commit. The title is the first commit's subject; the body is the commit's body, or a list of the subjects for several.
+2. Pushes the branch (the branch name is the slug) and opens the pull request, or reuses one from that branch of this repository that is already at the same commit; a pull request from a fork's branch of the same name is ignored. The title is the first commit's subject; the body is the commit's body, or a list of the subjects for several.
 3. Waits for the required checks. This is CI and can take several minutes.
 4. Prints the pull request's address and asks for confirmation. `--yes` confirms every merge in the run; with no terminal and no `--yes` it stops and leaves the pull request open, and running `--land` again picks up from it.
-5. Merges it with `gh pr merge --admin --merge`, deletes the remote branch and the kept one, and fetches. A fetch that loses a race with another is retried; the merge is already recorded.
+5. Merges it with `gh pr merge --admin --merge`, naming the pushed commit so a branch that moved after the checks is not merged, deletes the remote branch and the kept one, and fetches. A fetch that loses a race with another is retried; the merge is already recorded.
 
 Each pull request becomes a merge commit, so one reverts alone. A merge to `main` is a deploy ([`branching.md`](branching.md)).
 

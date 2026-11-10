@@ -114,3 +114,4 @@ first, so one that has stood still is the first row.
 | [`host-alert-declaration.md`](explorations/host-alert-declaration.md) | Where should a host-resource alert be declared so that a rebuilt monitor brings it back? | 2026-11-09 |
 | [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? | 2026-11-09 |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? | 2026-11-09 |
+| [`offsite-lock-settings-check.md`](explorations/offsite-lock-settings-check.md) | How could the lab notice that an off-site bucket's lock or lifecycle setting is gone or shorter than it should be? | 2026-11-10 |

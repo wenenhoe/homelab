@@ -23,7 +23,7 @@ A fix to a layer that has landed is a new commit with the next letter, or a new 
 
 ## Replay
 
-The replay applies the series on a scratch worktree of `origin/main` (fetched first; `--no-fetch` skips it), one `git am` per patch with the generated views reset between, and runs the checks that need no Docker after each commit ([`checks-without-docker.md`](checks-without-docker.md)). The project scope check runs with its base set to `origin/main`, so a layer that needs a widened `allowed_paths` fails here, before a pull request exists. `--check COMMAND` adds a check.
+The replay applies the series on a scratch worktree of `origin/main` (fetched first; `--no-fetch` skips it), one `git am` per patch with the generated views reset between, and runs the checks that need no Docker after each commit ([`checks-without-docker.md`](checks-without-docker.md)). The project scope check runs with its base set to `origin/main`, so a layer that needs a widened `allowed_paths` fails here, before a pull request exists. `--check COMMAND` adds a check. Before it applies anything the replay checks that the apply hooks are linked ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)), that `pre-commit` is on `PATH` and that git has a committer identity, and stops naming what is missing.
 
 - A commit already in the base, matched by author time and subject, is skipped. A pull request with only some of its commits in the base is refused.
 - A layer that changes `.githooks/`, `.pre-commit-config.yaml`, a workflow, an action, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) stops for confirmation, since the replay and the checks run that code on this machine. With no terminal it stops and says why.

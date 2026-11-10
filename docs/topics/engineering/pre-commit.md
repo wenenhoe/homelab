@@ -17,10 +17,12 @@ pre-commit` and `... --hook-stage pre-push`.
 
 ## Applying patches with `git am`
 
-`git am` commits without running the `pre-commit` hook. Link
+`git am` commits without running the `pre-commit` hook. A series is replayed with `git am` in a scratch worktree
+([`landing-a-series.md`](landing-a-series.md)), and a change to the tool that does it is applied by hand with it,
+so link
 [`.githooks/pre-applypatch`](../../../.githooks/pre-applypatch) and
 [`.githooks/post-applypatch`](../../../.githooks/post-applypatch) into
-the hooks directory once, after `pre-commit install`:
+the hooks directory once, after `pre-commit install`; the tool will not replay a series until they are:
 
 ```sh
 for hook in pre-applypatch post-applypatch; do
@@ -48,10 +50,11 @@ stop the series the same way; abort, then rewrite the patches with the
 and apply the copies. Only the commit-time hooks run here;
 `ansible-lint` stays a push-time hook.
 
-Name the patches of a series with a letter on every one (`0001a`,
-`0001b`, `0002a`): a follow-up to `0001a` is `0001b`, and plain `ls` and
-`git am *.patch` order them the same way under the C and `en_US.UTF-8`
-locales. The security series uses `S0001a`.
+Plain patches (a change to `tools/land_series`, and the security series) are named with a letter on every
+one (`0001a`, `0001b`, `0002a`): a follow-up to `0001a` is `0001b`, and plain `ls` and `git am *.patch`
+order them the same way under the C and `en_US.UTF-8` locales. The security series uses `S0001a`. The ids in
+a series file mean something else: a number is a pull request and each letter a commit in it
+([`landing-a-series.md`](landing-a-series.md#the-input)).
 
 ## Hooks
 

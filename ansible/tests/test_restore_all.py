@@ -83,6 +83,19 @@ class TestPickLatest:
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00"}]
         assert restore_all.pick_latest(objects, "services", "wastebin", "UTC") is None
 
+    def test_skips_a_directory_entry_even_when_its_name_is_the_newest_match(self):
+        # A key like "<name>.gpg/part" is listed non-recursively as a directory called "<name>.gpg".
+        objects = [
+            {"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg", "IsDir": False},
+            {"Name": "services-wastebin-2026-09-09T12-00-00.tar.gz.gpg", "IsDir": True},
+        ]
+        name, _ = restore_all.pick_latest(objects, "services", "wastebin", "UTC")
+        assert name == "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"
+
+    def test_returns_none_when_every_matching_entry_is_a_directory(self):
+        objects = [{"Name": "services-wastebin-2026-09-09T12-00-00.tar.gz.gpg", "IsDir": True}]
+        assert restore_all.pick_latest(objects, "services", "wastebin", "UTC") is None
+
     def test_returns_none_for_an_empty_object_list(self):
         assert restore_all.pick_latest([], "services", "wastebin", "UTC") is None
 

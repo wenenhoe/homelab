@@ -64,7 +64,11 @@ def binary(cache: Path, rev: str) -> Path:
 
 
 def command(path: Path, base: str, head: str) -> list[str]:
-    return [str(path), "git", "--redact", "--verbose", "--no-banner", f"--log-opts={base}..{head}", "."]
+    """`-m` makes `git log -p` print a merge commit's changes, which it omits by default, so a value added while resolving a merge is scanned.
+
+    An inline allow comment on a line would otherwise silence a match; the only allowances are the ones in `.gitleaks.toml`.
+    """
+    return [str(path), "git", "--redact", "--verbose", "--no-banner", "--ignore-gitleaks-allow", f"--log-opts=-m {base}..{head}", "."]
 
 
 def main(argv: list[str] | None = None, runner: Runner = run, root: Path = REPO_ROOT, environ: dict[str, str] | None = None) -> int:

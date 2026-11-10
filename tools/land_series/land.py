@@ -44,11 +44,20 @@ class LandError(Exception):
         self.landed = list(landed)
 
 
-def fetch(repo: Path, base: str) -> None:
+FETCH_ATTEMPTS = 3
+FETCH_RETRY_SECONDS = 2.0
+
+
+def fetch(repo: Path, base: str, sleep: Callable[[float], None] = time.sleep) -> None:
+    """Bring `base` up to date. A client fetching in the background can update the same ref at the same moment and fail this fetch once, so it is retried."""
     remote, _, branch = base.partition("/")
-    result = subprocess.run(["git", "-C", str(repo), "fetch", "--quiet", remote, branch], capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise ReplayError(f"cannot fetch {base}: {result.stderr.strip()}")
+    for attempt in range(FETCH_ATTEMPTS):
+        result = subprocess.run(["git", "-C", str(repo), "fetch", "--quiet", remote, branch], capture_output=True, text=True, check=False)
+        if result.returncode == 0:
+            return
+        if attempt < FETCH_ATTEMPTS - 1:
+            sleep(FETCH_RETRY_SECONDS)
+    raise ReplayError(f"cannot fetch {base}: {result.stderr.strip()}")
 
 
 def _gh(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -159,5 +168,5 @@ def _land_each(
         progress(f"layer {layer.id}: merging")
         _gh_ok(repo, "pr", "merge", url, "--admin", "--merge", "--delete-branch")
         deleted = forget(repo, layer)
-        fetch(repo, base)
         results.append(Landed(layer, url, merged=True, kept_branch=None if deleted else branch_of(layer)))
+        fetch(repo, base, sleep)

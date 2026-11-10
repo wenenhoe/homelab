@@ -16,6 +16,17 @@ For an environment with no Docker daemon, or one that reaches GitHub but not con
 - **Compose files** lint with `npx -y dclint@<the version the hook pins> --config .config/.dclintrc FILE`. It cannot read a Jinja template, so lint the rendered output.
 - **Mermaid** is rendered by [`check_mermaid`](ci/doc-checks.md#mermaid-render-check), which needs Docker. Without it, render with `mmdc` against a locally installed Chromium, using a Puppeteer config of `{"executablePath": "<chromium>", "args": ["--no-sandbox"]}`: `mmdc -p cfg.json -i d.mmd -o d.png -s 2`. Open the PNG, since a pass proves the block renders and not that it reads well.
 
+## Verifying a series before delivery
+
+Replay a `.series` file the way the maintainer will ([`landing-a-series.md`](landing-a-series.md)), on a fresh clone of `main`, with `--dry-run`, which pushes nothing and keeps no branch:
+
+- `git clone --depth 50 https://github.com/wenenhoe/homelab.git`, then `pre-commit install` in it and link the two apply hooks ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)).
+- Put a `pre-commit` shim on `PATH`: `printf '#!/bin/bash\nexec uvx pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit`. Without it `pre-applypatch` cannot regenerate the views.
+- Set `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, and `SKIP` to the hooks that cannot run here (`gitleaks`, `zizmor` and the `-docker` ones, `ansible-lint`); say which were skipped.
+- From `tools/` in a checkout of the tool: `uv run python -m land_series FILE.series --repo CLONE --base origin/main --no-fetch --dry-run`. It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and stops for a layer on its stop list.
+
+A change to `.githooks/` or to how `git am` is used is tested with a real `git am` in a throwaway repository.
+
 ## Docker without registries
 
 A pinned image cannot be pulled, so test the software it packages: build it or download it from its GitHub tag or release at the pinned version, check any download against the repo's pin, and run it in a rootfs imported into a private daemon.

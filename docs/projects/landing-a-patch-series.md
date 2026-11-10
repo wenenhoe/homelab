@@ -35,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: `gh pr merge --admin` against the `main-review` bypass | Done | A pull request is merged into `main` from the command line with the flag, or is refused and the outcome is recorded in the decision; the assumption is resolved and the revision is `approved` |
 | 2 | The manifest and the replay | Done | A file of a manifest and an mbox is parsed, and its layers replay in order on a scratch worktree of `origin/main`, one `git am` per patch with the views reset, and the no-Docker checks run at each state; a layer already in `main` is skipped, and a layer on the stop list halts the run until confirmed |
-| 3 | The kept branches and the pull requests | In progress | A replay leaves a chain of `series/<slug>` branches unless `--dry-run`; `--land` pushes each as built, opens it, waits on it, shows it to the maintainer and merges it with the admin flag only on their confirmation, and refuses a branch changed since it was built; a series of three layers lands in order against the real repository |
+| 3 | The kept branches and the pull requests | Done | A replay leaves a chain of `series/<slug>` branches unless `--dry-run`; `--land` pushes each as built, opens it, waits on it, shows it to the maintainer and merges it with the admin flag only on their confirmation, and refuses a branch changed since it was built; a series of three layers lands in order against the real repository |
 | 4 | The topic doc | Not started | `landing-a-series.md` describes the input, the stops and how to run the tool, has its row in `topics/README.md`, and ADR 0112 is `accepted` |
 
 Stage status is `Not started`, `In progress`, or `Done`.

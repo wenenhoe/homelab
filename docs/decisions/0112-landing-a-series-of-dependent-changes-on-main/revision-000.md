@@ -49,7 +49,7 @@ A small tool, run by the maintainer under their own `gh` login, lands a series o
 
 ## Consequences
 
-Each layer waits for its run before the next is opened, so a series of N layers takes N runs in turn. A series is replayed again when `main` changes between the replay and the landing. A tool and its tests are code to maintain. The tool's use is described in a topic doc once it exists.
+Each layer waits for its run before the next is opened, so a series of N layers takes N runs in turn. A series is replayed again when `main` changes between the replay and the landing. A tool and its tests are code to maintain. How to run it is in [`landing-a-series.md`](../../topics/engineering/landing-a-series.md).
 
 ## Invariants
 

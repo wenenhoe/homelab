@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import create_autospec, patch
 
+import paramiko
 import pytest
 from _ssh_objects import exec_result
 from utils import repo
@@ -148,12 +149,70 @@ class TestConnectSsh:
         assert kwargs["timeout"] == repo.TIMEOUT_SECONDS
 
     @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_loads_the_system_keys_and_remembers_a_new_host_in_the_users_known_hosts(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        repo.connect_ssh("secadmin", "security.internal.example.com", "/home/x/.ssh/key")
+        ssh_client.load_system_host_keys.assert_called_once_with()
+        policy = ssh_client._policy  # paramiko offers no getter for the policy it was given
+        assert isinstance(policy, repo.RememberFirstKey)
+        assert policy.known_hosts == repo.KNOWN_HOSTS
+
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
     def test_closes_the_client_and_reraises_when_the_connection_fails(self, mock_ssh_client_cls, ssh_client):
         mock_ssh_client_cls.return_value = ssh_client
         ssh_client.connect.side_effect = OSError("unreachable")
         with pytest.raises(OSError, match="unreachable"):
             repo.connect_ssh("secadmin", "security.internal.example.com", "/home/x/.ssh/key")
         ssh_client.close.assert_called_once()
+
+
+class TestRememberFirstKey:
+    @pytest.fixture
+    def known_hosts(self, tmp_path: Path) -> Path:
+        return tmp_path / "home" / ".ssh" / "known_hosts"
+
+    @pytest.fixture
+    def key(self) -> paramiko.PKey:
+        return paramiko.ECDSAKey.generate()
+
+    def test_writes_the_first_key_to_the_file_and_a_later_client_finds_it(self, known_hosts, key):
+        repo.RememberFirstKey(known_hosts).missing_host_key(paramiko.SSHClient(), "security.internal.example.com", key)
+
+        later = paramiko.SSHClient()
+        later.load_host_keys(str(known_hosts))
+        remembered = later.get_host_keys().lookup("security.internal.example.com")
+        assert remembered is not None
+        assert remembered[key.get_name()] == key
+
+    def test_creates_the_ssh_directory_private(self, known_hosts, key):
+        repo.RememberFirstKey(known_hosts).missing_host_key(paramiko.SSHClient(), "security.internal.example.com", key)
+
+        assert known_hosts.parent.stat().st_mode & 0o777 == 0o700
+
+    def test_appends_without_touching_the_lines_already_there(self, known_hosts, key):
+        known_hosts.parent.mkdir(parents=True)
+        known_hosts.write_text("# kept\n@cert-authority *.example.com ssh-ed25519 AAAA\n")
+
+        repo.RememberFirstKey(known_hosts).missing_host_key(paramiko.SSHClient(), "a.example.com", key)
+
+        lines = known_hosts.read_text().splitlines()
+        assert lines[:2] == ["# kept", "@cert-authority *.example.com ssh-ed25519 AAAA"]
+        assert lines[2].startswith("a.example.com ")
+
+    def test_the_same_client_accepts_the_host_again_without_a_second_line(self, known_hosts, key):
+        client = paramiko.SSHClient()
+        policy = repo.RememberFirstKey(known_hosts)
+        policy.missing_host_key(client, "a.example.com", key)
+
+        assert client.get_host_keys().check("a.example.com", key)
+        assert len(known_hosts.read_text().splitlines()) == 1
+
+    def test_says_which_host_and_key_it_remembered(self, known_hosts, key, capsys):
+        repo.RememberFirstKey(known_hosts).missing_host_key(paramiko.SSHClient(), "a.example.com", key)
+
+        err = capsys.readouterr().err
+        assert "a.example.com" in err
+        assert key.fingerprint in err
 
 
 class TestFetchRootCert:

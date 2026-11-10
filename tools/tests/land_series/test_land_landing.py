@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 
 import pytest
 from _series_repo import Author, Repo, git, series_file
 from conftest import FakeGitHub
 from land_series import __main__ as cli
+from land_series import land as land_module
 from land_series.kept import KeptError, keep, leftovers
-from land_series.land import LandError, land
+from land_series.land import LandError, fetch, land
 from land_series.manifest import Layer, SeriesError, order_layers, parse_series
-from land_series.replay import replay
+from land_series.replay import ReplayError, replay
 
 
 class Reviews:
@@ -57,6 +59,55 @@ def test_each_kept_layer_becomes_a_pull_request_merged_in_order_showing_only_its
     assert github.branches() == ["main"]
     assert git(repo.path, "branch", "--list", "series/*") == ""
     assert reviews.asked == [("0001a", "https://example.test/pull/1"), ("0001b", "https://example.test/pull/2")]
+
+
+def test_a_fetch_that_collides_with_another_process_is_retried(github: FakeGitHub, repo: Repo, monkeypatch: pytest.MonkeyPatch) -> None:
+    real_run = subprocess.run
+    attempts: list[int] = []
+
+    def flaky(argv, **kwargs):
+        if "fetch" in argv:
+            attempts.append(1)
+            if len(attempts) == 1:
+                return subprocess.CompletedProcess(argv, 1, "", "error: fetching ref refs/remotes/origin/main failed: incorrect old value provided")
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", flaky)
+    waits: list[float] = []
+
+    fetch(repo.path, "origin/main", waits.append)
+
+    assert len(attempts) == 2
+    assert len(waits) == 1
+
+
+def test_a_fetch_that_keeps_failing_is_reported(repo: Repo) -> None:
+    waits: list[float] = []
+    with pytest.raises(ReplayError, match="cannot fetch nowhere/main"):
+        fetch(repo.path, "nowhere/main", waits.append)
+    assert len(waits) == 2
+
+
+def test_a_merge_is_reported_even_when_the_fetch_after_it_fails(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    monkeypatch.setattr(land_module, "FETCH_ATTEMPTS", 1)
+    real_fetch = land_module.fetch
+    calls: list[int] = []
+
+    def fetch_fails_after_the_first_merge(repo_path, base, sleep=None):
+        calls.append(1)
+        if len(calls) == 2:
+            raise ReplayError("cannot fetch origin/main: collision")
+        return real_fetch(repo_path, base, lambda _: None)
+
+    monkeypatch.setattr(land_module, "fetch", fetch_fails_after_the_first_merge)
+
+    with pytest.raises(LandError, match="cannot fetch origin/main") as raised:
+        land(repo.path, layers, Reviews(True, True), sleep=lambda _: None)
+
+    assert [item.layer.id for item in raised.value.landed] == ["0001a"]
+    assert raised.value.landed[0].merged
 
 
 def test_the_steps_are_reported_as_they_happen(github: FakeGitHub, repo: Repo, author: Author) -> None:

@@ -141,6 +141,12 @@ def main(
         print(f"::error::{exc}", file=sys.stderr)
         return 1
     pins, problems = pinned(collected)
+    registered = {entry.registry_key for entry in entries}
+    problems += [
+        f"{pin.reference} ({', '.join(pin.sources)}): no registry entry names its repository, so nothing verifies it"
+        for pin in pins
+        if pin.registry_key not in registered
+    ]
     outcomes = [check_entry(root, entry, pins, run, sleep) for entry in entries if not args.images or entry.image in args.images]
     lines, code = report(outcomes, [*collected.problems, *problems])
     print("\n".join(lines))

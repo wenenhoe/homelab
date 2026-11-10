@@ -46,9 +46,9 @@ one entry per repository, holding its tier and whatever that tier trusts.
 The repository, the certificate identity and the key come from the entry in the
 tree, never from the registry or the image being checked, so changing one is a
 reviewed diff. Two entries for one repository are refused, since a digest could
-then pass on either one's terms. A test fails when a repository the tree names has
-no entry, or an entry names one the tree does not, so a new image means a new
-entry.
+then pass on either one's terms. The check itself fails when a digest is pinned under a
+repository with no entry, whichever pull request added it, and a test fails when an entry
+names a repository the tree does not, so a new image means a new entry.
 
 ## Tiers
 

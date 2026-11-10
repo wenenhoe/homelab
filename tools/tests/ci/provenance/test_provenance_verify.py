@@ -354,6 +354,18 @@ class TestMain:
         assert f"::error::ghcr.io/Owner/tool:1@sha256:{'1' * 64} ({SOURCE}): not a sha256 digest reference a registry accepts" in capsys.readouterr().out
         run.assert_not_called()
 
+    def test_a_digest_pinned_under_a_repository_with_no_entry_fails_the_run(self, root, capsys):
+        run = tool()
+        code = self.run_main(tree(root, f"ghcr.io/owner/tool:1@{D1}", f"ghcr.io/lookalike/tool:1@{D2}"), [attested()], run=run)
+        out = capsys.readouterr().out
+        assert code == 1
+        assert f"::error::ghcr.io/lookalike/tool@{D2} ({SOURCE}): no registry entry names its repository, so nothing verifies it" in out
+        assert run.call_count == 1
+
+    def test_a_named_image_run_still_fails_for_a_digest_with_no_entry(self, root, capsys):
+        code = self.run_main(tree(root, f"ghcr.io/owner/tool:1@{D1}", f"ghcr.io/lookalike/tool:1@{D2}"), [attested()], "ghcr.io/owner/tool")
+        assert (code, "no registry entry names its repository" in capsys.readouterr().out) == (1, True)
+
     def test_a_pin_the_collector_lost_fails_the_run(self, root, capsys):
         manager = {
             "customType": "regex",

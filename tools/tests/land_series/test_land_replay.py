@@ -247,3 +247,50 @@ def test_a_pull_request_with_some_of_its_commits_in_the_base_is_refused(repo: Re
 
     with pytest.raises(ReplayError, match="pull request 0001 is partly in main"):
         replay(repo.path, layers_of(("0001a", first), ("0001b", second)), [], Confirmations(False), base="main")
+
+
+def with_apply_hooks(repo: Repo) -> None:
+    """Add the file that tells the tool the base wants the apply hooks, and commit it on `main`."""
+    hook = repo.path / ".githooks" / "pre-applypatch"
+    hook.parent.mkdir()
+    hook.write_text("#!/bin/sh\n")
+    git(repo.path, "add", "-A")
+    git(repo.path, "commit", "-q", "-m", "chore: add the apply hook")
+
+
+def test_a_base_that_wants_the_apply_hooks_is_not_replayed_until_they_are_installed(repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    with_apply_hooks(repo)
+    monkeypatch.setattr("land_series.replay.shutil.which", lambda name: None)
+    layers = layers_of(("0001a", author.patch("docs: write one", {"a.txt": "one\n"})))
+
+    with pytest.raises(ReplayError) as error:
+        replay(repo.path, layers, [], Confirmations(False), base="main")
+
+    message = str(error.value)
+    assert "pre-applypatch, post-applypatch, pre-commit not installed" in message
+    assert "ln -sf" in message
+    assert "`pre-commit` is not on PATH" in message
+    assert repo.worktrees() == [f"worktree {repo.path}"]
+
+
+def test_a_base_without_the_apply_hook_file_needs_none_of_them(repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("land_series.replay.shutil.which", lambda name: None)
+    layers = layers_of(("0001a", author.patch("docs: write one", {"a.txt": "one\n"})))
+
+    results = replay(repo.path, layers, [], Confirmations(False), base="main")
+
+    assert [result.applied for result in results] == [True]
+
+
+def test_a_machine_without_a_committer_identity_is_named_before_anything_is_applied(repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "EMAIL"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "user.useConfigOnly")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "true")
+    layers = layers_of(("0001a", author.patch("docs: write one", {"a.txt": "one\n"})))
+
+    with pytest.raises(ReplayError, match="no committer identity"):
+        replay(repo.path, layers, [], Confirmations(False), base="main")

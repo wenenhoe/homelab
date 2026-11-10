@@ -5,14 +5,13 @@ from __future__ import annotations
 import pytest
 from _series_repo import Author, series_file
 from land_series.manifest import Layer, SeriesError, group_pulls, order_layers, parse_series
-from land_series.replay import stopped_by
 
 
 def layer(layer_id: str, slug: str | None = None, source: str = "series") -> Layer:
-    return Layer(id=layer_id, slug=slug or f"slug-{layer_id[:4]}", patch=b"", subject="s", authored=0, diff_headers=(), source=source)
+    return Layer(id=layer_id, slug=slug or f"slug-{layer_id[:4]}", patch=b"", subject="s", authored=0, source=source)
 
 
-def test_each_layer_carries_its_slug_subject_date_and_touched_files(author: Author) -> None:
+def test_each_layer_carries_its_slug_subject_and_date(author: Author) -> None:
     first = author.patch("docs: add a note", {"docs/note.md": "one\n"})
     second = author.patch("fix: tidy the note", {"docs/note.md": "two\n", "docs/other.md": "x\n"})
     layers = parse_series(series_file([("0001a first-note", first), ("0001b tidy-note", second)]))
@@ -20,7 +19,6 @@ def test_each_layer_carries_its_slug_subject_date_and_touched_files(author: Auth
     assert [(item.id, item.slug) for item in layers] == [("0001a", "first-note"), ("0001b", "tidy-note")]
     assert [item.subject for item in layers] == ["docs: add a note", "fix: tidy the note"]
     assert layers[1].authored - layers[0].authored == 60
-    assert layers[1].diff_headers == ("a/docs/note.md b/docs/note.md", "a/docs/other.md b/docs/other.md")
     assert layers[0].patch.startswith(b"From ")
 
 
@@ -90,27 +88,3 @@ def test_layers_from_several_files_land_in_id_order() -> None:
 def test_layers_that_cannot_be_ordered_are_refused(layers: list[Layer], message: str) -> None:
     with pytest.raises(SeriesError, match=message):
         order_layers(layers)
-
-
-@pytest.mark.parametrize(
-    ("headers", "expected"),
-    [
-        pytest.param(("a/docs/x.md b/docs/x.md",), [], id="a doc"),
-        pytest.param(("a/.githooks/pre-applypatch b/.githooks/pre-applypatch",), [".githooks/pre-applypatch"], id="a hook"),
-        pytest.param(("a/.pre-commit-config.yaml b/.pre-commit-config.yaml",), [".pre-commit-config.yaml"], id="the pre-commit config"),
-        pytest.param(("a/.github/workflows/pr-checks.yml b/.github/workflows/pr-checks.yml",), [".github/workflows/pr-checks.yml"], id="a workflow"),
-        pytest.param(("a/.github/actions/setup/action.yml b/.github/actions/setup/action.yml",), [".github/actions/setup/action.yml"], id="an action"),
-        pytest.param(("a/tools/doc_scripts/x.py b/tools/doc_scripts/x.py",), ["tools/doc_scripts/x.py"], id="a tool"),
-        pytest.param(("a/pyproject.toml b/pyproject.toml",), ["pyproject.toml"], id="the project dependencies"),
-        pytest.param(("a/uv.lock b/uv.lock",), ["uv.lock"], id="the lock file"),
-        pytest.param(("a/docs/old.md b/tools/moved.py",), ["tools/moved.py"], id="a file renamed into tools"),
-        pytest.param(("a/tools/old.py b/docs/moved.md",), ["tools/old.py"], id="a file renamed out of tools"),
-        pytest.param(("a/docs/x y.md b/tools/x y.md",), ["tools/x y.md"], id="a path with a space"),
-        pytest.param(('"a/docs/\\303\\251.md" "b/tools/\\303\\251.py"',), ["tools/\\303\\251.py"], id="a quoted path"),
-        pytest.param(("a/docs/toolsy.md b/docs/toolsy.md",), [], id="a name that only contains tools"),
-    ],
-)
-def test_the_stop_list_names_what_a_layer_touches(headers: tuple[str, ...], expected: list[str]) -> None:
-    stopped = Layer(id="0001a", slug="s", patch=b"", subject="s", authored=0, diff_headers=headers, source="series")
-
-    assert stopped_by(stopped) == expected

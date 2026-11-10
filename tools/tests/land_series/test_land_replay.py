@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import base64
+import re
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
 from _series_repo import Author, Repo, git, series_file
 from land_series import __main__ as cli
 from land_series.manifest import Layer, order_layers, parse_series
-from land_series.replay import Check, ReplayError, replay
+from land_series.replay import Check, ReplayError, replay, stopped_by
 
 # Appends one line per run to the log: each named file's contents, with newlines shown as "/", so a test reads back the tree a check saw.
 RECORD = (
@@ -294,3 +296,85 @@ def test_a_machine_without_a_committer_identity_is_named_before_anything_is_appl
 
     with pytest.raises(ReplayError, match="no committer identity"):
         replay(repo.path, layers, [], Confirmations(False), base="main")
+
+
+def as_base64(patch: bytes) -> bytes:
+    """The same message with its body sent as base64, which `git am` decodes and a reader of the file cannot read."""
+    head, _, body = patch.partition(b"\n\n")
+    declared = b"\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: base64"
+    return head + declared + b"\n\n" + base64.encodebytes(body)
+
+
+def without_diff_git_lines(patch: bytes) -> bytes:
+    """The same change with only `---` and `+++` file headers, which `git apply` still reads."""
+    return re.sub(rb"^(diff --git |index |new file mode ).*\n", b"", patch, flags=re.MULTILINE)
+
+
+def with_quoted_paths(patch: bytes) -> bytes:
+    """The same change with each path in its headers C-quoted, `t` of `tools/` as an octal escape."""
+    return re.sub(rb"([ab])/t(ools/\S+)", lambda found: b'"' + found[1] + b"/\\164" + found[2] + b'"', patch)
+
+
+@pytest.mark.parametrize("disguise", [as_base64, without_diff_git_lines, with_quoted_paths], ids=["a base64 body", "no diff --git line", "a quoted path"])
+def test_a_layer_is_stopped_by_what_git_applies_however_its_patch_is_written(repo: Repo, author: Author, log: Path, disguise: Callable[[bytes], bytes]) -> None:
+    layers = layers_of(("0001a", disguise(author.patch("chore: change a tool", {"tools/run.py": "print()\n"}))))
+    refusal = Confirmations(False)
+
+    with pytest.raises(ReplayError, match=r"commit 0001a changes code the replay runs \(tools/run.py\) and was not confirmed"):
+        replay(repo.path, layers, [recording_check("tools/run.py")], refusal, base="main")
+
+    assert refusal.asked == [("0001a", ["tools/run.py"])]
+    assert not log.exists()
+
+
+def test_a_confirmed_layer_with_a_disguised_patch_replays(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(("0001a", as_base64(author.patch("chore: change a tool", {"tools/run.py": "print()\n"}))))
+
+    results = replay(repo.path, layers, [recording_check("tools/run.py")], Confirmations(True), base="main")
+
+    assert log.read_text().splitlines() == ["print()"]
+    assert [result.applied for result in results] == [True]
+
+
+def test_no_hook_runs_while_the_stop_list_is_read(repo: Repo, author: Author, tmp_path: Path) -> None:
+    marker = tmp_path / "hook-ran"
+    repo.install_hook("pre-applypatch", f"touch {marker}\n")
+    repo.install_hook("post-applypatch", f"touch {marker}\n")
+    layers = layers_of(("0001a", author.patch("chore: change a tool", {"tools/run.py": "print()\n"})))
+
+    with pytest.raises(ReplayError, match="was not confirmed"):
+        replay(repo.path, layers, [], Confirmations(False), base="main")
+
+    assert not marker.exists()
+
+
+def test_a_layer_that_does_not_apply_is_reported_before_the_stop_list_is_asked(repo: Repo, author: Author) -> None:
+    author.patch("docs: one", {"a.txt": "one\n"})
+    second = author.patch("chore: change a tool", {"a.txt": "two\n", "tools/run.py": "print()\n"})
+    refusal = Confirmations(False)
+
+    with pytest.raises(ReplayError, match="commit 0001b does not apply"):
+        replay(repo.path, layers_of(("0001b", second)), [], refusal, base="main")
+
+    assert refusal.asked == []
+
+
+@pytest.mark.parametrize(
+    ("paths", "expected"),
+    [
+        pytest.param(["docs/x.md"], [], id="a doc"),
+        pytest.param([".githooks/pre-applypatch"], [".githooks/pre-applypatch"], id="a hook"),
+        pytest.param([".pre-commit-config.yaml"], [".pre-commit-config.yaml"], id="the pre-commit config link"),
+        pytest.param(
+            [".config/.pre-commit-config.yaml", ".config/zizmor.yml"], [".config/.pre-commit-config.yaml", ".config/zizmor.yml"], id="the config directory"
+        ),
+        pytest.param([".github/workflows/pr-checks.yml"], [".github/workflows/pr-checks.yml"], id="a workflow"),
+        pytest.param([".github/actions/setup/action.yml"], [".github/actions/setup/action.yml"], id="an action"),
+        pytest.param(["tools/doc_scripts/x.py"], ["tools/doc_scripts/x.py"], id="a tool"),
+        pytest.param(["pyproject.toml", "uv.lock"], ["pyproject.toml", "uv.lock"], id="the dependencies"),
+        pytest.param(["tools/x y.md"], ["tools/x y.md"], id="a path with a space"),
+        pytest.param(["docs/toolsy.md", "docs/.config/x"], [], id="names that only contain a listed one"),
+    ],
+)
+def test_the_stop_list_names_the_paths_on_it(paths: list[str], expected: list[str]) -> None:
+    assert stopped_by(paths) == expected

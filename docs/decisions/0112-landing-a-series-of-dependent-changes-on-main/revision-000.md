@@ -7,7 +7,7 @@ short: Landing a patch series
 solution: A maintainer-run tool lands a series one pull request at a time, each from a fresh branch off main, replaying the series first and merging each layer with the admin bypass
 summary: How a series of patches reaches main as pull requests when main refuses any update outside a merged pull request and a pull request based on another branch sees neither main's project docs nor a stable head.
 topic: repository-tooling
-status: approved
+status: accepted
 related: [ADR-0076]
 ---
 
@@ -23,7 +23,7 @@ Work is written as a series of patches, and a project's stages are each meant to
 - A stacked layer is based on the branch below it. The `pull_request` branch filter lists no `stack/**`, so an upper layer gets no run and its required checks never report. GitHub rebases the remaining layers after each merge, each with a new head SHA and a full run, which for N layers merged one at a time is N(N-1)/2 extra runs. The runs cost waiting, not money, on a public repository's hosted runners.
 - The project scope check judges a pull request against the project docs as they stood on its base, so a layer that needs a widened `allowed_paths` fails until the widening has merged, and a pull request based on another branch does not see a widening that is only there.
 - `git am` runs hooks that regenerate the generated views ([`.githooks/`](../../../.githooks)) and leave them unstaged, so a second patch in one invocation fails. One patch per invocation, with the views reset between, avoids it.
-- Past series are rare: 8 of 86 merged pull requests are layers, in two series. Layers that share no file can still depend on each other, and layers that each flip a row in one project doc conflict when applied independently. Most open projects' stages are chains, with a handful of independent ones.
+- Series are rare, and most projects' stages are chains. Layers that share no file can still depend on each other, and layers that each flip a row in one project doc conflict when applied independently.
 
 **Threat model.** The asset is `main`, which the CD agent deploys. A tool that applies a series replays patches and runs the hooks on the maintainer's machine, so a patch that changes the code the replay runs would execute before CI sees it. The tool runs under the maintainer's own `gh` login; a session that writes a series never holds a credential for it.
 

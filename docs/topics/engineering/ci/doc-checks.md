@@ -235,9 +235,10 @@ file.
 [`tools/doc_scripts/renumber_adr_patches.py`](../../../../tools/doc_scripts/renumber_adr_patches.py)
 is a helper, not a check: no hook or job runs it. Two patch series written
 against the same `main` can each add a lineage with the same number. The
-directories carry different slugs, so `git am` applies both and only the
-drift check and the index generation notice. Run it from `tools/` on the
-series, after `git am --abort` if one is in progress:
+directories carry different slugs, so both apply and only the drift check
+and the index generation notice. It reads each file as text, so it takes a
+`.series` file as well as patches. Run it from `tools/` on the series, after
+`git am --abort` if one is in progress:
 
 ```text
 python3 -m doc_scripts.renumber_adr_patches PATCH... [--check] [--out DIR]

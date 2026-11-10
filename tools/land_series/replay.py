@@ -125,9 +125,31 @@ def _run_check(tree: Path, check: Check) -> str | None:
 
 Progress = Callable[[str], None]
 
+HOOK_LINK_COMMAND = 'for hook in pre-applypatch post-applypatch; do ln -sf "$PWD/.githooks/$hook" "$(git rev-parse --git-path hooks)/$hook"; done'
+
 
 def silent(message: str) -> None:
     """The default progress report: none."""
+
+
+def preflight(repo: Path, base: str) -> list[str]:
+    """What the replay needs from this machine and does not find, each with the command or setting that fixes it.
+
+    A base without `.githooks/pre-applypatch` needs no hooks. Without them `git am` skips the checks, or fails deep inside a
+    hook, so the problem is named here, before a worktree exists.
+    """
+    problems = []
+    if git_run(repo, "cat-file", "-e", f"{base}:.githooks/pre-applypatch").returncode == 0:
+        found = git_run(repo, "rev-parse", "--git-path", "hooks")
+        hooks = (repo / git_text(found)) if found.returncode == 0 else repo / ".git" / "hooks"
+        missing = [name for name in ("pre-applypatch", "post-applypatch", "pre-commit") if not os.access(hooks / name, os.X_OK)]
+        if missing:
+            problems.append(f"{', '.join(missing)} not installed in {hooks}: run `pre-commit install`, then `{HOOK_LINK_COMMAND}` from the repository root")
+        if shutil.which("pre-commit") is None:
+            problems.append("`pre-commit` is not on PATH, and the apply hooks call it: run the tool with `uv run`, or install it")
+    if git_run(repo, "var", "GIT_COMMITTER_IDENT").returncode != 0:
+        problems.append("git has no committer identity, and `git am` needs one: set user.name and user.email, or GIT_COMMITTER_NAME and GIT_COMMITTER_EMAIL")
+    return problems
 
 
 def replay(
@@ -137,6 +159,8 @@ def replay(
 
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
     """
+    if problems := preflight(repo, base):
+        raise ReplayError("this machine is not ready to replay:\n" + "\n".join(f"- {problem}" for problem in problems))
     landed = landed_in(repo, base)
     for pull in group_pulls(list(layers)):
         present = [(layer.authored, layer.subject) in landed for layer in pull.layers]

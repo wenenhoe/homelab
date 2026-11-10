@@ -61,6 +61,18 @@ def test_each_kept_layer_becomes_a_pull_request_merged_in_order_showing_only_its
     assert reviews.asked == [("0001a", "https://example.test/pull/1"), ("0001b", "https://example.test/pull/2")]
 
 
+def test_a_checked_out_branch_is_not_rebuilt_and_nothing_else_is_changed(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    before = {branch: git(repo.path, "rev-parse", branch) for branch in ("series/write-one", "series/write-two")}
+    git(repo.path, "switch", "-q", "series/write-two")
+
+    with pytest.raises(KeptError, match="series/write-two is checked out; switch to another branch"):
+        kept(repo, layers)
+
+    assert {branch: git(repo.path, "rev-parse", branch) for branch in before} == before
+
+
 def test_a_fetch_that_collides_with_another_process_is_retried(github: FakeGitHub, repo: Repo, monkeypatch: pytest.MonkeyPatch) -> None:
     real_run = subprocess.run
     attempts: list[int] = []

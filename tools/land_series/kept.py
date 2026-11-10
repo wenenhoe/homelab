@@ -54,6 +54,12 @@ def _patch_hash(layer: Layer) -> str:
     return hashlib.sha256(layer.patch).hexdigest()
 
 
+def _checked_out(repo: Path) -> set[str]:
+    """The branches checked out in this repository or any of its worktrees."""
+    listing = git_text(git_run(repo, "worktree", "list", "--porcelain"))
+    return {line.removeprefix("branch refs/heads/") for line in listing.splitlines() if line.startswith("branch refs/heads/")}
+
+
 def keep(repo: Path, results: Sequence[LayerResult]) -> list[str]:
     """Leave a branch for each layer the replay applied, replacing one this tool left earlier; return the branch names.
 
@@ -64,6 +70,10 @@ def keep(repo: Path, results: Sequence[LayerResult]) -> list[str]:
         tip, record = _tip(repo, result.layer), _recorded(repo, result.layer)
         if tip is not None and (record is None or record["tip"] != tip):
             raise KeptError(f"{branch_of(result.layer)} exists and is not as this tool left it; delete or rename it, or land from it as it is")
+    checked_out = _checked_out(repo)
+    for result in built:
+        if branch_of(result.layer) in checked_out:
+            raise KeptError(f"{branch_of(result.layer)} is checked out; switch to another branch (`git switch main`), then run again so it can be rebuilt")
     names = []
     for result in built:
         created = git_run(repo, "branch", "--force", branch_of(result.layer), result.commit or "")

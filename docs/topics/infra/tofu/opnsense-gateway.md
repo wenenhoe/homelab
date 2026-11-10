@@ -18,7 +18,7 @@ wrote: the only CA the play trusts. The operator host must resolve
 | Variable | Why |
 | :--- | :--- |
 | `opnsense_gateway_ca_file` | The certificate to pin |
-| `opnsense_gateway_operator_hosts=[...]` | The IPv4 addresses the work runs from. The play stops without it, since an empty guard rule would admit nobody |
+| `opnsense_gateway_operator_hosts=[...]` | The IPv4 addresses the work runs from. The play stops without it, since an empty guard rule would admit nobody, and stops when the address it reaches the gateway from is not in it (`-e opnsense_gateway_operator_not_listed_ok=true` overrides that when NAT or a tunnel changes the address the gateway sees) |
 | `opnsense_gateway_forward_domains=[...]` | The host zone and the lan zone, which derive from the main domain. The play stops without them |
 | `opnsense_gateway_cd_agent_management` | The CD agent's rule is written only when this is true, and removed when it is false |
 

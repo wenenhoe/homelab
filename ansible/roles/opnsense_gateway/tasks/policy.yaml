@@ -17,6 +17,38 @@
       Set opnsense_gateway_operator_hosts to the IPv4 addresses the operator's work runs from. The guard
       rule admits them to the gateway's management ports, and an empty list would admit nobody.
 
+# The play's own connection is a new HTTPS request on every task, so an alias
+# that leaves out the address it comes from locks the run out part-way, with the
+# policy half applied. Asking the kernel which source address a UDP socket to the
+# gateway would use sends nothing.
+- name: Find the address this run reaches the gateway from
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import socket, sys
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect((sys.argv[1], 443))
+            print(probe.getsockname()[0])
+      - "{{ opnsense_gateway_connection.firewall }}"
+  delegate_to: localhost
+  become: false
+  register: opnsense_gateway_source
+  changed_when: false
+  check_mode: false
+
+- name: Require the guard rule to admit the address this run comes from
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_source.stdout | trim in opnsense_gateway_operator_hosts or opnsense_gateway_operator_not_listed_ok
+    quiet: true
+    fail_msg: >-
+      This run reaches the gateway from {{ opnsense_gateway_source.stdout | trim }}, which is not in
+      opnsense_gateway_operator_hosts ({{ opnsense_gateway_operator_hosts | join(', ') }}). The guard rule would stop
+      admitting it as soon as the alias is written, and the run would lose the gateway part-way. List that address, or set
+      opnsense_gateway_operator_not_listed_ok to true when the gateway sees this run from a different one (NAT or a tunnel).
+
 - name: Name each zone's network
   oxlorg.opnsense.alias:
     name: "net_{{ opnsense_gateway_zone.name }}"

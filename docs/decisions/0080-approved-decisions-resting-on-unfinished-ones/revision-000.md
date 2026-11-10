@@ -7,7 +7,7 @@ short: Reliance on working decisions
 solution: A declared reliance between decisions, checked as a warning that names every approved or accepted revision whose boundary still rests on a working one
 summary: How an approved decision's dependence on a decision that is still being worked out is recorded and surfaced, so the boundary it presupposes cannot change unnoticed.
 topic: documentation-process
-status: approved
+status: accepted
 related: [ADR-0037, ADR-0044, ADR-0053, ADR-0058]
 ---
 
@@ -44,12 +44,11 @@ also `working`, in the same way. If an assumption in one of those breaks, the
 approved decisions' invariants stop holding, and the projects building on them
 stay `building`, because each is gated only on its own decision.
 
-Two facts shape the fix. `project` files already declare `depends_on:` with a
-required reason, and `check_doc_drift.py` already resolves ADR references and
-project decisions against revision states, so the pieces exist. And the
-backlog is not empty: turning a rule on as a failure would, on the day it
-lands, fail the check for decisions that were approved in good faith, and force
-either a demotion or an approval of the target in the same change.
+A project's `depends_on:` already carries a required reason, and
+`check_doc_drift.py` already resolves ADR references and project decisions
+against revision states. And the backlog is not empty: a rule that failed from
+the start would fail the check for decisions approved in good faith, and force
+a demotion or an approval of the target in the same change.
 
 ## Decision
 
@@ -74,12 +73,11 @@ either a demotion or an approval of the target in the same change.
   index and planning table show a project whose decision has an unmet reliance
   as "rests on ADR-NNNN (working)", derived and never stored, like "waiting
   on".
-- **The first population is the backlog.** The patch that adds the check also
-  adds `relies_on:` to the approved and accepted revisions whose prose already
-  cites a `working` lineage for an invariant, each with its reason. The
-  warnings it prints are then the list of decisions to settle. Each is settled
-  by approving the target, by a revision that drops the reliance, or by
-  removing a declaration that was never a reliance.
+- **The backlog is declared.** The approved and accepted revisions whose prose
+  cites a `working` lineage for an invariant carry `relies_on:` with a reason,
+  and the warnings are the list of decisions to settle. Each is settled by
+  approving the target, by a revision that drops the reliance, or by removing a
+  declaration that was never a reliance.
 - **Failing later.** CI switches to `--strict` once the warnings are
   cleared, so a new unmet reliance fails the change that introduces it.
 
@@ -104,11 +102,7 @@ either a demotion or an approval of the target in the same change.
 
 - Authors must say what a decision rests on. A reliance that is not declared is
   not checked, so the check finds only the dependences someone wrote down.
-- On the first run the check lists the existing reliances as warnings, which is
-  the point, and a stretch of warnings in every run until they are settled.
-- The `README.md` revision-states section, `TEMPLATE.md` and the frontmatter
-  validator learn the field; `check_doc_drift.py` and the index generators gain
-  the check and the two derived labels.
+- Every run lists the unmet reliances as warnings until they are settled.
 - Settling a warning by approving the target needs that target's open
   assumptions resolved first, which is its own work and its own project.
 
@@ -137,7 +131,7 @@ either a demotion or an approval of the target in the same change.
 - A test that the warning does not change the exit status, and that `--strict`
   does.
 - Generator tests for the Notes text and the project label.
-- The docs check run on the repository after the first population, with its
+- The docs check run on the repository with the reliances declared, its
   warnings read once by the maintainer.
 
 ## Reconsideration triggers

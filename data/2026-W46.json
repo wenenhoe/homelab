@@ -321,6 +321,280 @@
    "bot": false,
    "group": "Project: reliance-declaration",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "94c3fc2fc299ca750906d63d1b1f9626b96996f3",
+   "date": "2026-11-10T12:26:57+08:00",
+   "kind": "pr",
+   "pr": 733,
+   "title": "Improve land series tool",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "04657f16efeefed101dd64d613b127b4688199a0",
+   "date": "2026-11-10T12:45:21+08:00",
+   "kind": "pr",
+   "pr": 734,
+   "title": "mark the kept branches and pull requests stage done",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: landing-a-patch-series",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "c5790dde606f9abef9697d35e9b1104b8bb24ec2",
+   "date": "2026-11-10T12:47:46+08:00",
+   "kind": "pr",
+   "pr": 735,
+   "title": "declare the reliances the approved and accepted decisions already state",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: reliance-declaration",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "fff839b8015977f03b94e79ada9932c6bb804ccb",
+   "date": "2026-11-10T12:59:23+08:00",
+   "kind": "pr",
+   "pr": 736,
+   "title": "retry a fetch that collides and record a merge before fetching",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "0d2ed9108c4c98dc5ac5329a6281a923f441908a",
+   "date": "2026-11-10T13:09:21+08:00",
+   "kind": "pr",
+   "pr": 737,
+   "title": "close the reliance declaration project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: reliance-declaration",
+   "events": [
+    [
+     "adr",
+     "ADR 0080 r000 \u00b7 approved decisions resting on unfinished ones",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "reliance-declaration",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "011a6215f514de2f6b14a40e5d19bad7161414e8",
+   "date": "2026-11-10T14:31:19+08:00",
+   "kind": "pr",
+   "pr": 738,
+   "title": "Let pr hold multiple commits for land series tool",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "6d6eb0e5a90ac70e1eb4aed93ac8ab674b9d1978",
+   "date": "2026-11-10T14:41:43+08:00",
+   "kind": "pr",
+   "pr": 739,
+   "title": "describe how a patch series is landed",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "a24d9aa5d852b18edb14423ec420942f34748618",
+   "date": "2026-11-10T14:44:18+08:00",
+   "kind": "pr",
+   "pr": 740,
+   "title": "close the series landing project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: landing-a-patch-series",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r000 \u00b7 landing a series of dependent changes on main",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "landing-a-patch-series",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "b1c43009ecbd75e73a178daae01336a73b25847e",
+   "date": "2026-11-10T15:22:02+08:00",
+   "kind": "pr",
+   "pr": 741,
+   "title": "name what a machine lacks before a series is replayed",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "369ff84135f5c1eb07cfa7b41389dca9ffaaac5a",
+   "date": "2026-11-10T15:43:36+08:00",
+   "kind": "pr",
+   "pr": 742,
+   "title": "say how to check a series before it is delivered",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e33ba9a8ee0b1613149271e5fd434f04dcd8f568",
+   "date": "2026-11-10T16:27:42+08:00",
+   "kind": "pr",
+   "pr": 743,
+   "title": "link the current revisions of the Docker API and read-alert decisions",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "2307e7148338c6acc26f60504e90eb334c4867b5",
+   "date": "2026-11-10T16:31:47+08:00",
+   "kind": "pr",
+   "pr": 744,
+   "title": "require a revision before the CD agent may manage the gateway",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "259373bced191c26e3e66c55dbb82f4bfeae3b91",
+   "date": "2026-11-10T16:34:04+08:00",
+   "kind": "pr",
+   "pr": 745,
+   "title": "list what retiring controller's AppRole leaves to settle",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cd-agent-controller-approle-retirement",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "6aec1eb3eb659a4f4ec3e5ede93d450e8970c33b",
+   "date": "2026-11-10T16:38:59+08:00",
+   "kind": "pr",
+   "pr": 746,
+   "title": "open an exploration on checking the off-site lock settings",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e9a40e533025b9f928bbf5198adc6ee863323e51",
+   "date": "2026-11-10T23:43:42+08:00",
+   "kind": "pr",
+   "pr": 747,
+   "title": "land series stop list and merge",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a41a052e6cfc7d5b263e31bc0c9acc0e2366c7e1",
+   "date": "2026-11-10T23:56:31+08:00",
+   "kind": "pr",
+   "pr": 748,
+   "title": "scan the merge commits of a pull request and ignore inline allow comments",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "49e3ba472002a0c31514da1367f7c6fa6f790b23",
+   "date": "2026-11-11T00:03:26+08:00",
+   "kind": "pr",
+   "pr": 749,
+   "title": "skip directory entries when choosing the newest archive",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c8150d58624057e5d1bfba725478c7bf2f7680bc",
+   "date": "2026-11-11T00:43:00+08:00",
+   "kind": "pr",
+   "pr": 750,
+   "title": "check the type and keys of a proxied route in the catalog gate",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "bee8925ef0d62f8fe0cb36801dc64732badcfdb5",
+   "date": "2026-11-11T00:48:08+08:00",
+   "kind": "pr",
+   "pr": 751,
+   "title": "record a rotation read only after its alert was sent",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3b3d19d09e73b484d948afd839fce0b6dd146629",
+   "date": "2026-11-11T00:52:07+08:00",
+   "kind": "pr",
+   "pr": 752,
+   "title": "remember the SSH host key the first time an operator tool sees it",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "86bc3c44b91cf0384ea97c43462a6d7ddab70569",
+   "date": "2026-11-11T00:55:54+08:00",
+   "kind": "pr",
+   "pr": 753,
+   "title": "say that a compromised security host reaches the cloud credentials",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
   }
  ]
 }

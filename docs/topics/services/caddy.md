@@ -36,6 +36,8 @@ seed the `caddyfile` volume and forces a restart for Caddyfile-only
 changes (via `compose_app_extra_changed`) — the kind of change Compose
 can't detect on its own. See [`volumes.md`](../deploy/volumes.md).
 
+Before the volume is seeded, every run validates the staged Caddyfile with `caddy validate` in a throwaway container of the image the compose file runs, with no network. A config Caddy rejects, such as two site blocks for one host, fails the play while the previous Caddyfile is still the one being served.
+
 ## Runtime config
 
 `docker/caddy/compose.yaml`: exposes `80/tcp`, `443/tcp`, `443/udp`

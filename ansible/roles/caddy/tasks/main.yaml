@@ -41,6 +41,51 @@
   tags:
     - infra
 
+# Run on every pass, not only when the template changed: a staged file that
+# failed validation re-renders unchanged on the next run, and would otherwise
+# go unchecked while the previous Caddyfile keeps serving. The image is the one
+# the compose file runs, so a plugin the config needs is there.
+- name: Read the caddy image the compose file runs
+  ansible.builtin.slurp:
+    src: "{{ compose_deploy_dir }}/caddy/compose.yaml"
+  register: caddy_compose_file
+  when: caddy_has_compose_app
+  tags:
+    - infra
+
+- name: Validate the staged Caddyfile before it can replace the served one
+  community.docker.docker_container:
+    name: caddy-validate
+    image: "{{ (caddy_compose_file.content | b64decode | from_yaml).services.caddy.image }}"
+    command: ["caddy", "validate", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    volumes:
+      - "{{ compose_deploy_dir }}/caddy/_staging/caddyfile/Caddyfile:/etc/caddy/Caddyfile:ro"
+    # validate provisions the config, which loads or creates the internal CA
+    # under Caddy's data directory; the secret is only a placeholder, nothing
+    # is issued or contacted.
+    env:
+      DO_API_TOKEN: validation-only
+    tmpfs:
+      - /data
+      - /config
+    network_mode: none
+    read_only: true
+    # The image's caddy binary carries a file capability for binding low
+    # ports; with every capability dropped and no-new-privileges set, the
+    # kernel refuses to exec it. The compose file keeps the same one.
+    capabilities:
+      - NET_BIND_SERVICE
+    cap_drop:
+      - ALL
+    security_opts:
+      - no-new-privileges:true
+    detach: false
+    cleanup: true
+  changed_when: false
+  when: caddy_has_compose_app
+  tags:
+    - infra
+
 - name: Seed the caddyfile volume from staging
   ansible.builtin.include_role:
     name: compose

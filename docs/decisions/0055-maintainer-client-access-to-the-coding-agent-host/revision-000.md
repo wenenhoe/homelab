@@ -9,6 +9,9 @@ summary: How the maintainer drives the agent and reviews its work without the ho
 topic: security-hardening
 status: approved
 related: [ADR-0050, ADR-0053, ADR-0056, ADR-0057]
+relies_on:
+  - adr: ADR-0053
+    reason: "Its reasoning about the connection the workstation opens presupposes the firewall rule that the coding-agent host may not initiate to the workstation."
 ---
 
 # 0055. Maintainer client access to the coding-agent host

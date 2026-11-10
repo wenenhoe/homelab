@@ -9,6 +9,9 @@ summary: Which credentials the maintainer workstation holds, so a compromised ro
 topic: security-hardening
 status: approved
 related: [ADR-0013, ADR-0020, ADR-0044, ADR-0047, ADR-0048, ADR-0050, ADR-0055, ADR-0058]
+relies_on:
+  - adr: ADR-0058
+    reason: "It assumes the controller moves off VM 401 to the operator host, which is the move ADR 0058 decides."
 ---
 
 # 0056. Credentials held by the maintainer workstation

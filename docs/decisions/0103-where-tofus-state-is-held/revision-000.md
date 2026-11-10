@@ -9,6 +9,9 @@ summary: Where OpenTofu's state lives so that the record of what Tofu built depe
 topic: deployment-platform
 status: accepted
 related: [ADR-0111, ADR-0048, ADR-0058, ADR-0102]
+relies_on:
+  - adr: ADR-0058
+    reason: "It rules out the operator host as the backend because that host can be built by Tofu, which presupposes the operator host as ADR 0058 describes it."
 ---
 
 # 0103. Where Tofu's state is held

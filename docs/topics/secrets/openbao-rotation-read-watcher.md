@@ -37,6 +37,10 @@ read. See the script's own docstring for why the request id is also
 checked (`--since` is inclusive of its boundary timestamp, confirmed
 live).
 
+A read is recorded in that file only after Telegram accepted its alert. When the send fails, or the
+Telegram secrets could not be read at start, the watcher exits non-zero without recording it, and the
+unit's `Restart=always` starts it again from the last recorded read, which sends the alert again.
+
 ## Expected alerts
 
 `check_credential_expiry.py` reads all three watched secrets on every run: the R2

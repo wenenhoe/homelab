@@ -181,8 +181,9 @@ class TestSendAlert:
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
         match = {"time": "now", "secret": "s", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
 
-        watcher.send_alert(telegram, match)
+        sent = watcher.send_alert(telegram, match)
 
+        assert sent is False
         assert "telegram: alert send failed: boom" in capsys.readouterr().err
 
 
@@ -223,17 +224,44 @@ class TestWatch:
 
     @patch("rotation_read_watcher._save_state", autospec=True)
     @patch("rotation_read_watcher.subprocess.Popen", autospec=True)
-    def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state, capsys):
+    def test_a_read_is_not_saved_as_handled_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state, capsys):
         mock_proc = mock_popen.return_value
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n"])
-        mock_proc.wait.return_value = 3
 
         with patch("rotation_read_watcher.send_alert", autospec=True) as mock_send:
             rc = watcher.watch(None, None)
 
-        assert rc == 3
+        assert rc == 1
         assert "Rotation credential read" in capsys.readouterr().err
         mock_send.assert_not_called()
+        mock_save_state.assert_not_called()
+        mock_proc.terminate.assert_called_once()
+
+    @patch("rotation_read_watcher._save_state", autospec=True)
+    @patch("rotation_read_watcher.subprocess.Popen", autospec=True)
+    def test_a_read_whose_alert_failed_is_not_saved_and_the_watcher_stops_there(self, mock_popen, mock_save_state):
+        lines = [_with_path(REAL_R2_REQUEST_LINE, R2_PATH), _with_path(REAL_R2_REQUEST_LINE, B2_PATH)]
+        mock_proc = mock_popen.return_value
+        mock_proc.stdout = iter(line + "\n" for line in lines)
+
+        with patch("rotation_read_watcher.send_alert", autospec=True, return_value=False) as mock_send:
+            rc = watcher.watch({"token": "t", "chat_id": "c", "topic_id": ""}, None)
+
+        assert rc == 1
+        mock_send.assert_called_once()
+        mock_save_state.assert_not_called()
+
+    @patch("rotation_read_watcher._save_state", autospec=True)
+    @patch("rotation_read_watcher.subprocess.Popen", autospec=True)
+    def test_a_read_is_saved_once_its_alert_was_sent(self, mock_popen, mock_save_state):
+        mock_proc = mock_popen.return_value
+        mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n"])
+        mock_proc.wait.return_value = 0
+
+        with patch("rotation_read_watcher.send_alert", autospec=True, return_value=True):
+            watcher.watch({"token": "t", "chat_id": "c", "topic_id": ""}, None)
+
+        mock_save_state.assert_called_once()
 
 
 class TestVaultLogin:

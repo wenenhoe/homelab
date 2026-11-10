@@ -39,6 +39,9 @@ from utils.app_catalog import CATALOG_PATH, CATALOG_RELATIVE, BackupInventory, C
 
 ROUTES_KEY = "routes"
 LEGACY_ROUTES_KEY = "caddy"
+# `host` is set on a host's own entry, not in the catalog; the template reads no other key of a route.
+ROUTE_KEYS = ("host", "upstream", "auth", "read_only")
+ROUTE_FLAGS = ("auth", "read_only")
 CLOUD_TARGETS_KEY = "cloud_targets"
 LEGACY_CLOUD_TARGETS_KEY = "extra_cloud_targets"
 RECOVERY_TIER_KEY = "recovery_tier"
@@ -154,6 +157,15 @@ def _check_app(name: str, app: dict[str, object]) -> list[Violation]:
                 fail("routes-shape", f"route `{route_id}` must be a mapping")
             elif not _is_text(route.get("upstream")):
                 fail("route-upstream", f"route `{route_id}` has no `upstream`")
+            if isinstance(route, dict):
+                for key in route:
+                    if key not in ROUTE_KEYS:
+                        close = difflib.get_close_matches(str(key), ROUTE_KEYS, n=1)
+                        hint = f" (did you mean `{close[0]}`?)" if close else ""
+                        fail("route-unknown-key", f"route `{route_id}` has `{key}`, which the proxy ignores; the keys are {', '.join(ROUTE_KEYS)}{hint}")
+                for flag in ROUTE_FLAGS:
+                    if flag in route and not isinstance(route[flag], bool):
+                        fail("route-flag", f"route `{route_id}`: `{flag}` must be true or false, not an empty or quoted value")
     return found
 
 

@@ -165,6 +165,20 @@ class TestEachRule:
     def test_every_route_must_name_an_upstream(self, route):
         assert broken({rules.ROUTES_KEY: {"default": route}}) == ["route-upstream"]
 
+    @pytest.mark.parametrize("flag", ["auth", "read_only"])
+    @pytest.mark.parametrize("value", ["", None, 0, "false", "no"], ids=["empty", "null", "zero", "quoted-false", "quoted-no"])
+    def test_a_route_flag_must_be_a_boolean(self, flag, value):
+        assert broken({rules.ROUTES_KEY: {"default": {"upstream": "web:80", flag: value}}}) == ["route-flag"]
+
+    @pytest.mark.parametrize("flag", ["auth", "read_only"])
+    @pytest.mark.parametrize("value", [True, False])
+    def test_a_boolean_route_flag_is_accepted(self, flag, value):
+        assert broken({rules.ROUTES_KEY: {"default": {"upstream": "web:80", flag: value}}}) == []
+
+    def test_a_misspelt_route_key_is_refused_with_a_suggestion(self):
+        found = rules.validate({"a": {rules.ROUTES_KEY: {"default": {"upstream": "a:1", "readonly": True}}}})
+        assert [(v.rule, "did you mean `read_only`?" in v.message) for v in found] == [("route-unknown-key", True)]
+
     def test_a_missing_upstream_names_its_route(self):
         found = rules.validate({"a": {rules.ROUTES_KEY: {"web": {"upstream": "a:1"}, "admin": {"auth": False}}}})
         assert [(v.rule, "`admin`" in v.message) for v in found] == [("route-upstream", True)]

@@ -7,6 +7,7 @@ code the replay itself runs stops the replay until the maintainer confirms it.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -59,8 +60,8 @@ def stopped_by(layer: Layer) -> list[str]:
     return sorted(hits)
 
 
-def git_run(repo: Path, *args: str, stdin: bytes | None = None) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(["git", "-C", str(repo), *args], input=stdin, capture_output=True, check=False)
+def git_run(repo: Path, *args: str, stdin: bytes | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(["git", "-C", str(repo), *args], input=stdin, capture_output=True, check=False, env={**os.environ, **env} if env else None)
 
 
 def git_text(result: subprocess.CompletedProcess[bytes]) -> str:

@@ -16,7 +16,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip
+from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip, rebase
 from land_series.manifest import RESERVED_SLUGS, Layer
 from land_series.replay import Progress, ReplayError, git_run, git_text, landed_in, silent
 
@@ -105,6 +105,13 @@ def _wait_for_checks(repo: Path, url: str, sleep: Callable[[float], None]) -> No
     raise LandError(f"no required checks reported on {url} after waiting")
 
 
+def _moved(repo: Path, layer: Layer, tip: str, base: str) -> str:
+    """Why a layer cannot land as built: `base` holds more than the layer was built on. Says whether the layer would still apply."""
+    merged = git_run(repo, "merge-tree", "--write-tree", f"--merge-base={tip}^1", base, tip)
+    verdict = "its change now conflicts with it" if merged.returncode == 1 else "its change still applies, but no check has run on the result"
+    return f"{base} has changed since layer {layer.id} was built, and {verdict}; run without --land to rebuild the series, review it, then land it"
+
+
 def land(
     repo: Path, layers: Sequence[Layer], review: Review, base: str = "origin/main", sleep: Callable[[float], None] = time.sleep, progress: Progress = silent
 ) -> list[Landed]:
@@ -135,7 +142,11 @@ def _land_each(
         except KeptError as error:
             raise LandError(str(error)) from error
         if not is_ready(repo, tip, base):
-            raise LandError(f"{base} has changed since layer {layer.id} was built; run without --land to rebuild the series, review it, then land it")
+            raise LandError(_moved(repo, layer, tip, base))
+        try:
+            tip = rebase(repo, layer, tip, base)
+        except KeptError as error:
+            raise LandError(str(error)) from error
         progress(f"layer {layer.id}: pushing {layer.slug}")
         body, changed = _push(repo, layer, tip, base)
         progress(f"layer {layer.id}: opening or updating its pull request into {branch}")

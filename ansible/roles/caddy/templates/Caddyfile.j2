@@ -36,10 +36,10 @@
 {% for id, route in app.routes.items() %}
     @{{ route.host }} host {{ route.host }}.{{ caddy_domain }}
     handle @{{ route.host }} {
-        {% if route.auth | default(true) %}
+        {% if route.auth | default(true) is not sameas false %}
         import tinyauth_forwarder *
         {% endif %}
-        {% if route.read_only | default(false) %}
+        {% if route.read_only | default(false) is not sameas false %}
         @{{ route.host }}_writes not method GET HEAD
         respond @{{ route.host }}_writes "Method Not Allowed" 405
         {% endif %}

@@ -4,9 +4,10 @@
 # [section] in rclone.conf), that remote's own bucket name (not
 # assumed identical to SeaweedFS's, even though it is today for all
 # three — see host_vars/storage.yaml's cloud_sync_targets), and the
-# oldest archive to offer it as an rclone duration, or - for no limit.
+# oldest archive to offer it as an rclone duration, or - for no limit, and the
+# most one run may transfer for the job as an rclone size, or - for no limit.
 #
 # Read by cloud-sync.service's wrapper script — see cloud-sync.service.j2.
 {% for job in cloud_sync_jobs %}
-{{ seaweedfs_s3_bucket }} {{ job.path }} {{ job.target }} {{ job.target_bucket }} {{ job.max_age }}
+{{ seaweedfs_s3_bucket }} {{ job.path }} {{ job.target }} {{ job.target_bucket }} {{ job.max_age }} {{ job.max_transfer }}
 {% endfor %}

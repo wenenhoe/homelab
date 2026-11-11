@@ -52,6 +52,8 @@
         # Only target_a has an age ceiling; target_b has none, so it receives
         # the same old archive and shows the ceiling is what held it back.
         max_age: 4d
+        # Far above any archive the scenario seeds but under the one verify.yml adds.
+        max_transfer: 1M
       target_b:
         bucket: "{{ molecule_dest_b_bucket }}"
         endpoint: "http://{{ cloud_sync_test_ip }}:8333"

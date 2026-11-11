@@ -61,17 +61,17 @@
           caddy (no backup: key) entirely absent. Got:
           {{ cloud_sync_jobs_raw.content | b64decode }}
 
-    - name: Confirm each job carries its target's age ceiling, and - where the target has none
+    - name: Confirm each job carries its target's age ceiling and transfer cap, and - where the target has none
       ansible.builtin.assert:
         that:
           - >-
-            'alpha-host-happy_app_default_targets target_a ' ~ molecule_dest_a_bucket ~ ' 4d\n'
+            'alpha-host-happy_app_default_targets target_a ' ~ molecule_dest_a_bucket ~ ' 4d 1M\n'
             in (cloud_sync_jobs_raw.content | b64decode)
           - >-
-            'beta-host-happy_app_override_targets target_a ' ~ molecule_dest_a_bucket ~ ' 4d\n'
+            'beta-host-happy_app_override_targets target_a ' ~ molecule_dest_a_bucket ~ ' 4d 1M\n'
             in (cloud_sync_jobs_raw.content | b64decode)
           - >-
-            'alpha-host-happy_app_default_targets target_b ' ~ molecule_dest_b_bucket ~ ' -\n'
+            'alpha-host-happy_app_default_targets target_b ' ~ molecule_dest_b_bucket ~ ' - -\n'
             in (cloud_sync_jobs_raw.content | b64decode)
         fail_msg: "Job manifest: {{ cloud_sync_jobs_raw.content | b64decode }}"
 
@@ -255,6 +255,48 @@
           {{ cloud_sync_overwrite_before.stdout }} after:
           {{ cloud_sync_overwrite_after.stdout }}. target_a listing:
           {{ cloud_sync_overwrite_listing.stdout }}
+
+    # --- A prefix that grows past the transfer cap stops at it ---
+    # target_a allows 1M per run. A 2 MiB archive beside a small one: the
+    # relay must fail that job without copying the large one.
+    - name: Add a 2 MiB archive and a small one to beta's prefix in the source bucket
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: >-
+          sh -c "
+          head -c 2097152 /dev/zero | aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333
+          s3 cp - s3://{{ molecule_source_bucket }}/beta-host-happy_app_override_targets/large-archive.tar.gz.gpg &&
+          echo small-archive-content | aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333
+          s3 cp - s3://{{ molecule_source_bucket }}/beta-host-happy_app_override_targets/small-archive.tar.gz.gpg
+          "
+      changed_when: false
+
+    - name: Run the relay again  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl start cloud-sync.service
+      failed_when: false
+      changed_when: false
+
+    - name: List target_a after the capped run
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: "aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333 s3 ls s3://{{ molecule_dest_a_bucket }} --recursive"
+      register: cloud_sync_cap_listing
+      changed_when: false
+
+    - name: Read the service's log for the capped job  # noqa: command-instead-of-module
+      ansible.builtin.command: journalctl -u cloud-sync.service --no-pager -n 200
+      register: cloud_sync_cap_journal
+      changed_when: false
+
+    - name: Confirm the large archive stayed behind, the small one landed and the job reported a failure
+      ansible.builtin.assert:
+        that:
+          - "'beta-host-happy_app_override_targets/large-archive.tar.gz.gpg' not in cloud_sync_cap_listing.stdout"
+          - "'beta-host-happy_app_override_targets/small-archive.tar.gz.gpg' in cloud_sync_cap_listing.stdout"
+          - "'FAILED: seaweedfs:' ~ molecule_source_bucket ~ '/beta-host-happy_app_override_targets' in cloud_sync_cap_journal.stdout"
+        fail_msg: >-
+          target_a listing: {{ cloud_sync_cap_listing.stdout }}
+          Log: {{ cloud_sync_cap_journal.stdout }}
 
     # --- telegram-notify-cloud-sync wiring -------------------------------
     # Doesn't exercise a real Telegram delivery (no live bot/network in

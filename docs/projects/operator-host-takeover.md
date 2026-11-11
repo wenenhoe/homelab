@@ -31,7 +31,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Egress allowlist through the proxy. Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
-| 2 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, the Tofu credentials file, the shared SSH key. No credential moves before Stage 1 | Not started | A deploy in check mode, a `tofu plan`, and an `openbao_utils.shell` login all succeed from the operator host |
+| 2 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, the Tofu credentials file, the shared SSH key. No credential moves before Stage 1 | Not started | A deploy in check mode, a `tofu plan`, and an `openbao_utils.shell` login all succeed from the operator host, and then `vault-bootstrap` is bound to the host's address |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -39,6 +39,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - [ ] Every operation the controller performs today succeeds from the operator host.
 - [ ] Outbound from VLAN 30 reaches only the allowlisted destinations.
+- [ ] `vault-bootstrap` accepts a login only from this host's address, set after the first login from it succeeds ([`openbao-vault-bootstrap.md`](../topics/secrets/openbao-vault-bootstrap.md)), and a login from the workstation is refused.
 - [ ] The resulting behavior, including the restore procedure, is described in `docs/topics/infra/operator-host.md`.
 
 ## Agent handoff

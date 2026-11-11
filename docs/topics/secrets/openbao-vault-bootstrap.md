@@ -25,6 +25,39 @@ Treat its `secret_id` with the same offline discipline as the Shamir
 shares - never a casual `ansible/files/secrets/` entry - since it is,
 functionally, this repo's root-recovery mechanism now.
 
+## Where it can log in from
+
+From the day the shell moves there, the role is bound to the operator host
+(VM 302, `192.168.30.2`, see
+[ADR 0058 (Operator work host)](../../decisions/0058-where-operator-work-runs/revision-000.md)),
+the one machine `openbao_utils.shell` runs from. `secret_id_bound_cidrs`
+refuses a `secret_id` presented from any other address, and
+`token_bound_cidrs` refuses a token used from one. The `secret_id` itself
+never expires (`secret_id_ttl=0`), so it stays valid until it is rotated by
+hand, and the bind is what limits where a copy of it is any use.
+
+The role is not created by this repo's automation, so the bind is set by hand
+from a `vault-bootstrap` session, after a first login from the operator host
+has succeeded ([`operator-host-takeover.md`](../../projects/operator-host-takeover.md)
+lists it as the last step of moving the controller).
+A role write on this backend merges into the stored role, so these two fields
+are all it needs:
+
+```sh
+bao write auth/approle/role/vault-bootstrap \
+  secret_id_bound_cidrs="192.168.30.2/32" \
+  token_bound_cidrs="192.168.30.2/32"
+bao read auth/approle/role/vault-bootstrap
+```
+
+`token_bound_cidrs` reads back as the bare address, the same binding
+([`openbao-cd-agent-approles.md`](openbao-cd-agent-approles.md) says why).
+A session started from any other address is refused after this, including one
+from a laptop or from the machine the shell ran on before the move. Rebuild a
+lost operator host at the same address; moving the role to another address
+needs a login from the old one first, or a re-init
+([`openbao-reinit-runbook.md`](openbao-reinit-runbook.md)).
+
 ## Day-to-day use: minting a new AppRole
 
 ```sh

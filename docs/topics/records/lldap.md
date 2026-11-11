@@ -14,7 +14,7 @@ Holds the user accounts, groups and password hashes in the `data` volume, and it
 ## Exposure
 
 - The web UI is routed through Caddy with `auth: false`, since it is the identity provider and cannot sit behind its own check ([`lldap.md`](../services/lldap.md#one-container-two-host-level-roles)).
-- LDAPS is published on host port 6360 on every interface (`0.0.0.0:6360`). Unknown: which network can reach that port; check the host firewall and the tailnet policy ([`tailnet-policy.md`](../infra/tailnet-policy.md)).
+- LDAPS (`6360`) is not published on the host. The container carries the certificate's name (`lldap.<caddy_domain>`) as a network alias on `caddy-proxy`, where Docker resolves it, and tinyauth, the one client, binds through that name. Nothing off the host can reach the port.
 - Callers authenticate with LDAP bind credentials; the observer account is read-only.
 - It keeps `CHOWN`, `SETUID`, `SETGID` and `DAC_OVERRIDE` for its entrypoint ([`adding-an-app.md`](../deploy/adding-an-app.md#container-hardening)).
 

@@ -47,6 +47,10 @@ Update at the start and end of each PR that works a stage.
 
 Stage status is `Not started`, `In progress`, or `Done`. Stages 2 and 3 need no VM and start once the revision is `approved`.
 
+### Stage 4 — what remains
+
+The services canary is declared and the flow list holds the first flows. Left: a row in the gateway's policy for each other zone that admits the runner's host to the canary's address on 22 (others, desktops and isolated, and experimental after the Ubuntu module's VMID range is widened past 5XX); the run against a scratch gateway, with network namespaces on the node standing in for canary VMs there; and the removal of a rule that an allow flow depends on, which must make its probe fail.
+
 ## Acceptance criteria
 
 - [ ] One flow list in the repo is the only place the expected flows are written for checking, and its rules run as a pre-commit hook.

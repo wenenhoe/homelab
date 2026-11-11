@@ -14,5 +14,356 @@
 #     expect: allow | deny
 #     control: <id>              # deny only, and required there: an allow flow to the same destination, port and kind
 #     tags: [smoke]              # optional
-zones: {}
-flows: []
+
+# Addresses are the ones the gateway play and the Tofu VMID scheme fix: a zone is 192.168.<vlan>.0/24, the gateway is its .1
+# and the canary its .8 (tofu/canaries.tf). A flow carries its source zone as a tag, so a run can take the flows of the canaries
+# that exist (--tag services). A deny whose control is tried from another zone's canary is tagged cross-zone instead, since it
+# needs both canaries.
+zones:
+  services: {subnet: 192.168.20.0/24, canary: 192.168.20.8}
+  others: {subnet: 192.168.30.0/24, canary: 192.168.30.8}
+  desktops: {subnet: 192.168.40.0/24, canary: 192.168.40.8}
+  isolated: {subnet: 192.168.50.0/24, canary: 192.168.50.8}
+  experimental: {subnet: 192.168.60.0/24, canary: 192.168.60.8}
+
+flows:
+  # Every zone asks its own gateway address for DNS, time and an echo (row 1 of the gateway's policy).
+  - id: services-gateway-dns
+    from: services
+    to: {address: 192.168.20.1, port: 53, protocol: udp}
+    kind: dns
+    query: example.com
+    expect: allow
+    tags: [smoke, services]
+  - id: services-gateway-ntp
+    from: services
+    to: {address: 192.168.20.1, port: 123}
+    kind: ntp
+    expect: allow
+    tags: [smoke, services]
+  - id: services-gateway-ping
+    from: services
+    to: {address: 192.168.20.1}
+    kind: ping
+    expect: allow
+    tags: [smoke, services]
+  - id: others-gateway-dns
+    from: others
+    to: {address: 192.168.30.1, port: 53, protocol: udp}
+    kind: dns
+    query: example.com
+    expect: allow
+    tags: [smoke, others]
+  - id: others-gateway-ntp
+    from: others
+    to: {address: 192.168.30.1, port: 123}
+    kind: ntp
+    expect: allow
+    tags: [smoke, others]
+  - id: others-gateway-ping
+    from: others
+    to: {address: 192.168.30.1}
+    kind: ping
+    expect: allow
+    tags: [smoke, others]
+  - id: desktops-gateway-dns
+    from: desktops
+    to: {address: 192.168.40.1, port: 53, protocol: udp}
+    kind: dns
+    query: example.com
+    expect: allow
+    tags: [smoke, desktops]
+  - id: desktops-gateway-ntp
+    from: desktops
+    to: {address: 192.168.40.1, port: 123}
+    kind: ntp
+    expect: allow
+    tags: [smoke, desktops]
+  - id: desktops-gateway-ping
+    from: desktops
+    to: {address: 192.168.40.1}
+    kind: ping
+    expect: allow
+    tags: [smoke, desktops]
+  - id: isolated-gateway-dns
+    from: isolated
+    to: {address: 192.168.50.1, port: 53, protocol: udp}
+    kind: dns
+    query: example.com
+    expect: allow
+    tags: [smoke, isolated]
+  - id: isolated-gateway-ntp
+    from: isolated
+    to: {address: 192.168.50.1, port: 123}
+    kind: ntp
+    expect: allow
+    tags: [smoke, isolated]
+  - id: isolated-gateway-ping
+    from: isolated
+    to: {address: 192.168.50.1}
+    kind: ping
+    expect: allow
+    tags: [smoke, isolated]
+  - id: experimental-gateway-dns
+    from: experimental
+    to: {address: 192.168.60.1, port: 53, protocol: udp}
+    kind: dns
+    query: example.com
+    expect: allow
+    tags: [smoke, experimental]
+  - id: experimental-gateway-ntp
+    from: experimental
+    to: {address: 192.168.60.1, port: 123}
+    kind: ntp
+    expect: allow
+    tags: [smoke, experimental]
+  - id: experimental-gateway-ping
+    from: experimental
+    to: {address: 192.168.60.1}
+    kind: ping
+    expect: allow
+    tags: [smoke, experimental]
+
+  # A canary reaches itself on 22. It shows the canary is up and listening, which is what a deny aimed at its address needs
+  # for a control: the zone's own traffic is switched on the bridge and never reaches the gateway.
+  - id: services-canary-ssh
+    from: services
+    to: {address: 192.168.20.8, port: 22}
+    kind: connect
+    expect: allow
+    tags: [services]
+  - id: others-canary-ssh
+    from: others
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: allow
+    tags: [others]
+  - id: desktops-canary-ssh
+    from: desktops
+    to: {address: 192.168.40.8, port: 22}
+    kind: connect
+    expect: allow
+    tags: [desktops]
+  - id: isolated-canary-ssh
+    from: isolated
+    to: {address: 192.168.50.8, port: 22}
+    kind: connect
+    expect: allow
+    tags: [isolated]
+  - id: experimental-canary-ssh
+    from: experimental
+    to: {address: 192.168.60.8, port: 22}
+    kind: connect
+    expect: allow
+    tags: [experimental]
+
+  # Internet over 443 from the zones that have it. The isolated zone has none, and its control is a zone that does.
+  - id: services-internet-https
+    from: services
+    to: {address: 1.1.1.1, port: 443}
+    kind: connect
+    expect: allow
+    tags: [smoke, services]
+  - id: others-internet-https
+    from: others
+    to: {address: 1.1.1.1, port: 443}
+    kind: connect
+    expect: allow
+    tags: [others]
+  - id: desktops-internet-https
+    from: desktops
+    to: {address: 1.1.1.1, port: 443}
+    kind: connect
+    expect: allow
+    tags: [desktops]
+  - id: isolated-internet-denied
+    from: isolated
+    to: {address: 1.1.1.1, port: 443}
+    kind: connect
+    expect: deny
+    control: services-internet-https
+    tags: [cross-zone]
+  - id: experimental-internet-https
+    from: experimental
+    to: {address: 1.1.1.1, port: 443}
+    kind: connect
+    expect: allow
+    tags: [experimental]
+
+  # Default-deny between zones: no zone's canary reaches another zone's canary. The control is that canary reaching itself.
+  - id: services-to-others-canary-denied
+    from: services
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: others-canary-ssh
+    tags: [cross-zone]
+  - id: services-to-desktops-canary-denied
+    from: services
+    to: {address: 192.168.40.8, port: 22}
+    kind: connect
+    expect: deny
+    control: desktops-canary-ssh
+    tags: [cross-zone]
+  - id: services-to-isolated-canary-denied
+    from: services
+    to: {address: 192.168.50.8, port: 22}
+    kind: connect
+    expect: deny
+    control: isolated-canary-ssh
+    tags: [cross-zone]
+  - id: services-to-experimental-canary-denied
+    from: services
+    to: {address: 192.168.60.8, port: 22}
+    kind: connect
+    expect: deny
+    control: experimental-canary-ssh
+    tags: [cross-zone]
+  - id: others-to-services-canary-denied
+    from: others
+    to: {address: 192.168.20.8, port: 22}
+    kind: connect
+    expect: deny
+    control: services-canary-ssh
+    tags: [cross-zone]
+  - id: others-to-desktops-canary-denied
+    from: others
+    to: {address: 192.168.40.8, port: 22}
+    kind: connect
+    expect: deny
+    control: desktops-canary-ssh
+    tags: [cross-zone]
+  - id: others-to-isolated-canary-denied
+    from: others
+    to: {address: 192.168.50.8, port: 22}
+    kind: connect
+    expect: deny
+    control: isolated-canary-ssh
+    tags: [cross-zone]
+  - id: others-to-experimental-canary-denied
+    from: others
+    to: {address: 192.168.60.8, port: 22}
+    kind: connect
+    expect: deny
+    control: experimental-canary-ssh
+    tags: [cross-zone]
+  - id: desktops-to-services-canary-denied
+    from: desktops
+    to: {address: 192.168.20.8, port: 22}
+    kind: connect
+    expect: deny
+    control: services-canary-ssh
+    tags: [cross-zone]
+  - id: desktops-to-others-canary-denied
+    from: desktops
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: others-canary-ssh
+    tags: [cross-zone]
+  - id: desktops-to-isolated-canary-denied
+    from: desktops
+    to: {address: 192.168.50.8, port: 22}
+    kind: connect
+    expect: deny
+    control: isolated-canary-ssh
+    tags: [cross-zone]
+  - id: desktops-to-experimental-canary-denied
+    from: desktops
+    to: {address: 192.168.60.8, port: 22}
+    kind: connect
+    expect: deny
+    control: experimental-canary-ssh
+    tags: [cross-zone]
+  - id: isolated-to-services-canary-denied
+    from: isolated
+    to: {address: 192.168.20.8, port: 22}
+    kind: connect
+    expect: deny
+    control: services-canary-ssh
+    tags: [cross-zone]
+  - id: isolated-to-others-canary-denied
+    from: isolated
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: others-canary-ssh
+    tags: [cross-zone]
+  - id: isolated-to-desktops-canary-denied
+    from: isolated
+    to: {address: 192.168.40.8, port: 22}
+    kind: connect
+    expect: deny
+    control: desktops-canary-ssh
+    tags: [cross-zone]
+  - id: isolated-to-experimental-canary-denied
+    from: isolated
+    to: {address: 192.168.60.8, port: 22}
+    kind: connect
+    expect: deny
+    control: experimental-canary-ssh
+    tags: [cross-zone]
+  - id: experimental-to-services-canary-denied
+    from: experimental
+    to: {address: 192.168.20.8, port: 22}
+    kind: connect
+    expect: deny
+    control: services-canary-ssh
+    tags: [cross-zone]
+  - id: experimental-to-others-canary-denied
+    from: experimental
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: others-canary-ssh
+    tags: [cross-zone]
+  - id: experimental-to-desktops-canary-denied
+    from: experimental
+    to: {address: 192.168.40.8, port: 22}
+    kind: connect
+    expect: deny
+    control: desktops-canary-ssh
+    tags: [cross-zone]
+  - id: experimental-to-isolated-canary-denied
+    from: experimental
+    to: {address: 192.168.50.8, port: 22}
+    kind: connect
+    expect: deny
+    control: isolated-canary-ssh
+    tags: [cross-zone]
+
+  # The secrets store's port is open to the operator hosts only. The control is a canary in its own zone reaching it.
+  - id: services-security-vault
+    from: services
+    to: {address: 192.168.20.5, port: 8200}
+    kind: connect
+    expect: allow
+    tags: [services]
+  - id: others-to-security-vault-denied
+    from: others
+    to: {address: 192.168.20.5, port: 8200}
+    kind: connect
+    expect: deny
+    control: services-security-vault
+    tags: [cross-zone]
+  - id: desktops-to-security-vault-denied
+    from: desktops
+    to: {address: 192.168.20.5, port: 8200}
+    kind: connect
+    expect: deny
+    control: services-security-vault
+    tags: [cross-zone]
+  - id: isolated-to-security-vault-denied
+    from: isolated
+    to: {address: 192.168.20.5, port: 8200}
+    kind: connect
+    expect: deny
+    control: services-security-vault
+    tags: [cross-zone]
+  - id: experimental-to-security-vault-denied
+    from: experimental
+    to: {address: 192.168.20.5, port: 8200}
+    kind: connect
+    expect: deny
+    control: services-security-vault
+    tags: [cross-zone]

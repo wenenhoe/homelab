@@ -2,7 +2,7 @@
 id: PROJ-network-boundary-checks
 title: Network Boundary Checks
 type: project
-status: not-started
+status: de-risking
 blocked: false
 summary: A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects.
 decision: ADR-0094/0
@@ -18,7 +18,7 @@ The flow list and its loader and rule checks, the probe module and runner, the c
 
 ## Decision
 
-Implements [ADR 0094 (Network boundary checks)](../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md), `working`, so this project is `not-started` until its first spike begins and then `de-risking` until that revision's two open assumptions are resolved.
+Implements [ADR 0094 (Network boundary checks)](../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md), `working`, so this project is `de-risking` until that revision is `approved`.
 
 ## Execution plan
 
@@ -26,7 +26,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike on a scratch zone: whether the runner's host reaches a canary under the zones' rules, and whether connect and DNS flows cover what the three projects name. Starts once [`opnsense-config.md`](opnsense-config.md)'s Stage 2 has built a scratch gateway | Not started | Each assumption in ADR 0094 is resolved and folded into its Context, and the revision can be `approved` |
+| 1 | Spike on a scratch zone: whether the runner's host reaches a canary under the zones' rules. Starts once [`opnsense-config.md`](opnsense-config.md)'s Stage 2 has built a scratch gateway | Done | Each assumption in ADR 0094 is resolved and folded into its Context, and the revision can be `approved` |
 | 2 | The flow list's schema, loader and rule checks, with a pre-commit hook | Not started | The loader refuses a file that breaks each rule of the ADR, with a failing unit test per rule, and the hook runs on the flow list |
 | 3 | The probe module and the runner | Not started | Against a fake canary each kind passes and fails as expected, a deny whose control fails is reported failed, a probe that cannot run fails the run, and the exit status is zero only if every selected probe passed |
 | 4 | A canary VM and the first flows on the scratch gateway: the smoke flows and the existing zones | Not started | The runner against the scratch gateway passes every flow, and removing a rule that an allow flow depends on makes that probe fail |

@@ -170,6 +170,37 @@
         detach: false
         cleanup: true
 
+    # Before the first volume is emptied: a volume the archive lacks must stop
+    # the run while every live volume still holds its pre-restore data.
+    - name: Check the archive holds a directory for every targeted volume
+      community.docker.docker_container:
+        name: "{{ restore_app }}-restore-check"
+        image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+        volumes:
+          - "{{ restore_app }}_restore_scratch:/scratch:ro"
+        command: >-
+          sh -c "
+          missing=0;
+          for name in {{ restore_volumes | join(' ') }}; do
+            if [ -z \"$(find /scratch -type d -name \"$name\" | head -1)\" ]; then
+              echo \"ERROR: no directory named $name found in the archive\" >&2;
+              missing=1;
+            fi;
+          done;
+          exit $missing
+          "
+        network_mode: none
+        read_only: true
+        cap_drop:
+          - ALL
+        # Searching directories other users own.
+        capabilities:
+          - DAC_READ_SEARCH
+        security_opts:
+          - no-new-privileges:true
+        detach: false
+        cleanup: true
+
     - name: Locate and restore each targeted volume's contents
       community.docker.docker_container:
         name: "{{ restore_app }}-restore-{{ item }}"

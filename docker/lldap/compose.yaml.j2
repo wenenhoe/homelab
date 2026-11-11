@@ -16,10 +16,13 @@ services:
       LLDAP_LDAPS_OPTIONS__KEY_FILE: /data/certs/privkey.pem
     env_file:
       - .env
-    ports:
-      - '0.0.0.0:6360:6360' # For LDAPS (LDAP Over SSL)
+    # LDAPS is not published on the host. Its only client, tinyauth, shares this
+    # network and reaches it by the certificate's name, which Docker resolves to
+    # this container, so a password can be guessed only from a container here.
     networks:
-      - caddy-proxy
+      caddy-proxy:
+        aliases:
+          - "{{ lldap_host }}.{{ caddy_domain }}"
     restart: unless-stopped
     cap_add:
       - CHOWN
@@ -29,6 +32,7 @@ services:
     cap_drop:
       - ALL
     expose:
+      - '6360' # LDAPS (LDAP Over SSL)
       - '17170' # Web front-end
     security_opt:
       - no-new-privileges:true

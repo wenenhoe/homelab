@@ -9,7 +9,7 @@ current by two host-level Ansible roles rather than a sidecar container.
 
 | Component | Type | Purpose |
 | :--- | :--- | :--- |
-| `lldap` | Container | The directory itself. Serves LDAPS on `6360` and a web UI on `17170` (routed through Caddy, `auth: false` — it's the identity provider, so it can't sit behind its own auth check). |
+| `lldap` | Container | The directory itself. Serves LDAPS on `6360` (reachable only on the `caddy-proxy` network, under the certificate's name) and a web UI on `17170` (routed through Caddy, `auth: false` — it's the identity provider, so it can't sit behind its own auth check). |
 | `step_ca_cert` | Role (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6, called once for lldap and once for openbao — see [`openbao.md`](../secrets/openbao.md)) | For lldap's instance: issues the initial cert via `step ca certificate` (once, on a fresh `certs` volume) and installs a systemd `cert-renewer@lldap.timer` for every renewal after that. |
 | `step_ca_client` | Role (`ansible/roles/step_ca_client/`) | Shared prerequisite: caches step-ca's root cert on the host at `/etc/step-ca/root_ca.crt`, bind-mounted (read-only) into whichever `step` invocation needs it. Also used by `tinyauth_ca_trust` (below). |
 

@@ -49,6 +49,11 @@ of anything else stored there.
   so a new bucket's rules are made by hand and recorded in `cloud-sync.md`. A
   relay's credentials are kept to one blast radius per provider
   ([ADR 0006](../decisions/0006-offsite-backup-credential-blast-radius/revision-000.md)).
+- The relay's transfer cap ([`cloud-sync.md`](../topics/disaster-recovery/cloud-sync.md#transfer-cap))
+  bounds what a bucket can hold at the cap times the days its objects are kept.
+  For a world-archive target that holds objects d days, a cap near one archive
+  (about 2 GB) fits a 10 GB allowance up to d = 5, and a cap that also carries a
+  missed day (two archives, about 3.6 GB) fits only d = 2.
 - Constraints any answer must keep: the relay stays additive (`rclone copy
   --immutable`, never `sync`); an archive is offered to a cloud before
   SeaweedFS prunes it; a new bucket or rule never shortens the lock or
@@ -78,6 +83,14 @@ SeaweedFS keeping seven days and the boundary at k days, R2 holds about k
 archives, B2 about one more and OCI the other seven minus k. At the archive's
 size when this was written, about 1.8 GB, a boundary of 2 days leaves OCI near
 9 GB, and 3 days leaves every provider near 7 GB or less.
+
+The cap decides how long a short window can be: the days an object is kept,
+times the cap, must stay under the allowance. At k = 3, R2 keeps objects about 3
+days, B2 about 4 and OCI 5, so caps of about 3 GB, 2.5 GB and 2 GB hold each to
+10 GB or less (9, 10 and 10). Each is under two archives, so a missed day is
+carried by running the relay by hand. rclone sizes in `G` are binary, so the
+values are set a little below these, and every cap has to rise with the
+archive, which shortens the window it can afford.
 
 Options that lost, with the reason:
 

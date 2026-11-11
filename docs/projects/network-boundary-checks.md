@@ -36,7 +36,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike on a scratch zone: whether the runner's host reaches a canary under the zones' rules. Starts once [`opnsense-config.md`](opnsense-config.md)'s Stage 2 has built a scratch gateway | Done | Each assumption in ADR 0094 is resolved and folded into its Context, and the revision can be `approved` |
 | 2 | The flow list's schema, loader and rule checks, with a pre-commit hook | Done | The loader refuses a file that breaks each rule of the ADR, with a failing unit test per rule, and the hook runs on the flow list |
-| 3 | The probe module and the runner | Not started | Against a fake canary each kind passes and fails as expected, a deny whose control fails is reported failed, a probe that cannot run fails the run, and the exit status is zero only if every selected probe passed |
+| 3 | The probe module and the runner | Done | Against a fake canary each kind passes and fails as expected, a deny whose control fails is reported failed, a probe that cannot run fails the run, and the exit status is zero only if every selected probe passed |
 | 4 | A canary VM and the first flows on the scratch gateway: the smoke flows and the existing zones | Not started | The runner against the scratch gateway passes every flow, and removing a rule that an allow flow depends on makes that probe fail |
 | 5 | The scheduled run and its heartbeat. Starts once the host that runs it exists | Not started | A passing run pushes the heartbeat, a failing run alerts through `OnFailure=`, and a run that does not happen alerts as a missed heartbeat |
 

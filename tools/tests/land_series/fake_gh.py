@@ -3,7 +3,10 @@
 It keeps its pull requests in the JSON file named by FAKE_GH_STATE and records every call there. `pr merge` really merges the
 branch into the bare repository named by FAKE_GH_REMOTE, as GitHub would, and refuses when `--match-head-commit` is not the branch's tip.
 A pull request whose state has `fork` set is listed as one from another repository. FAKE_GH_CHECKS sets what `pr checks` reports:
-`pass`, `fail`, `late` (nothing reported on the first call, then pass) or `fail-second` (fail once a second pull request exists).
+`pass`, `fail`, `late` (nothing reported on the first call, then pass), `fail-second` (fail once a second pull request exists), `partial` (only the
+first required check is reported on the first call, then all), `never` (only the first required check is ever reported), `pending` (the first required
+check is pending on the first call, then passes) or `skipping` (the first required check is skipped). FAKE_GH_REQUIRED lists the required checks, comma
+separated (default `build`); FAKE_GH_API=fail makes the rules call fail. `pr checks` prints JSON and exits 8 while anything is pending, as `gh` does.
 """
 
 import json
@@ -63,13 +66,39 @@ def main(args: list[str]) -> int:
     elif verb == ["pr", "edit"]:
         pr = state["prs"][number_of(args[2]) - 1]
         pr["title"], pr["body"] = option(args, "--title"), option(args, "--body")
-    elif verb == ["pr", "checks"]:
-        state["checks_calls"] += 1
-        mode = os.environ.get("FAKE_GH_CHECKS", "pass")
-        if mode == "fail" or (mode == "fail-second" and len(state["prs"]) >= 2) or (mode == "late" and state["checks_calls"] == 1):
-            print("no required checks reported on the 'x' branch" if mode == "late" else "build  fail  1m  https://example.test/run", file=sys.stderr)
+    elif args[:1] == ["api"]:
+        assert args[1].startswith("repos/{owner}/{repo}/rules/branches/"), args
+        if os.environ.get("FAKE_GH_API") == "fail":
+            print("HTTP 403: Resource not accessible", file=sys.stderr)
             save(state)
             return 1
+        required = [name for name in os.environ.get("FAKE_GH_REQUIRED", "build").split(",") if name]
+        rules = [{"type": "deletion"}]
+        if required:
+            rules.append({"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": name} for name in required]}})
+        print(json.dumps(rules))
+    elif verb == ["pr", "checks"]:
+        state["checks_calls"] += 1
+        calls = state["checks_calls"]
+        mode = os.environ.get("FAKE_GH_CHECKS", "pass")
+        names = [name for name in os.environ.get("FAKE_GH_REQUIRED", "build").split(",") if name]
+        assert option(args, "--json") == "name,bucket", args
+        if mode == "late" and calls == 1:
+            print("no required checks reported on the 'x' branch", file=sys.stderr)
+            save(state)
+            return 1
+        reported = [{"name": name, "bucket": "pass"} for name in names]
+        if mode == "fail" or (mode == "fail-second" and len(state["prs"]) >= 2):
+            reported[0]["bucket"] = "fail"
+        elif mode == "pending" and calls == 1:
+            reported[0]["bucket"] = "pending"
+        elif mode == "skipping":
+            reported[0]["bucket"] = "skipping"
+        elif mode == "never" or (mode == "partial" and calls == 1):
+            reported = reported[:1]
+        print(json.dumps(reported))
+        save(state)
+        return 8 if any(check["bucket"] == "pending" for check in reported) else 1 if mode.startswith("fail") else 0
     elif verb == ["pr", "merge"]:
         pr = state["prs"][number_of(args[2]) - 1]
         assert {"--admin", "--merge", "--delete-branch"} <= set(args), args

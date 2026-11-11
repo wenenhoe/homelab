@@ -15,6 +15,7 @@ import subprocess
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip, rebase
@@ -22,9 +23,9 @@ from land_series.manifest import RESERVED_SLUGS, Layer, Pull, group_pulls
 from land_series.replay import Progress, ReplayError, git_run, git_text, landed_in, silent
 
 CHECKS_INTERVAL_SECONDS = 20
-NO_CHECKS_WAIT_SECONDS = 10
-NO_CHECKS_RETRIES = 12
-OUTPUT_TAIL_LINES = 40
+CHECKS_MAX_POLLS = 270  # about 90 minutes at the interval above
+PASSING_BUCKETS = frozenset({"pass", "skipping"})
+FAILING_BUCKETS = frozenset({"fail", "cancel"})
 
 Review = Callable[[Pull, str], bool]
 
@@ -114,17 +115,55 @@ def _pull_request(repo: Path, pull: Pull, branch: str, body: str, changed: bool)
     return _gh_ok(repo, "pr", "create", "--base", branch, "--head", pull.slug, "--title", pull.title, "--body", body).splitlines()[-1]
 
 
-def _wait_for_checks(repo: Path, url: str, sleep: Callable[[float], None]) -> None:
-    for _ in range(NO_CHECKS_RETRIES + 1):
-        result = _gh(repo, "pr", "checks", url, "--watch", "--interval", str(CHECKS_INTERVAL_SECONDS), "--required")
-        if result.returncode == 0:
-            return
+def required_checks(repo: Path, branch: str) -> frozenset[str]:
+    """The names of the status checks the rulesets require on `branch`, read once per run, before the first push, and never cached on disk.
+
+    `gh pr checks --required` lists only checks GitHub has already reported, and a job with `needs` (`matrix-jobs-gate`) is not
+    reported until what it needs has finished, so the pull request's own list cannot say what is still to come.
+    """
+    rules = json.loads(_gh_ok(repo, "api", f"repos/{{owner}}/{{repo}}/rules/branches/{branch}") or "[]")
+    names = frozenset(
+        check["context"] for rule in rules if rule.get("type") == "required_status_checks" for check in rule["parameters"]["required_status_checks"]
+    )
+    if not names:
+        raise LandError(f"the rulesets list no required status checks for {branch}, so there is nothing to wait for before a merge")
+    return names
+
+
+def _reported(repo: Path, url: str) -> dict[str, set[str]]:
+    """Each check name the pull request has so far, with the buckets it is in. `gh` exits 8 while checks are pending, so the exit code is not read."""
+    result = _gh(repo, "pr", "checks", url, "--json", "name,bucket")
+    try:
+        return _buckets(json.loads(result.stdout))
+    except json.JSONDecodeError:
         output = (result.stdout + result.stderr).strip()
-        if "checks reported" not in output:
-            tail = "\n".join(output.splitlines()[-OUTPUT_TAIL_LINES:])
-            raise LandError(f"the required checks on {url} did not pass:\n{tail}")
-        sleep(NO_CHECKS_WAIT_SECONDS)
-    raise LandError(f"no required checks reported on {url} after waiting")
+        if "checks reported" in output:
+            return {}
+        raise LandError(f"`gh pr checks` failed on {url}: {output}") from None
+
+
+def _buckets(checks: Sequence[dict[str, str]]) -> dict[str, set[str]]:
+    buckets: dict[str, set[str]] = {}
+    for check in checks:
+        buckets.setdefault(check["name"], set()).add(check["bucket"])
+    return buckets
+
+
+def _wait_for_checks(repo: Path, url: str, required: frozenset[str], sleep: Callable[[float], None]) -> None:
+    """Return once every required check is reported and passing; raise at the first that failed, or when they are still not all in after the limit."""
+    waiting: list[str] = []
+    for poll in range(CHECKS_MAX_POLLS):
+        if poll:
+            sleep(CHECKS_INTERVAL_SECONDS)
+        reported = _reported(repo, url)
+        failed = sorted(name for name in required if reported.get(name, set()) & FAILING_BUCKETS)
+        if failed:
+            raise LandError(f"the required checks on {url} did not pass:\n" + "\n".join(f"{name}  {min(reported[name] & FAILING_BUCKETS)}" for name in failed))
+        waiting = sorted(name for name in required if not reported.get(name) or not reported[name] <= PASSING_BUCKETS)
+        if not waiting:
+            return
+    minutes = CHECKS_MAX_POLLS * CHECKS_INTERVAL_SECONDS // 60
+    raise LandError(f"the required checks on {url} were not all passing after {minutes} minutes; still waiting for: {', '.join(waiting)}")
 
 
 def _moved(repo: Path, pull: Pull, first: str, tip: str, base: str) -> str:
@@ -142,7 +181,7 @@ def land(
     results: list[Landed] = []
     fetch(repo, base)
     try:
-        _land_each(repo, layers, review, base, branch, sleep, results, progress)
+        _land_each(repo, layers, review, base, branch, cache(lambda: required_checks(repo, branch)), sleep, results, progress)
     except LandError as error:
         error.landed = results
         raise
@@ -152,7 +191,15 @@ def land(
 
 
 def _land_each(
-    repo: Path, layers: Sequence[Layer], review: Review, base: str, branch: str, sleep: Callable[[float], None], results: list[Landed], progress: Progress
+    repo: Path,
+    layers: Sequence[Layer],
+    review: Review,
+    base: str,
+    branch: str,
+    required: Callable[[], frozenset[str]],
+    sleep: Callable[[float], None],
+    results: list[Landed],
+    progress: Progress,
 ) -> None:
     for pull in group_pulls(list(layers)):
         label = f"pull request {pull.number}"
@@ -174,12 +221,13 @@ def _land_each(
             first, tip = rebase(repo, pull, first, tip, base)
         except KeptError as error:
             raise LandError(str(error)) from error
+        wanted = required()
         progress(f"{label}: pushing {pull.slug}")
         body, changed = _push(repo, pull, tip, base)
         progress(f"{label}: opening or updating its pull request into {branch}")
         url = _pull_request(repo, pull, branch, body, changed)
         progress(f"{label}: waiting for the required checks on {url} (this is CI, it can take several minutes)")
-        _wait_for_checks(repo, url, sleep)
+        _wait_for_checks(repo, url, wanted, sleep)
         if not review(pull, url):
             results.append(Landed(pull, url, merged=False))
             break

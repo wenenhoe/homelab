@@ -35,6 +35,16 @@ The play runs from the operator host and, until it is retired, VM 401 ([ADR 0089
 
 Batfish's list of supported devices names no OPNsense or pfSense release.
 
+What the flows of the existing zones need ([`opnsense-config.md`](../../projects/opnsense-config.md)'s draft policy, rows 1 to 17):
+
+- Rows 2 to 13, 16 and 17 are TCP connections. Rows 14 and 15 deny direct DNS, which a `dns` query to an outside resolver on 53 and a connect to 853 show.
+- Row 1 has every zone reach the gateway's address for NTP (UDP 123) and ICMP echo, and the play writes a rule for each. Neither is a connection or a DNS query, so the schema carries a kind for each. DHCP is not a flow: Kea opens its own firewall rules, and a canary that gets a lease is a state check.
+
+How the runner reaches a canary and what the canary can reach:
+
+- The operator host's SSH reaches VLAN 20 (row 4), VM 303 (row 7) and VLAN 70 (row 8, with ADR 0053's provisioning source). A session from the operator host's address starts to a canary in the services zone and to the CD agent's address in the others zone, and does not start to another address in the others zone or to the isolated and experimental zones, which no flow admits. No row admits the operator host to VLANs 50 and 60, and VLAN 30 is admitted only at the CD agent's address until the operator host is itself in that zone. A canary in one of the zones without a row needs one, or a revision of the zone's decision (VLAN 50 admits no inbound flow today).
+- The probe module needs nothing on the canary beyond Python and SSH: the runner sends it on the session's standard input. Over that session a canary connects to its gateway on 53, which row 1 admits, and not on 443, which no flow admits a canary.
+
 ## Decision
 
 **One flow list.** A committed YAML file in a `network_checks` package under `tools/` is the only place the expected flows are written for checking. It declares the zones (a name and a subnet), one canary per zone, and the flows:
@@ -43,10 +53,10 @@ Batfish's list of supported devices names no OPNsense or pfSense release.
 | :--- | :--- |
 | `id` | Unique name of the flow |
 | `from` | The source zone, whose canary makes the attempt |
-| `to` | The destination address or name, with port and protocol |
-| `kind` | `connect` (a TCP connection is established) or `dns` (a query is answered) |
+| `to` | The destination address or name, with port and protocol (none for `ping`) |
+| `kind` | `connect` (a TCP connection is established), `dns` (a query is answered), `ping` (an ICMP echo is answered) or `ntp` (an SNTP query is answered) |
 | `expect` | `allow` or `deny` |
-| `control` | A deny only: the `id` of an allow flow to the same destination and port |
+| `control` | A deny only: the `id` of an allow flow to the same destination, port and kind |
 | `tags` | Free labels; `smoke` marks the flows a release rehearsal runs |
 
 The list says what is intended. It is not the source of the gateway's rules, which carry ordering, floating and per-interface scope that a flow does not.
@@ -55,7 +65,7 @@ The list says what is intended. It is not the source of the gateway's rules, whi
 
 **Reading a result.** An allow flow passes when the attempt succeeds. A deny flow passes only when the attempt fails and its control passed in the same run; a deny whose control failed is reported as failed, since the destination or the canary may simply be down. Every canary has at least one allow flow, so a dead canary cannot make its denies pass. A probe the runner could not run counts as failed.
 
-**Rules the loader enforces.** Ids are unique; every zone named exists and has a canary and an allow flow; a deny's control is an allow flow to the same destination and port; and every ordered pair of declared zones has at least one flow, so a default-deny is stated, not assumed. The loader refuses a file that breaks one, runs as a pre-commit hook like the catalog rules checks, and has a failing case per rule in its unit tests.
+**Rules the loader enforces.** Ids are unique; every zone named exists and has a canary and an allow flow; a deny's control is an allow flow to the same destination, port and kind; and every ordered pair of declared zones has at least one flow, so a default-deny is stated, not assumed. The loader refuses a file that breaks one, runs as a pre-commit hook like the catalog rules checks, and has a failing case per rule in its unit tests.
 
 **When it runs.** Against a scratch gateway or a clone during development; as the release rehearsal's smoke checks, on the flows tagged `smoke`; after each apply to the gateway; and on a schedule against production. The run exits zero only if every selected probe passes. A fully passing scheduled run pushes the job's heartbeat from the runner's host, never from a canary; a failing run exits non-zero so the unit's `OnFailure=` alerts, as ADR 0072 decides for any job. How the run is started (a timer on the operator host, later a CD agent job) is decided where that host and agent are. State checks such as a valid WAN gateway or VLANs being up stay in the rehearsal and are not flows.
 
@@ -69,15 +79,6 @@ The list says what is intended. It is not the source of the gateway's rules, whi
 - **A resident agent on each canary that pushes results.** A default-deny zone cannot reach Gatus, and the agent would hold a push token and code on a host in a zone the decisions treat as untrusted.
 - **Behave or another Gherkin runner.** A second runner and language for what is a table of rows, against the one test style of ADR 0069.
 - **Crafted packets.** A connection and a DNS query test what the lab relies on. Fragmentation and malformed traffic are outside that.
-
-## Assumptions
-
-- **Claim:** the runner's host can reach each canary over SSH under the rules the zones' decisions already admit.
-  **Breaks if wrong:** a zone's decision needs a revision to admit the runner's host to the canary, or the run needs a canary-side scheduler that the runner reads from, which ADR 0053's inbound rule does not allow today.
-  **Checked by:** reading ADR 0053 and ADR 0058's inbound rules, then a scratch-zone attempt.
-- **Claim:** TCP connect and DNS query cover the flows the three projects name, apart from requests through the egress proxy, which the project that builds the proxy adds as a kind.
-  **Breaks if wrong:** another kind is added to the schema, with probe code and tests of its own.
-  **Checked by:** reading the flows the policy stage lists for the existing zones.
 
 ## Consequences
 

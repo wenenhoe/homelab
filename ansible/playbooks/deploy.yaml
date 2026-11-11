@@ -118,6 +118,9 @@
         step_ca_cert_app_name: lldap
         step_ca_cert_common_name: "{{ lldap_host }}"
         step_ca_cert_container_cert_dir: /data/certs
+        step_ca_cert_renew_restarts_after: >-
+          {{ resolved_apps | selectattr('name', 'eq', 'lldap')
+          | map(attribute='restart_after', default=[]) | first | default([]) }}
       tags:
         - images
 

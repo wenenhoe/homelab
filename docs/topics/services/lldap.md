@@ -43,7 +43,9 @@ An instance can also list apps in `RENEW_RESTARTS_AFTER`, which are restarted
 after its own restart. For lldap that is `tinyauth`: tinyauth holds one LDAP
 connection open and, after lldap restarts, fails every login (`ldap: connection
 closed`) until its own heartbeat reconnects, which took minutes. Restarting it
-with lldap closes that window.
+with lldap closes that window. The catalog's `restart_after` for lldap names
+tinyauth, and both the renewer and the `compose` role read it: a deploy that
+recreates or restarts lldap restarts tinyauth too.
 
 A renewal failure shows up as a failed systemd unit
 (`systemctl status cert-renewer@lldap.service`,

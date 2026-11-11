@@ -19,6 +19,9 @@ and the rule it breaks; any violation fails the check.
 A `doc` key names the app's service record: a path under `docs/topics/` ending in `.md` (ADR 0100). Whether the file
 exists and has its sections is the doc-drift check's business.
 
+A `restart_after` key lists other catalog apps to restart when this one is recreated or restarted: an app that
+holds a connection to it and fails requests on the dead one.
+
 A `recovery_tier` key is `1` or absent: it marks a system every other restore depends on, and every other
 system's tier is derived from whether it has a `backup` (ADR 0101).
 
@@ -46,6 +49,7 @@ CLOUD_TARGETS_KEY = "cloud_targets"
 LEGACY_CLOUD_TARGETS_KEY = "extra_cloud_targets"
 RECOVERY_TIER_KEY = "recovery_tier"
 DOC_KEY = "doc"
+RESTART_AFTER_KEY = "restart_after"
 # A record is a topic doc named by its repo-relative path; that the file exists and holds the required sections is
 # check_doc_drift.py's to say.
 DOC_PATH_RE = re.compile(r"docs/topics/(?:[\w-]+/)+[\w.-]+\.md")
@@ -273,9 +277,28 @@ def _check_backup_hosts(catalog: Catalog, inventory: BackupInventory) -> list[Vi
     return found
 
 
+def _check_restart_after(catalog: Catalog) -> list[Violation]:
+    """Every `restart_after` is a list of other apps of the catalog."""
+    found = []
+    for name, app in catalog.items():
+        if RESTART_AFTER_KEY not in app:
+            continue
+        listed = app[RESTART_AFTER_KEY]
+        if not _is_list_of_text(listed):
+            found.append(Violation(name, "restart-after-shape", f"`{RESTART_AFTER_KEY}` must be a list of app names"))
+            continue
+        for other in listed:
+            if other == name:
+                found.append(Violation(name, "restart-after-self", f"`{RESTART_AFTER_KEY}` names the app itself"))
+            elif other not in catalog:
+                found.append(Violation(name, "restart-after-unknown", f"`{RESTART_AFTER_KEY}` names `{other}`, which is not in the catalog"))
+    return found
+
+
 def validate(catalog: Catalog, inventory: BackupInventory | None = None) -> list[Violation]:
     """Every rule violation in `catalog`, in app order, then those that need the inventory if it is given."""
     found = [violation for name, app in catalog.items() for violation in _check_app(name, app)]
+    found += _check_restart_after(catalog)
     if inventory is not None:
         found += _check_defaults(inventory) + _check_overrides(inventory) + _check_cloud_targets(catalog, inventory) + _check_backup_hosts(catalog, inventory)
     return found

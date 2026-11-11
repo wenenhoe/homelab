@@ -231,6 +231,22 @@ class TestEachRule:
         found = rules.validate({"ok": GOOD["web"], "one": {rules.ROUTES_KEY: {"r": {}}}, "two": {"backup": {"volumes": ["x"]}}})
         assert [(v.name, v.rule) for v in found] == [("one", "route-upstream"), ("two", "backup-volume")]
 
+    def test_restart_after_naming_another_app_is_accepted(self):
+        assert rules.validate({"a": {"restart_after": ["b"]}, "b": {}}) == []
+
+    @pytest.mark.parametrize(
+        "listed",
+        [pytest.param("b", id="text"), pytest.param([1], id="number"), pytest.param([""], id="blank"), pytest.param(None, id="null")],
+    )
+    def test_restart_after_must_be_a_list_of_names(self, listed):
+        assert broken({"restart_after": listed}) == ["restart-after-shape"]
+
+    def test_restart_after_naming_the_app_itself_is_refused(self):
+        assert broken({"restart_after": ["a"]}) == ["restart-after-self"]
+
+    def test_restart_after_naming_an_app_not_in_the_catalog_is_refused(self):
+        assert broken({"restart_after": ["ghost"]}) == ["restart-after-unknown"]
+
     def test_recovery_tier_1_is_accepted(self):
         assert broken({"recovery_tier": 1}) == []
 

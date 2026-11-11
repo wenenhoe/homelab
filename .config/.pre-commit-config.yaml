@@ -158,6 +158,19 @@ repos:
         files: "^(ansible/inventory/(inventory\\.yaml|group_vars/all/(app_catalog|main|secret_catalog)\\.yaml\
           |host_vars/[^/]+\\.yaml)|tools/(utils/(app_catalog|unique_key_yaml)|ci/gates/app_catalog_rules)\\.py)$"
         pass_filenames: false
+      - id: check-flow-list
+        name: check-flow-list
+        description: >-
+          The flow list in tools/network_checks/flows.yaml keeps its shape
+          and the rules of ADR 0094: unique ids, declared zones, an allow
+          flow from every canary, a deny's control tries the same
+          destination, port and kind, and a flow for every pair of zones -
+          see tools/network_checks/rules.py. Needs only PyYAML.
+        entry: bash -c 'cd tools && python3 -m network_checks.rules' --
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        files: "^tools/(network_checks/(flows\\.yaml|flow_list\\.py|rules\\.py)|utils/unique_key_yaml\\.py)$"
+        pass_filenames: false
       - id: check-image-pins
         name: check-image-pins
         description: >-

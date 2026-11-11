@@ -1,0 +1,18 @@
+# The flows the lab expects between its zones, allowed and blocked (ADR 0094). The loader and the rules in
+# flow_list.py and rules.py refuse a file that breaks them, and the check-flow-list pre-commit hook runs both.
+#
+# zones:
+#   <name>:
+#     subnet: 192.168.20.0/24
+#     canary: 192.168.20.250       # inside the subnet
+# flows:
+#   - id: <unique name>
+#     from: <zone>               # the zone whose canary makes the attempt
+#     to: {address: <IPv4 or name>, port: <1-65535>, protocol: tcp|udp}   # protocol defaults to tcp for connect and udp for ntp
+#     kind: connect | dns | ping | ntp   # ping takes no port or protocol
+#     query: <name>              # dns only, and required there
+#     expect: allow | deny
+#     control: <id>              # deny only, and required there: an allow flow to the same destination, port and kind
+#     tags: [smoke]              # optional
+zones: {}
+flows: []

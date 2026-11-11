@@ -55,6 +55,7 @@ How the runner reaches a canary and what the canary can reach:
 | `from` | The source zone, whose canary makes the attempt |
 | `to` | The destination address or name, with port and protocol (none for `ping`) |
 | `kind` | `connect` (a TCP connection is established), `dns` (a query is answered), `ping` (an ICMP echo is answered) or `ntp` (an SNTP query is answered) |
+| `query` | A `dns` flow only: the name the query asks for |
 | `expect` | `allow` or `deny` |
 | `control` | A deny only: the `id` of an allow flow to the same destination, port and kind |
 | `tags` | Free labels; `smoke` marks the flows a release rehearsal runs |

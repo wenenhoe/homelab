@@ -7,7 +7,7 @@ short: Network boundary checks
 solution: "One committed flow list drives a unit-tested runner that tries each flow from a canary VM in its source zone and reports through the job-heartbeat path"
 summary: How the lab shows that the firewall policy between its zones allows the flows it declares and blocks the rest, before and after a change to the gateway and on a schedule.
 topic: security-hardening
-status: working
+status: approved
 related: [ADR-0053, ADR-0058, ADR-0059, ADR-0064, ADR-0069, ADR-0072, ADR-0089]
 ---
 

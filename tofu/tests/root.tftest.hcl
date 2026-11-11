@@ -197,3 +197,43 @@ run "publishes_the_hosts_for_the_inventory_generator" {
     error_message = "the tailscale entry must carry the VMID-derived address and the admin user the inventory used"
   }
 }
+
+run "builds_no_canary_without_a_key" {
+  command = plan
+
+  assert {
+    condition     = length(module.canary) == 0
+    error_message = "a canary nobody can log in to must not be built"
+  }
+}
+
+run "builds_the_services_canary_on_its_vmid" {
+  command = plan
+
+  variables {
+    canary_ssh_public_keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIcanary canary"]
+  }
+
+  assert {
+    condition     = module.canary["services"].vm_id == 208 && module.canary["services"].ip_address == "192.168.20.8"
+    error_message = "the services canary must sit at the address the flow list declares for it"
+  }
+
+  assert {
+    condition     = module.canary["services"].hostname == "canary-services"
+    error_message = "the canary must be named for its zone"
+  }
+}
+
+run "keeps_the_canaries_out_of_the_inventory" {
+  command = plan
+
+  variables {
+    canary_ssh_public_keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIcanary canary"]
+  }
+
+  assert {
+    condition     = length(output.ansible_hosts) == 5 && !contains(keys(output.ansible_hosts), "canary-services")
+    error_message = "a canary holds no Ansible role, so the inventory generator must not see it"
+  }
+}

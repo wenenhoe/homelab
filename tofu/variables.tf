@@ -79,3 +79,9 @@ variable "ansible_ssh_public_keys" {
   description = "Public keys installed for each VM's admin user: the public half of the key Ansible connects with."
   type        = list(string)
 }
+
+variable "canary_ssh_public_keys" {
+  description = "Public keys installed for each canary VM's user: the public half of the key the boundary-check runner connects with, which is not the key Ansible uses. Empty builds no canary."
+  type        = list(string)
+  default     = []
+}

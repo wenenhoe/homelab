@@ -134,6 +134,7 @@ ansible_ssh_public_keys = ["ssh-ed25519 AAAA... ansible"]
 | `proxmox_api_token` | `tofu@pve!skeleton=<secret>` | The secret |
 | `dns_domain` | The inventory's `host_domain` | Derives from `main_domain`, a secret-catalog value the repository never holds. Not a secret, but feeds every VM |
 | `ansible_ssh_public_keys` | The public half of `~/.ssh/proxmox_vm_servers` | Not a secret, but feeds every VM, so it sits with Tofu's other inputs |
+| `canary_ssh_public_keys` | The public half of the key the boundary-check runner connects with | Optional. Not the Ansible key. With none set, no canary VM is built ([`ubuntu-vms.md`](ubuntu-vms.md#canary-vms)) |
 | `opnsense_root_password`, `opnsense_api_key`, `opnsense_api_secret`, `opnsense_root_otp_seed` | The gateway's credentials | Present once the [seed](opnsense-vm.md#seed-disk) is built |
 
 ## Proxmox API token

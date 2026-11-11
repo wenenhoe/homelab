@@ -218,6 +218,19 @@ containers' cron schedules: the cloud sync that follows the backups, the certifi
 renewal heartbeat and the expiry checks. The zone is part of the image's name, so
 another zone is another volume and the template is replaced.
 
+## Canary VMs
+
+[`tofu/canaries.tf`](../../../../tofu/canaries.tf) builds the canaries of the [network boundary checks](../network-boundary-checks.md): one small VM per zone, from the same module and template as the hosts, so the zone's flows can be tried from inside it. A canary holds no credential and runs nothing of its own. It is not in `ansible_hosts`, so no Ansible group or role reaches it.
+
+| Aspect | Behaviour |
+| :--- | :--- |
+| Which zones | The `canary_vm_ids` map, one entry per zone that has a canary. A zone is added once the gateway admits the runner's host to the canary's address on 22 |
+| VMID and address | The host part is 08, clear of the DHCP pool, so the services canary is VMID 208 at `192.168.20.8`. The address is the zone's `canary` in the flow list |
+| Login | The admin user `canary`, with `canary_ssh_public_keys`. The key is the runner's own, not the one Ansible uses. With no key set, no canary is built |
+| Size | 1 core, 1 GiB, 8 GiB disk |
+
+Zones without a canary yet: others, desktops and isolated need a row in the gateway's policy that admits the runner's host to the canary's address, and experimental also needs the module's VMID range widened past 5XX.
+
 ## Scratch Ubuntu VM
 
 `tofu/scratch/ubuntu` is a second root for one throwaway Ubuntu VM, for work that

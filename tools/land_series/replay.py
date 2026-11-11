@@ -56,8 +56,8 @@ def stopped_by(paths: Iterable[str]) -> list[str]:
     return sorted({path for path in paths if path.startswith(STOP_PREFIXES)})
 
 
-def git_run(repo: Path, *args: str, stdin: bytes | None = None, env: dict[str, str] | None = None) -> Completed:
-    return run(["git", "-C", str(repo), *args], stdin=stdin, env=env)
+def git_run(repo: Path, *args: str, stdin: bytes | None = None, env: dict[str, str] | None = None, timeout: float | None = None) -> Completed:
+    return run(["git", "-C", str(repo), *args], stdin=stdin, env=env, timeout=timeout)
 
 
 def git_text(result: Completed) -> str:

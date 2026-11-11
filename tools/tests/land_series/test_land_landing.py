@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -191,7 +192,7 @@ def test_a_pull_request_with_some_commits_already_in_the_base_is_not_landed(gith
     with pytest.raises(LandError, match="pull request 0001 is partly in origin/main"):
         land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
-    assert not github.state_file.exists()
+    assert github.calls("pr") == []
 
 
 def test_a_record_from_an_older_version_is_rebuilt_not_landed(github: FakeGitHub, repo: Repo, author: Author) -> None:
@@ -415,9 +416,12 @@ def test_rulesets_that_cannot_be_read_stop_the_run_before_anything_is_pushed(
     layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
     kept(repo, layers)
 
-    with pytest.raises(LandError, match="failed: HTTP 403"):
-        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+    waits: list[float] = []
 
+    with pytest.raises(LandError, match="failed: HTTP 403"):
+        land(repo.path, layers, Reviews(True), sleep=waits.append)
+
+    assert waits == []
     assert github.state()["prs"] == []
     assert github.branches() == ["main"]
 
@@ -517,7 +521,7 @@ def test_a_moved_base_stops_the_landing_before_anything_is_pushed(github: FakeGi
         land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
     assert github.branches() == ["main"]
-    assert not github.state_file.exists()
+    assert github.calls("pr") == []
 
 
 def test_a_moved_base_that_the_layer_conflicts_with_says_so(github: FakeGitHub, repo: Repo, author: Author) -> None:
@@ -531,7 +535,7 @@ def test_a_moved_base_that_the_layer_conflicts_with_says_so(github: FakeGitHub, 
     with pytest.raises(LandError, match="origin/main has changed since pull request 0001 was built, and its change now conflicts with it"):
         land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
-    assert not github.state_file.exists()
+    assert github.calls("pr") == []
 
 
 def test_each_layer_after_the_first_is_pushed_on_top_of_the_previous_merge(github: FakeGitHub, repo: Repo, author: Author) -> None:
@@ -608,7 +612,7 @@ def test_a_series_that_fails_the_replay_leaves_nothing_to_land(
     assert (failed, landed) == (1, 1)
     assert "has no series/write-one" in capsys.readouterr().err
     assert github.branches() == ["main"]
-    assert not github.state_file.exists()
+    assert github.calls("pr") == []
 
 
 def keep_series(repo: Repo, tmp_path, patches: list[tuple[str, str, bytes]], name: str) -> list[Layer]:
@@ -762,3 +766,102 @@ def test_a_missing_gh_stops_the_run_with_a_plain_message_before_anything_is_push
         land(repo.path, layers, Reviews(True), sleep=lambda _: None)
 
     assert github.branches() == ["main"]
+
+
+def test_a_gh_that_is_not_logged_in_stops_the_run_before_anything_is_fetched_or_pushed(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_AUTH", "out")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+
+    with pytest.raises(LandError, match=r"not logged in to github\.com; run `gh auth login`.*You are not logged into any GitHub hosts"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert [call[:2] for call in github.state()["calls"]] == [["auth", "status"]]
+    assert github.branches() == ["main"]
+
+
+def test_a_read_that_the_network_dropped_is_repeated_after_a_growing_pause(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_FLAKY", "api,2")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    waits: list[float] = []
+
+    landed = land(repo.path, layers, Reviews(True), sleep=waits.append)
+
+    assert [item.merged for item in landed] == [True]
+    assert waits == [2.0, 4.0]
+    assert len(github.calls("api")) == 3
+
+
+def test_a_read_that_keeps_failing_gives_up_after_the_attempts_and_says_why(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_FLAKY", "api,9")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    waits: list[float] = []
+
+    with pytest.raises(LandError, match="HTTP 502"):
+        land(repo.path, layers, Reviews(True), sleep=waits.append)
+
+    assert waits == [2.0, 4.0]
+    assert len(github.calls("api")) == 3
+
+
+def test_a_poll_the_network_dropped_is_taken_again_on_the_next_one(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_GH_FLAKY", "pr checks,2")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    waits: list[float] = []
+
+    landed = land(repo.path, layers, Reviews(True), sleep=waits.append)
+
+    assert [item.merged for item in landed] == [True]
+    assert waits == [20, 20]
+
+
+def test_polls_the_network_keeps_dropping_stop_the_wait_without_merging(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_FLAKY", "pr checks,9")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+
+    with pytest.raises(LandError, match=r"reading the checks on https://example\.test/pull/1 failed: .*HTTP 502"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.merges_on_main() == []
+
+
+def test_a_gh_call_that_hangs_is_stopped_at_the_time_limit_and_named(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_GH_HANG", "api")
+    monkeypatch.setattr(land_module, "GH_TIMEOUT_SECONDS", 0.3)
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+
+    with pytest.raises(LandError, match=r"`gh api` did not finish within 0\.3 seconds"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.branches() == ["main"]
+
+
+def test_a_merge_github_refuses_is_reported_with_its_reason_and_the_pull_request_is_left_open(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_MERGE", "refuse")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+
+    refusal = (
+        "GitHub refused to merge https://example.test/pull/1: "
+        'GraphQL: Repository rule violations found Required status check "matrix-jobs-gate" is expected. (mergePullRequest)'
+    )
+    with pytest.raises(LandError, match=re.escape(refusal)) as raised:
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert [(item.url, item.merged) for item in raised.value.landed] == [("https://example.test/pull/1", False)]
+    assert github.merges_on_main() == []

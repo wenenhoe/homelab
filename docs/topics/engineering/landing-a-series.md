@@ -35,17 +35,21 @@ A branch kept by an earlier run is replaced when its record still matches; one t
 
 ## Landing
 
-`--land` replays nothing. For each pull request in turn it:
+`--land` replays nothing. Before it fetches or pushes anything it runs `gh auth status`, so a `gh` that is missing or logged out stops the run with that said, not at the first pull request. For each pull request in turn it:
 
 1. Refuses a branch whose tip is not the recorded commit, one built from other patches than the file's, or one built on a tree other than the base's now. If the base moved only because the pull request before it just merged, the commits are moved onto its tip with the same trees, authors, dates and messages. Otherwise the message says whether the change still applies; run the replay again.
 2. Pushes the branch (the branch name is the slug) and opens the pull request, or reuses one from that branch of this repository that is already at the same commit; a pull request from a fork's branch of the same name is ignored. The title is the first commit's subject; the body is the commit's body, or a list of the subjects for several.
 3. Waits for every check the rulesets require on the base branch, read once with `gh api` before the first push. A required check that is not reported yet, such as `matrix-jobs-gate`, which only starts once the matrix jobs have finished, is waited for rather than counted as passed; a skipped one counts as passed; one that fails stops the run. After about 90 minutes it gives up and names what is still missing. This is CI and can take several minutes.
 4. Prints the pull request's address and asks for confirmation. `--yes` confirms every merge in the run; with no terminal and no `--yes` it stops and leaves the pull request open, and running `--land` again picks up from it.
-5. Merges it with `gh pr merge --admin --merge`, naming the pushed commit so a branch that moved after the checks is not merged, deletes the remote branch and the kept one, and fetches. A fetch that loses a race with another is retried; the merge is already recorded.
+5. Merges it with `gh pr merge --admin --merge`, naming the pushed commit so a branch that moved after the checks is not merged, deletes the remote branch and the kept one, and fetches. A fetch that loses a race with another is retried; the merge is already recorded. If GitHub refuses the merge, the run stops with GitHub's reason (an unreported required check, say), the pull request is left open and listed as such, and running `--land` again continues from it.
 
 Each pull request becomes a merge commit, so one reverts alone. A merge to `main` is a deploy ([`branching.md`](branching.md)).
 
 `--base develop` lands on `origin/develop` instead of `origin/main`; the replay, the kept branches and the merges all use that base.
+
+## Failures and the network
+
+Every `git` and `gh` call goes through one runner (`tools/land_series/run.py`) that tells three failures apart: the program is not installed, it ran past its time limit (2 minutes for `gh`, 5 for the `git` calls that reach the remote) and was stopped, or it exited non-zero. Calls that only read (`pr list`, `api`, `ls-remote`) are tried up to three times, after 2 and then 4 seconds, when the failure is a timeout or reads like a dropped connection (a 502, 503 or 504, a reset, a DNS failure); the wait for checks treats a poll that failed that way as missed and takes the next one, and gives up after three in a row. A failure of any other kind is not repeated, and nothing that changes something (`push`, `pr create`, `pr edit`, `pr merge`) is ever repeated by the tool itself.
 
 ## Progress and results
 

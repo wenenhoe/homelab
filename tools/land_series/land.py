@@ -21,10 +21,30 @@ from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip, r
 from land_series.live import Display, check_lines, hidden
 from land_series.manifest import RESERVED_SLUGS, Layer, Pull, group_pulls
 from land_series.replay import Progress, ReplayError, git_run, git_text, landed_in, silent
-from land_series.run import CommandError, CommandFailed, Completed, checked, run
+from land_series.run import CommandError, CommandFailed, Completed, TimedOut, checked, run
 
 CHECKS_INTERVAL_SECONDS = 20
 CHECKS_MAX_POLLS = 270  # about 90 minutes at the interval above
+GH_HOST = "github.com"
+GH_TIMEOUT_SECONDS = 120.0
+NETWORK_TIMEOUT_SECONDS = 300.0  # for the git commands that talk to the remote
+READ_ATTEMPTS = 3
+READ_RETRY_SECONDS = 2.0
+# What `gh` and `git` print when the network, not the request, was the trouble. `gh` exits 1 for every failure, so the text is all there is to go on.
+TRANSIENT_MARKERS = (
+    "http 502",
+    "http 503",
+    "http 504",
+    "connection reset",
+    "connection refused",
+    "i/o timeout",
+    "tls handshake timeout",
+    "timeout awaiting response headers",
+    "no such host",
+    "could not resolve host",
+    "unexpected eof",
+    "the remote end hung up",
+)
 PASSING_BUCKETS = frozenset({"pass", "skipping"})
 FAILING_BUCKETS = frozenset({"fail", "cancel"})
 
@@ -55,7 +75,7 @@ def fetch(repo: Path, base: str, sleep: Callable[[float], None] = time.sleep) ->
     """Bring `base` up to date. A client fetching in the background can update the same ref at the same moment and fail this fetch once, so it is retried."""
     remote, _, branch = base.partition("/")
     for attempt in range(FETCH_ATTEMPTS):
-        result = git_run(repo, "fetch", "--quiet", remote, branch)
+        result = git_run(repo, "fetch", "--quiet", remote, branch, timeout=NETWORK_TIMEOUT_SECONDS)
         if result.returncode == 0:
             return
         if attempt < FETCH_ATTEMPTS - 1:
@@ -64,14 +84,48 @@ def fetch(repo: Path, base: str, sleep: Callable[[float], None] = time.sleep) ->
 
 
 def _gh(repo: Path, *args: str) -> Completed:
-    return run(["gh", *args], cwd=repo)
+    return run(["gh", *args], cwd=repo, timeout=GH_TIMEOUT_SECONDS)
 
 
 def _gh_ok(repo: Path, *args: str) -> str:
+    """A `gh` call that changes something, so it is never repeated on its own."""
     try:
-        return checked(["gh", *args], cwd=repo).text
+        return checked(["gh", *args], cwd=repo, timeout=GH_TIMEOUT_SECONDS).text
     except CommandFailed as error:
         raise LandError(str(error)) from error
+
+
+def _transient(error: CommandError) -> bool:
+    """Whether a failed read is worth repeating: it ran out of time, or the network dropped it."""
+    if isinstance(error, TimedOut):
+        return True
+    return isinstance(error, CommandFailed) and any(marker in error.output.lower() for marker in TRANSIENT_MARKERS)
+
+
+def _retrying[T](attempt: Callable[[], T], sleep: Callable[[float], None]) -> T:
+    """Run a call that only reads, trying again after a growing pause when it failed the way a dropped connection does."""
+    for number in range(1, READ_ATTEMPTS + 1):
+        try:
+            return attempt()
+        except CommandError as error:
+            if number == READ_ATTEMPTS or not _transient(error):
+                raise
+            sleep(READ_RETRY_SECONDS * number)
+    raise AssertionError("unreachable: the last attempt returns or raises")
+
+
+def _gh_read(repo: Path, sleep: Callable[[float], None], *args: str) -> str:
+    try:
+        return _retrying(lambda: checked(["gh", *args], cwd=repo, timeout=GH_TIMEOUT_SECONDS).text, sleep)
+    except CommandFailed as error:
+        raise LandError(str(error)) from error
+
+
+def _require_login(repo: Path) -> None:
+    """Stop before anything is fetched or pushed when `gh` cannot act for the maintainer, instead of at the first pull request."""
+    status = run(["gh", "auth", "status", "--hostname", GH_HOST], cwd=repo, timeout=GH_TIMEOUT_SECONDS)
+    if status.returncode != 0:
+        raise LandError(f"`gh` is not logged in to {GH_HOST}; run `gh auth login`, then run this again. It said: {status.output}")
 
 
 def _body(repo: Path, pull: Pull, tip: str) -> str:
@@ -81,33 +135,36 @@ def _body(repo: Path, pull: Pull, tip: str) -> str:
     return git_run(repo, "log", "-1", "--format=%b", tip).stdout.decode().strip()
 
 
-def _push(repo: Path, pull: Pull, tip: str, base: str) -> tuple[str, bool]:
+def _push(repo: Path, pull: Pull, tip: str, base: str, sleep: Callable[[float], None]) -> tuple[str, bool]:
     """Push the kept commits as the pull request's branch; return the pull request body and whether the remote branch changed.
 
     A remote branch already at that commit is left alone.
     """
     remote, _, _ = base.partition("/")
     ref = f"refs/heads/{pull.slug}"
-    listed = git_run(repo, "ls-remote", remote, ref)
-    if listed.returncode != 0:
-        raise LandError(f"cannot list {ref} on {remote}: {git_text(listed)}")
-    existing = listed.stdout.decode().split("\t")[0]
+    try:
+        listed = _retrying(lambda: checked(["git", "-C", str(repo), "ls-remote", remote, ref], timeout=NETWORK_TIMEOUT_SECONDS), sleep)
+    except CommandFailed as error:
+        raise LandError(f"cannot list {ref} on {remote}: {error.output}") from error
+    existing = listed.text.split("\t")[0]
     body = _body(repo, pull, tip)
     if existing == tip:
         return body, False
-    pushed = git_run(repo, "push", "--quiet", f"--force-with-lease={ref}:{existing}", remote, f"{tip}:{ref}")
+    pushed = git_run(repo, "push", "--quiet", f"--force-with-lease={ref}:{existing}", remote, f"{tip}:{ref}", timeout=NETWORK_TIMEOUT_SECONDS)
     if pushed.returncode != 0:
         raise LandError(f"cannot push {ref}: {git_text(pushed)}")
     return body, True
 
 
-def _pull_request(repo: Path, pull: Pull, branch: str, body: str, changed: bool) -> str:
+def _pull_request(repo: Path, pull: Pull, branch: str, body: str, changed: bool, sleep: Callable[[float], None]) -> str:
     """The address of the open pull request into `branch`: created, or updated when its commits changed.
 
     `gh pr list --head` takes a bare branch name, so a pull request from a fork's branch of the same name is listed too; only one
     whose head branch is in this repository can be the one the tool opened.
     """
-    found = json.loads(_gh_ok(repo, "pr", "list", "--head", pull.slug, "--base", branch, "--state", "open", "--json", "number,url,isCrossRepository") or "[]")
+    found = json.loads(
+        _gh_read(repo, sleep, "pr", "list", "--head", pull.slug, "--base", branch, "--state", "open", "--json", "number,url,isCrossRepository") or "[]"
+    )
     listed = [candidate for candidate in found if not candidate["isCrossRepository"]]
     if listed:
         if changed:
@@ -116,13 +173,13 @@ def _pull_request(repo: Path, pull: Pull, branch: str, body: str, changed: bool)
     return _gh_ok(repo, "pr", "create", "--base", branch, "--head", pull.slug, "--title", pull.title, "--body", body).splitlines()[-1]
 
 
-def required_checks(repo: Path, branch: str) -> frozenset[str]:
+def required_checks(repo: Path, branch: str, sleep: Callable[[float], None]) -> frozenset[str]:
     """The names of the status checks the rulesets require on `branch`, read once per run, before the first push, and never cached on disk.
 
     `gh pr checks --required` lists only checks GitHub has already reported, and a job with `needs` (`matrix-jobs-gate`) is not
     reported until what it needs has finished, so the pull request's own list cannot say what is still to come.
     """
-    rules = json.loads(_gh_ok(repo, "api", f"repos/{{owner}}/{{repo}}/rules/branches/{branch}") or "[]")
+    rules = json.loads(_gh_read(repo, sleep, "api", f"repos/{{owner}}/{{repo}}/rules/branches/{branch}") or "[]")
     names = frozenset(
         check["context"] for rule in rules if rule.get("type") == "required_status_checks" for check in rule["parameters"]["required_status_checks"]
     )
@@ -140,7 +197,7 @@ def _reported(repo: Path, url: str) -> dict[str, set[str]]:
         output = result.output
         if "checks reported" in output:
             return {}
-        raise LandError(f"`gh pr checks` failed on {url}: {output}") from None
+        raise CommandFailed(result.argv, result.returncode, output) from None
 
 
 def _buckets(checks: Sequence[dict[str, str]]) -> dict[str, set[str]]:
@@ -157,11 +214,19 @@ def _wait_for_checks(repo: Path, url: str, required: frozenset[str], sleep: Call
     """
     names = sorted(required)
     waiting: list[str] = []
+    dropped = 0
     try:
         for poll in range(CHECKS_MAX_POLLS):
             if poll:
                 sleep(CHECKS_INTERVAL_SECONDS)
-            reported = _reported(repo, url)
+            try:
+                reported = _reported(repo, url)
+            except CommandError as error:
+                dropped += 1
+                if not _transient(error) or dropped >= READ_ATTEMPTS:
+                    raise LandError(f"reading the checks on {url} failed: {error}") from error
+                continue
+            dropped = 0
             failed = [name for name in names if reported.get(name, set()) & FAILING_BUCKETS]
             if failed:
                 raise LandError(
@@ -196,9 +261,13 @@ def land(
     """Land the pull requests in the order given; stop, with its pull request left open, at the first one the maintainer does not confirm."""
     _, _, branch = base.partition("/")
     results: list[Landed] = []
+    try:
+        _require_login(repo)
+    except CommandError as error:
+        raise LandError(str(error)) from error
     fetch(repo, base)
     try:
-        _land_each(repo, layers, review, base, branch, cache(lambda: required_checks(repo, branch)), sleep, results, progress, display)
+        _land_each(repo, layers, review, base, branch, cache(lambda: required_checks(repo, branch, sleep)), sleep, results, progress, display)
     except LandError as error:
         error.landed = results
         raise
@@ -241,9 +310,9 @@ def _land_each(
             raise LandError(str(error)) from error
         wanted = required()
         progress(f"{label}: pushing {pull.slug}")
-        body, changed = _push(repo, pull, tip, base)
+        body, changed = _push(repo, pull, tip, base, sleep)
         progress(f"{label}: opening or updating its pull request into {branch}")
-        url = _pull_request(repo, pull, branch, body, changed)
+        url = _pull_request(repo, pull, branch, body, changed, sleep)
         progress(f"{label}: waiting for the required checks on {url} (this is CI, it can take several minutes)")
         _wait_for_checks(repo, url, wanted, sleep, display, label)
         progress(f"{label}: all {len(wanted)} required checks passed")
@@ -251,7 +320,11 @@ def _land_each(
             results.append(Landed(pull, url, merged=False))
             break
         progress(f"{label}: merging")
-        _gh_ok(repo, "pr", "merge", url, "--admin", "--merge", "--delete-branch", "--match-head-commit", tip)
+        try:
+            checked(["gh", "pr", "merge", url, "--admin", "--merge", "--delete-branch", "--match-head-commit", tip], cwd=repo, timeout=GH_TIMEOUT_SECONDS)
+        except CommandFailed as error:
+            results.append(Landed(pull, url, merged=False))
+            raise LandError(f"GitHub refused to merge {url}: {' '.join(error.output.split())}") from error
         deleted = forget(repo, pull)
         results.append(Landed(pull, url, merged=True, kept_branch=None if deleted else branch_of(pull)))
         fetch(repo, base, sleep)

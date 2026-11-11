@@ -6,6 +6,13 @@ status: building
 blocked: false
 summary: A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects.
 decision: ADR-0094/0
+allowed_paths:
+  - tools/network_checks/**
+  - tools/tests/network_checks/**
+  - .config/.pre-commit-config.yaml
+  - docs/topics/infra/network-boundary-checks.md
+  - docs/topics/README.md
+  - docs/topics/engineering/ci/gates.md
 ---
 
 # Network Boundary Checks
@@ -44,7 +51,7 @@ Stage status is `Not started`, `In progress`, or `Done`. Stages 2 and 3 need no 
 
 ## Agent handoff
 
-- **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
+- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook and the topic docs, which is what Stages 2 and 3 change. Stages 4 and 5 widen it, in a change of its own each, once the canary VM's and the scheduled run's files exist.
 - **Must not change:** the gateway play and its rules ([`opnsense-config.md`](opnsense-config.md)'s), the zones' decisions, and the existing heartbeat jobs.
 - **Relevant files and interfaces:** `tools/utils/app_catalog.py` and `tools/ci/gates/app_catalog_rules.py` (the loader-and-rules-hook pattern to follow), `docs/topics/engineering/ci/gates.md`, `docs/topics/monitoring/gatus.md` and `ansible/roles/gatus_push` (the heartbeat path).
 - **Required checks:** `pre-commit run --all-files`, and `uv run pytest` from `tools/`.

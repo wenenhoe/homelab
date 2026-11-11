@@ -116,6 +116,71 @@ class TestActsOnOriginMainOnly:
         assert runs(log) == ["payload=on-main stray=False cwd=tree"]
 
 
+class TestRepositorySettings:
+    """The job user owns its state directory, so whatever a run writes inside the fetched repository must not steer the next run."""
+
+    def plant(self, state_dir: Path, name: str, text: str) -> None:
+        target = state_dir / REPO_DIR / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("a") as handle:
+            handle.write(text)
+
+    def test_a_url_rewrite_left_in_the_repository_config_does_not_redirect_the_next_fetch(self, origin, state_dir, log):
+        origin.commit("first")
+        run_job.run_job(make_job(origin, state_dir))
+        self.plant(state_dir, "config", f'[url "file:///nonexistent/"]\n\tinsteadOf = {origin.url}\n')
+        origin.commit("second")
+
+        assert run_job.run_job(make_job(origin, state_dir)) is Outcome.RAN
+
+        assert runs(log)[-1] == "payload=second stray=False cwd=tree"
+
+    def test_a_smudge_filter_left_in_the_repository_does_not_run_at_checkout(self, origin, state_dir, log, tmp_path):
+        marker = tmp_path / "smudge-ran"
+        origin.commit("first")
+        run_job.run_job(make_job(origin, state_dir))
+        self.plant(state_dir, "config", f'[filter "evil"]\n\tsmudge = touch {marker}\n')
+        self.plant(state_dir, "info/attributes", "* filter=evil\n")
+        origin.commit("second")
+
+        run_job.run_job(make_job(origin, state_dir))
+
+        assert not marker.exists()
+
+    def test_a_hook_alternates_file_or_planted_directory_is_removed(self, origin, state_dir, log):
+        origin.commit("first")
+        run_job.run_job(make_job(origin, state_dir))
+        self.plant(state_dir, "hooks/post-checkout", "#!/bin/sh\nexit 1\n")
+        self.plant(state_dir, "objects/info/alternates", "/elsewhere\n")
+
+        run_job.run_job(make_job(origin, state_dir))
+
+        repo = state_dir / REPO_DIR
+        assert not (repo / "hooks").exists()
+        assert not (repo / "objects/info/alternates").exists()
+
+    def test_a_config_that_is_a_symlink_is_replaced_not_written_through(self, origin, state_dir, log, tmp_path):
+        origin.commit("first")
+        run_job.run_job(make_job(origin, state_dir))
+        target = tmp_path / "elsewhere"
+        target.write_text("untouched\n")
+        (state_dir / REPO_DIR / "config").unlink()
+        (state_dir / REPO_DIR / "config").symlink_to(target)
+
+        run_job.run_job(make_job(origin, state_dir))
+
+        assert target.read_text() == "untouched\n"
+        assert not (state_dir / REPO_DIR / "config").is_symlink()
+
+    def test_the_repository_keeps_its_objects_so_a_later_fetch_stays_incremental(self, origin, state_dir, log):
+        first = origin.commit("first")
+        run_job.run_job(make_job(origin, state_dir))
+        run_job.run_job(make_job(origin, state_dir))
+
+        kept = subprocess.run(["git", "--git-dir", str(state_dir / REPO_DIR), "cat-file", "-t", first], capture_output=True, text=True, check=True)
+        assert kept.stdout.strip() == "commit"
+
+
 class TestCommandEnvironment:
     def test_the_command_is_told_its_jobs_state_directory(self, origin, state_dir, log):
         script = "import os, sys; open(os.environ['CD_AGENT_TEST_LOG'], 'a').write(os.environ['CD_AGENT_STATE_DIR'] + '\\n')"

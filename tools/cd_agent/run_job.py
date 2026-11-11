@@ -98,10 +98,36 @@ def _git(*args: str, repo: Path | None = None) -> str:
     return result.stdout
 
 
+# The only settings the fetched repository keeps. Everything else git reads from inside it is deleted before each run.
+BARE_CONFIG = "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = true\n"
+# Directories and files in the repository that can change what git does: hooks, `info/attributes` (filters), `info/grafts`,
+# alternates, and the linked worktrees' own settings. The fetch and the worktree add recreate what they need.
+_REPO_SETTINGS = ("config", "config.worktree", "hooks", "info", "worktrees", "shallow", "objects/info")
+
+
+def _remove(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def reset_repo_settings(repo: Path) -> None:
+    """Leave `repo` with its objects and refs and no setting a previous run could have planted.
+
+    The job user owns its state directory, so the repository's own `config` and `info/attributes` are as writable as the checkout:
+    a `url.<other>.insteadOf`, a `filter.<name>.smudge` or an alternates file written by one run would otherwise steer the next.
+    """
+    for name in _REPO_SETTINGS:
+        _remove(repo / name)
+    (repo / "config").write_text(BARE_CONFIG)
+
+
 def fetch_origin_main(repo: Path, url: str) -> str:
     """Fetch `main` and nothing else into `repo`; return the commit it points at."""
     if not repo.exists():
         _git("init", "--bare", "--quiet", str(repo))
+    reset_repo_settings(repo)
     _git("fetch", "--quiet", "--no-tags", url, f"+refs/heads/{BRANCH}:{TRACKING_REF}", repo=repo)
     commit = _git("rev-parse", "--verify", f"{TRACKING_REF}^{{commit}}", repo=repo).strip()
     if not _COMMIT.fullmatch(commit):

@@ -2,6 +2,11 @@
 # The client binary every task calls. Molecule points it at a stub.
 tailscale_node_cli: /usr/bin/tailscale
 
+# Where tailscaled keeps its login. A client that cannot reach its daemon is read
+# as joined when this file exists, and the role reads the login again once the
+# service is up.
+tailscale_node_state_file: /var/lib/tailscale/tailscaled.state
+
 # Canonical CIDRs, the form the node reports them in. An empty list is a
 # node that advertises nothing.
 tailscale_node_advertise_routes: []

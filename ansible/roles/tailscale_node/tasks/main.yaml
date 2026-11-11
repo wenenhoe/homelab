@@ -9,6 +9,13 @@
 - name: Install Tailscale and start tailscaled
   ansible.builtin.import_tasks: install.yaml
 
+# A node whose login was only inferred from the state file because tailscaled was
+# down is read again now that the service runs, and stops here, before the join,
+# if it turns out to be logged out.
+- name: Read the login again now that tailscaled runs
+  ansible.builtin.include_tasks: preflight.yaml
+  when: tailscale_node_login_from_state_file | default(false)
+
 - name: Persist IP forwarding for a node that advertises routes
   ansible.builtin.import_tasks: forwarding.yaml
 

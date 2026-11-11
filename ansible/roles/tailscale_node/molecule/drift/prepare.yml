@@ -5,6 +5,9 @@
   vars:
     tailscale_node_stub_state:
       logged_in: true
+      # The first status read fails as it does when the daemon is not running;
+      # the stub answers from the second one on.
+      unreachable_reads: 1
       prefs:
         CorpDNS: true
         RunSSH: false
@@ -46,3 +49,20 @@
         owner: root
         group: root
         mode: "0644"
+
+    # What a node that once logged in has on disk while its daemon is down.
+    - name: Create the daemon's state directory
+      ansible.builtin.file:
+        path: /var/lib/tailscale
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Leave the login the daemon stored
+      ansible.builtin.copy:
+        content: "{}"
+        dest: /var/lib/tailscale/tailscaled.state
+        owner: root
+        group: root
+        mode: "0600"

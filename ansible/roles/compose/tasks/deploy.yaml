@@ -57,6 +57,32 @@
   tags:
     - infra
 
+# An app that holds a connection to this one (tinyauth's LDAP connection to
+# lldap) keeps a dead one after this app is recreated or restarted, and fails
+# requests until its own heartbeat notices. The catalog's `restart_after` lists
+# those apps; an app whose directory is not on the host yet is left for its own
+# first deploy.
+- name: Look for the apps to restart after it ({{ compose_app_item.name }})
+  ansible.builtin.stat:
+    path: "{{ compose_deploy_dir }}/{{ item }}/compose.yaml"
+  loop: "{{ compose_app_item.restart_after | default([]) }}"
+  when: (compose_app_deploy_up_result.changed | default(false)) or (compose_app_deploy_restart_result.changed | default(false))
+  register: compose_app_deploy_dependents
+  tags:
+    - images
+    - infra
+
+- name: Restart the apps that hold a connection to it ({{ compose_app_item.name }})
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ item.item }}"
+    state: restarted
+  loop: "{{ compose_app_deploy_dependents.results | selectattr('stat', 'defined') | selectattr('stat.exists') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  tags:
+    - images
+    - infra
+
 - name: Record this app's result, for the end-of-run report
   ansible.builtin.set_fact:
     compose_app_results: >-

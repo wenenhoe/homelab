@@ -193,6 +193,8 @@ app_catalog:
         no_log: true
     backup:
       volumes: [data, certs]
+    # tinyauth keeps one LDAP connection to lldap open
+    restart_after: [tinyauth]
     routes:
       default:
         upstream: "lldap:17170"

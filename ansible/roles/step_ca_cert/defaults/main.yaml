@@ -32,6 +32,13 @@ step_ca_cert_container_cert_dir: "/data/certs"
 # app that reloads its TLS listener on SIGHUP without restarting.
 step_ca_cert_renew_action: restart
 
+# Compose apps to restart after this app's own renewal restart. A client that
+# holds a long-lived connection to this app (tinyauth's LDAP connection to
+# lldap) keeps a dead one after the restart and fails requests until its own
+# heartbeat notices, so restart it here instead of waiting. Not used when the
+# renew action is signal, since a signal drops no connection.
+step_ca_cert_renew_restarts_after: []
+
 # Set both to hand a freshly-issued/renewed cert (root-owned, since
 # issuance/renewal always run --user root) back to an app that runs as
 # its own image's non-root user. Blank (the default) skips this step -

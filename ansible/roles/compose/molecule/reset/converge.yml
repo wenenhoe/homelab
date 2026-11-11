@@ -19,6 +19,9 @@
       reset_app_b:
         volumes:
           - name: cache
+        # reset_app_a is deployed before this app, so its directory is on the
+        # host when this app's deploy restarts it.
+        restart_after: [reset_app_a]
       # No volumes: key — it owns none. Its static compose.yaml (below)
       # mounts reset_app_b_cache read-only instead, mirroring
       # backup_agent's real pattern of referencing another app's

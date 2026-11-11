@@ -76,5 +76,10 @@ ExecStartPost=/bin/sh -c '[ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --
 ; docs/topics/secrets/openbao.md for why openbao sets this.
 ExecStartPost=/bin/sh -c 'if [ "${RENEW_ACTION}" = "signal" ]; then /usr/bin/docker kill --signal=HUP %i; else /usr/bin/docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i; fi'
 
+; Then restart the apps named in RENEW_RESTARTS_AFTER, each one's own compose
+; project, so a client holding a connection to this app starts a new one now.
+; $$ is systemd's escape for a literal $ in the shell's variable.
+ExecStartPost=/bin/sh -c 'for app in ${RENEW_RESTARTS_AFTER}; do /usr/bin/docker compose -f {{ compose_deploy_dir }}/$$app/compose.yaml restart $$app || exit 1; done'
+
 [Install]
 WantedBy=multi-user.target

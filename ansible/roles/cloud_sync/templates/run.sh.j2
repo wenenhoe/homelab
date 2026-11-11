@@ -12,7 +12,7 @@ set -u
 
 overall_status=0
 
-while read -r src_bucket path target_remote target_bucket max_age; do
+while read -r src_bucket path target_remote target_bucket max_age max_transfer; do
   case "$src_bucket" in
     "#"* | "") continue ;;
   esac
@@ -20,9 +20,19 @@ while read -r src_bucket path target_remote target_bucket max_age; do
   # max_age is a ceiling on the source object's age, set for a cloud whose own
   # delete-after is shorter than SeaweedFS's retention: an archive that cloud
   # has already deleted is then not offered again. - means no ceiling.
+  set --
   case "${max_age:--}" in
-    -) set -- ;;
-    *) set -- --max-age "$max_age" ;;
+    -) ;;
+    *) set -- "$@" --max-age "$max_age" ;;
+  esac
+
+  # max_transfer caps what one run copies for this job. With cautious cutoff
+  # rclone does not start a transfer that would pass it, and the job fails, so
+  # a prefix that suddenly holds far more than usual stops at the cap and
+  # raises the failure alert instead of filling the provider's allowance.
+  case "${max_transfer:--}" in
+    -) ;;
+    *) set -- "$@" --max-transfer "$max_transfer" --cutoff-mode=cautious ;;
   esac
 
   echo "Copying seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}"

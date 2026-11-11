@@ -33,6 +33,11 @@ cloud_sync_targets:
     # value for every S3-compatible client, rclone included, not a
     # per-account setting.
     region: "auto"
+    # The most one run may copy for one app. The largest archive among R2's
+    # apps is under 1 MiB, and a run after missed days carries a week of them at
+    # most. A prefix that outgrows this fails its job and alerts: raise it here,
+    # or run the job by hand, when an archive really has grown.
+    max_transfer: 32M
   b2:
     # -b2 suffix, unlike r2/oci's bare "homelab-backups": B2 bucket
     # names are globally unique across every B2 account, not
@@ -45,6 +50,8 @@ cloud_sync_targets:
     # Same value already embedded in the endpoint hostname above — not a
     # new secret, just also handing it to rclone directly.
     region: "{{ secrets_generated['backblaze-b2-region'] }}"
+    # As for r2 above.
+    max_transfer: 32M
   oci:
     bucket: homelab-backups
     endpoint: "https://{{ secrets_generated['oci-namespace'] }}.compat.objectstorage.{{ secrets_generated['oci-region'] }}.oraclecloud.com"
@@ -61,6 +68,9 @@ cloud_sync_targets:
     # about twice as long as the rule intends. Keep it below the delete-after,
     # which is set in the OCI console: docs/topics/disaster-recovery/cloud-sync.md.
     max_age: 4d
+    # Minecraft's archives are about 1.7 GiB and its max_age lets a run carry
+    # two or three after an outage. The free allowance is 10 GB.
+    max_transfer: 4G
 
 # 90min after backup_defaults.cron (group_vars/all/main.yaml), not
 # immediately after — gives every backup_agent host's own nightly run

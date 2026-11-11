@@ -96,6 +96,35 @@ R2 and B2 delete after 30 days, longer than SeaweedFS keeps an archive, so
 they need no ceiling. A target without `max_age` has none, and its column in the
 job manifest holds `-`.
 
+## Transfer cap
+
+Each of R2, B2 and OCI has a 10 GB free allowance, and a prefix is written by
+the host it belongs to. A host that starts writing far more than usual would
+have the relay copy it all, and the provider locks hold what lands for weeks.
+Each target therefore carries a cap on what one run may copy for one app:
+`cloud_sync_targets.<target>.max_transfer` (`host_vars/storage.yaml`), passed as
+`--max-transfer` with `--cutoff-mode=cautious`, so rclone does not start a
+transfer that would pass it. The job fails and the run's Telegram alert fires,
+and the other jobs carry on.
+
+| Target | Cap per app per run | Reasoning |
+| :--- | :--- | :--- |
+| R2, B2 | `32M` | The largest archive among their apps is under 1 MiB, and a run after missed days carries at most a week of them. Six apps at the cap for the 30-day lock stay under the allowance. |
+| OCI | `4G` | Minecraft's archives are about 1.7 GiB, and `max_age` lets a run carry two or three after an outage. |
+
+A run adds at most the cap for one app, so a bucket holds at most the cap times
+the days its objects are kept, for each app. R2 and B2 keep an object 30 days:
+six apps at 32M hold at most 6 × 30 × 32 MiB, about 6 GB, and ten would reach the
+allowance. OCI keeps one 5 days, so 4G allows 20 GB, above its allowance. The cap
+that holds OCI to 10 GB is 2 GB, about one archive with no room to grow or to
+carry a missed day, so it is set above that and an overshoot is billed storage,
+not a failure.
+
+A job that stops at its cap has not copied everything. When an archive has really
+grown, raise the cap in `host_vars/storage.yaml` and deploy to `storage`, or run
+the relay by hand after checking the prefix. A target without `max_transfer` has
+no cap, and its column in the job manifest holds `-`.
+
 ## Mechanism
 
 A systemd timer (`cloud-sync.timer`, daily, scheduled
@@ -106,7 +135,8 @@ looping a job manifest Ansible renders from every backup host's
 `app_catalog` data (cross-host, via `hostvars`, not requiring those
 hosts' own plays to have run first in the same invocation). One `rclone
 copy` per (app, cloud target) pair, with `--max-age` for a target that sets
-`max_age`; one job failing doesn't block the rest of that run.
+`max_age` and `--max-transfer` for one that sets `max_transfer`; one job failing
+doesn't block the rest of that run.
 
 The container runs with every capability dropped except `DAC_OVERRIDE`,
 `no-new-privileges` and a read-only root filesystem. `rclone.conf` is `0600`

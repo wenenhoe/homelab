@@ -38,6 +38,10 @@ opnsense_gateway_zones:
 # management ports. An empty list would admit nobody, so the play stops
 # instead of writing it.
 
+# The play also stops when the address it reaches the gateway from is not in that
+# list. Set this to true only when the gateway sees the run from another address.
+opnsense_gateway_operator_not_listed_ok: false
+
 # The CD agent's admission to the gateway's API. Off until ADR 0089's
 # management invariant admits the CD agent; turned off again, the play removes
 # the rule.

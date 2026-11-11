@@ -70,7 +70,7 @@ It does not probe the flows between zones. It needs the environment of
 `scratch_gateway.sh` plus `OPERATOR` (an address in the desktops zone, default
 `192.168.40.250`, used as the play's operator host and one reservation), `ansible-playbook`,
 the pinned collection and `httpx` on the operator host, ssh to the node without a
-prompt, and no VM with the scratch gateway's VMID.
+prompt, and no VM with the scratch gateway's VMID. The play reaches the gateway through the ssh forward, so the run sets `opnsense_gateway_operator_not_listed_ok` and the play's check of its own source address does not apply.
 
 `OUT_DIR` must be outside the repository because it holds the credentials file. The
 results go to `OUT_DIR/run-HHMMSS` as one file per step, and the gateway is removed on

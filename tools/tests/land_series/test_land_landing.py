@@ -213,9 +213,10 @@ def test_the_steps_are_reported_as_they_happen(github: FakeGitHub, repo: Repo, a
         "pull request 0001: pushing write-one",
         "pull request 0001: opening or updating its pull request into main",
         "pull request 0001: waiting for the required checks on https://example.test/pull/1 (this is CI, it can take several minutes)",
+        "pull request 0001: all 1 required checks passed",
         "pull request 0001: merging",
     ]
-    assert len(said) == 8
+    assert len(said) == 10
 
 
 def test_a_merged_layers_branch_that_is_checked_out_is_kept_and_reported(
@@ -325,7 +326,98 @@ def test_checks_that_have_not_started_are_waited_for(github: FakeGitHub, repo: R
     landed = land(repo.path, layers, Reviews(True), sleep=waits.append)
 
     assert [item.merged for item in landed] == [True]
-    assert waits == [10]
+    assert waits == [20]
+
+
+@pytest.mark.parametrize(
+    ("mode", "waits"),
+    [pytest.param("pending", [20], id="pending, then passing"), pytest.param("skipping", [], id="skipped")],
+)
+def test_a_required_check_that_is_pending_is_waited_for_and_a_skipped_one_counts_as_passed(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch, mode: str, waits: list[float]
+) -> None:
+    monkeypatch.setenv("FAKE_GH_CHECKS", mode)
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    slept: list[float] = []
+
+    landed = land(repo.path, layers, Reviews(True), sleep=slept.append)
+
+    assert [item.merged for item in landed] == [True]
+    assert slept == waits
+
+
+def test_a_required_check_that_is_not_reported_yet_is_waited_for_not_taken_as_passed(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_REQUIRED", "build,matrix-jobs-gate")
+    monkeypatch.setenv("FAKE_GH_CHECKS", "partial")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    waits: list[float] = []
+    reviews = Reviews(True)
+
+    landed = land(repo.path, layers, reviews, sleep=waits.append)
+
+    assert [item.merged for item in landed] == [True]
+    assert waits == [20]
+    assert github.state()["checks_calls"] == 2
+
+
+def test_a_required_check_that_never_reports_stops_the_wait_and_is_named(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_REQUIRED", "build,matrix-jobs-gate")
+    monkeypatch.setenv("FAKE_GH_CHECKS", "never")
+    monkeypatch.setattr(land_module, "CHECKS_MAX_POLLS", 3)
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    waits: list[float] = []
+    reviews = Reviews(True)
+
+    with pytest.raises(LandError, match=r"were not all passing after 1 minutes; still waiting for: matrix-jobs-gate"):
+        land(repo.path, layers, reviews, sleep=waits.append)
+
+    assert waits == [20, 20]
+    assert reviews.asked == []
+    assert github.merges_on_main() == []
+
+
+def test_the_required_checks_are_read_once_for_the_whole_run(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+
+    land(repo.path, layers, Reviews(True, True), sleep=lambda _: None)
+
+    assert github.calls("api") == [["api", "repos/{owner}/{repo}/rules/branches/main"]]
+
+
+def test_a_branch_whose_rulesets_require_no_checks_is_not_landed_on_trust(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_REQUIRED", "")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+
+    with pytest.raises(LandError, match="rulesets list no required status checks for main"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.state()["prs"] == []
+    assert github.branches() == ["main"]
+
+
+def test_rulesets_that_cannot_be_read_stop_the_run_before_anything_is_pushed(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_API", "fail")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+
+    with pytest.raises(LandError, match="failed: HTTP 403"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.state()["prs"] == []
+    assert github.branches() == ["main"]
 
 
 def test_a_failure_after_a_merge_reports_what_already_landed(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -626,3 +718,29 @@ def test_a_branch_that_moved_after_its_checks_is_not_merged(github: FakeGitHub, 
         land(repo.path, layers, push_another_commit, sleep=lambda _: None)
 
     assert github.merges_on_main() == []
+
+
+def test_what_is_still_to_pass_is_shown_while_waiting_and_erased_when_the_checks_pass(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_REQUIRED", "build,matrix-jobs-gate")
+    monkeypatch.setenv("FAKE_GH_CHECKS", "partial")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    frames: list[list[str]] = []
+
+    land(repo.path, layers, Reviews(True), sleep=lambda _: None, display=lambda lines: frames.append(list(lines)))
+
+    assert frames == [["pull request 0001: 1/2 required checks passed", "  matrix-jobs-gate  (not reported yet)"], []]
+
+
+def test_the_display_is_erased_when_a_required_check_fails(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_GH_CHECKS", "fail")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    frames: list[list[str]] = []
+
+    with pytest.raises(LandError, match="did not pass"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None, display=lambda lines: frames.append(list(lines)))
+
+    assert frames == [[]]

@@ -102,6 +102,29 @@ def test_a_failing_check_stops_the_replay_and_quotes_its_output(repo: Repo, auth
     assert len(repo.worktrees()) == 1
 
 
+def test_a_checks_latest_output_is_shown_while_it_runs_and_erased_when_it_passes(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(("0001a", author.patch("docs: one", {"a.txt": "one\n"})))
+    frames: list[list[str]] = []
+    chatty = recording_check("a.txt", script=RECORD + "for step in range(8):\n    print(f'step {step}')\n")
+
+    replay(repo.path, layers, [chatty], Confirmations(False), base="main", display=lambda lines: frames.append(list(lines)))
+
+    assert frames[0] == ["commit 0001a: `" + str(chatty) + "`"]
+    assert frames[-2][1:] == [f"  step {step}" for step in range(2, 8)]
+    assert frames[-1] == []
+
+
+def test_the_display_is_erased_before_a_failing_checks_output_is_reported(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(("0001a", author.patch("docs: one", {"a.txt": "one\n"})))
+    frames: list[list[str]] = []
+
+    with pytest.raises(ReplayError, match=r"(?s)fails `.*`:\nlint says no"):
+        replay(repo.path, layers, [recording_check("a.txt", script=FAIL)], Confirmations(False), base="main", display=lambda lines: frames.append(list(lines)))
+
+    assert frames[-1] == []
+    assert frames[-2][-1] == "  lint says no"
+
+
 def test_a_layer_that_does_not_apply_is_named_and_leaves_no_worktree(repo: Repo, author: Author, log: Path) -> None:
     author.patch("docs: write one", {"a.txt": "one\n"})
     second = author.patch("docs: write two", {"a.txt": "two\n"})

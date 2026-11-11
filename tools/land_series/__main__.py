@@ -17,6 +17,7 @@ from pathlib import Path
 
 from land_series.kept import KeptError, branch_of, keep, leftovers
 from land_series.land import Landed, LandError, fetch, land
+from land_series.live import LiveBlock
 from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_series
 from land_series.replay import Check, ReplayError, replay
 
@@ -66,6 +67,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--land", action="store_true", help="push the kept branches, open, wait for and merge a pull request per number")
     parser.add_argument("--yes", action="store_true", help="with --land, merge without asking after each pull request's checks pass")
     args = parser.parse_args(argv)
+    display = LiveBlock(sys.stderr).show
     if "/" not in args.base:
         args.base = f"{REMOTE}/{args.base}"
     if args.land and args.dry_run:
@@ -75,10 +77,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not args.no_fetch:
             fetch(args.repo, args.base)
         if args.land:
-            landed = land(args.repo, layers, lambda pull, url: args.yes or ask_merge(pull, url), base=args.base, progress=say)
+            landed = land(args.repo, layers, lambda pull, url: args.yes or ask_merge(pull, url), base=args.base, progress=say, display=display)
             return report(landed)
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks(args.base)
-        results = replay(args.repo, layers, checks, ask, base=args.base, progress=say)
+        results = replay(args.repo, layers, checks, ask, base=args.base, progress=say, display=display)
         kept = [] if args.dry_run else keep(args.repo, results)
     except LandError as error:
         report(error.landed)

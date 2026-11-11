@@ -11,11 +11,13 @@ import os
 import shutil
 import subprocess
 import tempfile
+from collections import deque
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+from land_series.live import Display, hidden
 from land_series.manifest import Layer, group_pulls
 
 # A layer touching one of these changes code or configuration that `git am`'s hooks or the checks run on this machine
@@ -123,15 +125,29 @@ def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
     _reset(tree)
 
 
-def _run_check(tree: Path, check: Check) -> str | None:
-    """The tail of the output when the check fails, else None."""
+LIVE_OUTPUT_LINES = 6
+
+
+def _run_check(tree: Path, check: Check, display: Display, label: str) -> str | None:
+    """The tail of the output when the check fails, else None. The last lines it prints are shown on the display while it runs and erased when it ends."""
     try:
-        result = subprocess.run(check.argv, cwd=tree / check.cwd, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
+        process = subprocess.Popen(
+            check.argv, cwd=tree / check.cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", stdin=subprocess.DEVNULL
+        )
     except OSError as error:
         return f"cannot run it: {error}"
-    if result.returncode == 0:
+    tail: deque[str] = deque(maxlen=OUTPUT_TAIL_LINES)
+    with process:
+        try:
+            display([label])
+            for line in process.stdout or ():
+                tail.append(line.rstrip("\r\n"))
+                display([label, *(f"  {shown}" for shown in list(tail)[-LIVE_OUTPUT_LINES:])])
+        finally:
+            display([])
+    if process.returncode == 0:
         return None
-    return "\n".join((result.stdout + result.stderr).strip().splitlines()[-OUTPUT_TAIL_LINES:])
+    return "\n".join(tail).strip()
 
 
 Progress = Callable[[str], None]
@@ -164,7 +180,13 @@ def preflight(repo: Path, base: str) -> list[str]:
 
 
 def replay(
-    repo: Path, layers: Sequence[Layer], checks: Sequence[Check], confirm: Confirm, base: str = "origin/main", progress: Progress = silent
+    repo: Path,
+    layers: Sequence[Layer],
+    checks: Sequence[Check],
+    confirm: Confirm,
+    base: str = "origin/main",
+    progress: Progress = silent,
+    display: Display = hidden,
 ) -> list[LayerResult]:
     """Apply each layer, in the order given, on a scratch worktree of `base`; run every check after each.
 
@@ -193,7 +215,7 @@ def replay(
             apply_layer(tree, layer, onto)
             for check in checks:
                 progress(f"commit {layer.id}: running `{check}`")
-                failure = _run_check(tree, check)
+                failure = _run_check(tree, check, display, f"commit {layer.id}: `{check}`")
                 _reset(tree)
                 if failure is not None:
                     raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")

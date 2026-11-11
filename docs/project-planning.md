@@ -115,4 +115,5 @@ first, so one that has stood still is the first row.
 | [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? | 2026-11-09 |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? | 2026-11-09 |
 | [`offsite-lock-settings-check.md`](explorations/offsite-lock-settings-check.md) | How could the lab notice that an off-site bucket's lock or lifecycle setting is gone or shorter than it should be? | 2026-11-10 |
+| [`cloud-credential-custody.md`](explorations/cloud-credential-custody.md) | How could the credentials that mint and revoke the cloud keys be kept away from the host that runs the secrets store? | 2026-11-11 |
 | [`post-compromise-archive-relay.md`](explorations/post-compromise-archive-relay.md) | How could the lab notice that an archive a compromised host made has been relayed offsite as if it were genuine? | 2026-11-11 |

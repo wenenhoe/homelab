@@ -13,6 +13,7 @@ allowed_paths:
   - docs/topics/infra/network-boundary-checks.md
   - docs/topics/README.md
   - docs/topics/engineering/ci/gates.md
+  - .github/detect-changes-filters.yml
 ---
 
 # Network Boundary Checks
@@ -51,7 +52,7 @@ Stage status is `Not started`, `In progress`, or `Done`. Stages 2 and 3 need no 
 
 ## Agent handoff
 
-- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook and the topic docs, which is what Stages 2 and 3 change. Stages 4 and 5 widen it, in a change of its own each, once the canary VM's and the scheduled run's files exist.
+- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook, the CI path filter that runs the package's tests and the topic docs, which is what Stages 2 and 3 change. Stages 4 and 5 widen it, in a change of its own each, once the canary VM's and the scheduled run's files exist.
 - **Must not change:** the gateway play and its rules ([`opnsense-config.md`](opnsense-config.md)'s), the zones' decisions, and the existing heartbeat jobs.
 - **Relevant files and interfaces:** `tools/utils/app_catalog.py` and `tools/ci/gates/app_catalog_rules.py` (the loader-and-rules-hook pattern to follow), `docs/topics/engineering/ci/gates.md`, `docs/topics/monitoring/gatus.md` and `ansible/roles/gatus_push` (the heartbeat path).
 - **Required checks:** `pre-commit run --all-files`, and `uv run pytest` from `tools/`.

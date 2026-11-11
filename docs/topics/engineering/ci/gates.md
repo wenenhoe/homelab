@@ -96,6 +96,26 @@ It also checks the catalog against the inventory, read as plain YAML with no val
 
 It runs as the `check-app-catalog` pre-commit hook, so `pre-commit-checks` runs it on every PR; locally the hook runs when the catalog or any inventory file it reads changes, and it needs only PyYAML. `tools/tests/ci/gates/test_app_catalog_rules.py` has a case for each rule and runs the check over the real catalog and inventory. Because the hook cannot import Ansible code, two tests in `ansible/tests/test_backup_plan.py` keep its restatements honest: its list of backup settings equals the `backup_plan` filter's, and the backup hosts it derives equal the `backup_hosts` Ansible derives from the real inventory. `ansible/tests/test_backup_plan_invariants.py` fails if a role, template or playbook reads an app's `backup` block or `backup_defaults` instead of `backup_plan`, or if a variable or key that ADR 0068 retired is used again.
 
+## Flow list rules
+
+`network_checks.rules` checks the flow list in `tools/network_checks/flows.yaml`
+([ADR 0094](../../../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md)).
+The loader, `network_checks.flow_list`, refuses a file with an unknown or
+repeated key, a zone whose canary is not inside its subnet, a flow with no
+`kind`, `expect` or port, a deny with no `control`, an allow with one, and a
+`query` anywhere but a `dns` flow, and names every problem it finds. The
+rules then report a repeated flow id, a flow from a zone nobody declared, a
+zone with no allow flow from its canary, a control that is not an allow flow
+or tries another destination, port or kind, and an ordered pair of zones that
+no flow covers. Each violation is printed with the flow or zone and the rule,
+and any violation fails the check.
+
+It runs as the `check-flow-list` pre-commit hook, so `pre-commit-checks` runs
+it on every PR, and the hook needs only PyYAML.
+`tools/tests/network_checks/` has a case for each shape check and each rule and
+loads the committed list. [`network-boundary-checks.md`](../../infra/network-boundary-checks.md)
+describes the list.
+
 ## Molecule coverage gate
 
 Each `molecule` leg packs the coverage data its scenarios wrote and uploads

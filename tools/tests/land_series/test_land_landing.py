@@ -213,9 +213,10 @@ def test_the_steps_are_reported_as_they_happen(github: FakeGitHub, repo: Repo, a
         "pull request 0001: pushing write-one",
         "pull request 0001: opening or updating its pull request into main",
         "pull request 0001: waiting for the required checks on https://example.test/pull/1 (this is CI, it can take several minutes)",
+        "pull request 0001: all 1 required checks passed",
         "pull request 0001: merging",
     ]
-    assert len(said) == 8
+    assert len(said) == 10
 
 
 def test_a_merged_layers_branch_that_is_checked_out_is_kept_and_reported(
@@ -717,3 +718,29 @@ def test_a_branch_that_moved_after_its_checks_is_not_merged(github: FakeGitHub, 
         land(repo.path, layers, push_another_commit, sleep=lambda _: None)
 
     assert github.merges_on_main() == []
+
+
+def test_what_is_still_to_pass_is_shown_while_waiting_and_erased_when_the_checks_pass(
+    github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("FAKE_GH_REQUIRED", "build,matrix-jobs-gate")
+    monkeypatch.setenv("FAKE_GH_CHECKS", "partial")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    frames: list[list[str]] = []
+
+    land(repo.path, layers, Reviews(True), sleep=lambda _: None, display=lambda lines: frames.append(list(lines)))
+
+    assert frames == [["pull request 0001: 1/2 required checks passed", "  matrix-jobs-gate  (not reported yet)"], []]
+
+
+def test_the_display_is_erased_when_a_required_check_fails(github: FakeGitHub, repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FAKE_GH_CHECKS", "fail")
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    frames: list[list[str]] = []
+
+    with pytest.raises(LandError, match="did not pass"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None, display=lambda lines: frames.append(list(lines)))
+
+    assert frames == [[]]

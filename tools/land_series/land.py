@@ -19,6 +19,7 @@ from functools import cache
 from pathlib import Path
 
 from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip, rebase
+from land_series.live import Display, check_lines, hidden
 from land_series.manifest import RESERVED_SLUGS, Layer, Pull, group_pulls
 from land_series.replay import Progress, ReplayError, git_run, git_text, landed_in, silent
 
@@ -149,19 +150,29 @@ def _buckets(checks: Sequence[dict[str, str]]) -> dict[str, set[str]]:
     return buckets
 
 
-def _wait_for_checks(repo: Path, url: str, required: frozenset[str], sleep: Callable[[float], None]) -> None:
-    """Return once every required check is reported and passing; raise at the first that failed, or when they are still not all in after the limit."""
+def _wait_for_checks(repo: Path, url: str, required: frozenset[str], sleep: Callable[[float], None], display: Display, label: str) -> None:
+    """Return once every required check is reported and passing; raise at the first that failed, or when they are still not all in after the limit.
+
+    The block on the display lists what has not passed yet and is erased on every way out.
+    """
+    names = sorted(required)
     waiting: list[str] = []
-    for poll in range(CHECKS_MAX_POLLS):
-        if poll:
-            sleep(CHECKS_INTERVAL_SECONDS)
-        reported = _reported(repo, url)
-        failed = sorted(name for name in required if reported.get(name, set()) & FAILING_BUCKETS)
-        if failed:
-            raise LandError(f"the required checks on {url} did not pass:\n" + "\n".join(f"{name}  {min(reported[name] & FAILING_BUCKETS)}" for name in failed))
-        waiting = sorted(name for name in required if not reported.get(name) or not reported[name] <= PASSING_BUCKETS)
-        if not waiting:
-            return
+    try:
+        for poll in range(CHECKS_MAX_POLLS):
+            if poll:
+                sleep(CHECKS_INTERVAL_SECONDS)
+            reported = _reported(repo, url)
+            failed = [name for name in names if reported.get(name, set()) & FAILING_BUCKETS]
+            if failed:
+                raise LandError(
+                    f"the required checks on {url} did not pass:\n" + "\n".join(f"{name}  {min(reported[name] & FAILING_BUCKETS)}" for name in failed)
+                )
+            waiting = [name for name in names if not reported.get(name) or not reported[name] <= PASSING_BUCKETS]
+            if not waiting:
+                return
+            display(check_lines(label, names, reported))
+    finally:
+        display([])
     minutes = CHECKS_MAX_POLLS * CHECKS_INTERVAL_SECONDS // 60
     raise LandError(f"the required checks on {url} were not all passing after {minutes} minutes; still waiting for: {', '.join(waiting)}")
 
@@ -174,14 +185,20 @@ def _moved(repo: Path, pull: Pull, first: str, tip: str, base: str) -> str:
 
 
 def land(
-    repo: Path, layers: Sequence[Layer], review: Review, base: str = "origin/main", sleep: Callable[[float], None] = time.sleep, progress: Progress = silent
+    repo: Path,
+    layers: Sequence[Layer],
+    review: Review,
+    base: str = "origin/main",
+    sleep: Callable[[float], None] = time.sleep,
+    progress: Progress = silent,
+    display: Display = hidden,
 ) -> list[Landed]:
     """Land the pull requests in the order given; stop, with its pull request left open, at the first one the maintainer does not confirm."""
     _, _, branch = base.partition("/")
     results: list[Landed] = []
     fetch(repo, base)
     try:
-        _land_each(repo, layers, review, base, branch, cache(lambda: required_checks(repo, branch)), sleep, results, progress)
+        _land_each(repo, layers, review, base, branch, cache(lambda: required_checks(repo, branch)), sleep, results, progress, display)
     except LandError as error:
         error.landed = results
         raise
@@ -200,6 +217,7 @@ def _land_each(
     sleep: Callable[[float], None],
     results: list[Landed],
     progress: Progress,
+    display: Display,
 ) -> None:
     for pull in group_pulls(list(layers)):
         label = f"pull request {pull.number}"
@@ -227,7 +245,8 @@ def _land_each(
         progress(f"{label}: opening or updating its pull request into {branch}")
         url = _pull_request(repo, pull, branch, body, changed)
         progress(f"{label}: waiting for the required checks on {url} (this is CI, it can take several minutes)")
-        _wait_for_checks(repo, url, wanted, sleep)
+        _wait_for_checks(repo, url, wanted, sleep, display, label)
+        progress(f"{label}: all {len(wanted)} required checks passed")
         if not review(pull, url):
             results.append(Landed(pull, url, merged=False))
             break

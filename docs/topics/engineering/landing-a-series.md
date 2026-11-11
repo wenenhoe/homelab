@@ -49,7 +49,7 @@ Each pull request becomes a merge commit, so one reverts alone. A merge to `main
 
 ## Progress and results
 
-Progress goes to stderr: what the tool is doing to which pull request, and the pull request's address once it exists. The run ends with one line per pull request, `<number>  merged|left open  <url>`. A kept branch that is checked out cannot be deleted; the tool says so, and you switch away and run `git branch -D` yourself.
+Progress goes to stderr: what the tool is doing to which pull request, and the pull request's address once it exists. On a terminal, a live block under it shows the last lines the running check printed (the replay) or the required checks that have not passed yet (the wait for CI), and is erased when that step ends, so each leaves one line behind. A failed check prints its output in full as before. Nothing is drawn when stderr is not a terminal or `TERM` is `dumb`; a pipe or a log file gets the progress lines alone. The run ends with one line per pull request, `<number>  merged|left open  <url>`. A kept branch that is checked out cannot be deleted; the tool says so, and you switch away and run `git branch -D` yourself.
 
 ## Not for
 

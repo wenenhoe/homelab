@@ -20,6 +20,7 @@ from land_series.land import Landed, LandError, fetch, land
 from land_series.live import LiveBlock
 from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_series
 from land_series.replay import Check, ReplayError, replay
+from land_series.run import CommandError
 
 DEFAULT_BASE = "origin/main"
 REMOTE = "origin"
@@ -86,7 +87,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         report(error.landed)
         print(f"land_series: {error}", file=sys.stderr)
         return 1
-    except (SeriesError, ReplayError, KeptError, OSError) as error:
+    except (SeriesError, ReplayError, KeptError, CommandError, OSError) as error:
         print(f"land_series: {error}", file=sys.stderr)
         return 1
     for result in results:

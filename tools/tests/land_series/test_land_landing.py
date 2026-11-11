@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from _series_repo import Author, Repo, git, series_file
@@ -82,7 +84,7 @@ def test_a_fetch_that_collides_with_another_process_is_retried(github: FakeGitHu
         if "fetch" in argv:
             attempts.append(1)
             if len(attempts) == 1:
-                return subprocess.CompletedProcess(argv, 1, "", "error: fetching ref refs/remotes/origin/main failed: incorrect old value provided")
+                return subprocess.CompletedProcess(argv, 1, b"", b"error: fetching ref refs/remotes/origin/main failed: incorrect old value provided")
         return real_run(argv, **kwargs)
 
     monkeypatch.setattr(subprocess, "run", flaky)
@@ -744,3 +746,19 @@ def test_the_display_is_erased_when_a_required_check_fails(github: FakeGitHub, r
         land(repo.path, layers, Reviews(True), sleep=lambda _: None, display=lambda lines: frames.append(list(lines)))
 
     assert frames == [[]]
+
+
+def test_a_missing_gh_stops_the_run_with_a_plain_message_before_anything_is_pushed(
+    github: FakeGitHub, repo: Repo, author: Author, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
+    kept(repo, layers)
+    only_git = tmp_path / "only-git"
+    only_git.mkdir()
+    (only_git / "git").symlink_to(shutil.which("git") or "git")
+    monkeypatch.setenv("PATH", str(only_git))
+
+    with pytest.raises(LandError, match="`gh` is not installed or is not on PATH"):
+        land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    assert github.branches() == ["main"]

@@ -11,7 +11,6 @@ Every step goes through `git` and `gh` under the maintainer's own login. Only `r
 from __future__ import annotations
 
 import json
-import subprocess
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -22,6 +21,7 @@ from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip, r
 from land_series.live import Display, check_lines, hidden
 from land_series.manifest import RESERVED_SLUGS, Layer, Pull, group_pulls
 from land_series.replay import Progress, ReplayError, git_run, git_text, landed_in, silent
+from land_series.run import CommandError, CommandFailed, Completed, checked, run
 
 CHECKS_INTERVAL_SECONDS = 20
 CHECKS_MAX_POLLS = 270  # about 90 minutes at the interval above
@@ -55,23 +55,23 @@ def fetch(repo: Path, base: str, sleep: Callable[[float], None] = time.sleep) ->
     """Bring `base` up to date. A client fetching in the background can update the same ref at the same moment and fail this fetch once, so it is retried."""
     remote, _, branch = base.partition("/")
     for attempt in range(FETCH_ATTEMPTS):
-        result = subprocess.run(["git", "-C", str(repo), "fetch", "--quiet", remote, branch], capture_output=True, text=True, check=False)
+        result = git_run(repo, "fetch", "--quiet", remote, branch)
         if result.returncode == 0:
             return
         if attempt < FETCH_ATTEMPTS - 1:
             sleep(FETCH_RETRY_SECONDS)
-    raise ReplayError(f"cannot fetch {base}: {result.stderr.strip()}")
+    raise ReplayError(f"cannot fetch {base}: {git_text(result)}")
 
 
-def _gh(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["gh", *args], cwd=repo, capture_output=True, text=True, check=False)
+def _gh(repo: Path, *args: str) -> Completed:
+    return run(["gh", *args], cwd=repo)
 
 
 def _gh_ok(repo: Path, *args: str) -> str:
-    result = _gh(repo, *args)
-    if result.returncode != 0:
-        raise LandError(f"`gh {' '.join(args[:2])}` failed: {(result.stdout + result.stderr).strip()}")
-    return result.stdout.strip()
+    try:
+        return checked(["gh", *args], cwd=repo).text
+    except CommandFailed as error:
+        raise LandError(str(error)) from error
 
 
 def _body(repo: Path, pull: Pull, tip: str) -> str:
@@ -137,7 +137,7 @@ def _reported(repo: Path, url: str) -> dict[str, set[str]]:
     try:
         return _buckets(json.loads(result.stdout))
     except json.JSONDecodeError:
-        output = (result.stdout + result.stderr).strip()
+        output = result.output
         if "checks reported" in output:
             return {}
         raise LandError(f"`gh pr checks` failed on {url}: {output}") from None
@@ -202,7 +202,7 @@ def land(
     except LandError as error:
         error.landed = results
         raise
-    except ReplayError as error:
+    except (ReplayError, CommandError) as error:
         raise LandError(str(error), results) from error
     return results
 

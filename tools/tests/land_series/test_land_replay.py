@@ -180,6 +180,19 @@ def test_a_series_file_replays_and_keeps_a_branch_per_layer_from_the_command_lin
     assert git(repo.path, "log", "-1", "--format=%s", "series/write-one") == "docs: write one"
 
 
+def test_a_missing_git_is_reported_from_the_command_line_not_as_a_traceback(
+    repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    series = tmp_path / "series.txt"
+    series.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+
+    status = cli.main([str(series), "--repo", str(repo.path)])
+
+    assert status == 1
+    assert capsys.readouterr().err.splitlines() == ["land_series: `git` is not installed or is not on PATH"]
+
+
 @pytest.mark.usefixtures("github")
 def test_a_dry_run_replays_without_leaving_a_branch(repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     patch = author.patch("docs: write one", {"a.txt": "one\n"})

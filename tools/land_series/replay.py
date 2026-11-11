@@ -19,6 +19,7 @@ from pathlib import Path
 
 from land_series.live import Display, hidden
 from land_series.manifest import Layer, group_pulls
+from land_series.run import Completed, run
 
 # A layer touching one of these changes code or configuration that `git am`'s hooks or the checks run on this machine
 # before CI sees it; `pyproject.toml` and `uv.lock` decide which packages `uv run` installs and runs. `.config/` holds the real
@@ -55,12 +56,12 @@ def stopped_by(paths: Iterable[str]) -> list[str]:
     return sorted({path for path in paths if path.startswith(STOP_PREFIXES)})
 
 
-def git_run(repo: Path, *args: str, stdin: bytes | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(["git", "-C", str(repo), *args], input=stdin, capture_output=True, check=False, env={**os.environ, **env} if env else None)
+def git_run(repo: Path, *args: str, stdin: bytes | None = None, env: dict[str, str] | None = None) -> Completed:
+    return run(["git", "-C", str(repo), *args], stdin=stdin, env=env)
 
 
-def git_text(result: subprocess.CompletedProcess[bytes]) -> str:
-    return (result.stdout + result.stderr).decode("utf-8", errors="replace").strip()
+def git_text(result: Completed) -> str:
+    return result.output
 
 
 def landed_in(repo: Path, base: str) -> set[tuple[int, str]]:

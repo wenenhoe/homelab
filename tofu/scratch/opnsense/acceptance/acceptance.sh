@@ -130,7 +130,9 @@ creds=$out/credentials.tfvars
 # --- the play: apply, then check
 python3 -I - "$log/extra-vars.json" "$operator" "${forward_domains[@]}" << 'PY'
 import json, sys
+# The play reaches the gateway through the ssh forward, so it sees its own loopback address and not the operator host.
 json.dump({"opnsense_gateway_operator_hosts": [sys.argv[2]],
+           "opnsense_gateway_operator_not_listed_ok": True,
            "opnsense_gateway_forward_domains": sys.argv[3:],
            "opnsense_gateway_dhcp_reservations": [{"name": "scratch-reservation", "zone": "desktops", "address": sys.argv[2], "mac": "bc:24:11:00:01:91"}]},
           open(sys.argv[1], "w"))

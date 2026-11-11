@@ -7,6 +7,9 @@ A pull request whose state has `fork` set is listed as one from another reposito
 first required check is reported on the first call, then all), `never` (only the first required check is ever reported), `pending` (the first required
 check is pending on the first call, then passes) or `skipping` (the first required check is skipped). FAKE_GH_REQUIRED lists the required checks, comma
 separated (default `build`); FAKE_GH_API=fail makes the rules call fail. `pr checks` prints JSON and exits 8 while anything is pending, as `gh` does.
+FAKE_GH_AUTH=out makes `auth status` report that nobody is logged in. FAKE_GH_FLAKY=`<call>,<n>` fails the first n calls named `<call>` (`api`, or the
+first two words, as in `pr checks`) the way a dropped connection does, and FAKE_GH_HANG=`<call>` makes that call sleep past any timeout.
+FAKE_GH_MERGE=refuse makes `pr merge` refuse as a ruleset with a required check not yet reported does.
 """
 
 import json
@@ -14,6 +17,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 
 STATE = os.environ["FAKE_GH_STATE"]
 REMOTE = os.environ["FAKE_GH_REMOTE"]
@@ -49,7 +53,22 @@ def main(args: list[str]) -> int:
     state = load()
     state["calls"].append(args)
     verb = args[:2]
-    if verb == ["pr", "list"]:
+    call = "api" if args[:1] == ["api"] else " ".join(verb)
+    flaky_call, _, flaky_count = os.environ.get("FAKE_GH_FLAKY", "").partition(",")
+    if call == flaky_call and state.get("flaked", 0) < int(flaky_count):
+        state["flaked"] = state.get("flaked", 0) + 1
+        print("error connecting to api.github.com: HTTP 502: Bad Gateway", file=sys.stderr)
+        save(state)
+        return 1
+    if call == os.environ.get("FAKE_GH_HANG"):
+        save(state)
+        time.sleep(30)
+    if verb == ["auth", "status"]:
+        if os.environ.get("FAKE_GH_AUTH") == "out":
+            print("You are not logged into any GitHub hosts. To log in, run: gh auth login", file=sys.stderr)
+            save(state)
+            return 1
+    elif verb == ["pr", "list"]:
         head = option(args, "--head")
         found = [
             {"number": pr["number"], "url": pr["url"], "isCrossRepository": pr.get("fork", False)} for pr in state["prs"] if pr["head"] == head and pr["open"]
@@ -102,6 +121,10 @@ def main(args: list[str]) -> int:
     elif verb == ["pr", "merge"]:
         pr = state["prs"][number_of(args[2]) - 1]
         assert {"--admin", "--merge", "--delete-branch"} <= set(args), args
+        if os.environ.get("FAKE_GH_MERGE") == "refuse":
+            print('GraphQL: Repository rule violations found\n\nRequired status check "matrix-jobs-gate" is expected.\n\n (mergePullRequest)', file=sys.stderr)
+            save(state)
+            return 1
         base = pr["base"]
         head_commit = subprocess.run(["git", "-C", REMOTE, "rev-parse", f"refs/heads/{pr['head']}"], capture_output=True, text=True, check=True).stdout.strip()
         if option(args, "--match-head-commit") != head_commit:

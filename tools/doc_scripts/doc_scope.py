@@ -45,9 +45,28 @@ def stage_statuses(text: str) -> list[str]:
     return [status for _, status in stages(text)]
 
 
-# A stage that answers an open question by running something is named so, and only for as long as
-# the decision it serves is still working.
-SPIKE_STAGE_RE = re.compile(r"Spikes?\b")
+# What a stage is not (ADR 0037 revision 5): a stage is a change that merges together with its docs.
+# Each kind is matched at the start of the stage's title; the advice says where the work goes.
+STAGE_KINDS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    ("a spike", re.compile(r"Spikes?\b", re.IGNORECASE), "assumptions are settled in the decision, not in a stage"),
+    (
+        "an assumption stage",
+        re.compile(r"(?:De-?risk\w*|(?:Resolve|Settle|Clear|Verify|Confirm)\b[^|]*\b(?:assumptions?|decision))", re.IGNORECASE),
+        "assumptions are settled in the decision, not in a stage",
+    ),
+    (
+        "a decision stage",
+        re.compile(r"(?:(?:Write|Draft|Decide|Approve|Choose)\b[^|]*\b(?:decision|ADR|record)|Decide\b)", re.IGNORECASE),
+        "a decision is written under the decision, and a question with no decision is an exploration",
+    ),
+    ("an acceptance stage", re.compile(r"Accept(?:ance|ing)?\b", re.IGNORECASE), "accepting a decision is the closing checklist"),
+    ("a docs-only stage", re.compile(r"(?:Docs?|Documentation|Document)\b", re.IGNORECASE), "docs travel with the change they describe"),
+    (
+        "an operational run",
+        re.compile(r"(?:Roll(?:ing)?[ -]?out|Rollout|Drill|Rebuild drill|Production migration|Convert the live)\b", re.IGNORECASE),
+        "an operational run is an acceptance criterion",
+    ),
+)
 
 
 def project_state(text: str | None) -> tuple[str, tuple[str, ...]] | None:

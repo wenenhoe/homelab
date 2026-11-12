@@ -11,7 +11,7 @@ from pathlib import Path
 
 from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter, ref_label
 from doc_scripts.doc_frozen import FROZEN_SECTIONS, condense_superseded, surplus_sections
-from doc_scripts.doc_scope import SPIKE_STAGE_RE, stages
+from doc_scripts.doc_scope import STAGE_KINDS, stages
 
 # A project's status fixes which state its linked decision revision must
 # be in. The gate is what stops production work when a revision drops
@@ -271,22 +271,33 @@ def stage_table_errors(rel: Path, status: str, stages: list[str]) -> list[str]:
         return []
     if status == "not-started" and started:
         return [f"{rel}: status: not-started, but a stage is {started[0]} — move the status on, or the stage back to Not started"]
-    if status in ("de-risking", "building") and not started:
-        return [f"{rel}: status: {status}, but no stage has started — start one, or set the status back to not-started"]
+    if status == "building" and not started:
+        return [f"{rel}: status: building, but no stage has started — start one, or set the status back to not-started"]
+    if status == "de-risking" and started:
+        return [
+            f"{rel}: status: de-risking, but a stage is {started[0]} — nothing builds while a decision has open assumptions; move the stage back to Not started"
+        ]
     return []
 
 
-def spike_stage_errors(rel: Path, rows: list[tuple[str, str]], revision_status: str) -> list[str]:
-    """A spike stage that has not finished, in a project whose decision revision is settled. The
-    revision was approved before the assumption the spike answers was resolved, or the spike is
-    build work under another name; a finished spike is history and stays."""
-    if revision_status not in ("approved", "accepted"):
-        return []
+def stage_kind_errors(rel: Path, rows: list[tuple[str, str]]) -> list[str]:
+    """A stage that is not a build change: a spike, an assumption, a decision, an acceptance, a
+    docs-only change or an operational run (ADR 0037 revision 5). A finished one is history and stays."""
     return [
-        f"{rel}: stage '{title}' is a spike ({status}), but the decision is {revision_status} — finish it, or name the stage for what it builds"
+        f"{rel}: stage '{title}' is {kind} ({status}) — {advice}"
         for title, status in rows
-        if SPIKE_STAGE_RE.match(title) and status != "Done"
+        if status != "Done"
+        for kind, pattern, advice in STAGE_KINDS
+        if pattern.match(title)
     ]
+
+
+def plan_errors(rel: Path, fm: dict, revision_status: str) -> list[str]:
+    """A project on a `working` decision is a draft plan: it is for sizing and the roadmap, and
+    is not a commitment (ADR 0037 revision 5). `plan` is `draft` or `confirmed`; absent counts as confirmed."""
+    if revision_status == "working" and fm.get("plan") != "draft":
+        return [f"{rel}: decision {fm['decision']} is working, so the plan is a draft — set plan: draft"]
+    return []
 
 
 def project_errors(root: Path = ROOT) -> list[str]:
@@ -310,6 +321,7 @@ def project_errors(root: Path = ROOT) -> list[str]:
         rel = path.relative_to(root)
         rows = stages(path.read_text(encoding="utf-8"))
         errors.extend(stage_table_errors(rel, fm["status"], [status for _, status in rows]))
+        errors.extend(stage_kind_errors(rel, rows))
         graph[pid] = []
         for dep in fm.get("depends_on", []):
             target = dep["project"]
@@ -338,7 +350,7 @@ def project_errors(root: Path = ROOT) -> list[str]:
         if rev is None:
             errors.append(f"{rel}: decision {fm['decision']} doesn't resolve to a lineage revision")
             continue
-        errors.extend(spike_stage_errors(rel, rows, rev.status))
+        errors.extend(plan_errors(rel, fm, rev.status))
         if rev.status not in allowed:
             needed = _DONE_NEEDED if fm["status"] == "done" else " or ".join(sorted(allowed))
             errors.append(f"{rel}: status: {fm['status']} needs decision {fm['decision']} to be {needed}, but it is {rev.status}")

@@ -3,9 +3,9 @@ only when the decision it names is `approved`, or it names none (ADR 0037
 revision 4). Pure functions, shared by check_project_start.py. Field validation
 lives in doc_frontmatter.py.
 
-A project whose decision is still `working` has nothing to build; it is either a
-`de-risking` project, limited to spikes and reading code, or no project yet, and
-the question stays in an exploration or the decision until it is approved. The
+A project whose decision is still `working` has nothing to build, but may exist
+as a draft plan (`plan: draft`) for sizing and the roadmap (ADR 0037 revision 5);
+the question stays in the decision or an exploration until it is approved. The
 rule reads only the docs a change adds, so a project that was already waiting
 on a `working` decision is not re-judged.
 """
@@ -32,9 +32,9 @@ def start_errors(added: list[str], result_root: Path = ROOT) -> list[str]:
         if fm["status"] != "not-started" or match is None:
             continue
         rev = revisions.get((match.group(1), match.group(2)))
-        if rev is not None and rev.status != "approved":
+        if rev is not None and rev.status != "approved" and fm.get("plan") != "draft":
             errors.append(
                 f"{path}: a new project is not-started, but {fm['decision']} is {rev.status} — a project starts on an approved decision. "
-                "Keep the work as de-risking (spikes and reading code only), or leave it in the decision or an exploration until it is approved"
+                "Mark the plan as a draft (plan: draft) for the roadmap, or leave the work in the decision or an exploration until it is approved"
             )
     return errors

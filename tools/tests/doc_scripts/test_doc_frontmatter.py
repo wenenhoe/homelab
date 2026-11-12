@@ -232,6 +232,15 @@ class TestProjectValidation:
         with pytest.raises(SystemExit, match="summary"):
             fm_mod.read_frontmatter(path)
 
+    @pytest.mark.parametrize("plan", ["draft", "confirmed"])
+    def test_both_plans_are_accepted(self, root, plan):
+        assert fm_mod.read_frontmatter(project(root, "p", plan=plan))["plan"] == plan
+
+    @pytest.mark.parametrize("plan", ["final", "Draft", True, ""])
+    def test_another_plan_is_rejected(self, root, plan):
+        with pytest.raises(SystemExit, match="'plan' must be one of"):
+            fm_mod.read_frontmatter(project(root, "p", plan=plan))
+
     def test_blocked_rules(self, root):
         assert fm_mod.read_frontmatter(project(root, "a", status="building", blocked=True, blocked_reason="waiting on hardware"))["blocked"] is True
         assert fm_mod.read_frontmatter(project(root, "ok", status="building", blocked=False))["blocked"] is False

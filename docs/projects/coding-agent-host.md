@@ -18,7 +18,7 @@ Replaces the Claude Chat, VS Code, and lazygit workflow with a dedicated VM wher
 
 ## Scope
 
-The VM (VMID 701, in the 7XX range), a `coding_agent` role, an inventory group outside `managed_hosts`, `app_hosts`, and `patched_hosts`, an unprivileged agent account, Claude Code with its built-in sandbox, and the role's Molecule scenario. Unattended security updates come from the hardening baseline ([`host-hardening.md`](../topics/infra/host-hardening.md)), not this role. Not in scope: the network zone ([`coding-agent-network.md`](coding-agent-network.md)), the Molecule runtime for the repo's own scenarios ([`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md)), client access ([`coding-agent-access-path.md`](coding-agent-access-path.md)), and rebuild automation ([`coding-agent-management.md`](coding-agent-management.md)).
+The VM (VMID 701, in the 7XX range), a `coding_agent` role, an inventory group outside `managed_hosts`, `app_hosts`, and `patched_hosts`, an unprivileged agent account, Claude Code with its built-in sandbox, and the role's Molecule scenario. Unattended security updates come from the hardening baseline ([`host-hardening.md`](../topics/infra/host-hardening.md)), not this role. Not in scope: the network zone ([`coding-agent-network.md`](coding-agent-network.md)), the Molecule runtime for the repo's own scenarios (an open exploration), client access ([`coding-agent-access-path.md`](coding-agent-access-path.md)), and rebuild automation ([`coding-agent-management.md`](coding-agent-management.md)).
 
 ## Decision
 

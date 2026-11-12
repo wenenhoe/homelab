@@ -49,7 +49,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Risks
 
 - The laptop is not converged from the repo, so the audit and the no-assistant rule hold only when they are run and kept; nothing enforces them between runs.
-- A memory-capped WSL2 may not fit every Molecule scenario. The ones that do not run on the coding-agent host, and [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) and the sizing assumption in [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md) settle which.
+- A memory-capped WSL2 may not fit every Molecule scenario. The ones that do not run on the coding-agent host, and an open exploration of the coding-agent host's runtime and the sizing assumption in [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md) settle which.
 - If routine work keeps needing the operator host, ADR 0056's reconsideration trigger applies and the reduction is revisited, not worked around.
 - VM 401 is the only place some tooling or state may still live; retire it only after the operator host and the laptop have done every operation it did.
 

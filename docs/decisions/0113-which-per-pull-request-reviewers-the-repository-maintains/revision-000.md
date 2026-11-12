@@ -7,7 +7,7 @@ short: Maintained PR reviewers
 solution: The requested review is the only per-pull-request review, and the CodeRabbit CLI run with its image, pins, checks and licence exception is removed
 summary: Whether the repository keeps the tooling for a per-pull-request reviewer once another reviewer serves the same need.
 topic: repository-tooling
-status: approved
+status: accepted
 weight: light
 related: [ADR-0061, ADR-0063, ADR-0090]
 relies_on:

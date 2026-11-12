@@ -7,7 +7,7 @@ short: Decision and project workflow
 solution: "A project builds only after an approved decision and a confirmed plan, its scope is fixed when building starts, a project is sized to close on its own, and a superseded record keeps only what it decided"
 summary: "How a project is started, scoped and sized, how a draft plan differs from a confirmed one, and what a superseded decision keeps."
 topic: documentation-process
-status: working
+status: approved
 supersedes: 4
 related: [ADR-0061, ADR-0080, ADR-0082]
 ---

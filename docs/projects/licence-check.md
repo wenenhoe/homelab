@@ -25,11 +25,11 @@ Makes the licence rule of [ADR 0090 (Adopted software licences)](../decisions/00
 
 The registry, the two checks and their tests, the topic doc, and the schedule and pipeline docs that list them. The registry covers what the repository pins today: images, release binaries, Python dependencies, Tofu providers, pre-commit hooks, Ansible collections and GitHub Actions. It follows the pattern of the checksum and provenance checks' registries, including a test that fails when a pin has no entry, without changing either of them.
 
-Not in this project: replacing software whose licence turns out not to be approved (a finding of Stage 1 that is its own change), a legal reading of any licence, and software an image carries beyond what its pin names.
+Not in this project: replacing software whose licence turns out not to be approved (a finding of the registry stage that is its own change), a legal reading of any licence, and software an image carries beyond what its pin names.
 
 ## Decision
 
-Implements [ADR 0090 (Adopted software licences)](../decisions/0090-licences-of-adopted-software/revision-000.md), still `working`. The project stays `not-started` until that revision is `approved`, and Stage 1 resolves the two assumptions that keep it from being so.
+Implements [ADR 0090 (Adopted software licences)](../decisions/0090-licences-of-adopted-software/revision-000.md), still `working`. The project stays `not-started` until that revision is `approved`.
 
 ## Execution plan
 
@@ -37,9 +37,8 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Read the licence file of `itzg/mc-backup`, `docker-compose-linter`, `croniter` and `curl` at their pinned versions, and spike reading `uv.lock` metadata for transitive dependencies | Not started | Each of the four is recorded as approved or as needing an exception or a replacement, and the transitive question is answered, both in the ADR's Assumptions |
-| 2 | The registry and the check run when a pin changes | Not started | Every pin has an entry, a test fails when one does not, and the `pr-checks.yml` job fails on an entry whose licence is missing, unrecognised or not OSI-approved |
-| 3 | The weekly check and the topic doc | Not started | `check-licenses.yml` compares each entry with its upstream's default-branch licence file on the schedule, reports through the path the other weekly checks use, and the topic doc describes both checks |
+| 1 | The registry and the check run when a pin changes | Not started | Every pin has an entry, including `itzg/mc-backup`, `docker-compose-linter`, `croniter` and `curl` at their pinned versions recorded as approved or as needing an exception or a replacement, a test fails when one does not, and the `pr-checks.yml` job fails on an entry whose licence is missing, unrecognised or not OSI-approved |
+| 2 | The weekly check and the topic doc | Not started | `check-licenses.yml` compares each entry with its upstream's default-branch licence file on the schedule, reports through the path the other weekly checks use, and the topic doc describes both checks |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -67,7 +66,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Open items
 
-- Whether the check descends into lock files for transitive dependencies, which Stage 1's spike answers.
+- Whether the check descends into lock files for transitive dependencies, which the decision's assumptions settle.
 - Where the weekly run's failure is reported, which follows whatever the other weekly checks do.
 
 ## Closing checklist

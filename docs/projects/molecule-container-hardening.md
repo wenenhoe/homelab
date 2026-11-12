@@ -22,7 +22,7 @@ allowed_paths:
 
 In: the four target services `molecule_helpers` starts (OpenBao, lldap, SeaweedFS, step-ca) and the step-cli and chmod containers beside the OpenBao one; the host paths the chmod container mounts and the modes of the directories it works in; the compose files under `ansible/roles/molecule_helpers/fixtures/` and the scenario fixtures that are not symlinks to a production file; the one-off `community.docker.docker_container` tasks in the scenarios' `converge.yml`, `verify.yml` and `prepare.yml`; a test that fails for a container in these places that sets neither default; the Molecule and container-hardening topic docs. Also in, read-only: a test over the production compose files under `docker/` and over the `community.docker.docker_container` tasks in the roles and playbooks outside Molecule, which fails for a service or a started container that does not set both defaults.
 
-Not in: the scenario platforms (`privileged: true` systemd containers), which [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) decides; fixtures that are symlinks to a production compose file, which inherit its settings; changes to production compose files and to the playbooks under `ansible/playbooks/`, which already set both defaults and are only read by the test; the images' versions and digests.
+Not in: the scenario platforms (`privileged: true` systemd containers), which an open exploration on the coding-agent host's runtime decides; fixtures that are symlinks to a production compose file, which inherit its settings; changes to production compose files and to the playbooks under `ansible/playbooks/`, which already set both defaults and are only read by the test; the images' versions and digests.
 
 ## Decision
 

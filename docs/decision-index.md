@@ -267,7 +267,7 @@ lists only the ones no project names.
 | [0022](decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md) | revision 1 | Controller TLS trust | Approved | [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | [0037](decisions/0037-decision-and-project-documentation-workflow/revision-005.md) | revision 5 | Decision and project workflow | Approved | [`project-start-gate.md`](projects/project-start-gate.md) |
 | [0042](decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md) | original | Monitoring host loss | Approved | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) |
-| [0043](decisions/0043-host-os-hardening-baseline/revision-000.md) | original | Host hardening baseline | Approved | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) |
+| [0043](decisions/0043-host-os-hardening-baseline/revision-000.md) | original | Host hardening baseline | Approved | [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md), [`operator-host.md`](projects/operator-host.md) |
 | [0044](decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) | original (c) | CD agent trigger | Approved | [`cd-agent.md`](projects/cd-agent.md) |
 | [0047](decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md) | original | First-credential bootstrap | Approved | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) |
 | [0050](decisions/0050-agent-authored-changes-reaching-production/revision-000.md) | original | Agent changes to production | Approved | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) |

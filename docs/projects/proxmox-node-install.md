@@ -32,7 +32,7 @@ Not in this project: hardening the node, clusters, backups and restores of the m
 
 ## Decision
 
-Implements [ADR 0093 (Proxmox node install)](../decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md), still `working`. The project stays `not-started` until that revision is `approved`. Stage 1 is a spike and the only work that may start before then.
+Implements [ADR 0093 (Proxmox node install)](../decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md), still `working`. The project stays `not-started` until that revision is `approved`.
 
 ## Execution plan
 
@@ -40,11 +40,9 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike: boot a nested Proxmox VM on the node with the other machines stopped, install it from an ISO with an embedded answer file, and run the assistant's device report on the real node | Not started | Each of the ADR's four assumptions is recorded as held or as broken, with what the spike showed |
-| 2 | Inventory the running node's settings and write them up | Not started | The topic doc lists every node-level setting the machines depend on, including the GPU passthrough settings, each with how it is set |
-| 3 | The answer-file template and the ISO tool | Not started | The tool merges the credentials from a file outside the repository, `validate-answer` accepts what it renders, and its tests check that no credential reaches the template or the repository |
-| 4 | The role and playbook, converged on a nested VM | Not started | The role converges on a freshly installed nested VM, and a second run reports no change |
-| 5 | Reconcile the role with the running node | Not started | `--check --diff` against the real node reports no change, and the manual steps in the VM provisioning doc point at the role |
+| 1 | The answer-file template and the ISO tool | Not started | The tool merges the credentials from a file outside the repository, `validate-answer` accepts what it renders, and its tests check that no credential reaches the template or the repository |
+| 2 | The role and playbook, converged on a nested VM, with the node's settings written up | Not started | The topic doc lists every node-level setting the machines depend on, including the GPU passthrough settings, each with how it is set, and how the node joined the tailnet; the role converges on a freshly installed nested VM, and a second run reports no change |
+| 3 | Reconcile the role with the running node | Not started | `--check --diff` against the real node reports no change, and the manual steps in the VM provisioning doc point at the role |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -67,14 +65,14 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Risks
 
 - A test needs the other machines stopped, which includes the controller and the gateway, so it is an outage.
-- A filter that selects the wrong disk would wipe it on a real reinstall, so Stage 1's device report is checked before any ISO is used.
+- A filter that selects the wrong disk would wipe it on a real reinstall, so the assistant's device report on the real node is checked before any ISO is used.
 - The role cannot run in Molecule, so its only idempotence evidence is a run on a nested VM.
 - The installer's answer-file format has changed between releases.
 
 ## Open items
 
 - Whether the first run after a reinstall may use the maintainer's hardware-backed key, which the ADR's first assumption leaves to the maintainer and ADRs 0056 and 0058.
-- The node is a member of the tailnet, joined by hand, and is the maintainer's way to the hypervisor when the router VM is broken. A reinstall removes that join. Stage 2 records how the node joined, and the role or the reinstall has to restore the membership under the tag and with the one-time key handling that [ADR 0097 (Tailscale node configuration)](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) sets, which may mean applying that ADR's role to the node.
+- The node is a member of the tailnet, joined by hand, and is the maintainer's way to the hypervisor when the router VM is broken. A reinstall removes that join. The role stage records how the node joined, and the role or the reinstall has to restore the membership under the tag and with the one-time key handling that [ADR 0097 (Tailscale node configuration)](../decisions/0097-how-a-tailscale-node-is-configured/revision-000.md) sets, which may mean applying that ADR's role to the node.
 
 ## Closing checklist
 

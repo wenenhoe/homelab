@@ -16,7 +16,7 @@ allowed_paths:
 
 # Beszel Agent Docker API Rules
 
-Gives the `beszel-agent` proxy the same kind of policy `backup-agent`'s proxy has: a rules file that names each call and refuses the rest, in place of the `CONTAINERS=1` flag. It is staged because how the file reaches the host and how an edit recreates the proxy is not settled, and the call-set check needs a place to run before the file can be trusted.
+Gives the `beszel-agent` proxy the same kind of policy `backup-agent`'s proxy has: a rules file that names each call and refuses the rest, in place of the `CONTAINERS=1` flag. The change is one stage; the rules file, its check and the docs that describe them merge together.
 
 ## Scope
 
@@ -34,9 +34,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Settle delivery and where the check runs | Not started | This doc names how `docker/beszel-agent/` ships the rules file to the host unchanged, how an edit to it recreates the proxy (Compose does not recreate a container when a bind-mounted file changes, and HAProxy reads the rules only at start), and where the call-set check runs. `allowed_paths` covers every file stages 2 and 3 edit, widened in its own change before it is used. Open items 1 and 3 are closed |
-| 2 | The rules file and its check | Not started | The proxy mounts the rules file read-only over the template and sets no flag. Every call in the call set below that the rules admit reaches a fake socket as the same method and target, with and without a query string. Every other call gets a 403 and never arrives: `archive`, `export`, `top`, `events`, `info` and the image calls unless open item 2 admits them, a write verb on any path, and a container id that is not 12 to 64 hex digits. Editing the file recreates the proxy, shown by a changed file giving a new container. The pinned agent image run against the proxy reads the container list and a container's stats, shown by 200s in the proxy's request log |
-| 3 | Docs | Not started | `beszel.md` describes the rules file and what the proxy admits, `adding-an-app.md` and `molecule-testing.md` describe the check, and no doc still says the sidecar is scoped by `CONTAINERS=1` |
+| 1 | The rules file and its check | Not started | `beszel.md` describes the rules file and what the proxy admits, `adding-an-app.md` and `molecule-testing.md` describe the check, no doc still says the sidecar is scoped by `CONTAINERS=1`, Open items 1 and 3 are closed in this doc; the proxy mounts the rules file read-only over the template and sets no flag. Every call in the call set below that the rules admit reaches a fake socket as the same method and target, with and without a query string. Every other call gets a 403 and never arrives: `archive`, `export`, `top`, `events`, `info` and the image calls unless open item 2 admits them, a write verb on any path, and a container id that is not 12 to 64 hex digits. Editing the file recreates the proxy, shown by a changed file giving a new container. The pinned agent image run against the proxy reads the container list and a container's stats, shown by 200s in the proxy's request log |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

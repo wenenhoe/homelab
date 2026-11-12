@@ -11,9 +11,9 @@ decision: ADR-0018/1
 # OpenBao Auto-Unseal
 
 Replaces manual Shamir unseal with a cloud KMS seal. Staged because the
-decision's assumptions have to be settled by a throwaway spike before the
-seal plugin reaches the production image, and because the migration of the
-production node is a one-time step that needs the operator at the keyboard.
+plugin and seal stanza, and the maintenance reboot, are separate reviewable
+changes, and the migration of the production node is a one-time step that
+needs the operator at the keyboard, so it is an acceptance criterion.
 
 ## Scope
 
@@ -27,8 +27,7 @@ Not in scope: a multi-node cluster, an HSM, and the snapshot path of
 ## Decision
 
 Implements [ADR 0018 revision 1 (Secrets store unsealing)](../decisions/0018-unsealing-the-secrets-store-after-restart/revision-001.md),
-still `working`, so this project is `not-started` until its first spike begins and then `de-risking` and only throwaway spikes
-are allowed until its assumptions are resolved.
+still `working`, so this project is `not-started` or `de-risking` until the revision is `approved`.
 
 ## Execution plan
 
@@ -36,31 +35,26 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike: a throwaway OpenBao 2.7.1 with the `ocikms` plugin, a spike key and the narrowest IAM policy | Not started | each ADR 0018 revision 1 assumption is recorded as a fact in the ADR, and the restart with the DNS host stopped has been tried |
-| 2 | Plugin delivery, seal stanza and tooling | Not started | the revision is `approved` and a Molecule scenario starts OpenBao with the plugin loaded and a stubbed seal |
-| 3 | Production migration | Not started | `security` unseals itself after a restart, the offline copy of the credential exists, and a restore drill from that credential and a snapshot ends unsealed |
-| 4 | Let maintenance reboot `security` | Not started | `patch_reboot_allowed` is true for `security`, `maintenance.yaml` checks the seal after the reboot, and the topic docs describe the seal |
+| 1 | Plugin delivery, seal stanza and tooling | Not started | a Molecule scenario starts OpenBao with the plugin loaded and a stubbed seal |
+| 2 | Let maintenance reboot `security` | Not started | `patch_reboot_allowed` is true for `security`, `maintenance.yaml` checks the seal after the reboot, and the topic docs describe the seal |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-### Stage 1 — Spike
+### The migration
 
-The spike's OpenBao, key, IAM user and credential live outside the
-repository checkout and in a tenancy compartment of their own, and are
-deleted afterwards; only facts go back into the ADR. It tries the narrowest
-policy that lets init, migration and restart succeed, and a restart with
-the `services` host stopped.
+Run by the operator on `security` once the plugin and seal stanza are merged: migrate the seal, keep an offline copy of the credential, then restore from that credential and a snapshot on a fresh host.
 
 ## Acceptance criteria
 
 - [ ] `security` unseals after a restart with no operator, and the maintenance job reboots it.
 - [ ] The KMS credential is held offline with the handling the Shamir shares have, and is in no repository, raft data or snapshot.
 - [ ] A restore from a snapshot and that credential, on a fresh host, ends unsealed.
+- [ ] After the migration, `security` unseals itself after a restart, and a restore drill from the offline credential and a snapshot ends unsealed.
 - [ ] The resulting behavior is described in a topic doc, not only here.
 
 ## Agent handoff
 
-- **Allowed to change:** documentation only until ADR 0018 revision 1 is `approved`; Stage 1 produces nothing in the repository.
+- **Allowed to change:** documentation only until ADR 0018 revision 1 is `approved`. The migration is run by the operator, not by a pull request.
 - **Must not change:** the Molecule OpenBao targets' Shamir seal, or any credential or key file in a commit.
 - **Required checks:** `pre-commit run --all-files`.
 

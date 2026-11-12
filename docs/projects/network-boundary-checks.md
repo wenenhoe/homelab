@@ -24,7 +24,7 @@ allowed_paths:
 
 # Network Boundary Checks
 
-Builds the one definition of a canary probe that three projects each promise: [`opnsense-config.md`](opnsense-config.md), [`coding-agent-egress.md`](coding-agent-egress.md) and [`operator-host-takeover.md`](operator-host-takeover.md). It is a project of its own, not a stage of the gateway project, because its flow list and runner are used by all three and outlive any one of them. Its first two stages need no gateway; the later ones need the scratch gateway that [`opnsense-config.md`](opnsense-config.md)'s Stage 2 builds.
+Builds the one definition of a canary probe that three projects each promise: [`opnsense-config.md`](opnsense-config.md), [`coding-agent-egress.md`](coding-agent-egress.md) and [`operator-host-takeover.md`](operator-host-takeover.md). It is a project of its own, not a stage of the gateway project, because its flow list and runner are used by all three and outlive any one of them. Its first two stages need no gateway; the later ones need the scratch gateway that [`opnsense-config.md`](opnsense-config.md)'s Stage 1 builds.
 
 ## Scope
 
@@ -40,15 +40,14 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike on a scratch zone: whether the runner's host reaches a canary under the zones' rules. Starts once [`opnsense-config.md`](opnsense-config.md)'s Stage 2 has built a scratch gateway | Done | Each assumption in ADR 0094 is resolved and folded into its Context, and the revision can be `approved` |
-| 2 | The flow list's schema, loader and rule checks, with a pre-commit hook | Done | The loader refuses a file that breaks each rule of the ADR, with a failing unit test per rule, and the hook runs on the flow list |
-| 3 | The probe module and the runner | Done | Against a fake canary each kind passes and fails as expected, a deny whose control fails is reported failed, a probe that cannot run fails the run, and the exit status is zero only if every selected probe passed |
-| 4 | A canary VM and the first flows on the scratch gateway: the smoke flows and the existing zones | In progress | The runner against the scratch gateway passes every flow, and removing a rule that an allow flow depends on makes that probe fail |
-| 5 | The scheduled run and its heartbeat. Starts once the host that runs it exists | Not started | A passing run pushes the heartbeat, a failing run alerts through `OnFailure=`, and a run that does not happen alerts as a missed heartbeat |
+| 1 | The flow list's schema, loader and rule checks, with a pre-commit hook | Done | The loader refuses a file that breaks each rule of the ADR, with a failing unit test per rule, and the hook runs on the flow list |
+| 2 | The probe module and the runner | Done | Against a fake canary each kind passes and fails as expected, a deny whose control fails is reported failed, a probe that cannot run fails the run, and the exit status is zero only if every selected probe passed |
+| 3 | A canary VM and the first flows on the scratch gateway: the smoke flows and the existing zones | In progress | The runner against the scratch gateway passes every flow, and removing a rule that an allow flow depends on makes that probe fail |
+| 4 | The scheduled run and its heartbeat. Starts once the host that runs it exists | Not started | A passing run pushes the heartbeat, a failing run alerts through `OnFailure=`, and a run that does not happen alerts as a missed heartbeat |
 
-Stage status is `Not started`, `In progress`, or `Done`. Stages 2 and 3 need no VM and start once the revision is `approved`.
+Stage status is `Not started`, `In progress`, or `Done`. Stages 1 and 2 need no VM and start once the revision is `approved`.
 
-### Stage 4 — what remains
+### Stage 3 — what remains
 
 The services canary is declared, the flow list holds the first flows, and namespaces on the node stand in for canary VMs on a scratch gateway ([`network-boundary-checks.md`](../topics/infra/network-boundary-checks.md#running-the-checks-against-a-scratch-gateway)); their tests pass against a stand-in router. Left: the runner against a real scratch gateway, passing every flow of the zones it reaches, and failing the one a block rule breaks; and a row in the gateway's policy for each other zone that admits the runner's host to the canary's address on 22 (others, desktops and isolated, and experimental after the Ubuntu module's VMID range is widened past 5XX).
 
@@ -56,13 +55,13 @@ The services canary is declared, the flow list holds the first flows, and namesp
 
 - [ ] One flow list in the repo is the only place the expected flows are written for checking, and its rules run as a pre-commit hook.
 - [ ] The runner, started from the host that runs the play, tries each flow from a canary in the source zone, and every deny has a control that passed in the same run.
-- [ ] The canary-probe criteria of [`opnsense-config.md`](opnsense-config.md) (Stages 3 and 4), [`coding-agent-network.md`](coding-agent-network.md) (Stage 3), [`coding-agent-egress.md`](coding-agent-egress.md) (Stages 2 and 3) and [`operator-host-takeover.md`](operator-host-takeover.md) (Stage 1) are met by this runner.
+- [ ] The canary-probe criteria of [`opnsense-config.md`](opnsense-config.md) (Stages 2 and 3), [`coding-agent-network.md`](coding-agent-network.md) (Stage 2), [`coding-agent-egress.md`](coding-agent-egress.md) (Stages 2 and 3) and [`operator-host-takeover.md`](operator-host-takeover.md) (Stage 1) are met by this runner.
 - [ ] A scheduled run pushes a heartbeat on a pass and alerts on a failure or a missed run.
 - [ ] The resulting behavior is described in `docs/topics/infra/network-boundary-checks.md`.
 
 ## Agent handoff
 
-- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook, the CI path filter that runs the package's tests and the topic docs, which is what Stages 2 and 3 change, the canary VMs' Tofu file with its variable, test and docs, and the scratch gateway's block rule playbook, which Stage 4 changes. Stage 5 widens it, in a change of its own, once the scheduled run's files exist.
+- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook, the CI path filter that runs the package's tests and the topic docs, which is what Stages 1 and 2 change, the canary VMs' Tofu file with its variable, test and docs, and the scratch gateway's block rule playbook, which Stage 4 changes. Stage 5 widens it, in a change of its own, once the scheduled run's files exist.
 - **Must not change:** the gateway play and its rules ([`opnsense-config.md`](opnsense-config.md)'s), the zones' decisions, and the existing heartbeat jobs.
 - **Relevant files and interfaces:** `tools/utils/app_catalog.py` and `tools/ci/gates/app_catalog_rules.py` (the loader-and-rules-hook pattern to follow), `docs/topics/engineering/ci/gates.md`, `docs/topics/monitoring/gatus.md` and `ansible/roles/gatus_push` (the heartbeat path).
 - **Required checks:** `pre-commit run --all-files`, and `uv run pytest` from `tools/`.
@@ -70,7 +69,7 @@ The services canary is declared, the flow list holds the first flows, and namesp
 ## Risks
 
 - The flow list is a third statement of intent beside the gateway play and the topic doc. Only the probes tie it to the play.
-- Stage 4 waits on the scratch gateway and Stage 5 on the host that runs the job; that host's project is still de-risking ([`operator-host.md`](operator-host.md)).
+- Stage 3 waits on the scratch gateway and Stage 4 on the host that runs the job; that host's project has not started ([`operator-host.md`](operator-host.md)).
 - A canary needs inbound SSH in each zone. A zone whose decision limits inbound flows, such as [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), may need a revision to admit it.
 - A canary per zone adds VMs to a node with limited headroom.
 
@@ -78,7 +77,7 @@ The services canary is declared, the flow list holds the first flows, and namesp
 
 - Reading drift on the gateway: [`opnsense-config.md`](opnsense-config.md)'s Open items state the question. If the answer is code under `tools/`, it joins this project as a stage or becomes a project of its own, under a decision written once real `--check --diff` output has been kept.
 - Whether a pre-merge CI job can boot the pinned pre-installed gateway image under QEMU depends on KVM being available on the runners, which has not been checked. Whether it belongs here, in [`opnsense-config.md`](opnsense-config.md) or in a project of its own is decided after that check.
-- Whether a static check ties the gateway play's rule variables to the flow list. It cannot show effective rule order, so it complements the probes. Decide it with [`opnsense-config.md`](opnsense-config.md)'s Stage 3, when the rules exist.
+- Whether a static check ties the gateway play's rule variables to the flow list. It cannot show effective rule order, so it complements the probes. Decide it with [`opnsense-config.md`](opnsense-config.md)'s Stage 2, when the rules exist.
 
 ## Closing checklist
 

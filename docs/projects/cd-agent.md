@@ -6,6 +6,8 @@ status: building
 blocked: false
 summary: A dedicated, pull-based automation host that runs the deploy, maintenance, and credential-expiry jobs.
 decision: ADR-0044/0-c
+also_implements:
+  - ADR-0043/0
 super_project: pull-based-cd
 ---
 
@@ -57,6 +59,7 @@ The `credential-expiry` job replaces the weekly user timer on `controller` (`too
 - [x] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
 - [x] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
 - [x] The role converges idempotently.
+- [ ] The host's effective apt configuration passes the checks in [`host-hardening.md`](../topics/infra/host-hardening.md#verifying-a-host); the last project to close that names [ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md) sets it `accepted`.
 
 ## Open items
 
@@ -66,7 +69,7 @@ The `credential-expiry` job replaces the weekly user timer on `controller` (`too
 - The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists ([`cd-agent-approles.md`](cd-agent-approles.md)); it needs a native `rclone`, not Docker, which the role installs ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)).
 - Each job's heartbeat uses ADR 0072's mechanism, which is built ([ADR 0072 (Job heartbeats)](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)). The `credential-expiry` job's endpoint is not declared, because one nothing pushes to alerts once its interval passes; add it with the host, as [`cd-agent-host.md`](../topics/deploy/cd-agent-host.md#heartbeats) lists. That edit touches `main.yaml`, the secret catalog and `cd_agent.yaml`, which this project's `allowed_paths` must then name.
 - The deploy, maintenance and credential-expiry jobs cannot log in to OpenBao yet; what is missing is delivering each job's credentials, which [`cd-agent-approles.md`](cd-agent-approles.md) owns. Applying the role before that is settled starts jobs that fail on every run.
-- Nothing can apply the role until [`operator-host.md`](operator-host.md)'s Stage 3 builds VM 302, because `sshd` accepts `192.168.30.2` alone.
+- Nothing can apply the role until [`operator-host.md`](operator-host.md)'s Stage 2 builds VM 302, because `sshd` accepts `192.168.30.2` alone.
 - Whether `deploy.yaml`'s `localhost` plays run under the unit's sandbox, which makes the filesystem read-only outside the job's state directory, is not confirmed.
 - The OpenBao snapshot write keys are rotated by hand with `create_snapshot_write_keys.py --rotate`: the `rotation` job runs `rotate_leaf_keys.py`, which does not include them, and the expiry check only warns. Adding them is a small change to that script and `rotation.md`. The `cd-agent-rotation` policy already grants write on the whole leaf tier, and `snapshot-push.sh` reads the keys from OpenBao on every run, so a rotation needs no redeploy. Do it when the `rotation` job goes live, so its first run exercises it; this project's `allowed_paths`, if it gains any, must then name both files.
 - The shared SSH private key across every managed host (and possibly

@@ -20,7 +20,7 @@ allowed_paths:
 
 # Backup Archive Retention Lock
 
-An archive on `storage` can be deleted by the host that wrote it, because its identity holds `Write` on its prefix and a delete is a write. This project turns on versioning and Object Lock in compliance mode for the backup bucket, with a default retention equal to the shared backup retention, and runs the lifecycle jobs that remove what the apps have pruned once its lock has ended. It is staged because the first stage settles four assumptions about the wiring, the clients and the headroom, and because the live bucket is converted in place by hand only after the code that declares it is merged.
+An archive on `storage` can be deleted by the host that wrote it, because its identity holds `Write` on its prefix and a delete is a write. This project turns on versioning and Object Lock in compliance mode for the backup bucket, with a default retention equal to the shared backup retention, and runs the lifecycle jobs that remove what the apps have pruned once its lock has ended. It is staged because the worker, the bucket and the lifecycle rules are separate reviewable changes, and the live bucket is converted in place by hand after the code that declares it is merged.
 
 ## Scope
 
@@ -30,7 +30,7 @@ Not in scope: the agents' pruning, which stays a plain delete; the identities, w
 
 ## Decision
 
-Implements [ADR 0081 (On-site archive deletion)](../decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md). The revision is `working` on four assumptions, which Stage 1 resolves. Rationale, the threat model and what was checked on the pinned image are there.
+Implements [ADR 0081 (On-site archive deletion)](../decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md). The revision is `working` on four assumptions; the project does not start building until they are resolved and it is `approved`. Rationale, the threat model and what was checked on the pinned image are there.
 
 ## Execution plan
 
@@ -38,17 +38,15 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Resolve the assumptions and choose how the rules are declared | Not started | Each assumption in ADR 0081 is resolved and folded into its Context, including the names of the signals for a stopped worker and for the volume's free space and a test that each fires, and the revision can be `approved`; this doc names the collection or API call that declares the lifecycle rules (Open item 1), and `allowed_paths` covers every file stages 2 to 5 edit, widened in its own change before it is used |
-| 2 | Run the admin and worker beside SeaweedFS | Not started | A Molecule scenario on the SeaweedFS target shows the worker registering `s3_lifecycle` and `vacuum` over loopback, no container on `caddy-proxy` reaching the admin, and the admin API unrouted through Caddy |
-| 3 | Declare the locked bucket | Not started | `seaweedfs_bucket` creates a bucket with versioning, Object Lock and a compliance default retention of `backup_defaults.retention_days`, is idempotent on it, a unit test over `backup_plan` fails when an app's retention is below that window, the `identity_scoping` scenario shows a scoped identity's delete of a fresh archive by `VersionId` refused and the bucket-admin identity's too, and the `AWS-0090` entry in `.trivyignore` is removed |
-| 4 | Declare the lifecycle rules and the signal | Not started | A Molecule scenario drives the lifecycle job on demand against a target with a short explicit retention, and an expired superseded version and an orphaned marker are removed while a locked version is not; the stopped-worker signal and the free-space signal each fire in their tests |
-| 5 | Convert the live bucket | Not started | The live bucket reports versioning and a compliance default retention, each app's next archive carries the lock, the runbook step is in `backup.md`, and `backup-threat-model.md` states the narrowed residual risk |
+| 1 | Run the admin and worker beside SeaweedFS | Not started | A Molecule scenario on the SeaweedFS target shows the worker registering `s3_lifecycle` and `vacuum` over loopback, no container on `caddy-proxy` reaching the admin, and the admin API unrouted through Caddy |
+| 2 | Declare the locked bucket | Not started | `seaweedfs_bucket` creates a bucket with versioning, Object Lock and a compliance default retention of `backup_defaults.retention_days`, is idempotent on it, a unit test over `backup_plan` fails when an app's retention is below that window, the `identity_scoping` scenario shows a scoped identity's delete of a fresh archive by `VersionId` refused and the bucket-admin identity's too, and the `AWS-0090` entry in `.trivyignore` is removed |
+| 3 | Declare the lifecycle rules and the signal | Not started | A Molecule scenario drives the lifecycle job on demand against a target with a short explicit retention, and an expired superseded version and an orphaned marker are removed while a locked version is not; the stopped-worker signal and the free-space signal each fire in their tests |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-### Stage 5 — the conversion
+### The conversion
 
-Run by the operator on `storage`, through the S3 API, once stages 2 to 4 are merged: versioning back on, then the lock and the default retention. A rebuilt `storage` host takes the role's create path instead. Archives written before the conversion carry no lock and age out as they do now.
+Run by the operator on `storage`, through the S3 API, once the stages are merged: versioning back on, then the lock and the default retention. A rebuilt `storage` host takes the role's create path instead. Archives written before the conversion carry no lock and age out as they do now.
 
 ## Acceptance criteria
 
@@ -59,11 +57,13 @@ Run by the operator on `storage`, through the S3 API, once stages 2 to 4 are mer
 - [ ] No app's retention is shorter than the lock window, and a test fails when one is.
 - [ ] A stopped worker is noticed before the volume fills.
 - [ ] The volume's free space running short is noticed before the volume fills.
+- [ ] The live bucket reports versioning and a compliance default retention after the conversion, and each app's next archive carries the lock.
+- [ ] The conversion runbook step is in `backup.md`.
 - [ ] The backup and threat-model topic docs describe the lock and the narrowed residual risk.
 
 ## Agent handoff
 
-- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. Stage 5 is run by the operator on `storage`, not by a pull request.
+- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. The conversion is run by the operator on `storage`, not by a pull request.
 - **Must not change:** the linked revision's Decision; the backup identities' actions; the `backup_agent` prune; the cloud targets' lock and lifecycle.
 - **Relevant files and interfaces:** [`compose.yaml.j2`](../../docker/seaweedfs/compose.yaml.j2) and [`s3-identity.json.j2`](../../docker/seaweedfs/configs/s3-identity.json.j2); `ansible/roles/seaweedfs_bucket/`, whose `default` scenario holds the probe that asserts a plain delete leaves no marker and which changes with this project.
 - **Required checks:** `pre-commit run --all-files`, `uv run pytest` from `tools/` and the Molecule scenarios of the roles it edits.

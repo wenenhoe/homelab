@@ -16,7 +16,7 @@ depends_on:
 
 # Coding-Agent Host Lifecycle
 
-Turns the hand-built host into one that is replaced from its Tofu definition each time it is started. Staged because the definition, the inventory and key separation, the CD-agent job, and the end-to-end rebuild are independent changes with different prerequisites.
+Turns the hand-built host into one that is replaced from its Tofu definition each time it is started. Staged because the definition, the inventory and key separation and the CD-agent job are independent changes with different prerequisites.
 
 ## Scope
 
@@ -35,13 +35,12 @@ Update at the start and end of each PR that works a stage.
 | 1 | Tofu definition of the host from the Ubuntu module, with first-boot configuration limited to the management account, its key, and the `sshd` source restriction | Not started | `tofu plan` reproduces the hand-built VM's shape, and a clone accepts the management key only from the CD agent's address |
 | 2 | Group-level key override and a CI check on it | Not started | The inventory resolves the host's own key, and CI fails if it resolves the shared one |
 | 3 | CD-agent timer job that converges a reachable host with no converge marker, under an identity holding only the host's key | Not started | The job runs with no OpenBao token and no other host key, plays use no `fetch` or `synchronize`, the job reads only exit statuses before converging, and a successful converge writes the marker |
-| 4 | Rebuild drill | Not started | A rebuild from the operator host is converged by the CD agent's job with no operator-host session to the host, and the host passes its acceptance criteria |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
-- [ ] The host is rebuilt end to end from its Tofu definition and converged by the CD agent's job.
+- [ ] The host is rebuilt end to end from its Tofu definition from the operator host and converged by the CD agent's job with no operator-host session to the host, and it passes the rest of these criteria.
 - [ ] The operator host has no session to the host and holds no key to it once the CD agent exists.
 - [ ] The CD agent's job for the host holds no credential other than the host's key.
 - [ ] CI fails if the host resolves the shared key.

@@ -8,7 +8,6 @@ summary: "Review a pull request from the private repository's CI when the mainta
 decision: ADR-0061/1
 allowed_paths:
   - docs/topics/engineering/pr-review.md
-  - docs/topics/engineering/coderabbit-review.md
   - docs/topics/README.md
 ---
 

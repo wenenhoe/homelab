@@ -6,7 +6,7 @@ driver:
   name: docker
 platforms:
   - name: compose-app-instance
-    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:783c4bb7423377606953839d711fe55fe17adda9107d26d2aebecee096f05061
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:8771185a85383c0d75d5245d737c27d34595352565fbb0afb807c2b93aec7cfd
     privileged: true
     cgroupns_mode: host
     volumes:

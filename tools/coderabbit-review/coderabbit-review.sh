@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-IMAGE=ghcr.io/wenenhoe/coderabbit-review:0.9.2@sha256:b57ea61dfc9365799dd718dc4b45640d9ae6817fd7b6243f2302e3b4ef800fd6
+IMAGE=ghcr.io/wenenhoe/coderabbit-review:0.9.3@sha256:0b68e4b71a7d7a7b78176df962528e4fe61f01d8a4e616510497648227a744c2
 AUTH_DIR="$HOME/.coderabbit"
 
 require_git_repo() {

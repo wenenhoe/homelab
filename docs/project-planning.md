@@ -83,7 +83,6 @@ first, so one that has stood still is the first row.
 
 | Project | Unblocks | Status | Blocker | Covers |
 | :--- | ---: | :--- | :--- | :--- |
-| [`automated-pr-review.md`](projects/automated-pr-review.md) | — | Building | — | Review a pull request from the private repository's CI when the maintainer requests it from there, describe the practice here, and accept the decision. |
 | [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | — | Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision. |
 | [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | Building | — | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started | waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |

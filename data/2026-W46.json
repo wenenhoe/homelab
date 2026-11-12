@@ -870,6 +870,321 @@
    "bot": false,
    "group": "Project: network-boundary-checks",
    "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "a8c2bb69c85cb2453d6876fb1ad96087f925de72",
+   "date": "2026-11-12T15:52:05+08:00",
+   "kind": "pr",
+   "pr": 790,
+   "title": "add the canary VMs' Tofu files to the network boundary checks scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: network-boundary-checks",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0e9808bf9e5245198786de61e8dab4549fb07bf2",
+   "date": "2026-11-12T16:44:25+08:00",
+   "kind": "pr",
+   "pr": 791,
+   "title": "add the canary VM of the services zone",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: network-boundary-checks",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "400c572cd4e1d9fd4562a09316e24038ab7cfe2c",
+   "date": "2026-11-12T17:48:57+08:00",
+   "kind": "pr",
+   "pr": 792,
+   "title": "land series alter each pr judge scope",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r000 \u00b7 landing a series of dependent changes on main",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0112 r001 \u00b7 landing a series of dependent changes on main",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "fcc523be481f5f2a3be9426fac8ccef30510f989",
+   "date": "2026-11-12T17:55:10+08:00",
+   "kind": "pr",
+   "pr": 789,
+   "title": "Maintenance",
+   "type": "other",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "13cb43ed6999e8884ca629ee275d001617a8dcab",
+   "date": "2026-11-12T18:12:49+08:00",
+   "kind": "pr",
+   "pr": 793,
+   "title": "add the scratch gateway's block rule playbook to the network boundary checks scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: network-boundary-checks",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "61033105c422cee099cfdad150581e9798e09834",
+   "date": "2026-11-12T18:17:02+08:00",
+   "kind": "pr",
+   "pr": 794,
+   "title": "write the plan a scratch gateway's zone hosts are built from",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: network-boundary-checks",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "370b9901f43d23226b9335009d82250e052ef920",
+   "date": "2026-11-12T18:31:26+08:00",
+   "kind": "pr",
+   "pr": 795,
+   "title": "request a pull request review by hand from the private checkout",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: automated-pr-review",
+   "events": [
+    [
+     "adr",
+     "ADR 0061 r001 \u00b7 where automated code review runs and what it may write",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "automated-pr-review",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "bdca50d7078952d17815954f95557f4a47545cfa",
+   "date": "2026-11-12T18:33:31+08:00",
+   "kind": "pr",
+   "pr": 796,
+   "title": "drop the CodeRabbit topic doc from the review project's scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: automated-pr-review",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f2f72fd7ae70a42ff2721c5007967b35689e1f4c",
+   "date": "2026-11-12T18:37:43+08:00",
+   "kind": "pr",
+   "pr": 797,
+   "title": "retire the CodeRabbit review run",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0063 r000 \u00b7 what the code review image is built from and how it stays current",
+     "accepted \u2192 retired"
+    ],
+    [
+     "adr",
+     "ADR 0113 r000 \u00b7 which per pull request reviewers the repository maintains",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "81e35aed9e6b1b3fe4f7295939c6b92e0f6307c4",
+   "date": "2026-11-12T18:56:20+08:00",
+   "kind": "pr",
+   "pr": 798,
+   "title": "say that a draft or unfinished pull request waits for its review",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: automated-pr-review",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "e2e262aa64bcb001ad8535d2c605f2a1bfcb8d37",
+   "date": "2026-11-12T18:58:25+08:00",
+   "kind": "pr",
+   "pr": 799,
+   "title": "drop the reference to the review project from the lens exploration",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "82d3a96fca07c89237b4eac9eeab581a6c7923bf",
+   "date": "2026-11-12T19:00:51+08:00",
+   "kind": "pr",
+   "pr": 800,
+   "title": "accept the requested pull request review and close its project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: automated-pr-review",
+   "events": [
+    [
+     "adr",
+     "ADR 0061 r000 \u00b7 where automated code review runs and what it may write",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0061 r001 \u00b7 where automated code review runs and what it may write",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "automated-pr-review",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "ad080eb99bee1496d0ffc9f6f625b61aff6f9841",
+   "date": "2026-11-13T01:00:16+08:00",
+   "kind": "pr",
+   "pr": 801,
+   "title": "cut superseded revisions to what they decided",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "a983c912d7e8f25795ce39ebed13371342d594f4",
+   "date": "2026-11-13T01:15:17+08:00",
+   "kind": "pr",
+   "pr": 802,
+   "title": "shorten the superseded series-landing decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "63a618374bce94533316372bf4f2b859840f1d37",
+   "date": "2026-11-13T01:17:46+08:00",
+   "kind": "pr",
+   "pr": 803,
+   "title": "draft a revision for starting, scoping and sizing projects",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: project-start-gate",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r005 \u00b7 decision and project documentation workflow",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "project-start-gate",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "30598d5025d981bcfe39d301e73444e5f52991d6",
+   "date": "2026-11-13T02:24:30+08:00",
+   "kind": "pr",
+   "pr": 804,
+   "title": "define a stage and the sizing exceptions",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: project-start-gate",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "f368cc233dac934133a232fc1091f39d5789fa41",
+   "date": "2026-11-13T02:26:56+08:00",
+   "kind": "pr",
+   "pr": 805,
+   "title": "withdraw the coding-agent Molecule runtime project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coding-agent-molecule-runtime",
+   "events": [
+    [
+     "project",
+     "coding-agent-molecule-runtime",
+     "closed"
+    ],
+    [
+     "project",
+     "host-hardening-remaining-hosts",
+     "closed"
+    ],
+    [
+     "project",
+     "operator-host",
+     "de-risking \u2192 not-started"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "6d9356b05b041fe25bea97ba1cbc3a32cc04f5f4",
+   "date": "2026-11-13T02:29:02+08:00",
+   "kind": "pr",
+   "pr": 806,
+   "title": "declare the egress proxy as a dependency",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "e1f0d66ff9cde18d8eaedccd0696440f0930c65e",
+   "date": "2026-11-13T02:31:28+08:00",
+   "kind": "pr",
+   "pr": 807,
+   "title": "split the VM 401 retirement from the workstation setup",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: vm-401-retirement",
+   "events": [
+    [
+     "project",
+     "project-start-gate",
+     "not-started \u2192 building"
+    ],
+    [
+     "project",
+     "vm-401-retirement",
+     "opened (not-started)"
+    ]
+   ]
   }
  ]
 }

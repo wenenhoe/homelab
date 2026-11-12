@@ -6,6 +6,8 @@ status: building
 blocked: false
 summary: A dedicated, pull-based automation host that runs the deploy, maintenance, and credential-expiry jobs.
 decision: ADR-0044/0-c
+also_implements:
+  - ADR-0043/0
 super_project: pull-based-cd
 ---
 
@@ -57,6 +59,7 @@ The `credential-expiry` job replaces the weekly user timer on `controller` (`too
 - [x] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
 - [x] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
 - [x] The role converges idempotently.
+- [ ] The host's effective apt configuration passes the checks in [`host-hardening.md`](../topics/infra/host-hardening.md#verifying-a-host); the last project to close that names [ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md) sets it `accepted`.
 
 ## Open items
 

@@ -6,6 +6,8 @@ status: not-started
 blocked: false
 summary: The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox.
 decision: ADR-0051/0
+also_implements:
+  - ADR-0043/0
 super_project: coding-agent-host
 depends_on:
   - project: PROJ-coding-agent-network
@@ -44,6 +46,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [ ] The host holds no OpenBao credential, infrastructure SSH key, or git credential, confirmed by a scan run from outside the host.
 - [ ] The host is in none of `managed_hosts`, `app_hosts`, or `patched_hosts`.
 - [ ] The resulting behavior is described in `docs/topics/infra/coding-agent.md`.
+- [ ] The host's effective apt configuration passes the checks in [`host-hardening.md`](../topics/infra/host-hardening.md#verifying-a-host); the last project to close that names [ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md) sets it `accepted`.
 
 ## Agent handoff
 

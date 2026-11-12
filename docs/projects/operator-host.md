@@ -6,6 +6,8 @@ status: de-risking
 blocked: false
 summary: A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller.
 decision: ADR-0058/0
+also_implements:
+  - ADR-0043/0
 super_project: controller-separation
 ---
 
@@ -59,6 +61,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 - [ ] SSH to the operator host fails from a VM in the coding-agent VLAN, from any tailnet node other than the laptop, and from the laptop with no token present.
 - [ ] The operator host runs no desktop, browser, or software that handles untrusted content, and holds no push credential.
 - [ ] The host's network rules, route and role are described in `docs/topics/infra/operator-host.md`.
+- [ ] The host's effective apt configuration passes the checks in [`host-hardening.md`](../topics/infra/host-hardening.md#verifying-a-host); the last project to close that names [ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md) sets it `accepted`.
 
 ## Agent handoff
 

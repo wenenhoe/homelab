@@ -96,10 +96,10 @@ flowchart LR
   Nothing in this repo is used to ask: no label, no event and no workflow.
   The request is checked against the private repo's limits and then starts
   a workflow in the private repo. Nothing polls this repo.
-- **A request is refused unless the pull request** is open, not a draft,
-  headed in this repo rather than a fork, and has every check its branch
-  ruleset requires passing, read from the ruleset at each request. The
-  private repo also refuses one it judges too large and limits how often a
+- **A request waits or is refused unless the pull request** is open, not a
+  draft, headed in this repo rather than a fork, and has every check its
+  branch ruleset requires passing, read from the ruleset at each request.
+  The private repo also refuses one it judges too large and limits how often a
   pull request, and the repo as a whole, is reviewed; a pull request is
   reviewed once per commit.
 - The review reads the pull request's head by its `refs/pull/N/head` ref.

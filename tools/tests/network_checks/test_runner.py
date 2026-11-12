@@ -301,8 +301,8 @@ class TestMain:
         assert code == 2
         assert "must be a mapping" in capsys.readouterr().err
 
-    def test_an_empty_selection_is_refused_and_not_passed(self, args, capsys):
-        code = runner.main(args)
+    def test_an_empty_selection_is_refused_and_not_passed(self, write_flows, args, port, capsys):
+        code = runner.main([*args, *self.flows_file(write_flows, "127.0.0.200", "127.0.0.1", port), "--tag", "no-flow-has-this-tag"])
 
         assert code == 2
         assert "nothing was shown" in capsys.readouterr().err

@@ -51,3 +51,23 @@ It refuses a flow list that breaks a rule, selects the flows by tag or id (all w
 - A probe that could not be run, a session that failed or timed out, and a flow with no result all count as failed, whether the flow is an allow or a deny.
 
 The exit status is zero only if every flow in the run passed. A selection that holds no flow exits 2 and passes nothing.
+
+## The flows in the list
+
+The list declares the five zones of the gateway's play, each with a canary at host part 08 of its subnet (`192.168.20.8` for services, `.30.8` for others, and so on). The Tofu canary VMs sit at those addresses ([`ubuntu-vms.md`](tofu/ubuntu-vms.md#canary-vms)), and tests fail when the zones differ from the play's or a canary's VMID from the list. It holds these flows:
+
+| Flows | From | What they show |
+| :--- | :--- | :--- |
+| `<zone>-gateway-dns`, `-ntp`, `-ping` | Every zone | The gateway's address in the canary's own zone answers a query for `example.com`, a time request and an echo. These are the `smoke` flows |
+| `<zone>-canary-ssh` | Every zone | The canary reaches itself on 22. It is the control for the denies aimed at that canary |
+| `<zone>-internet-https`, `isolated-internet-denied` | Every zone | Port 443 on an outside address connects from every zone that has Internet, and not from the isolated zone |
+| `<from>-to-<to>-canary-denied` | Every ordered pair of zones | No canary reaches another zone's canary on 22: the default-deny between zones, stated for each pair |
+| `services-security-vault`, `<zone>-to-security-vault-denied` | Services, then the other four | The secrets store's port connects from inside its own zone and from no other zone's canary |
+
+A flow carries its source zone as a tag, so `--tag services` runs the flows of the services canary alone. A deny whose control is tried from another zone's canary is tagged `cross-zone` and runs only once both canaries exist.
+
+What the list does not hold yet:
+
+- **Direct DNS to an outside resolver, and the gateway's management ports.** A deny needs a control to the same destination, port and kind, and these are blocked for every canary, so no control can pass. Showing them needs a rule that ADR 0094 does not state.
+- **The desktops zone's flows to `play` on 25565 and to `services` on 1688.** They pass only while something listens there.
+- **Flows from the operator host, the CD agent and the tailscale router.** A canary is not any of those hosts, so those rules are shown only by the denies above, not by an allow.

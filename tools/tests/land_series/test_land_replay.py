@@ -12,7 +12,7 @@ import pytest
 from _series_repo import Author, Repo, git, series_file
 from land_series import __main__ as cli
 from land_series.manifest import Layer, order_layers, parse_series
-from land_series.replay import Check, ReplayError, replay, stopped_by
+from land_series.replay import PULL_BASE, Check, ReplayError, replay, stopped_by
 
 # Appends one line per run to the log: each named file's contents, with newlines shown as "/", so a test reads back the tree a check saw.
 RECORD = (
@@ -260,10 +260,10 @@ def test_fetch_brings_the_remote_base_up_to_date(repo: Repo, tmp_path_factory: p
     assert git(clone, "rev-parse", "origin/main") == git(repo.path, "rev-parse", "main")
 
 
-def test_default_checks_are_the_scope_check_against_the_base_and_pre_commit() -> None:
-    scope, hooks = cli.default_checks("origin/main")
+def test_default_checks_are_the_scope_check_against_the_pull_requests_base_and_pre_commit() -> None:
+    scope, hooks = cli.default_checks()
 
-    assert scope.argv[-2:] == ("--base", "origin/main")
+    assert scope.argv[-2:] == ("--base", PULL_BASE)
     assert scope.cwd == "tools"
     assert hooks.argv == ("pre-commit", "run", "--all-files")
 
@@ -414,3 +414,47 @@ def test_a_layer_that_does_not_apply_is_reported_before_the_stop_list_is_asked(r
 )
 def test_the_stop_list_names_the_paths_on_it(paths: list[str], expected: list[str]) -> None:
     assert stopped_by(paths) == expected
+
+
+# Appends the files that changed between the check's first argument and HEAD, comma-joined, one line per run.
+CHANGED_SINCE_BASE = (
+    "import os, subprocess, sys\n"
+    "names = subprocess.run(['git', 'diff', '--name-only', sys.argv[1], 'HEAD'], capture_output=True, text=True, check=True).stdout.split()\n"
+    "open(os.environ['LAND_LOG'], 'a').write(','.join(names) + chr(10))\n"
+)
+
+
+def test_a_check_naming_the_pull_request_base_sees_only_that_pull_requests_commits(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(
+        ("0001a", author.patch("docs: write a", {"a.txt": "a\n"})),
+        ("0001b", author.patch("docs: write b", {"b.txt": "b\n"})),
+        ("0002a", author.patch("docs: write c", {"c.txt": "c\n"})),
+    )
+
+    replay(repo.path, layers, [recording_check(PULL_BASE, script=CHANGED_SINCE_BASE)], Confirmations(False), base="main")
+
+    assert log.read_text().splitlines() == ["a.txt", "a.txt,b.txt", "c.txt"]
+
+
+def test_the_base_of_the_first_pull_request_applied_is_the_base_when_the_ones_before_it_are_already_in_it(repo: Repo, author: Author, log: Path) -> None:
+    first = author.patch("docs: write a", {"a.txt": "a\n"})
+    second = author.patch("docs: write b", {"b.txt": "b\n"})
+    git(repo.path, "am", "--quiet", stdin=first)
+
+    results = replay(
+        repo.path, layers_of(("0001a", first), ("0002a", second)), [recording_check(PULL_BASE, script=CHANGED_SINCE_BASE)], Confirmations(False), base="main"
+    )
+
+    assert [result.applied for result in results] == [False, True]
+    assert log.read_text().splitlines() == ["b.txt"]
+
+
+def test_a_commit_that_widens_a_scope_and_one_that_uses_it_in_the_same_pull_request_share_one_base(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(
+        ("0001a", author.patch("docs: widen", {"scope.txt": "a b\n"})),
+        ("0001b", author.patch("docs: use", {"b.txt": "b\n"})),
+    )
+
+    replay(repo.path, layers, [recording_check(PULL_BASE, script=CHANGED_SINCE_BASE)], Confirmations(False), base="main")
+
+    assert log.read_text().splitlines() == ["scope.txt", "b.txt,scope.txt"]

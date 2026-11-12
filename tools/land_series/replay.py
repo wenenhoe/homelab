@@ -27,6 +27,9 @@ from land_series.run import Completed, run
 STOP_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".config/", ".github/workflows/", ".github/actions/", "tools/", "pyproject.toml", "uv.lock")
 OUTPUT_TAIL_LINES = 40
 NO_HOOKS = ("-c", "core.hooksPath=/dev/null")
+# In a check's argv, the commit the worktree is at before the current pull request's first commit: the tip of the pull request
+# before it, or the base for the first one applied. That is the state CI's base holds once the pull requests before it have merged.
+PULL_BASE = "{pull_base}"
 
 Confirm = Callable[[Layer, Sequence[str]], bool]
 
@@ -42,6 +45,10 @@ class Check:
 
     def __str__(self) -> str:
         return " ".join(self.argv)
+
+    def at(self, pull_base: str) -> Check:
+        """The check with `PULL_BASE` in its argv replaced by the commit."""
+        return Check(tuple(word.replace(PULL_BASE, pull_base) for word in self.argv), self.cwd)
 
 
 @dataclass(frozen=True)
@@ -191,6 +198,9 @@ def replay(
 ) -> list[LayerResult]:
     """Apply each layer, in the order given, on a scratch worktree of `base`; run every check after each.
 
+    A check that names `PULL_BASE` sees, for a layer in pull request N, the state pull request N-1 leaves, so it judges
+    that pull request's own commits as CI will once the earlier pull requests have merged.
+
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
     """
     if problems := preflight(repo, base):
@@ -203,6 +213,7 @@ def replay(
                 f"pull request {pull.number} is partly in {base}: some of its commits are there and some are not; give the rest a number of their own"
             )
     results: list[LayerResult] = []
+    pull_base, current = "", ""
     with scratch_worktree(repo, base) as tree:
         for layer in layers:
             if (layer.authored, layer.subject) in landed:
@@ -212,9 +223,11 @@ def replay(
             stops = stopped_by(changed_paths(tree, layer, onto))
             if stops and not confirm(layer, stops):
                 raise ReplayError(f"commit {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
+            if layer.number != current:
+                current, pull_base = layer.number, git_text(git_run(tree, "rev-parse", "HEAD"))
             progress(f"commit {layer.id}: applying the patch on {onto}")
             apply_layer(tree, layer, onto)
-            for check in checks:
+            for check in (check.at(pull_base) for check in checks):
                 progress(f"commit {layer.id}: running `{check}`")
                 failure = _run_check(tree, check, display, f"commit {layer.id}: `{check}`")
                 _reset(tree)

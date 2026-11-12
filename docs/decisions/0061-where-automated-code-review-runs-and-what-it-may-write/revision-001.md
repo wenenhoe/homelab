@@ -4,12 +4,12 @@ revision: 1
 type: adr
 title: "Where automated code review runs, and what it may write"
 short: Automated code review
-solution: "The audit and a per-pull-request review both run from homelab-security's own CI, which reads this repo with no credential that can write to it; the maintainer requests a pull request's review by hand from the private checkout, and the local CodeRabbit run stays an optional extra"
+solution: "The audit and a per-pull-request review both run from homelab-security's own CI, which reads this repo with no credential that can write to it; the maintainer requests a pull request's review by hand from the private checkout, and the local CodeRabbit run is retired"
 summary: "How this repo gets automated code review without any of it becoming visible on this repo's own surfaces, or able to alter it unsupervised."
 topic: security-hardening
 status: approved
 supersedes: 0
-related: [ADR-0020, ADR-0044, ADR-0050, ADR-0051, ADR-0060, ADR-0062, ADR-0063]
+related: [ADR-0020, ADR-0044, ADR-0050, ADR-0051, ADR-0060, ADR-0062, ADR-0063, ADR-0113]
 ---
 
 # 0061. A per-pull-request review joins the audit in the private CI, requested by hand
@@ -108,9 +108,9 @@ flowchart LR
   has merged or closed.
 - The maintainer's own practice supports it: a pull request stays a draft
   until it is ready, and is reviewed once its checks are green.
-- CodeRabbit's CLI stays what revision 0 made it, a local run the maintainer
-  may use, printing to a terminal. It is no longer the only per-pull-request
-  review. Whether it stays at all is a separate decision.
+- CodeRabbit's CLI run, which revision 0 made the maintainer's local review,
+  is retired: this review is the only per-pull-request review
+  ([ADR 0113 (Maintained PR reviewers)](../0113-which-per-pull-request-reviewers-the-repository-maintains/revision-000.md)).
 - How often the private repo reviews, how large a change it accepts and
   what the agent is told are the private repo's to decide and change, since
   none of them bears on the invariants below.
@@ -169,8 +169,7 @@ green, are described in a topic doc once built.
 ## Non-goals
 
 How the private repo chooses which pull requests to review first, its
-limits, and the agent's prompt. Whether CodeRabbit's CLI is retired.
-Gating a merge on a review: this repo has no way to require one, and the
+limits, and the agent's prompt. Gating a merge on a review: this repo has no way to require one, and the
 review is advice. Which credential the agent uses
 ([ADR 0062 (Reviewer identity)](../0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)).
 

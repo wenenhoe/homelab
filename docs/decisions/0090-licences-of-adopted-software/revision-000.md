@@ -4,7 +4,7 @@ revision: 0
 type: adr
 title: Licences of the software the repository adopts
 short: Adopted software licences
-solution: The repository adopts software only under an OSI-approved licence, copyleft included, except hosted services it consumes and three named pieces of software, enforced by a check when a pin changes and a weekly check of each upstream's default-branch licence file
+solution: The repository adopts software only under an OSI-approved licence, copyleft included, except hosted services it consumes and two named pieces of software, enforced by a check when a pin changes and a weekly check of each upstream's default-branch licence file
 summary: Which licences the images, binaries, libraries, collections, hooks and actions the repository deploys or runs may carry, and how a change of licence is caught before it is adopted.
 topic: repository-tooling
 status: working
@@ -47,8 +47,7 @@ version carrying it is adopted.
   the lab's own use.
 - **What a licence file does not show.** The Minecraft server that
   `itzg/minecraft-server` downloads at runtime is under Mojang's EULA, and
-  the wrapper's own Apache-2.0 file says nothing about it. The CodeRabbit CLI
-  is closed source. The guest operating system of the Windows virtual
+  the wrapper's own Apache-2.0 file says nothing about it. The guest operating system of the Windows virtual
   machines is proprietary. The hosted services the repository calls are
   not software it runs at all.
 - **Where a licence can be read.** An image's own label is whatever its
@@ -68,10 +67,9 @@ version carrying it is adopted.
 - **One clause for services.** A hosted service the repository consumes
   rather than runs is outside the rule. The test is whether its code runs on
   a host the repository manages.
-- **Three named software exceptions,** each with its reason, and no others:
+- **Two named software exceptions,** each with its reason, and no others:
   - the Minecraft server, which `itzg/minecraft-server` downloads under
     Mojang's EULA;
-  - the CodeRabbit CLI, which is closed source;
   - the Windows guest operating system, which the desktop machines run
     because they are for using it.
 - **An exception is a revision of this record.** Adding software to the list,
@@ -147,7 +145,7 @@ version carrying it is adopted.
 
 - Every pin the repository holds has a registry entry naming its licence.
 - A licence that is not recognised does not pass.
-- The software exceptions are the three listed here, and a change to the list
+- The software exceptions are the two listed here, and a change to the list
   is a revision of this record.
 
 ## Non-goals

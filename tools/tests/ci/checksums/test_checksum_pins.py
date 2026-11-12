@@ -181,10 +181,9 @@ class TestRealTree:
             with subtests.test(entry=entry.name):
                 assert pins.VERSION.fullmatch(pins.read_pin(REPO_ROOT, entry)[0])
 
-    def test_the_four_pins_the_decision_names_are_found(self):
+    def test_the_three_pins_the_decision_names_are_found(self):
         assert {found.name for found in pins.discover(REPO_ROOT)} == {
             "cd_agent_uv_sha256",
             "cd_agent_rclone_sha256",
             "openbao_cli_deb_sha256",
-            "CODERABBIT_SHA256",
         }

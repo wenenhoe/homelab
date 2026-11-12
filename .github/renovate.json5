@@ -104,15 +104,7 @@
   // updating its own execution engine, the one component with a real
   // write credential — give every bump at least a glance rather than
   // rubber-stamping it alongside routine lint-hook version bumps.
-  // The CodeRabbit CLI publishes no release list; releases/latest/VERSION is
-  // its only version endpoint, a plain-text body holding the current release
-  // (ADR 0063). format: plain reads that body as one release.
   customDatasources: {
-    "coderabbit-cli": {
-      defaultRegistryUrlTemplate: "https://cli.coderabbit.ai/releases/latest/VERSION",
-      format: "plain",
-    },
-
     // rclone's and OpenBao's releases carry a "v" tag and a large asset per
     // platform, which github-release-attachments would download whole to hash.
     // GitHub lists a sha256 `digest` on every asset it stores, so these read
@@ -316,14 +308,6 @@
       datasourceTemplate: "custom.rclone-linux-amd64",
       depNameTemplate: "rclone/rclone",
     },
-    {
-      customType: "regex",
-      description: "The CodeRabbit CLI version pinned in the review image's Dockerfile; only the version, not its hash",
-      managerFilePatterns: ["/^tools/coderabbit-review/Dockerfile$/"],
-      matchStrings: ["ARG CODERABBIT_VERSION=(?<currentValue>\\S+)"],
-      datasourceTemplate: "custom.coderabbit-cli",
-      depNameTemplate: "coderabbit-cli",
-    },
     // The Bats runner and its two libraries: one line each holds the
     // repository, release tag and commit SHA, so the tag and its SHA move
     // together. Where the github-tags datasource can't supply a new tag's SHA
@@ -337,14 +321,6 @@
       ],
       autoReplaceStringTemplate: "{{{depName}}} {{{newValue}}} {{{newDigest}}}",
       datasourceTemplate: "github-tags",
-    },
-    {
-      customType: "regex",
-      description: "The review image coderabbit-review.sh runs, a shell variable rather than a recognized image: key",
-      managerFilePatterns: ["/^tools/coderabbit-review/coderabbit-review\\.sh$/"],
-      matchStrings: ["IMAGE=(?<depName>ghcr\\.io/wenenhoe/coderabbit-review):(?<currentValue>[^@\\s]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"],
-      autoReplaceStringTemplate: "IMAGE={{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}",
-      datasourceTemplate: "docker",
     },
     {
       customType: "regex",
@@ -551,19 +527,6 @@
       matchDepNames: ["openbao/openbao"],
       prBodyNotes: [
         "ℹ️ openbao_cli_deb_sha256 (ansible/roles/openbao_cli/defaults/main.yaml) is updated by this PR from the digest GitHub lists for openbao_<version>_linux_amd64.deb. Check it against that release's checksums.txt before merging; the file's own checksum is the same place the asset came from.",
-      ],
-    },
-
-    // The CodeRabbit manifest lists hashes with no version, so no datasource
-    // can pair its hash with the version that VERSION returns: CODERABBIT_SHA256
-    // is left stale and this PR's build check fails at the checksum until it is
-    // replaced by hand. latest/SHA256SUMS is the manifest for the release
-    // VERSION names.
-    {
-      matchDatasources: ["custom.coderabbit-cli"],
-      matchDepNames: ["coderabbit-cli"],
-      prBodyNotes: [
-        "⚠️ CODERABBIT_SHA256 (tools/coderabbit-review/Dockerfile) is NOT updated by this PR — replace it with the `./coderabbit-linux-x64.zip` line of https://cli.coderabbit.ai/releases/<new version>/SHA256SUMS (the same file as releases/latest/SHA256SUMS while this is the latest release) before merging; until then this PR's build check fails at the checksum step. See docs/topics/engineering/coderabbit-review.md.",
       ],
     },
 

@@ -15,7 +15,6 @@ Every workflow with a `schedule` trigger, listed by the time of day of its first
 | `progress-log.yml` | `17 16 * * *` | Every day 16:17 | Every day 00:17 | Adds what was merged to `main` since the last run to the weekly and monthly progress log on the `progress-log` branch ([Progress log](#progress-log)). |
 | `renovate.yml` | `37 17 * * *` | Every day 17:37 | Every day 01:37 | Runs Renovate, then checks that the run started inside its window ([Renovate schedule window](#renovate-schedule-window), [Renovate](renovate.md)). |
 | `build-caddy-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the Caddy image, as it does on a push that changes its Dockerfile ([Dockerfile changes](gates.md#dockerfile-changes)). |
-| `build-coderabbit-review-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the CodeRabbit review image ([Dockerfile changes](gates.md#dockerfile-changes)). |
 | `build-gatus-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the gatus image ([Dockerfile changes](gates.md#dockerfile-changes)). |
 | `build-molecule-dind-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the Molecule DinD image ([Dockerfile changes](gates.md#dockerfile-changes)). |
 | `build-wastebin-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the wastebin image ([Dockerfile changes](gates.md#dockerfile-changes)). |

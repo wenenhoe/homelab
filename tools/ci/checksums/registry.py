@@ -128,7 +128,6 @@ Entry = Signed | Attested | Listed | Unchecked
 
 _CD_AGENT = "ansible/roles/cd_agent/defaults/main.yaml"
 _OPENBAO_CLI = "ansible/roles/openbao_cli/defaults/main.yaml"
-_CODERABBIT = "tools/coderabbit-review/Dockerfile"
 KEYS = "tools/ci/checksums/keys"
 
 ENTRIES: tuple[Entry, ...] = (
@@ -157,12 +156,5 @@ ENTRIES: tuple[Entry, ...] = (
         signature_url="https://github.com/openbao/openbao/releases/download/v{version}/checksums.txt.gpgsig",
         fingerprint="66D15FDD87287219C8E15478D200CD702853E6D0",
         key=f"{KEYS}/openbao.asc",
-    ),
-    Listed(
-        name="coderabbit-cli",
-        pin=Location(_CODERABBIT, "CODERABBIT_SHA256"),
-        version=Location(_CODERABBIT, "CODERABBIT_VERSION"),
-        file="coderabbit-linux-x64.zip",
-        manifest_url="https://cli.coderabbit.ai/releases/{version}/SHA256SUMS",
     ),
 )

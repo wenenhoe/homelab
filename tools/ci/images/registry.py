@@ -39,7 +39,6 @@ REGISTRY = "ghcr.io/wenenhoe"
 
 _FROM = re.compile(r"^\s*FROM\s+(?:--\S+\s+)*(\S+)(?:\s+AS\s+\S+)?\s*$", re.IGNORECASE)
 _VERSION = re.compile(r"^\d+\.\d+(?:\.\d+)?$")
-_SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 _COMPOSE_IMAGE = re.compile(rf"^\s*image:\s*[\"']?{re.escape(REGISTRY)}/([^\s:@\"']+)(?::([^\s@\"']+))?", re.MULTILINE)
 _MOLECULE_IMAGE = re.compile(rf"^\s*image:\s*{re.escape(REGISTRY)}/([^\s:]+):([^\s@]+)(?:@\S+)?\s*$", re.MULTILINE)
 
@@ -80,8 +79,8 @@ def _from_images(text: str) -> list[tuple[str, str | None]]:
     return [_split_ref(match.group(1)) for line in text.splitlines() if (match := _FROM.match(line))]
 
 
-def _checked(tag: str | None, what: str, pattern: re.Pattern[str] = _VERSION) -> str:
-    if tag is None or not pattern.match(tag):
+def _checked(tag: str | None, what: str) -> str:
+    if tag is None or not _VERSION.match(tag):
         raise ImageError(f"{what} must be a version like 1.2.3, got {tag!r}")
     return tag
 
@@ -123,18 +122,6 @@ def from_image(image: str, tag_prefix: str = "") -> TagSource:
     return source
 
 
-def arg_version(arg: str) -> TagSource:
-    """The value of the one `ARG <arg>=X.Y.Z` line."""
-
-    def source(text: str) -> str:
-        lines = [line for line in text.splitlines() if line.startswith(f"ARG {arg}=")]
-        if len(lines) != 1:
-            raise ImageError(f"expected exactly one 'ARG {arg}=X.Y.Z', found {len(lines)}")
-        return _checked(lines[0].removeprefix(f"ARG {arg}="), f"ARG {arg}", _SEMVER)
-
-    return source
-
-
 def constant(tag: str) -> TagSource:
     return lambda text: tag
 
@@ -145,7 +132,6 @@ class Image:
     name: str  # published as ghcr.io/wenenhoe/<name>
     context: str  # repo-relative build context, holding the Dockerfile
     source: TagSource
-    extra_tags: tuple[str, ...] = ()  # published alongside the version tag
 
     def dockerfile(self, root: Path) -> Path:
         return root / self.context / "Dockerfile"
@@ -158,7 +144,6 @@ IMAGES: dict[str, Image] = {
         Image("wastebin", "wastebin", "docker/wastebin", from_image("quxfoo/wastebin")),
         Image("gatus", "gatus", "docker/gatus", from_image("twinproduction/gatus", tag_prefix="v")),
         Image("molecule-dind", "molecule-dind", "docker/molecule-dind", constant("latest")),
-        Image("coderabbit-review", "coderabbit-review", "tools/coderabbit-review", arg_version("CODERABBIT_VERSION"), extra_tags=("latest",)),
     )
 }
 
@@ -183,9 +168,8 @@ def resolve_version(root: Path, image: Image) -> str:
 
 
 def refs(root: Path, image: Image) -> list[str]:
-    """Every reference the build publishes: the version tag first, then the extras."""
-    tags = [resolve_version(root, image), *image.extra_tags]
-    return [f"{REGISTRY}/{image.name}:{tag}" for tag in dict.fromkeys(tags)]
+    """Every reference the build publishes."""
+    return [f"{REGISTRY}/{image.name}:{resolve_version(root, image)}"]
 
 
 def check_pins(root: Path) -> list[str]:

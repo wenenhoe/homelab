@@ -110,7 +110,6 @@ release_checksums:
   - 'ansible/roles/openbao_cli/defaults/main.yaml'
   - 'ansible/roles/docker/defaults/main.yaml'
   - 'ansible/roles/tailscale_node/defaults/main.yaml'
-  - 'tools/coderabbit-review/Dockerfile'
 # Gates provenance: the checker and its registry and keys, and every file that
 # can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the
 # scripts, workflow and Python constant a Renovate manager tracks) — see
@@ -121,8 +120,6 @@ image_provenance:
   - 'tools/ci/verification.py'
   - 'docker/**'
   - 'ansible/**'
-  - 'tools/coderabbit-review/Dockerfile'
-  - 'tools/coderabbit-review/coderabbit-review.sh'
   - 'tools/doc_scripts/check_mermaid.py'
   - '.github/scripts/seed-lldap-ci-cert.sh'
   - '.github/workflows/renovate.yml'

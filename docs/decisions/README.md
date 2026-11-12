@@ -132,8 +132,8 @@ An **assumption** is an explicitly identified condition that must be true
 for the solution to be valid. Only open ones are recorded, under
 `## Assumptions`; resolving one folds the fact into Context (or changes
 the Decision) and deletes the entry. A revision with any entry can't be
-`approved` — `check_doc_drift.py` enforces it — and only a time-boxed,
-throwaway spike, or reading code, may work on one meanwhile.
+`approved` — `check_doc_drift.py` enforces it — and no project builds on it
+meanwhile: a project that names it is a draft plan.
 
 Unknown unknowns are not predicted. When implementation finds a
 condition that invalidates the solution, record it as an assumption and

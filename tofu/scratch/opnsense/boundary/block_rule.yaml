@@ -1,0 +1,48 @@
+---
+# Adds, or removes, a floating quick block rule at sequence 5, ahead of the zones' pass rules, so a flow that depends on
+# one of them stops working and the boundary checks can be seen to catch it.
+# Needs -e repo=... ca_file=... api_port=... credentials=... block_source=... block_destination=... block_protocol=TCP|UDP
+# block_port=... block_state=present|absent
+- name: Block one flow ahead of the zones' rules
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Read the role's zones
+      ansible.builtin.include_vars:
+        file: "{{ repo }}/ansible/roles/opnsense_gateway/defaults/main.yaml"
+        name: scratch_role
+
+    - name: Read the API credentials
+      ansible.builtin.set_fact:
+        scratch_key: "{{ lookup('ansible.builtin.file', credentials) | regex_findall('(?m)^\\s*opnsense_api_key\\s*=\\s*\"([^\"]*)\"') | first }}"
+        scratch_secret: "{{ lookup('ansible.builtin.file', credentials) | regex_findall('(?m)^\\s*opnsense_api_secret\\s*=\\s*\"([^\"]*)\"') | first }}"
+      no_log: true
+
+    - name: Write or remove the rule
+      module_defaults:
+        group/oxlorg.opnsense.all:
+          firewall: OPNsense.internal
+          api_port: "{{ api_port }}"
+          api_key: "{{ scratch_key }}"
+          api_secret: "{{ scratch_secret }}"
+          ssl_verify: true
+          ssl_ca_file: "{{ ca_file }}"
+      block:
+        - name: Floating quick block for one flow
+          oxlorg.opnsense.rule:
+            description: "scratch boundary checks: block one flow"
+            match_fields: [description]
+            sequence: 5
+            state: "{{ block_state }}"
+            action: block
+            quick: true
+            interface: "{{ scratch_role.opnsense_gateway_zones | map(attribute='interface') | list }}"
+            direction: in
+            ip_protocol: inet
+            protocol: "{{ block_protocol }}"
+            source_net: "{{ block_source }}"
+            destination_net: "{{ block_destination }}"
+            destination_port: "{{ block_port }}"
+            log: false
+            reload: true

@@ -43,7 +43,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Approve the decision | Done | The assumptions of the revision are resolved and it is `approved` |
-| 2 | The review in the private repository | Not started | A pull request in this repository, requested from the private checkout, is reviewed and its output filed as an Issue in the private repository, with nothing added here; a draft, one whose required checks are not green, a fork's, a closed one and one that is too large are each refused |
+| 2 | The review in the private repository | Not started | A pull request in this repository, requested from the private checkout, is reviewed and its output filed as an Issue in the private repository, with nothing added here; a draft, one whose required checks are not green, a fork's, a closed one and one that is too large are each held or refused |
 | 3 | The practice described here | Not started | `pr-review.md` (a new topic doc) states how a review is requested, the draft and green-checks practice, where the output lives and what the review leaves on this repository's surfaces, and has its row in [`topics/README.md`](../topics/README.md) |
 | 4 | Trial | Not started | Reviews have been requested on pull requests for several weeks, and the shared allowance and the maintainer's reading pace held |
 | 5 | Accept the decision | Not started | ADR 0061 revision 1 is `accepted`; this doc is deleted by its closing checklist |

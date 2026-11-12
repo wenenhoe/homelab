@@ -31,15 +31,3 @@ each recording the finding's severity, file, description, triage status,
 and this repo's commit SHA at review time. It is a tracker, not a
 mirror: no copy of this repo's code lives there, and nothing about its
 own existence needs to stay secret.
-
-## Consequences
-
-A second repository to maintain — a finding schema and template — but
-no sync tooling and no second copy of this repo's code to keep
-consistent with the first. Deduplication is a file-exists check on the
-finding's identifier, and triage is an edit to the file's status. Each
-producer run commits its new findings on a branch, validates them, opens
-a pull request, and merges it at once: the pull request is what notifies
-the maintainer, and merging keeps `main` current for the next run's
-deduplication. A new finding is a new file, so writers never conflict on
-content.

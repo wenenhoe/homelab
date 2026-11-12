@@ -4,8 +4,8 @@ FROM ubuntu:26.04@sha256:065aa8626841f16057b78b027b464cd59c4fac36c204c72dcbf48d6
 
 # The CLI is pinned by version and by the sha256 of its linux-x64 zip, taken
 # from that release's SHA256SUMS; docs/topics/engineering/coderabbit-review.md has the bump steps.
-ARG CODERABBIT_VERSION=0.9.3
-ARG CODERABBIT_SHA256=d886901a5bffd9d7359bcd10e92e27fa1e55e8a7f8da2b1dfcd425a7f89edc4b
+ARG CODERABBIT_VERSION=0.9.5
+ARG CODERABBIT_SHA256=53f5d822019e6f7316ffcc2604199d94c2a39ad5216030804e3f12f1e4711818
 
 # hadolint ignore=DL3008 # operator tooling, not a deployed app — unpinned by design.
 RUN apt-get update \

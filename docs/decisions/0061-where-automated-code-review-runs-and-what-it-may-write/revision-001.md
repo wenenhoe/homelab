@@ -7,7 +7,7 @@ short: Automated code review
 solution: "The audit and a per-pull-request review both run from homelab-security's own CI, which reads this repo with no credential that can write to it; the maintainer requests a pull request's review by hand from the private checkout, and the local CodeRabbit run is retired"
 summary: "How this repo gets automated code review without any of it becoming visible on this repo's own surfaces, or able to alter it unsupervised."
 topic: security-hardening
-status: approved
+status: accepted
 supersedes: 0
 related: [ADR-0020, ADR-0044, ADR-0050, ADR-0051, ADR-0060, ADR-0062, ADR-0063, ADR-0113]
 ---
@@ -30,12 +30,10 @@ that review from CI because the plan in use issues no headless key. The
 reasoning for keeping output off this repo's surfaces, and the threat
 model, stand as revision 0 states them.
 
-Two things have changed. The audit runs unattended on the
-credential [ADR 0062 (Reviewer identity)](../0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)
-decides, so an unattended agent identity exists and no longer depends on
-CodeRabbit's plan. And the by-hand review is run only when a pull request
-feels critical, so most pull requests get none: a control that depends on
-being remembered is not one.
+An unattended agent identity exists for the audit
+([ADR 0062 (Reviewer identity)](../0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)),
+independent of CodeRabbit's plan. A review the maintainer must remember to
+run is run only for a pull request that feels critical, so most get none.
 
 The review's use of the subscription allowance that ADR 0062 shares with
 interactive use has been measured: a requested review costs about a tenth of
@@ -150,7 +148,7 @@ The audit and this review draw on one subscription allowance, so they
 compete with each other and with interactive use.
 
 The behaviour, and the practice of requesting a review after the checks are
-green, are described in a topic doc once built.
+green, are described in [`pr-review.md`](../../topics/engineering/pr-review.md).
 
 ## Invariants
 
@@ -185,13 +183,3 @@ This project starts accepting external pull requests, or anyone besides the
 maintainer can request a review. Requesting by hand proves too easy to
 forget, which would reopen a trigger from this repo. The shared allowance
 is visibly short. Headless CodeRabbit access becomes available at no cost.
-
-## Revision notes
-
-Revision 0 reviewed a pull request's diff only when the maintainer ran the
-CLI, because no unattended key existed for it. This revision adds a review
-of the pull request from the private repo's CI, on the agent identity ADR
-0062 already provides, requested by the maintainer from the private
-checkout so that it neither leaves a request on this repo nor runs on every
-pull request. Where output may go, and the rule that nothing here triggers
-the private repo, are carried over from revision 0 unchanged.

@@ -7,7 +7,8 @@ short: Automated code review
 solution: "A periodic agent-driven full-repo audit runs from homelab-security's own CI and holds no credential that can write to this repo; CodeRabbit's PR-diff review stays a local run by the maintainer"
 summary: "How this repo gets automated code review without any of it becoming visible on this repo's own surfaces, or able to alter it unsupervised."
 topic: security-hardening
-status: accepted
+status: superseded
+superseded_by: 1
 related: [ADR-0020, ADR-0044, ADR-0050, ADR-0051, ADR-0060]
 relies_on:
   - adr: ADR-0051

@@ -7,7 +7,8 @@ short: Landing a patch series
 solution: A maintainer-run tool lands a series one pull request at a time, each from a fresh branch off main, replaying the series first and merging each layer with the admin bypass
 summary: How a series of patches reaches main as pull requests when main refuses any update outside a merged pull request and a pull request based on another branch sees neither main's project docs nor a stable head.
 topic: repository-tooling
-status: accepted
+status: superseded
+superseded_by: 1
 related: [ADR-0076]
 ---
 

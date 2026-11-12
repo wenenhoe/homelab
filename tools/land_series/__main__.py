@@ -3,8 +3,8 @@
 Replay the series in FILE... (several files make one series) on a scratch worktree of the base branch and run the
 checks after every commit, then keep a local branch per pull request for review (`--dry-run` keeps none). `--land` pushes the
 kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
-confirms every merge). Without --check the checks are the project scope check against the base and
-`pre-commit run --all-files`; hooks to skip are named in SKIP in the environment, which the apply hooks read too.
+confirms every merge). Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
+(the base for the first), and `pre-commit run --all-files`; hooks to skip are named in SKIP in the environment, which the apply hooks read too.
 """
 
 from __future__ import annotations
@@ -19,16 +19,16 @@ from land_series.kept import KeptError, branch_of, keep, leftovers
 from land_series.land import Landed, LandError, fetch, land
 from land_series.live import LiveBlock
 from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_series
-from land_series.replay import Check, ReplayError, replay
+from land_series.replay import PULL_BASE, Check, ReplayError, replay
 from land_series.run import CommandError
 
 DEFAULT_BASE = "origin/main"
 REMOTE = "origin"
 
 
-def default_checks(base: str) -> list[Check]:
+def default_checks() -> list[Check]:
     return [
-        Check(("uv", "run", "python", "-m", "doc_scripts.check_project_scope", "--base", base), cwd="tools"),
+        Check(("uv", "run", "python", "-m", "doc_scripts.check_project_scope", "--base", PULL_BASE), cwd="tools"),
         Check(("pre-commit", "run", "--all-files")),
     ]
 
@@ -80,7 +80,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.land:
             landed = land(args.repo, layers, lambda pull, url: args.yes or ask_merge(pull, url), base=args.base, progress=say, display=display)
             return report(landed)
-        checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks(args.base)
+        checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks()
         results = replay(args.repo, layers, checks, ask, base=args.base, progress=say, display=display)
         kept = [] if args.dry_run else keep(args.repo, results)
     except LandError as error:

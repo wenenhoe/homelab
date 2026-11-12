@@ -48,8 +48,10 @@ Everything in revisions 0 to 4 stands except where this revision says otherwise.
 **A project is sized to close on its own.**
 
 - A project is the smallest unit that can be finished and deleted without a stage of another project having to run first. A stage that waits on another project's work is in the wrong project: it moves, or the waiting stages become a follow-on project that `depends_on` the other. There are no stage-level dependencies.
-- Projects that name one revision and are chained by `depends_on` are one project unless something outside the work separates them in time, such as hardware.
-- A project with a single stage row is a stage of a neighbour, a single change that needs no project, or under-staged. More than six stages, or a second stage added after building starts, prompts a review for a split. A check warns on both and on prose that makes a stage wait on another project; none of them fails.
+- A stage is a change that merges together with its docs. Acceptance, a docs-only change, writing a decision and an operational run (a rollout, a drill) are not stages: acceptance is the closing checklist, docs travel with the code they describe, a decision is written under the decision, and an operational run is an acceptance criterion.
+- A project declares `depends_on` for every project that must be built before it can be applied or live.
+- Projects that name one revision and are chained by `depends_on` are one project unless something outside the work separates them in time, such as hardware, or another project depends on the first alone.
+- A project with a single stage row is a stage of a neighbour, a single change that needs no project, or under-staged. It is fine when another project depends on it alone. More than six stages, or a second stage added after building starts, prompts a review for a split. A check warns on both and on prose that makes a stage wait on another project; none of them fails.
 
 ## Alternatives considered
 

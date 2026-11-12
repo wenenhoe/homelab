@@ -266,12 +266,16 @@ for the reasoning.
 
 That PR condenses the revision first, while it is still `approved` and can
 be edited in place: it removes narration, history and text a topic doc now
-holds, without changing what was decided or why. A revision left heavy with
-detail that mattered only while building keeps it for good, because once
-the revision is `accepted` the same condensing is a material change that
-needs a new revision
-([Editing a revision](../decisions/README.md#editing-a-revision)).
-Nothing checks that it was done, so it is on the closing checklist.
+holds, without changing what was decided or why. Once the revision is
+`accepted`, only the maintainer's compaction pass can shorten it
+([Compacting accepted records](../decisions/README.md#compacting-accepted-records)),
+so a revision left heavy with detail that mattered only while building stays
+heavy until then. Nothing checks that it was done, so it is on the closing
+checklist.
+
+The revision this one supersedes is cut to its frozen sections in the same PR
+([Superseded revisions](../decisions/README.md#superseded-revisions)); the
+drift check fails the PR otherwise.
 
 ### Closing checklist
 
@@ -283,8 +287,10 @@ here.
       named by a successor project.
 - [ ] If this PR sets the linked revision `accepted`, condense it first:
       remove narration, history and text a topic doc now holds, without
-      changing what was decided or why. Once `accepted`, condensing is a
-      material change.
+      changing what was decided or why. Once `accepted`, only the
+      maintainer's compaction pass can shorten it.
+- [ ] If that revision supersedes another, the superseded one is cut to its
+      frozen sections (`check_doc_drift --fix`).
 - [ ] The linked revision is `accepted` (set in the PR that closes the
       last project naming it), another project still names it, or there
       is no decision to settle.

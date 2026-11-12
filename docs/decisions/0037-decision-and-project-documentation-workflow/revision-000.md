@@ -21,46 +21,6 @@ this way, what remains to be built, and how it behaves now — without
 them bleeding into each other, and in a form a human or an agent can act
 on: what is authorized, what is done, and when to stop and ask.
 
-## Context
-
-- **Findability.** The 36 numbered ADRs are titled after their
-  solutions ("Caddy, not nginx-proxy-manager") and indexed in prose, so
-  the record of one problem can only be found by already knowing its
-  answer. About 22 of the 36 have no relationship to any other ADR.
-- **Revision shape.** One ADR was replaced whole (0013 by 0027). Three
-  were replaced in part (0015 by 0016, 0019 by 0034, 0031 by 0032), each
-  because the earlier record bundled two problems. At least four of the
-  15 drafts revise or extend a numbered ADR, and two are competing
-  solutions to one problem. The flat model has no place for a successor
-  in flight or for competing solutions.
-- **Gates.** The rule that no production work starts while an
-  assumption is open existed only for `decided` drafts, and only as a
-  check on frontmatter status. Projects carried stage-level `De-risking`
-  and `Building` statuses derived from drafts, `Blocked` as a status, and
-  no dependency model.
-- **Agentic implementation** needs the difference between "authorized to
-  build" and "built" to be explicit, plus stop conditions that a check
-  can see.
-- **Industry practice.** Confirmed: the ADR lifecycle of proposed,
-  accepted, deprecated, and superseded, with a reversal recorded as a new
-  ADR rather than an edit (Nygard's proposal, adr-tools, AWS Prescriptive
-  Guidance); a Validation section in MADR 4; the RAID distinction between
-  a risk (potential), an issue (current), and a dependency; and
-  spec-driven pipelines that run specify, plan, tasks, implement, then
-  converge, with clarify and cross-artifact analysis steps (GitHub Spec
-  Kit). Original to this repo, with no external precedent found: a
-  lineage of successive solutions under one problem; the split between
-  `approved` (authorized) and `accepted` (built); returning an approved
-  revision to `working` on a new assumption; the project-status to
-  revision-state gate; and the agent write limits.
-- **Terminology.** Common ADR usage treats "accepted" as binding and
-  immutable. Here `accepted` keeps that meaning; `approved` is the added
-  state before it.
-
-This narrows ADR 0028: its frontmatter status vocabulary, the drafts
-workflow, and the index generation are replaced by the model below. Its
-frontmatter adoption and its NIST alignment decision stand.
-
 ## Decision
 
 - **ADRs are lineages.** One directory per problem, one revision per
@@ -84,22 +44,3 @@ frontmatter adoption and its NIST alignment decision stand.
 - **Agents** may append an open assumption and set `approved` to
   `working` on an ADR revision, and nothing else. They stop at the stop
   conditions in the projects README.
-
-## Alternatives considered
-
-- **One ADR per decision, superseded by a new number** — the standard
-  model. It has no home for a successor in flight, competing solutions,
-  or a partial replacement, and problems are grouped only by prose.
-- **Overwrite ADRs in place; rely on git history.** The reasoning at
-  decision time and the reason for the change end up in commit messages,
-  and there is no revision boundary to hold an agent's edits to.
-- **Split bundled ADRs after the fact.** Accepted history isn't
-  rewritten. The sizing check prevents new bundling and `narrows`
-  handles the residue.
-- **Topic subdirectories.** A path that encodes topic breaks links when a
-  lineage is reclassified; `topic:` in frontmatter plus a generated
-  index doesn't.
-- **A hand-written manifest per lineage.** It duplicates revision state
-  and drifts; the generated index replaces it.
-- **A full external methodology** (sprints, estimation, confidence
-  scores). Nothing here needs it.

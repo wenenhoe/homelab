@@ -479,3 +479,43 @@ class TestWeightErrors:
         revision(root, "0013-secret-storage", 0, body="## Invariants\n\n## Non-goals\n\n## Validation\n\n" + "word " * 2000)
         revision(root, "0014-other", 0, weight="full", body="## Invariants\n\nx\n")
         assert graph.weight_errors(root) == []
+
+
+SUPERSEDED_BODY = (
+    "# 0001. Secret storage\n\n## Problem\n\nA problem.\n\n## Context\n\nHow it was found.\n\n## Decision\n\nDo it.\n\n## Alternatives considered\n\nOthers.\n"
+)
+
+
+class TestSupersededStructure:
+    def _lineage(self, root, body=SUPERSEDED_BODY, successor_status="accepted"):
+        revision(root, "0001-x", 0, status="superseded", superseded_by=1, body=body)
+        revision(root, "0001-x", 1, status=successor_status, supersedes=0)
+
+    def test_a_superseded_revision_may_keep_only_the_frozen_sections(self, root):
+        self._lineage(root, body="# 0001. Secret storage\n\n## Problem\n\nA problem.\n\n## Decision\n\nDo it.\n")
+        assert graph.superseded_structure_errors(root) == []
+
+    def test_any_other_section_fails_and_is_named(self, root):
+        self._lineage(root)
+        error = graph.superseded_structure_errors(root)[0]
+        assert "## Context" in error
+        assert "## Alternatives considered" in error
+        assert "revision-000.md" in error
+
+    def test_other_states_keep_their_sections(self, root):
+        for number, status in enumerate(("accepted", "abandoned", "working")):
+            revision(root, f"000{number + 1}-x", 0, status=status, body=SUPERSEDED_BODY)
+        assert graph.superseded_structure_errors(root) == []
+
+    def test_fix_cuts_the_revision_and_the_check_then_passes(self, root):
+        self._lineage(root)
+        changed = graph.condense_superseded_revisions(root)
+        assert [p.name for p in changed] == ["revision-000.md"]
+        assert graph.superseded_structure_errors(root) == []
+        assert graph.condense_superseded_revisions(root) == []
+
+    def test_fix_leaves_the_successor_alone(self, root):
+        self._lineage(root)
+        successor = (root / "docs/decisions/0001-x/revision-001.md").read_text(encoding="utf-8")
+        graph.condense_superseded_revisions(root)
+        assert (root / "docs/decisions/0001-x/revision-001.md").read_text(encoding="utf-8") == successor

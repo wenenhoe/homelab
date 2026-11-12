@@ -101,3 +101,44 @@ class TestWhoIsHeld:
     def test_a_declared_editorial_fix_excuses_the_path(self):
         assert errors(doc(), doc(decision="Fixed typo."), editorial={PATH}) == []
         assert len(errors(doc(), doc(decision="Fixed typo."), editorial={"docs/decisions/0002-y/revision-000.md"})) == 1
+
+
+class TestCondenseSuperseded:
+    def test_it_keeps_only_the_frozen_sections(self):
+        condensed = frozen.condense_superseded(doc(status="superseded"))
+        assert [h for h in ("Context", "Consequences", "Validation") if f"## {h}" in condensed] == []
+        assert all(f"## {h}" in condensed for h in frozen.FROZEN_SECTIONS)
+
+    def test_what_it_keeps_is_what_the_frozen_check_reads(self):
+        text = doc(status="superseded")
+        assert frozen.frozen_view(frozen.condense_superseded(text)) == frozen.frozen_view(text)
+        assert errors(text, frozen.condense_superseded(text)) == []
+
+    def test_the_frontmatter_and_title_are_untouched(self):
+        condensed = frozen.condense_superseded(doc(status="superseded"))
+        assert condensed.startswith('---\nid: ADR-0001\ntitle: "Proxying"')
+        assert "# 0001. Proxying" in condensed
+
+    def test_it_is_idempotent(self):
+        once = frozen.condense_superseded(doc(status="superseded"))
+        assert frozen.condense_superseded(once) == once
+
+    def test_a_revision_without_a_problem_section_keeps_what_it_has(self):
+        text = doc(status="superseded").replace("## Problem\n\nA problem.\n\n", "")
+        condensed = frozen.condense_superseded(text)
+        assert "## Problem" not in condensed
+        assert "## Decision" in condensed
+
+    def test_a_heading_inside_a_code_fence_is_not_a_section(self):
+        decision = "Run it.\n\n```sh\n## not a heading\nls\n```"
+        condensed = frozen.condense_superseded(doc(status="superseded", decision=decision))
+        assert "## not a heading" in condensed
+        assert frozen.surplus_sections(decision) == []
+
+    def test_a_diagram_in_the_decision_stays_with_it(self):
+        decision = "Run it.\n\n```mermaid\nflowchart LR\n  a --> b\n```"
+        assert "a --> b" in frozen.condense_superseded(doc(status="superseded", decision=decision))
+
+    def test_surplus_sections_names_each_other_heading(self):
+        body = frozen.split(doc())[1]
+        assert frozen.surplus_sections(body) == ["Context", "Consequences", "Validation"]

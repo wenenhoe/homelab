@@ -82,7 +82,7 @@ initiative are separate lineages sharing a `topic:`; the generated
 | `working` | A solution under consideration; open assumptions allowed. | Yes |
 | `approved` | No open assumptions; production implementation may begin. | Yes, but a new material assumption returns it to `working`. |
 | `accepted` | Implemented and on `main`. | No — editorial fixes only. |
-| `superseded` | Replaced by a later revision that is itself `accepted`. | No |
+| `superseded` | Replaced by a later revision that is itself `accepted`. It keeps only its frozen sections. | No |
 | `abandoned` | A `working` revision no longer pursued. Keep it if the rejected reasoning is useful; delete it if it was only exploration. | No |
 | `retired` | The problem no longer exists and nothing replaces the solution. | No |
 
@@ -101,7 +101,9 @@ yet built.
 - Only one revision per lineage is `accepted`. A successor can be
   `working` or `approved` at the same time; the older revision becomes
   `superseded` only once the successor is `accepted`, and the successor
-  declares `supersedes:` back.
+  declares `supersedes:` back. The change that makes the older revision
+  `superseded` also cuts it to the sections listed under
+  [Superseded revisions](#superseded-revisions).
 - A material change to an `accepted` or `superseded` revision is a new
   revision in the same lineage, never an edit. When a superseded ADR is
   referenced from [`nist-800-53-alignment.md`](../topics/engineering/nist-800-53-alignment.md),
@@ -152,7 +154,9 @@ short name in a link's text under [Citing a decision](#citing-a-decision).
   already holds, without changing what was decided or why) — editorial
   in a `superseded` or `abandoned` revision, since it is a record of what
   was tried and no reasoning is left to protect. In an `accepted`
-  revision it is material.
+  revision it is the maintainer's compaction, never part of other work
+  ([Compacting accepted records](#compacting-accepted-records)); any other
+  edit of that kind is material.
 - **A moved file** (a note after a file's first mention in the revision
   that it was renamed or removed: `old (renamed: new)`, `old (removed)`
   or `old (removed; replaced by: new)`) — editorial in any state,
@@ -217,6 +221,22 @@ number still passes: the name is for the reader. Adding or correcting the
 name in a link's text is editorial, so an agent may do it in an `approved`
 or `accepted` revision.
 
+## Superseded revisions
+
+What is current in a lineage is in its `accepted` revision, so a `superseded`
+one keeps only what it decided: its Problem, Decision, Invariants, Non-goals
+and Reconsideration triggers sections, as written, with its frontmatter and
+title heading. Context, Alternatives considered, Consequences, Validation,
+Revision notes and any other section go. The options that lost belong to the
+successor's Alternatives, not here.
+
+This is not one of the compacting operations below: it is part of
+superseding, made in the same change by whoever sets the successor `accepted`,
+agent or maintainer. `check_doc_drift.py` fails a `superseded` revision that
+keeps another section, and `uv run python -m doc_scripts.check_doc_drift --fix`
+from `tools/` cuts it. The frozen sections cannot change, so the cut cannot alter
+what was decided.
+
 ## Compacting accepted records
 
 An `accepted` revision cannot be edited, so the decision corpus only grows
@@ -227,7 +247,7 @@ makes one says which it is.
 lists candidates and changes nothing, and with `--report` also says whether
 too many projects are active.
 
-- **Condense.** Shorten an `accepted` or `superseded` revision in place if
+- **Condense.** Shorten an `accepted` revision in place if
   what it decided is unchanged. Its title, its one-line `solution`, and its
   Problem, Decision, Invariants, Non-goals and Reconsideration triggers
   sections are frozen; Context narration, Consequences and Validation may be

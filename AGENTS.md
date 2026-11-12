@@ -31,6 +31,10 @@ goes in a topic doc or the conventions.
 Before implementing a project, open its `decision:` revision.
 `approved` means proceed; anything else means stop and ask.
 
+A change that sets a decision revision `superseded` cuts that revision to its
+frozen sections in the same change; see
+[`docs/decisions/README.md#superseded-revisions`](docs/decisions/README.md#superseded-revisions).
+
 Before deleting a finished project doc, work through the closing
 checklist in
 [`docs/projects/README.md#closing-checklist`](docs/projects/README.md#closing-checklist).

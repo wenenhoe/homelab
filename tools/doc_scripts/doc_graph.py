@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter, ref_label
+from doc_scripts.doc_frozen import FROZEN_SECTIONS, condense_superseded, surplus_sections
 from doc_scripts.doc_scope import SPIKE_STAGE_RE, stages
 
 # A project's status fixes which state its linked decision revision must
@@ -209,6 +210,38 @@ def weight_errors(root: Path = ROOT) -> list[str]:
                     f"{rel}: weight: light runs to {words} words, over the {LIGHT_MAX_WORDS} a light revision may hold — make it a full revision or cut it"
                 )
     return errors
+
+
+def superseded_structure_errors(root: Path = ROOT) -> list[str]:
+    """A superseded revision keeps only the frozen sections. Its successor carries what is current,
+    so anything else in it is a second copy that drifts."""
+    errors = []
+    for lineage in load_lineages(root):
+        for rev in lineage.revisions:
+            if rev.status != "superseded":
+                continue
+            surplus = surplus_sections(rev.path.read_text(encoding="utf-8").split("\n---\n", 1)[-1])
+            if surplus:
+                errors.append(
+                    f"{rev.path.relative_to(root)}: superseded, but keeps {', '.join(f'## {name}' for name in surplus)} — "
+                    f"a superseded revision keeps only {', '.join(FROZEN_SECTIONS)}; "
+                    "cut the rest, or run `uv run python -m doc_scripts.check_doc_drift --fix` from tools/"
+                )
+    return errors
+
+
+def condense_superseded_revisions(root: Path = ROOT) -> list[Path]:
+    """Rewrites every superseded revision that keeps more than the frozen sections; returns the files changed."""
+    changed = []
+    for lineage in load_lineages(root):
+        for rev in lineage.revisions:
+            if rev.status != "superseded":
+                continue
+            text = rev.path.read_text(encoding="utf-8")
+            if surplus_sections(text.split("\n---\n", 1)[-1]):
+                rev.path.write_text(condense_superseded(text), encoding="utf-8")
+                changed.append(rev.path)
+    return changed
 
 
 def _cycle_errors(graph: dict[str, list[str]]) -> list[str]:

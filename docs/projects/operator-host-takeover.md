@@ -10,6 +10,8 @@ super_project: controller-separation
 depends_on:
   - project: PROJ-operator-host
     reason: the host, its rules and its role have to exist before the controller can move onto it
+  - project: PROJ-coding-agent-egress
+    reason: the egress allowlist goes through the proxy that project builds
 ---
 
 # Operator Host Takeover
@@ -30,7 +32,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Egress allowlist through the proxy. Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
+| 1 | Egress allowlist through the proxy | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
 | 2 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, the Tofu credentials file, the shared SSH key. No credential moves before Stage 1 | Not started | A deploy in check mode, a `tofu plan`, and an `openbao_utils.shell` login all succeed from the operator host, and then `vault-bootstrap` is bound to the host's address and the lldap web route is limited to it |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -52,7 +54,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- Stage 1 waits on the proxy from [`coding-agent-egress.md`](coding-agent-egress.md), which waits on the zone project. This project is on the critical path for stripping the workstation.
+- This project is on the critical path for stripping the workstation.
 - The Tofu credentials file is the only copy of those credentials on the host; moving it means issuing replacements rather than copying the old ones off the workstation.
 
 ## Open items

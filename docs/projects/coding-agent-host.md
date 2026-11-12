@@ -12,6 +12,8 @@ super_project: coding-agent-host
 depends_on:
   - project: PROJ-coding-agent-network
     reason: The host's NIC must land in a VLAN whose default-deny policy already exists, so the agent is never run on an open segment
+  - project: PROJ-coding-agent-egress
+    reason: The role installs Claude Code from the Internet, so the proxy has to exist first
 ---
 
 # Coding-Agent Host
@@ -33,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | VM shell in VLAN 70, built by hand, no nested virtualization | Not started | The VM boots in the zone and is reachable only by the two permitted SSH flows |
-| 2 | Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy, since the role installs Claude Code from the Internet. `coding_agent` role and inventory group: agent and management accounts, Claude Code, sandbox settings, the hardening baseline's role, `sshd` per-account source restrictions | Not started | The role converges idempotently and the host resolves its own SSH key, never the shared one |
+| 2 | `coding_agent` role and inventory group: agent and management accounts, Claude Code, sandbox settings, the hardening baseline's role, `sshd` per-account source restrictions | Not started | The role converges idempotently and the host resolves its own SSH key, never the shared one |
 | 3 | Molecule scenario for the role | Not started | The scenario passes in CI and appears in the scenario matrix |
 
 Stage status is `Not started`, `In progress`, or `Done`.

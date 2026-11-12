@@ -47,11 +47,10 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The decision, the exercises page and the `recovery_tier` key | Done | ADR 0101 is `approved`, [`exercises.md`](../topics/disaster-recovery/exercises.md) is merged and `check-app-catalog` refuses any tier but `1` |
+| 1 | The exercises page and the `recovery_tier` key | Done | [`exercises.md`](../topics/disaster-recovery/exercises.md) is merged and `check-app-catalog` refuses any tier but `1` |
 | 2 | Tier and drill age in the coverage view | Not started | Each catalog app's row in the view shows its tier (the key, else whether it has a `backup`) and the age of the newest fire-drill row that restored it |
 | 3 | The first quarter of exercises | Not started | The fire-drill results hold a row for each of: a cloud-source restore, a key-custody check, an app restore of every tier 1 system, a host rebuild and a tabletop; whether the cadence could be kept is written into the next revision of ADR 0101 if it could not |
 | 4 | The staged total-loss exercise | Not started | The host migration is done, the chain is run in the isolated block or walked as a tabletop, and the results row says which |
-| 5 | Accept the decision | Not started | The view shows tier and age, and ADR 0101 is `accepted`; this doc is deleted by its closing checklist |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

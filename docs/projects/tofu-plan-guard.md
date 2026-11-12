@@ -50,7 +50,6 @@ Update at the start and end of each PR that works a stage.
 | 1 | The guard | Not started | `tools/tofu_guard/` reads a plan's JSON and the allow-list and returns the verdict of rules G1 to G6, with unit tests on canned plan JSON and a control for each rule that fails without it; the topic doc describes the rules and the allow-list |
 | 2 | The wrapper | Not started | A command plans a ref in a clean worktree and prints the summary, and another plans, guards, copies the state and applies the saved plan only on `ok`, then runs the state copy and warns when either state key in `~/.config/tofu/` is past its quarterly rotation (`TOFU_STATE_KEY_MINTED`); tested with a stubbed `tofu`, including that the file applied is the one checked and that a failed apply makes no copy; the promotion rule for the Tofu directory names the guarded command and its test follows |
 | 3 | The pull request check | Not started | A `tofu-intent` job compares addresses at the base and the head, reads `moved` blocks, and fails when an address of a protected type disappears without an entry; it reports `skipped` when nothing in the Tofu directory changed, and is a required check (the ruleset change is made by hand and named in the pull request) |
-| 4 | Accept the decision | Not started | The guard is used for a real apply, ADR 0102 is `accepted`, and this doc is deleted by its closing checklist |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -62,6 +61,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [ ] A pull request that removes a protected address without an entry fails `tofu-intent`, and one that moves it with a
       `moved` block does not.
 - [ ] `tofu-intent` is a required check.
+- [ ] The guard has been used for a real apply.
 - [ ] ADR 0102 is `accepted`.
 
 ## Agent handoff

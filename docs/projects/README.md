@@ -122,7 +122,7 @@ to `accepted` as a side effect; when it does, add that revision to
 `ADR-0050/0`) and say so in prose where the stage is described —
 [`coding-agent-access-path.md`](coding-agent-access-path.md)
 (`decision: ADR-0055/0`, `also_implements: [ADR-0050/0]`, whose
-Stage 2 sets ADR 0050 to `accepted`) is the existing example.
+closing PR sets ADR 0050 to `accepted`) is the existing example.
 `also_implements:` doesn't gate anything — `check_doc_drift.py` only
 confirms each entry resolves to a real revision, and the close check reads it
 (see [When a project finishes](#when-a-project-finishes)) — it exists so

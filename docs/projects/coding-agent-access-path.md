@@ -15,7 +15,7 @@ depends_on:
 
 # Coding-Agent Access and Review Path
 
-How the maintainer drives the agent and gets its work into `main`. Staged because the client configuration is set by hand on the laptop and checked by a script, and the workflow doc and the credential checks are separate changes.
+How the maintainer drives the agent and gets its work into `main`. Staged because the client configuration is set by hand on the laptop and checked by a script, and the credential checks are a separate change.
 
 ## Scope
 
@@ -23,7 +23,7 @@ The laptop's SSH client entry for the host, the maintainer's key on the host, th
 
 ## Decision
 
-Implements [ADR 0055 (Coding-agent client access)](../decisions/0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), `approved`. It also carries out the workflow in [ADR 0050 (Agent changes to production)](../decisions/0050-agent-authored-changes-reaching-production/revision-000.md), also `approved`, which has no project of its own: that revision is set to `accepted` in the PR that completes Stage 2.
+Implements [ADR 0055 (Coding-agent client access)](../decisions/0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), `approved`. It also carries out the workflow in [ADR 0050 (Agent changes to production)](../decisions/0050-agent-authored-changes-reaching-production/revision-000.md), also `approved`, which has no project of its own: that revision is set to `accepted` in the PR that closes this project.
 
 ## Execution plan
 
@@ -31,9 +31,8 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | SSH client entry for the host and the maintainer's key on it | Not started | The entry names one dedicated key and disables agent, X11, and port forwarding; no other host uses that key |
-| 2 | Fetch-review-push workflow documented | Not started | The remote setup, review-before-execute rule, and push step are in a topic doc; ADR 0050 is `accepted` |
-| 3 | Credential and configuration checks | Not started | The host holds no git credential of any kind, and the laptop's client configuration passes the check in ADR 0055 |
+| 1 | SSH client entry for the host and the maintainer's key on it, with the fetch-review-push workflow in a topic doc | Not started | The entry names one dedicated key and disables agent, X11, and port forwarding; no other host uses that key; the remote setup, review-before-execute rule, and push step are in a topic doc |
+| 2 | Credential and configuration checks | Not started | The host holds no git credential of any kind, and the laptop's client configuration passes the check in ADR 0055 |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

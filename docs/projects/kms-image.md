@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app.
 decision: ADR-0091/0
+plan: draft
 allowed_paths:
   - docker/kms/**
   - .github/workflows/build-kms-image.yml

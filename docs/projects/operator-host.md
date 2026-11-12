@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller.
 decision: ADR-0058/0
+plan: draft
 also_implements:
   - ADR-0043/0
 super_project: controller-separation

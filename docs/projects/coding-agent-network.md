@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host.
 decision: ADR-0053/0
+plan: draft
 super_project: coding-agent-host
 ---
 

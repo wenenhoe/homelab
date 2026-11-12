@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: The Proxmox node reinstalled from an ISO with an embedded answer file and brought to the state OpenTofu needs by an idempotent Ansible role, tested on a nested Proxmox VM.
 decision: ADR-0093/0
+plan: draft
 super_project: tofu-vm-provisioning
 allowed_paths:
   - tools/proxmox_install/**

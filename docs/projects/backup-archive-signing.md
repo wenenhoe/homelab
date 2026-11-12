@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Sign each backup archive with a per-host key and make a restore refuse any archive whose signature does not verify against a key pinned in the repository, as ADR 0079 decides.
 decision: ADR-0079/0
+plan: draft
 super_project: backup-archive-protection
 allowed_paths:
   - ansible/roles/backup_agent/**

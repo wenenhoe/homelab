@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Windows machines created by OpenTofu from their install media with an unattended answer file rendered in this repository, starting with the desktops and the one with a GPU.
 decision: ADR-0092/0
+plan: draft
 super_project: tofu-vm-provisioning
 allowed_paths:
   - tofu/modules/proxmox_windows_vm/**

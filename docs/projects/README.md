@@ -52,32 +52,34 @@ dangling one.
 | Status | Meaning | Linked `decision:` revision must be |
 | :--- | :--- | :--- |
 | `not-started` | Nothing underway. | `approved` for a new project; `working` or `approved` for one already waiting |
-| `de-risking` | Resolving an open assumption — only throwaway spikes or reading code. | `working` |
+| `de-risking` | Waiting on the decision's open assumptions, which are settled in the decision; every stage is `Not started`. | `working` |
 | `building` | Production implementation is authorized. | `approved` |
 | `done` | Everything implemented and merged. | `accepted`, or `approved` while another project still names it |
 
 `check_doc_drift.py` enforces the last column, so a revision that drops
 back to `working` stops any project `building` on it. It also checks the
-status against the stage table: `not-started` with a stage `In progress` or
-`Done`, or `de-risking` or `building` with every stage `Not started`, fails. A
-doc with no stage rows is not judged. A stage named `Spike` that is not `Done` fails when the
-decision is `approved` or `accepted`: finish it, or name the stage for what it
-builds. A project without
+status against the stage table: `not-started` or `de-risking` with a stage `In
+progress` or `Done`, or `building` with every stage `Not started`, fails. A
+doc with no stage rows is not judged. A stage that is not a build change fails
+unless it is `Done`: a spike, an assumption, a decision, an acceptance, a
+docs-only change or an operational run (see [What a stage is](#what-a-stage-is)). A project without
 `decision:` isn't gated. Several projects may name one revision; it stays
 `approved` until the last of them closes (see
 [When a project finishes](#when-a-project-finishes)).
 
-A project starts on a decision that is settled. A new project is
-`not-started` only when its `decision:` revision is `approved`, or it names
-none; one whose revision is still `working` starts as `de-risking`, limited to
-spikes and reading code, or does not exist yet, and the question stays in a
-decision or an [exploration](../explorations/README.md) until it is approved. A spike
-for a question no decision covers yet is a project without `decision:`: it states
-the question in its scope and ends by writing the decision.
+A project builds on a settled decision. One whose `decision:` revision is still
+`working` is a draft plan, `plan: draft`, which exists for sizing and the
+roadmap and is not a commitment; the drift check requires the field there. Its
+assumptions are settled in the decision, not in a stage, and a question no
+decision covers yet stays in an [exploration](../explorations/README.md) until
+it is approved. A project's `plan` is `draft` or `confirmed`; absent counts as
+confirmed. Read the stage table again against the approved decision before
+building starts.
 [`check_project_start.py`](../../tools/doc_scripts/check_project_start.py)
-fails a change that adds one otherwise; it reads only the docs the change
-adds, so a project already waiting on a `working` revision is left alone until
-that revision is approved or the project is withdrawn
+fails a change that adds a project on a decision that is not `approved` unless
+it is a draft plan; it reads only the docs the change adds, so a project already
+waiting on a `working` revision is left alone until that revision is approved
+or the project is withdrawn
 ([When a project finishes](#when-a-project-finishes)). More than the limit in
 [`generate_doc_indexes.py`](../../tools/doc_scripts/generate_doc_indexes.py)
 of projects at `building` or `de-risking` at once draws a warning from the
@@ -104,6 +106,27 @@ The generated views derive one more thing from the same fields.
 directly or through a chain of `depends_on`. It is not stored, and no field
 carries a priority
 ([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-001.md)).
+
+## What a stage is
+
+A stage is a change that merges together with its docs, and its exit condition is
+something a check or a reader can see. Some work is not a stage, and the drift
+check fails a stage titled for it until it is `Done`:
+
+- **A spike, or resolving an assumption.** Assumptions live in the decision and are
+  settled there.
+- **Writing or approving a decision.** A question with no decision is an
+  exploration.
+- **Accepting the decision.** That is the closing checklist.
+- **A docs-only change.** Docs travel with the code they describe.
+- **An operational run,** such as a rollout or a drill. It is an acceptance
+  criterion.
+
+A project is the smallest unit that can be finished and deleted without a stage of
+another project having to run first. Declare `depends_on` for a project that must
+be built before this one can be applied or live. Projects that name one revision
+and are chained by `depends_on` are one project unless something outside the work
+separates them, such as hardware, or another project depends on the first alone.
 
 ## What goes in one
 

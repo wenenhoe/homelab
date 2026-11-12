@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: A registry of every pinned dependency's licence, a check when a pin changes, and a weekly check of each upstream's default-branch licence file, as ADR 0090 decides.
 decision: ADR-0090/0
+plan: draft
 allowed_paths:
   - tools/ci/licenses/**
   - tools/tests/ci/licenses/**

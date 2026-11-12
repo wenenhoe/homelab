@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox.
 decision: ADR-0051/0
+plan: draft
 also_implements:
   - ADR-0043/0
 super_project: coding-agent-host

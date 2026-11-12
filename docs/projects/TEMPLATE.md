@@ -3,6 +3,7 @@ id: PROJ-project-name
 title: "Project Name"
 type: project
 status: not-started         # not-started | de-risking | building | done
+plan: confirmed             # draft while the decision is working, else confirmed (omit for confirmed)
 blocked: false              # true only for an impediment that isn't another project
 # blocked_reason: "<the current impediment>"
 summary: "<one line; feeds the generated index>"
@@ -39,9 +40,10 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | ... | Not started | ... |
 
-Stage status is `Not started`, `In progress`, or `Done`. A stage that answers an
-open question by running something starts with `Spike`, and is finished or
-renamed before its decision is approved. Add detail
+Stage status is `Not started`, `In progress`, or `Done`. A stage is a change that
+merges with its docs: not a spike, an assumption, a decision, an acceptance, a
+docs-only change or an operational run (see
+[What a stage is](README.md#what-a-stage-is)). Add detail
 below only for a stage that needs more than its row to orient someone.
 
 ## Acceptance criteria

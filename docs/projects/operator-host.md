@@ -17,7 +17,7 @@ Builds the small host that will run the controller away from the workstation: th
 
 ## Scope
 
-VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, and an `operator_host` role. Not in scope: the egress allowlist and moving the toolchain and credentials onto the host ([`operator-host-takeover.md`](operator-host-takeover.md)), setting up the laptop as the workstation and stripping and retiring VM 401 ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, and an `operator_host` role. Not in scope: the egress allowlist and moving the toolchain and credentials onto the host ([`operator-host-takeover.md`](operator-host-takeover.md)), setting up the laptop as the workstation ([`workstation-management.md`](workstation-management.md)), retiring VM 401 ([`vm-401-retirement.md`](vm-401-retirement.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -30,7 +30,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | VLAN 30 with default-deny rules built by hand, its tailnet grant, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token; the coding-agent VLAN and every other tailnet node cannot reach it |
-| 2 | VM 302 and the `operator_host` role, applied locally, including the hardening baseline's role | Not started | The role converges idempotently and SSH accepts only the dedicated hardware-backed keys |
+| 2 | VM 302 and the `operator_host` role, applied locally, including the hardening baseline's role | Not started | The role converges idempotently, SSH accepts only the dedicated hardware-backed keys, both tokens log in to the operator host, and a login with no token present fails |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

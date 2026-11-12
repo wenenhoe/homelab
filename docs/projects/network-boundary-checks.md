@@ -50,7 +50,7 @@ Stage status is `Not started`, `In progress`, or `Done`. Stages 2 and 3 need no 
 
 ### Stage 4 — what remains
 
-The services canary is declared and the flow list holds the first flows. Left: a row in the gateway's policy for each other zone that admits the runner's host to the canary's address on 22 (others, desktops and isolated, and experimental after the Ubuntu module's VMID range is widened past 5XX); the run against a scratch gateway, with network namespaces on the node standing in for canary VMs there; and the removal of a rule that an allow flow depends on, which must make its probe fail.
+The services canary is declared, the flow list holds the first flows, and namespaces on the node stand in for canary VMs on a scratch gateway ([`network-boundary-checks.md`](../topics/infra/network-boundary-checks.md#running-the-checks-against-a-scratch-gateway)); their tests pass against a stand-in router. Left: the runner against a real scratch gateway, passing every flow of the zones it reaches, and failing the one a block rule breaks; and a row in the gateway's policy for each other zone that admits the runner's host to the canary's address on 22 (others, desktops and isolated, and experimental after the Ubuntu module's VMID range is widened past 5XX).
 
 ## Acceptance criteria
 
@@ -76,7 +76,6 @@ The services canary is declared and the flow list holds the first flows. Left: a
 
 ## Open items
 
-- Whether network namespaces on the Proxmox node, one per zone and joined to the scratch gateway's isolated bridge with VLAN tags, can stand in for canary VMs on a scratch gateway. A prototype probed every source and listener pair of the gateway play's policy this way, with a fixed MAC per namespace so the gateway's ARP table cannot hide a block, and it also sent DHCP discovers from each zone. It does not replace a canary in a real zone, which the scheduled run needs. It is not in the repo; Stage 1 decides whether the runner takes the idea.
 - Reading drift on the gateway: [`opnsense-config.md`](opnsense-config.md)'s Open items state the question. If the answer is code under `tools/`, it joins this project as a stage or becomes a project of its own, under a decision written once real `--check --diff` output has been kept.
 - Whether a pre-merge CI job can boot the pinned pre-installed gateway image under QEMU depends on KVM being available on the runners, which has not been checked. Whether it belongs here, in [`opnsense-config.md`](opnsense-config.md) or in a project of its own is decided after that check.
 - Whether a static check ties the gateway play's rule variables to the flow list. It cannot show effective rule order, so it complements the probes. Decide it with [`opnsense-config.md`](opnsense-config.md)'s Stage 3, when the rules exist.

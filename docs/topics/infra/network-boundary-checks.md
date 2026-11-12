@@ -71,3 +71,40 @@ What the list does not hold yet:
 - **Direct DNS to an outside resolver, and the gateway's management ports.** A deny needs a control to the same destination, port and kind, and these are blocked for every canary, so no control can pass. Showing them needs a rule that ADR 0094 does not state.
 - **The desktops zone's flows to `play` on 25565 and to `services` on 1688.** They pass only while something listens there.
 - **Flows from the operator host, the CD agent and the tailscale router.** A canary is not any of those hosts, so those rules are shown only by the denies above, not by an allow.
+
+## Running the checks against a scratch gateway
+
+A scratch gateway has no canary VMs, so [`scratch_canaries.py`](../../../tools/network_checks/scratch_canaries.py) stands in for them with network namespaces on the Proxmox node, joined to the gateway's isolated bridge. The runner and the probe module are the ones that run in production; only what they connect to differs.
+
+`scratch_plan` writes the plan from the flow list and the gateway play's zones: each zone's gateway, canary and VLAN, a stand-in host for every service the connect flows reach inside a zone (a listener that accepts and closes), and the runner's host at `192.168.40.250` with a fixed MAC. `scratch_canaries.py up` then builds one namespace per zone with the zone's VLAN tag, a default route through the gateway, and an `sshd` on the canary's address that accepts the runner's key. The runner's host is a namespace too, so the gateway sees an operator host's address as the source. The runner itself stays on the machine that has the repository and reaches the canaries through `relay`, a ProxyCommand that opens each connection from the runner's namespace.
+
+The gateway has to be built with `192.168.40.250` in `opnsense_gateway_operator_hosts`, as the acceptance build does ([`opnsense-scratch-gateway.md`](tofu/opnsense-scratch-gateway.md)). Then:
+
+```sh
+# on the machine with the repository
+cd tools
+ssh-keygen -t ed25519 -N '' -f ~/.ssh/scratch_runner
+python -m network_checks.scratch_plan > plan.json
+scp plan.json network_checks/scratch_canaries.py ~/.ssh/scratch_runner.pub root@NODE:
+
+# on the node, as root, with the scratch gateway up on vmbr9
+python3 scratch_canaries.py up plan.json vmbr9 /root/scratch-canaries scratch_runner.pub
+
+# on the machine with the repository
+python -m network_checks.runner --ssh-user root --tag services \
+  --ssh-command "ssh -i ~/.ssh/scratch_runner -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o 'ProxyCommand=ssh root@NODE python3 /root/scratch_canaries.py relay /root/scratch-canaries %h %p'"
+
+# on the node, to remove every namespace, link and process
+python3 scratch_canaries.py down
+```
+
+Which canaries the runner reaches depends on the gateway's rows. An operator host is admitted to the services zone over SSH and shares the desktops zone with its canary, so `--tag services` and `--tag desktops` run. The canaries of the other zones answer only once a row admits the runner's host to their address.
+
+To see the runner catch a missing rule, block one flow ahead of the zones' rules and run it again:
+
+```sh
+ansible-playbook tofu/scratch/opnsense/boundary/block_rule.yaml -e repo=. -e ca_file=... -e api_port=... -e credentials=... \
+  -e block_source=192.168.20.0/24 -e block_destination=192.168.20.1 -e block_protocol=UDP -e block_port=53 -e block_state=present
+```
+
+With the block present `services-gateway-dns` fails, and it passes again after the same command with `-e block_state=absent`. The tests of `scratch_canaries` run the real runner through the namespaces against a router in the same way, with `nft` rules in place of the playbook; they need root, `ip`, `nft` and `sshd`, so they are skipped where the CI runners, which run as an ordinary user, have none of them.

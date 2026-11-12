@@ -25,7 +25,7 @@ allowed_paths:
 
 # Backup Archive Signing
 
-A restore decrypts whatever sits under a host's prefix and picks the newest by the timestamp in its name, so an object written by anyone with a write path to SeaweedFS or a cloud target would be restored. This project makes each backup host sign its archives and makes a restore refuse an archive that is not signed by that host. It is staged because the first stage settles three assumptions about where the signing can run and how the signature travels, and the later stages build the signer, the relay and the check in that order, each on the one before.
+A restore decrypts whatever sits under a host's prefix and picks the newest by the timestamp in its name, so an object written by anyone with a write path to SeaweedFS or a cloud target would be restored. This project makes each backup host sign its archives and makes a restore refuse an archive that is not signed by that host. It is staged because the signer, the relay and the check are built in that order, each on the one before.
 
 ## Scope
 
@@ -35,7 +35,7 @@ Not in scope: rollback to an older genuine archive by deleting newer ones; the c
 
 ## Decision
 
-Implements [ADR 0079 (Backup archive authenticity)](../decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md). The revision is `working` on three assumptions, which Stage 1 resolves. Rationale, threat model and rotation are there.
+Implements [ADR 0079 (Backup archive authenticity)](../decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md). The revision is `working` on three assumptions; the project does not start building until they are resolved and it is `approved`. Rationale, threat model and rotation are there.
 
 ## Execution plan
 
@@ -43,12 +43,11 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Resolve the assumptions and place `allowed_signers` | Not started | Each assumption in ADR 0079 is resolved and folded into its Context and the revision can be `approved`; this doc names where `allowed_signers` lives and how a single-app restore verifies (Open items 1 and 2), and `allowed_paths` covers every file stages 2 to 6 edit, widened in its own change before it is used |
-| 2 | Sign each archive on its host | Not started | A Molecule scenario shows a `.sig` uploaded beside each archive by a unit on the host, signed with a root-only key that the agent container cannot read, and `backup.md` describes it |
-| 3 | Relay the signature | Not started | A Molecule scenario relays an archive and its `.sig` to a target, and `cloud-sync.md` says each target's retention keeps a signature as long as its archive |
-| 4 | Verify at restore | Not started | The unit tests listed under Validation in ADR 0079 pass, a restore of an archive filed under another host's prefix is refused in a Molecule scenario with two fake hosts, and `restore.md` and `backup-threat-model.md` describe the check and the refusal |
-| 5 | Cover every backup host | Not started | A test fails when an app host has a backup schedule and no line in `allowed_signers`, and the restore has an explicit, logged override for archives written before signing |
-| 6 | Rotate a key and alert on unsigned archives | Not started | A replaced host's old line carries `valid-before` and an archive it signed still verifies, and the hourly freshness check alerts on an archive left unsigned past a set time |
+| 1 | Sign each archive on its host | Not started | A Molecule scenario shows a `.sig` uploaded beside each archive by a unit on the host, signed with a root-only key that the agent container cannot read, and `backup.md` describes it |
+| 2 | Relay the signature | Not started | A Molecule scenario relays an archive and its `.sig` to a target, and `cloud-sync.md` says each target's retention keeps a signature as long as its archive |
+| 3 | Verify at restore | Not started | The unit tests listed under Validation in ADR 0079 pass, the lag between an archive and its `.sig` is measured, a restore of an archive filed under another host's prefix is refused in a Molecule scenario with two fake hosts, and `restore.md` and `backup-threat-model.md` describe the check and the refusal |
+| 4 | Cover every backup host | Not started | A test fails when an app host has a backup schedule and no line in `allowed_signers`, and the restore has an explicit, logged override for archives written before signing |
+| 5 | Rotate a key and alert on unsigned archives | Not started | A replaced host's old line carries `valid-before` and an archive it signed still verifies, and the hourly freshness check alerts on an archive left unsigned past a set time |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -71,9 +70,9 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- A signature that arrives after its archive makes a restore see an unsigned object, so Stage 1 measures the lag before the check treats a missing `.sig` as a refusal.
+- A signature that arrives after its archive makes a restore see an unsigned object, so the verify stage measures the lag before the check treats a missing `.sig` as a refusal.
 - A restore of a host whose key was never pinned refuses until a pull request pins it, which adds a step to a first deploy.
-- Archives written before signing carry no signature, so the override of Stage 5 is needed until the retention window has passed.
+- Archives written before signing carry no signature, so the override of the coverage stage is needed until the retention window has passed.
 
 ## Open items
 

@@ -52,7 +52,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- Stage 1 waits on the proxy from [`coding-agent-egress.md`](coding-agent-egress.md), which waits on the zone project's spikes. This project is on the critical path for stripping the workstation.
+- Stage 1 waits on the proxy from [`coding-agent-egress.md`](coding-agent-egress.md), which waits on the zone project. This project is on the critical path for stripping the workstation.
 - The Tofu credentials file is the only copy of those credentials on the host; moving it means issuing replacements rather than copying the old ones off the workstation.
 
 ## Open items

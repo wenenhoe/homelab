@@ -28,7 +28,7 @@ allowed_paths:
 
 # Backup Agent As A Compose App
 
-Moves the one stack that a role deploys from its own templates onto the path every other app takes: its compose file under `docker/`, a `compose_apps` entry on each host that runs it, and the `compose` role's tasks for the deploy. It is staged because the decision rests on two assumptions that a throwaway spike settles first, the move itself has to land as one change, and the result has to be checked on a real host before the work closes.
+Moves the one stack that a role deploys from its own templates onto the path every other app takes: its compose file under `docker/`, a `compose_apps` entry on each host that runs it, and the `compose` role's tasks for the deploy. The move has to land as one change, so it is one stage, and the result is checked on a real host before the work closes.
 
 ## Scope
 
@@ -38,7 +38,7 @@ Not in: the files the role generates (`conf.d`, `.env`, the GPG key, the notific
 
 ## Decision
 
-Implements [ADR 0088 (Role-deployed stack compose)](../decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md), `working`; this doc tracks build status only. Stage 1 settles its two assumptions and sets it `approved`; no later stage starts before that.
+Implements [ADR 0088 (Role-deployed stack compose)](../decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md), `working`; this doc tracks build status only, and the project does not start building until the revision is `approved`.
 
 ## Execution plan
 
@@ -46,9 +46,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Settle the decision's assumptions | Not started | For each host's `backup_plan`, the `compose` role renders `docker/backup-agent/compose.yaml.j2` to the bytes the role renders today and `docker compose config` agrees; a catalog entry with only `configs` passes the validator and the tests of every `resolved_apps` consumer; the revision has no open assumption and is `approved` |
-| 2 | Move the stack and deploy it through the `compose` role | Not started | The compose file and rules file are under `docker/backup-agent/`; the catalog, `compose_self_managed_apps` and each backup host's `compose_apps` declare the agent; the role runs `init` and `deploy` for its own entry and fails when a non-empty plan has none; the validator fails a host with the entry and no plan, or a plan and no entry, with unit tests; the `backup_agent` scenarios deploy the symlinked file and pass in CI, including the rules file, its hash label and the absent proxy on a host with no stop-during-backup app; `backup-agent` is in the boot-test exclusion file and not in `compose_cleanup_exclude`; the topic docs describe the result |
-| 3 | Roll out and verify | Not started | After the first deploy on a backup host, the agent and proxy containers keep their creation times, the end-of-run report lists `backup-agent` as ok, and `cleanup.yaml --check` proposes no change to it |
+| 1 | Move the stack and deploy it through the `compose` role | Not started | For each host's `backup_plan`, the `compose` role renders `docker/backup-agent/compose.yaml.j2` to the bytes the role renders today and `docker compose config` agrees; a catalog entry with only `configs` passes the validator and the tests of every `resolved_apps` consumer; the compose file and rules file are under `docker/backup-agent/`; the catalog, `compose_self_managed_apps` and each backup host's `compose_apps` declare the agent; the role runs `init` and `deploy` for its own entry and fails when a non-empty plan has none; the validator fails a host with the entry and no plan, or a plan and no entry, with unit tests; the `backup_agent` scenarios deploy the symlinked file and pass in CI, including the rules file, its hash label and the absent proxy on a host with no stop-during-backup app; `backup-agent` is in the boot-test exclusion file and not in `compose_cleanup_exclude`; the topic docs describe the result |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -58,7 +56,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [ ] Each host with a non-empty `backup_plan` declares `backup-agent`, no other host does, and the validator fails a repository where that is untrue.
 - [ ] The end-of-run report lists `backup-agent` on every backup host, and orphan cleanup has no special case for it.
 - [ ] The rules file the proxy mounts equals its source in `docker/backup-agent/configs/`, and the sidecar's label changes when the file does.
-- [ ] The first deploy after the change recreates no container.
+- [ ] After the first deploy on a backup host the agent and proxy containers keep their creation times, and `cleanup.yaml --check` proposes no change to `backup-agent`.
 
 ## Agent handoff
 
@@ -67,19 +65,19 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced.
 - **Must not change:** the rules the proxy enforces, the schedules the agent runs, the SeaweedFS credentials it uses, and the files the role generates.
 - **Relevant files and interfaces:** `ansible/roles/backup_agent/`, `ansible/roles/openbao/tasks/main.yaml` (the self-managed pattern to follow), `ansible/roles/compose/tasks/init.yaml` and `deploy.yaml`, `ansible/filter_plugins/backup_plan.py`, `tools/ci/gates/app_catalog_rules.py`.
-- **Required checks:** `pre-commit run --all-files`; `uv run pytest` from `tools/`; `ansible-lint`; the `backup_agent`, `compose_app` and `compose` Molecule scenarios in CI; for stage 1, the render comparison the exit condition names.
+- **Required checks:** `pre-commit run --all-files`; `uv run pytest` from `tools/`; `ansible-lint`; the `backup_agent`, `compose_app` and `compose` Molecule scenarios in CI; the render comparison the exit condition names.
 
 ## Risks
 
-- A render that differs from today's, even in whitespace, recreates the agent and proxy on every host at the first deploy. Stage 1 exists to catch it before anything moves.
+- A render that differs from today's, even in whitespace, recreates the agent and proxy on every host at the first deploy. The exit condition compares the renders before the move merges.
 - The rules file is deployed to hosts that never start the proxy. It is a 0644 file with no secret in it.
 - A host that gains a backed-up app without an entry fails in CI and at deploy time. That is the intent; nothing is skipped quietly.
 - [`bind-mounted-config-files.md`](bind-mounted-config-files.md) and this project both edit `app_catalog.yaml` and the deploy topic docs, and [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) makes the `compose` role restart a container whose bind-mounted file changed. Once that lands, the proxy's hash label in the compose file duplicates it; stage 2 here drops the label only if it has.
-- [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) names `ansible/roles/backup_agent/files/docker-api-rules.cfg` as its model, and its open item 1 asks how a rules file reaches the host. This project moves that file and answers it for `backup-agent`; stage 2 updates the mention in that doc in the same change, which `allowed_paths` does not bound (project docs are exempt).
+- [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) names `ansible/roles/backup_agent/files/docker-api-rules.cfg` as its model, and its open item 1 asks how a rules file reaches the host. This project moves that file and answers it for `backup-agent`; this project updates the mention in that doc in the same change, which `allowed_paths` does not bound (project docs are exempt).
 
 ## Open items
 
-None beyond the two assumptions recorded in the decision.
+None.
 
 ## Closing checklist
 

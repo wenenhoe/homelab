@@ -22,7 +22,7 @@ allowed_paths:
 
 # Windows VMs
 
-Brings the Windows machines under OpenTofu, which today stops at Ubuntu and OPNsense, as [ADR 0092 (Windows VM builds)](../decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) decides. A machine is installed from its media with an answer file this repository renders, so nothing depends on a hand-built template. It is staged because the first stage is a spike on the node whose answers decide the module's shape.
+Brings the Windows machines under OpenTofu, which today stops at Ubuntu and OPNsense, as [ADR 0092 (Windows VM builds)](../decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) decides. A machine is installed from its media with an answer file this repository renders, so nothing depends on a hand-built template. It is staged because the renderer, the module with its first desktop, and the GPU mapping are separate reviewable changes.
 
 ## Scope
 
@@ -32,7 +32,7 @@ Not in this project: backing up a desktop's state, configuration inside the gues
 
 ## Decision
 
-Implements [ADR 0092 (Windows VM builds)](../decisions/0092-how-windows-virtual-machines-are-built/revision-000.md), still `working`. The project stays `not-started` until that revision is `approved`. Stage 1 is the spike that resolves its four assumptions, and it is the only work that may start before then.
+Implements [ADR 0092 (Windows VM builds)](../decisions/0092-how-windows-virtual-machines-are-built/revision-000.md), still `working`. The project stays `not-started` until that revision is `approved`.
 
 ## Execution plan
 
@@ -40,11 +40,9 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike on the node: install a Windows 11 machine from blank disk with the three images and nothing typed on its console, and try a PCI mapping for the GPU | Not started | Each of the ADR's four assumptions is recorded as held or as broken, with what the spike showed |
-| 2 | The answer-file renderer and its tests | Not started | A template in the repository renders to a small ISO that carries the answer file, a unit test checks the rendered file, and nothing in it is a credential |
-| 3 | The `proxmox_windows_vm` module, its tests and the first desktop | Not started | `tofu test` passes against the mocked provider, `tofu plan` shows the machine, applying it installs Windows unattended on the node, and the topic doc describes the module and the 4XX range |
-| 4 | The desktop with the GPU, by a PCI mapping | Not started | The token holds the one added privilege, listed in its table, and the machine starts with the GPU attached |
-| 5 | Decide the fate of the templates 103, 104 and 105 | Not started | Each is retired or kept with a recorded reason, and the topic doc no longer lists a Windows machine as built by hand |
+| 1 | The answer-file renderer and its tests | Not started | A template in the repository renders to a small ISO that carries the answer file, a unit test checks the rendered file, and nothing in it is a credential |
+| 2 | The `proxmox_windows_vm` module, its tests and the first desktop | Not started | `tofu test` passes against the mocked provider, `tofu plan` shows the machine, applying it installs Windows unattended on the node, and the topic doc describes the module and the 4XX range |
+| 3 | The desktop with the GPU, by a PCI mapping | Not started | The token holds the one added privilege, listed in its table, and the machine starts with the GPU attached |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -74,7 +72,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Open items
 
-- Which of the templates 103, 104 and 105 are still wanted, which Stage 5 decides.
+- Which of the templates 103, 104 and 105 are still wanted, which the last acceptance criterion decides.
 - Whether a Windows lab machine appears that is rebuilt often, which would reopen the template builder question in the ADR.
 
 ## Closing checklist

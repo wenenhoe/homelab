@@ -35,7 +35,7 @@ Not in scope: managing devices, auth keys or DNS through the provider (the subne
 
 ## Decision
 
-Implements [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md), whose trigger, [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) being `accepted`, is met. The revision is `working` on one assumption, the provider's signature verification, which Stage 1 resolves. Rationale is there, never here.
+Implements [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md), whose trigger, [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) being `accepted`, is met. The revision is `working` on one assumption, the provider's signature verification. The project does not start building until it is resolved and the revision is `approved`. Rationale is there, never here.
 
 ## Execution plan
 
@@ -43,20 +43,15 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike the provider's signature verification | Not started | A throwaway `tofu init` against a scratch config requiring `tailscale/tailscale` shows whether it verifies the signature or skips it, the result is folded into ADR 0059's Context, and the revision can be `approved` |
-| 2 | Pin the provider and take the credential | Not started | The provider is pinned and locked in the root module, its OAuth client is a sensitive variable documented in the credentials file's entry in `vm-provisioning.md`, and `tofu plan` reads the live policy with it |
-| 3 | Code the policy as a template | Not started | The policy body is a template in this repository, the email and device IPs come from the credentials file, and `tofu plan` reports no change against the saved policy |
-| 4 | Guard the apply | Not started | A `tofu plan` after a manual console change reports drift, a deliberately locking `tests` entry fails the apply before it saves, and a copy of the live policy is taken before each apply |
-| 5 | Declare route approval | Not started | Each route the tailnet advertises is approved through `tailscale_device_subnet_routes` and auto-approvers in the policy, and `tofu plan` reports no change |
-| 6 | Hand the policy over | Not started | The topic docs name Tofu as the policy's owner and how a grant is added, and no doc still describes a console hand edit as the way |
+| 1 | Pin the provider and take the credential | Not started | The provider is pinned and locked in the root module, its OAuth client is a sensitive variable documented in the credentials file's entry in `vm-provisioning.md`, and `tofu plan` reads the live policy with it |
+| 2 | Code the policy as a template | Not started | The policy body is a template in this repository, the email and device IPs come from the credentials file, and `tofu plan` reports no change against the saved policy |
+| 3 | Guard the apply | Not started | A `tofu plan` after a manual console change reports drift, a deliberately locking `tests` entry fails the apply before it saves, and a copy of the live policy is taken before each apply |
+| 4 | Declare route approval | Not started | Each route the tailnet advertises is approved through `tailscale_device_subnet_routes` and auto-approvers in the policy, and `tofu plan` reports no change |
+| 5 | Hand the policy over | Not started | The topic docs name Tofu as the policy's owner and how a grant is added, and no doc still describes a console hand edit as the way |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-### Stage 1 — the spike
-
-Run it outside the repository, with `TF_DATA_DIR` set outside the checkout as [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project) requires. Nothing from it is kept except what it shows. It touches no policy.
-
-### Stage 4 — the guards
+### Stage 3 — the guards
 
 The policy's own `tests` block is what catches a bad apply before it saves, and the console stays the independent recovery path, because the host that applies is reachable only through the policy the apply could remove. A Tofu rollback is not the recovery path.
 
@@ -80,7 +75,7 @@ The policy's own `tests` block is what catches a bad apply before it saves, and 
 
 - A bad apply can lock out the operator host, and a Tofu rollback does not undo it. The `tests` block and the console are the guards.
 - The credentials file gains a credential that can rewrite the tailnet's isolation boundary. The file stays `0600` in a `0700` directory, owned by the operator account.
-- The policy changes hands twice: from the console's explicit-grant policy to this project. A grant that [`operator-host.md`](operator-host.md) or [`coding-agent-network.md`](coding-agent-network.md) adds by hand before Stage 3 has to be in the live policy the template is checked against.
+- The policy changes hands twice: from the console's explicit-grant policy to this project. A grant that [`operator-host.md`](operator-host.md) or [`coding-agent-network.md`](coding-agent-network.md) adds by hand before Stage 2 has to be in the live policy the template is checked against.
 
 ## Open items
 

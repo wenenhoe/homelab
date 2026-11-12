@@ -16,7 +16,7 @@ depends_on:
 
 # Coding-Agent Host
 
-Replaces the Claude Chat, VS Code, and lazygit workflow with a dedicated VM where Claude Code works autonomously, isolated from the rest of the lab. Staged because the VM, its role, and the role's tests are separate reviewable changes, and the sandbox and sizing assumptions need a spike first.
+Replaces the Claude Chat, VS Code, and lazygit workflow with a dedicated VM where Claude Code works autonomously, isolated from the rest of the lab. Staged because the VM, its role, and the role's tests are separate reviewable changes.
 
 ## Scope
 
@@ -24,7 +24,7 @@ The VM (VMID 701, in the 7XX range), a `coding_agent` role, an inventory group o
 
 ## Decision
 
-Implements [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md), `working`. The project stays `not-started` while it waits on the network project, and moves to `de-risking` once Stage 1 begins.
+Implements [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md), `working`. The project stays `not-started` until the revision is `approved` and the network project has built the zone.
 
 ## Execution plan
 
@@ -32,10 +32,9 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike: built-in sandbox on this Ubuntu release with the repo's tooling, and VM sizing under load | Not started | Both assumptions in ADR 0051 are resolved and the revision can be `approved` |
-| 2 | VM shell in VLAN 70, built by hand, no nested virtualization | Not started | The VM boots in the zone and is reachable only by the two permitted SSH flows |
-| 3 | Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy, since the role installs Claude Code from the Internet. `coding_agent` role and inventory group: agent and management accounts, Claude Code, sandbox settings, the hardening baseline's role, `sshd` per-account source restrictions | Not started | The role converges idempotently and the host resolves its own SSH key, never the shared one |
-| 4 | Molecule scenario for the role | Not started | The scenario passes in CI and appears in the scenario matrix |
+| 1 | VM shell in VLAN 70, built by hand, no nested virtualization | Not started | The VM boots in the zone and is reachable only by the two permitted SSH flows |
+| 2 | Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy, since the role installs Claude Code from the Internet. `coding_agent` role and inventory group: agent and management accounts, Claude Code, sandbox settings, the hardening baseline's role, `sshd` per-account source restrictions | Not started | The role converges idempotently and the host resolves its own SSH key, never the shared one |
+| 3 | Molecule scenario for the role | Not started | The scenario passes in CI and appears in the scenario matrix |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

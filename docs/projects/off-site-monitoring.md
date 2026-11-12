@@ -23,7 +23,7 @@ Relocating monitoring to a GCP e2-micro, and extending VM 202's Tailscale subnet
 
 ## Decision
 
-Implements [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md), still `working`, so this project is `not-started` until its first spike begins and then `de-risking` until its open assumptions are resolved. It is also `blocked`: it waits on a decision, the off-site host's hardening pass, which [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md) names as a gate, not on another project.
+Implements [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md), still `working`, so this project is `not-started` or `de-risking` until the revision is `approved`. It is also `blocked`: it waits on a decision, the off-site host's hardening pass, which [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md) names as a gate, not on another project.
 
 ## Execution plan
 

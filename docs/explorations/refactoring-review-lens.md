@@ -18,7 +18,7 @@ The automated review reads the repo for defects. A question about structure is a
 - The tracker's finding schema and triage states were written for defects. Whether a structural finding fits them, or needs its own, has to be checked against the private repo's schema.
 - The repo already states what a structural review can test against: the comment rules in `AGENTS.md`, [`conventions.md`](../topics/engineering/conventions.md), and the doc rules in [`docs/README.md`](../README.md) (one home for a fact, current names, no stage vocabulary in code). Several are held by a check already; a review finding that a check could catch is a missing check, not a finding.
 - A refactor is only safe where behaviour is guarded. Molecule scenarios with the idempotence check guard the roles; the Python unit tests guard `tools/`; mutation testing covers only the credential tooling ([`mutation-testing.md`](../topics/engineering/mutation-testing.md)). Elsewhere a restructure has nothing to say it kept the behaviour.
-- Another review draws on the same subscription allowance as the audit and the per-pull-request review ([ADR 0062 (Reviewer identity)](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)), and measuring that allowance is a stage of [the automated review project](../projects/automated-pr-review.md).
+- Another review draws on the same subscription allowance as the audit and the per-pull-request review ([ADR 0062 (Reviewer identity)](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)).
 - A restructure that spans files is project work: it needs a stage, an exit condition and an `allowed_paths`. A one-file tidy is an ordinary change.
 
 ## Options

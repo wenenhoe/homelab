@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+import stand_in_flows
 import yaml
 
 GOOD = {
@@ -45,3 +46,11 @@ def write_flows(tmp_path: Path) -> Callable[[object], Path]:
         return path
 
     return write
+
+
+@pytest.fixture
+def flows_path(tmp_path) -> Path:
+    """The two-zone flow list of the scratch tests, written to a file."""
+    path = tmp_path / "flows.yaml"
+    path.write_text(yaml.safe_dump(stand_in_flows.FLOWS))
+    return path

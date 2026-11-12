@@ -241,10 +241,7 @@ merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
 `build-gatus-image.yml`, `build-molecule-dind-image.yml`), and compose
 files pin the published tag. A PR's boot test therefore builds a changed
 Dockerfile locally, since the published image would be the old one or not
-exist yet. The
-CodeRabbit review image, built from `tools/coderabbit-review/Dockerfile` and
-published by `build-coderabbit-review-image.yml`, is published the same way,
-though no compose file pins it. Each of these workflows runs on a push to
+exist yet. Each of these workflows runs on a push to
 `main` that changes its Dockerfile, weekly, and on demand. The push filter is
 `on.push.paths`, so a merge that touches no Dockerfile starts no run;
 `molecule-dind`'s also lists the `docker` role's tasks file its Dockerfile
@@ -274,9 +271,8 @@ which hold a package-write token.
   Caddy version, `wastebin` with the upstream wastebin version, `gatus`
   with the upstream Gatus version less its leading `v` (upstream tags
   `v5.37.0`; the image is published as `5.37.0`, and a `v` left on a
-  compose pin fails `check-pins`), `molecule-dind` as `latest`,
-  `coderabbit-review` with its `CODERABBIT_VERSION` plus `latest`. The
-  five `build-*-image.yml` workflows ask it for their `tags:`
+  compose pin fails `check-pins`) and `molecule-dind` as `latest`. The
+  four `build-*-image.yml` workflows ask it for their `tags:`
   (`python3 -m ci.images.registry tags <image>`) instead of grepping the
   Dockerfile themselves. Unlike the greps it replaced, it fails unless the Dockerfile has exactly one
   match and the tag looks like a version. `check-pins` (the
@@ -322,18 +318,13 @@ which hold a package-write token.
   checks what the image exists to add: `caddy` the DigitalOcean DNS
   module and `curl`; `molecule-dind` Docker Engine,
   `python3-requests`, `fuse-overlayfs` and its `daemon.json` default;
-  `coderabbit-review` that the CLI reports the version the `Dockerfile`
-  pins, `git` is present and the default user is UID 1001 — it never
-  runs a review, whose findings must stay off this repo's logs;
   `wastebin` only that the build produced an image, since
   `compose-boot-test` boots it for real; `gatus` that the image's user is
   a non-root number and, booting the image alone on a fresh volume with a
   one-endpoint config, that its own `/wget` gets `/health` and the sqlite
   file appears in `/data` (`compose-boot-test` covers the deployed stack
   and its real config). This covers the Dockerfiles `compose-boot-test`
-  excludes (`caddy`, `molecule-dind`) and `coderabbit-review`, which
-  isn't a compose app and is queued from its registry entry's path rather
-  than from `docker/`.
+  excludes (`caddy`, `molecule-dind`).
 - **Shadow-tagging** in `_compose-boot-test.yml`
   (`ci.images.build shadow-tag`, and a `Dockerfile` change queues the
   app): for an app with a `Dockerfile`, it reads the images the deployed

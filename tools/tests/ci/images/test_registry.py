@@ -117,30 +117,6 @@ class TestFromImageWithPrefix:
             self.SOURCE("FROM busybox:1.38.0\n")
 
 
-class TestArgVersion:
-    SOURCE = staticmethod(reg.arg_version("CODERABBIT_VERSION"))
-
-    def test_reads_the_one_arg(self):
-        assert self.SOURCE("FROM ubuntu:26.04\nARG CODERABBIT_VERSION=0.8.0\nARG CODERABBIT_SHA256=abc\n") == "0.8.0"
-
-    @pytest.mark.parametrize(
-        "text",
-        [
-            pytest.param("FROM x\n", id="no-arg"),
-            pytest.param("ARG CODERABBIT_VERSION=1.0.0\nARG CODERABBIT_VERSION=1.0.1\n", id="two-args"),
-            pytest.param("ARG CODERABBIT_VERSION=1.0\n", id="two-part-version"),
-            pytest.param("ARG CODERABBIT_VERSION=latest\n", id="latest"),
-        ],
-    )
-    def test_zero_two_or_malformed_is_an_error(self, text):
-        with pytest.raises(reg.ImageError):
-            self.SOURCE(text)
-
-    def test_the_sha_arg_is_not_the_version(self):
-        with pytest.raises(reg.ImageError, match="exactly one"):
-            self.SOURCE("ARG CODERABBIT_SHA256=abc\n")
-
-
 class Tree:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -162,24 +138,19 @@ def tree(root):
     tree.write("docker/gatus/Dockerfile", "FROM busybox:1.38.0 AS d\nFROM twinproduction/gatus:v5.37.0\n")
     tree.write("docker/gatus/compose.yaml", "services:\n  g:\n    image: ghcr.io/wenenhoe/gatus:5.37.0\n")
     tree.write("docker/molecule-dind/Dockerfile", "FROM geerlingguy/x:latest\n")
-    tree.write("tools/coderabbit-review/Dockerfile", "ARG CODERABBIT_VERSION=0.8.0\n")
     tree.write("ansible/roles/r/molecule/default/molecule.yml", "platforms:\n  - name: x\n    image: ghcr.io/wenenhoe/molecule-dind:latest\n")
     return tree
 
 
 class TestRefs:
-    def test_version_tag_first_then_extras(self, tree):
-        assert reg.refs(tree.root, reg.IMAGES["coderabbit-review"]) == ["ghcr.io/wenenhoe/coderabbit-review:0.8.0", "ghcr.io/wenenhoe/coderabbit-review:latest"]
-
     def test_a_prefixed_upstream_tag_is_published_without_the_prefix(self, tree):
         assert reg.refs(tree.root, reg.IMAGES["gatus"]) == ["ghcr.io/wenenhoe/gatus:5.37.0"]
 
     def test_the_image_name_is_not_the_directory_name(self, tree):
         assert reg.refs(tree.root, reg.IMAGES["caddy"]) == ["ghcr.io/wenenhoe/caddy-digitalocean:2.11.4"]
 
-    def test_a_constant_tag_is_not_repeated_as_an_extra(self, tree):
-        image = reg.Image("x", "x", "docker/molecule-dind", reg.constant("latest"), extra_tags=("latest",))
-        assert reg.refs(tree.root, image) == ["ghcr.io/wenenhoe/x:latest"]
+    def test_a_constant_tag_is_published_as_given(self, tree):
+        assert reg.refs(tree.root, reg.IMAGES["molecule-dind"]) == ["ghcr.io/wenenhoe/molecule-dind:latest"]
 
     def test_error_names_the_image_and_file(self, tree):
         tree.write("docker/wastebin/Dockerfile", "FROM busybox:1.38.0\n")
@@ -227,7 +198,7 @@ class TestCheckPins:
                 id="self-built-image-with-no-entry",
             ),
             pytest.param("docker/newapp/Dockerfile", "FROM alpine:3.20\n", "docker/newapp/Dockerfile has no entry", id="dockerfile-with-no-entry"),
-            pytest.param("tools/coderabbit-review/Dockerfile", "ARG CODERABBIT_VERSION=latest\n", "coderabbit-review", id="unresolvable-dockerfile"),
+            pytest.param("docker/gatus/Dockerfile", "FROM twinproduction/gatus:vlatest\n", "gatus: docker/gatus/Dockerfile", id="unresolvable-dockerfile"),
             pytest.param(
                 "ansible/roles/r/molecule/default/molecule.yml",
                 "    image: ghcr.io/wenenhoe/molecule-dind:v2\n",
@@ -334,10 +305,10 @@ def run_main(tree, monkeypatch):
 
 
 class TestCli:
-    def test_tags_writes_version_and_comma_separated_tags(self, run_main):
-        code, out = run_main("tags", "coderabbit-review")
+    def test_tags_writes_the_version_and_the_published_tag(self, run_main):
+        code, out = run_main("tags", "caddy")
         assert code == 0
-        assert out.splitlines() == ["version=0.8.0", "tags=ghcr.io/wenenhoe/coderabbit-review:0.8.0,ghcr.io/wenenhoe/coderabbit-review:latest"]
+        assert out.splitlines() == ["version=2.11.4", "tags=ghcr.io/wenenhoe/caddy-digitalocean:2.11.4"]
 
     def test_tags_for_a_prefixed_upstream_tag_carry_no_prefix(self, run_main):
         code, out = run_main("tags", "gatus")
@@ -378,7 +349,3 @@ class TestRealTree:
         # build-wastebin-image.yml: the `FROM quxfoo/wastebin:` line.
         lines = [m.group(1) for line in reg.IMAGES[key].dockerfile(reg.REPO_ROOT).read_text().splitlines() if (m := re.match(pattern, line))]
         assert reg.resolve_version(reg.REPO_ROOT, reg.IMAGES[key]) == lines[-1]
-
-    def test_the_coderabbit_arg_is_read_from_the_dockerfile(self):
-        text = reg.IMAGES["coderabbit-review"].dockerfile(reg.REPO_ROOT).read_text()
-        assert f"ARG CODERABBIT_VERSION={reg.resolve_version(reg.REPO_ROOT, reg.IMAGES['coderabbit-review'])}\n" in text

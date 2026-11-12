@@ -18,8 +18,7 @@ A Dockerfile is queued for the build check when it changes, or when its
 smoke test under `.github/image-smoke-tests/` does.
 
 Subcommands (from tools/: python -m ci.scope.compose_apps ...):
-  changed <base> <head>       writes apps=<json>, dockerfiles=<json> (which also
-                              covers the registry's tool images) and
+  changed <base> <head>       writes apps=<json>, dockerfiles=<json> and
                               excluded_compose=<json> (the compose files
                               syntax-check would validate)
   all                         writes apps=<json>: every non-excluded compose app
@@ -57,12 +56,6 @@ SEED_SCRIPT = ".github/scripts/seed-lldap-ci-cert.sh"
 SCAFFOLDING_FILES = (SEED_SCRIPT, ".github/workflows/_compose-boot-test.yml", "ansible/playbooks/ci_boot_test.yaml")
 SCAFFOLDING_DIR = "ansible/ci-inventory/"
 _SCAFFOLDING_APP = "lldap"
-
-# Registry images built from outside docker/ (tool images no compose file
-# pins), keyed by Dockerfile path. They are built and smoke-tested like a
-# docker/<app> Dockerfile but are never compose apps, so they stay out of
-# _BOOT_TEST_INPUT.
-_TOOL_DOCKERFILES = {f"{image.context}/Dockerfile": key for key, image in IMAGES.items() if not image.context.startswith(f"{DOCKER_DIR}/")}
 
 # (args, cwd) -> exit code
 Runner = Callable[[list[str], Path], int]
@@ -109,12 +102,11 @@ def changed_apps(root: Path, changed: list[str]) -> list[str]:
 def changed_dockerfiles(root: Path, changed: list[str]) -> list[str]:
     """Image keys whose Dockerfile or smoke test changed and whose Dockerfile still exists.
 
-    Excluded and composeless apps are included, and so are the registry's
-    tool images under tools/. A `docker/<app>/Dockerfile` with no registry
-    entry is still listed, so the build check fails it instead of skipping it.
+    Excluded and composeless apps are included. A `docker/<app>/Dockerfile`
+    with no registry entry is still listed, so the build check fails it
+    instead of skipping it.
     """
     candidates = {m.group(1) for path in changed if (m := _DOCKERFILE.match(path) or _SMOKE_TEST.match(path))}
-    candidates |= {_TOOL_DOCKERFILES[path] for path in changed if path in _TOOL_DOCKERFILES}
     return sorted(key for key in candidates if _dockerfile(root, key).is_file())
 
 

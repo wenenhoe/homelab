@@ -2,8 +2,8 @@
 
 Check that each pinned release hash is the publisher's. How it fits the pipeline is in [CI: PR Checks](pipeline.md); the scheduled-job overview is in [`scheduled-jobs.md`](scheduled-jobs.md).
 
-Each downloaded release this repo pins by sha256 (uv, rclone, the OpenBao CLI
-and the CodeRabbit CLI) is checked against the publisher: the pinned hash must
+Each downloaded release this repo pins by sha256 (uv, rclone and the OpenBao
+CLI) is checked against the publisher: the pinned hash must
 be the one the publisher signed, attested or lists, whoever copied it into the
 file. The decision is
 [ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md).
@@ -31,7 +31,7 @@ where each one is set:
 | :--- | :--- | :--- |
 | Signed | Fetches the publisher's manifest and its signature, verifies them with `gpg` in a throwaway keyring holding only the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys/), and requires the pin to equal the manifest's line for the artifact. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`) |
 | Attested | Downloads the artifact, requires it to hash to the pin, then requires `gh attestation verify` to pass for the publisher's repository. | uv |
-| Listed | Requires the pin to equal the publisher's manifest line. The manifest is unsigned, so this catches a hash copied wrongly, not a publisher that served a bad artifact. | the CodeRabbit CLI |
+| Listed | Requires the pin to equal the publisher's manifest line. The manifest is unsigned, so this catches a hash copied wrongly, not a publisher that served a bad artifact. | none |
 | None | The entry says why nothing can be checked. | none |
 
 No key is fetched when the check runs: `gpg` runs with its network helper off,
@@ -69,8 +69,7 @@ rotates it, is in [`apt-signing-keys.md`](../../deploy/apt-signing-keys.md).
 - **A manifest moves:** the entry's address is stale and the run fails on it.
   The check depends on each publisher keeping its manifest where it is.
 - **A publisher starts to sign**, or stops: the entry's tier changes in the
-  registry. The CodeRabbit CLI's release bucket publishes no signature file
-  beside its manifest or its archives, so its pin stays *listed*.
+  registry.
 
 Failures are per entry and the run reports every entry before it exits
 non-zero, with each failure as an `::error::` annotation. A publisher that

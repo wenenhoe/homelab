@@ -45,7 +45,7 @@ version inside it so a bad release can be backed out.
   version, so a build can't be reviewed, compared, or rolled back. Its
   base, `fedora:43`, reaches end of life in late 2026; Fedora releases are
   supported for about 13 months.
-- **Consumers.** `coderabbit-review.sh` and, later, `homelab-security`'s
+- **Consumers.** `coderabbit-review.sh` (removed) and, later, `homelab-security`'s
   CI run the image ([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
   The molecule image and the CI runners are Ubuntu 26.04 LTS, and the
   official `ubuntu:26.04` image exists. On it, with uutils `sha256sum -c`
@@ -117,8 +117,8 @@ path from that bucket, which the hash does not cover; see Non-goals.
 
 - The Dockerfile is rewritten on the new base, `renovate.json5` gains a
   custom datasource and manager, and the publish workflow computes the
-  tags. [`docs/topics/engineering/coderabbit-review.md`](../../topics/engineering/coderabbit-review.md)
-  describes the tags and how to back out.
+  tags. `docs/topics/engineering/coderabbit-review.md` (removed)
+  described the tags and how to back out.
 - Every CLI release becomes a PR to review. In exchange the image names
   its CLI version and a bad release can be reverted.
 - Every bump needs a hand step, copying the new hash from the release's

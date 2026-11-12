@@ -102,7 +102,6 @@ class TestRealRegistry:
             "uv": Tier.ATTESTED,
             "rclone": Tier.SIGNED,
             "openbao-cli": Tier.SIGNED,
-            "coderabbit-cli": Tier.LISTED,
         }
 
     def test_every_pin_is_a_different_variable(self):

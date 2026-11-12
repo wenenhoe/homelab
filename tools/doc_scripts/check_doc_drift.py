@@ -19,7 +19,15 @@ import yaml
 
 from doc_scripts.doc_explorations import exploration_errors
 from doc_scripts.doc_frontmatter import DECISION_INDEX, LINEAGE_DIR_RE, doc_kind, is_template, load_lineages, read_frontmatter
-from doc_scripts.doc_graph import heading_errors, lineage_errors, open_assumption_errors, project_errors, weight_errors
+from doc_scripts.doc_graph import (
+    condense_superseded_revisions,
+    heading_errors,
+    lineage_errors,
+    open_assumption_errors,
+    project_errors,
+    superseded_structure_errors,
+    weight_errors,
+)
 from doc_scripts.doc_records import record_errors
 from doc_scripts.doc_reliance import reliance_warnings
 from doc_scripts.doc_removed import ledger_errors
@@ -394,7 +402,12 @@ def check_nist_alignment_currency() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--strict", action="store_true", help="fail on an unmet reliance between decisions, which is otherwise a warning")
+    parser.add_argument("--fix", action="store_true", help="first cut every superseded revision down to its frozen sections, then run the checks")
     args = parser.parse_args(argv or [])
+
+    if args.fix:
+        for path in condense_superseded_revisions(ROOT):
+            print(f"Condensed {path.relative_to(ROOT)}")
 
     check_doc_indexes()
     check_ansible_reference()
@@ -409,6 +422,7 @@ def main(argv: list[str] | None = None) -> int:
     errors.extend(heading_errors(ROOT))
     errors.extend(open_assumption_errors(ROOT))
     errors.extend(weight_errors(ROOT))
+    errors.extend(superseded_structure_errors(ROOT))
     errors.extend(project_errors(ROOT))
     errors.extend(exploration_errors(ROOT))
     errors.extend(record_errors(ROOT))

@@ -129,6 +129,12 @@ these narrow, structural things:
   `decision:` revision is `approved` or `accepted`: the revision was approved
   before the assumption was resolved, or the spike is build work under another
   name. A finished spike stays as history.
+- A `superseded` revision keeps only the frozen sections (Problem, Decision,
+  Invariants, Non-goals, Reconsideration triggers): any other `##` section
+  fails, naming it. `check_doc_drift --fix` cuts the revision to those
+  sections first and then runs the checks; the cut cannot change a frozen
+  section, so the accepted-records check sees no change. See
+  [`docs/decisions/README.md#superseded-revisions`](../../../decisions/README.md#superseded-revisions).
 - A revision's `weight` is `full` or `light`. A `light` revision has no
   `Invariants`, `Non-goals` or `Validation` section and a body of at most
   `LIGHT_MAX_WORDS` words (`doc_graph.py`); a full one is not limited. See

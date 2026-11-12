@@ -4,7 +4,8 @@ Pure functions, shared by check_accepted_records.py.
 An `accepted` or `superseded` revision may be shortened in place if what it
 decided is unchanged: its title, its one-line solution, and its Problem,
 Decision, Invariants, Non-goals and Reconsideration triggers sections. Context
-narration, Consequences, Validation and the rest may be cut. Editorial fixes
+narration, Consequences, Validation and the rest may be cut; a `superseded` revision
+must have them cut and keeps only the frozen sections (`surplus_sections`). Editorial fixes
 the decisions README allows inside those sections (a link target, a moved-file
 note, a short name in a link's text) do not count as a change.
 """
@@ -58,6 +59,41 @@ def changed_parts(base_text: str, head_text: str) -> list[str]:
     """Names of the frozen parts that differ between two texts of one revision."""
     before, after = frozen_view(base_text), frozen_view(head_text)
     return [name for name in before if before[name] != after[name]]
+
+
+def _split_sections(body: str) -> tuple[list[str], list[tuple[str, list[str]]]]:
+    """The lines before the first `## ` heading, then each section as (heading, its lines,
+    heading included). A `## ` line inside a fenced code block is not a heading."""
+    preamble: list[str] = []
+    sections: list[tuple[str, list[str]]] = []
+    fenced = False
+    for line in body.splitlines():
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+        heading = None if fenced else re.match(r"## (.+?)[ \t]*$", line)
+        if heading:
+            sections.append((heading.group(1), [line]))
+        elif sections:
+            sections[-1][1].append(line)
+        else:
+            preamble.append(line)
+    return preamble, sections
+
+
+def surplus_sections(body: str) -> list[str]:
+    """The `## ` headings of a revision that a superseded one may not keep."""
+    return [name for name, _ in _split_sections(body)[1] if name not in FROZEN_SECTIONS]
+
+
+def condense_superseded(text: str) -> str:
+    """The text of a superseded revision cut to what it keeps: its frontmatter, its title heading and
+    the frozen sections, each as written. What was current in it is carried by its successor."""
+    m = _FRONTMATTER_RE.match(text)
+    head, body = (f"---\n{m.group(1)}\n---\n", m.group(2)) if m else ("", text)
+    preamble, sections = _split_sections(body)
+    chunks = ["\n".join(preamble).strip("\n")]
+    chunks += ["\n".join(lines).strip("\n") for name, lines in sections if name in FROZEN_SECTIONS]
+    return head + "\n" + "\n\n".join(c for c in chunks if c) + "\n"
 
 
 def frozen_errors(changes: list[tuple[str, str, str]], editorial: set[str]) -> list[str]:

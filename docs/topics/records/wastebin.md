@@ -25,7 +25,7 @@ A paste service on `services`. The image build is in [`wastebin.md`](../services
 
 ## Disaster recovery
 
-Backed up: `data` at the default schedule ([`backup.md`](../disaster-recovery/backup.md)). Restored on 2026-09-01, 2026-10-23 and 2026-11-06; the first two checked the restored database against the archive, and the last did not compare contents or use the app ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Backed up: `data` at the default schedule ([`backup.md`](../disaster-recovery/backup.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

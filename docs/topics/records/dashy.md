@@ -27,7 +27,7 @@ The service dashboard on `services`. The catalog's facts are in the [coverage ta
 
 ## Disaster recovery
 
-Not backed up, because the configuration is rendered from the repository; recovery tier 3. It was rebuilt by the deploy in the drill of 2026-11-06 ([`fire-drill.md`](../disaster-recovery/fire-drill.md)).
+Not backed up, because the configuration is rendered from the repository; recovery tier 3.
 
 ## Lifecycle
 

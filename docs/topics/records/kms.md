@@ -26,7 +26,7 @@ A Windows and Office activation emulator with a web console, on `services`. The 
 
 ## Disaster recovery
 
-Backed up: `data`, with both containers stopped during the archive ([`backup.md`](../disaster-recovery/backup.md)). Restored on 2026-11-06 on the rebuilt `services`; the drill did not use the app afterwards or compare the contents ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Backed up: `data`, with both containers stopped during the archive ([`backup.md`](../disaster-recovery/backup.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

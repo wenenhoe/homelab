@@ -26,7 +26,7 @@ A browser speed test on `services`. The catalog's facts are in the [coverage tab
 
 ## Disaster recovery
 
-Nothing to back up; recovery tier 3. A deploy rebuilds it. No drill has covered it.
+Nothing to back up; recovery tier 3. A deploy rebuilds it.
 
 ## Lifecycle
 

@@ -34,7 +34,7 @@ The forward-auth gate in front of every Caddy route that does not set `auth: fal
 
 ## Disaster recovery
 
-Backed up: `data`, with the container stopped during the archive so SQLite is not copied mid-write ([`backup.md`](../disaster-recovery/backup.md)). Restored on 2026-11-02 together with `lldap`; a login worked afterwards ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). Losing it loses the sessions, not the accounts. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Backed up: `data`, with the container stopped during the archive so SQLite is not copied mid-write ([`backup.md`](../disaster-recovery/backup.md)). It is restored together with `lldap`. Losing it loses the sessions, not the accounts. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

@@ -32,7 +32,7 @@ The per-host agent that reports host and container metrics to the hub; it runs o
 
 ## Disaster recovery
 
-Not backed up; recovery tier 3. A redeploy restores the agent, and the fingerprint on the hub must be updated by hand for a rebuilt host ([`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md#still-done-by-hand)). It was brought up on the rebuilt `security` and `play` in the drills of 2026-11-01 and 2026-11-02; the first of these recorded no agent state ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). Acceptable loss and downtime: Unknown.
+Not backed up; recovery tier 3. A redeploy restores the agent, and the fingerprint on the hub must be updated by hand for a rebuilt host ([`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md#still-done-by-hand)). Acceptable loss and downtime: Unknown.
 
 ## Lifecycle
 

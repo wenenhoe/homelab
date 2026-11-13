@@ -32,7 +32,7 @@ Holds the user accounts, groups and password hashes in the `data` volume, and it
 
 ## Disaster recovery
 
-Not tier 1, but backed up: `data` and `certs` at the default schedule ([`backup.md`](../disaster-recovery/backup.md)). It was restored with `tinyauth` on 2026-11-02, on the rebuilt `security`; that drill did not enumerate the users and groups afterwards ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). The drill restored `lldap`, `tinyauth` and `beszel-hub` with `deploy.yaml` and `restore.yaml`. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Not tier 1, but backed up: `data` and `certs` at the default schedule ([`backup.md`](../disaster-recovery/backup.md)). It is restored with `deploy.yaml` and `restore.yaml`, together with `tinyauth` and `beszel-hub` on a rebuilt `security`. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

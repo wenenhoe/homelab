@@ -30,7 +30,7 @@ The job-heartbeat monitor, on `security`. Each scheduled job pushes a heartbeat 
 
 ## Disaster recovery
 
-Not backed up, by design: the history is not needed, and the config and tokens are rebuilt from the repository and OpenBao. Stopping the container to copy the database would restart every heartbeat timer and delay detection ([`gatus.md`](../monitoring/gatus.md#runtime-config)). Recovery tier 3. A new instance shows an endpoint only after its first interval passes. No drill has rebuilt it. Acceptable loss and downtime: Unknown.
+Not backed up, by design: the history is not needed, and the config and tokens are rebuilt from the repository and OpenBao. Stopping the container to copy the database would restart every heartbeat timer and delay detection ([`gatus.md`](../monitoring/gatus.md#runtime-config)). Recovery tier 3. A new instance shows an endpoint only after its first interval passes. Acceptable loss and downtime: Unknown.
 
 ## Lifecycle
 

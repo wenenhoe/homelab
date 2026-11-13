@@ -7,42 +7,13 @@ short: Decision and project workflow
 solution: "Open questions live in explorations until a choice is made, decisions come in two weights, a project starts only on an approved decision, and accepted records are kept small by condensing, merging and demoting"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended with a home for unsettled questions, a lighter record for small decisions, and a way to compact accepted records."
 topic: documentation-process
-status: accepted
+status: superseded
+superseded_by: 5
 supersedes: 3
 related: [ADR-0061, ADR-0080, ADR-0082]
 ---
 
 # Explorations before decisions, two weights of decision, and compaction
-
-## Context
-
-Revisions 0 to 3 keep three kinds of knowledge apart: why (decisions), what
-remains (projects) and what is true now (topic docs). Three things have grown
-around that split.
-
-**Unsettled questions have no home.** A question that has no chosen solution
-yet is filed as a `working` revision, so the decision index holds
-explorations whose solution reads "undecided" or "leaning". Projects are then
-opened against them, so the planning view lists many `not-started` projects
-that wait on a `working` revision and have nothing to do. Thinking done before
-a decision has also been kept outside the repository, where it has no
-lifecycle and nobody can review it.
-
-**One weight for every decision.** A choice that is cheap to reverse, such as
-where a script lives or how a package is named, is recorded with the same
-sections as a trust boundary. The decision corpus has grown to several times
-the length of all project docs together, and some accepted records are mostly
-a table of moved files.
-
-**No way to make an accepted record smaller.** An `accepted` revision cannot
-be condensed, because that is a material change. Supersession is one-to-one,
-`superseded_by` and `narrows` each name one thing, so several records that
-have turned out to be one problem cannot be merged. `former_ids` reserves a
-retired number and redirects nothing: a link to a deleted decision path fails
-`check_doc_drift.py`, and so does a `related:` entry that names no lineage.
-Closing a project also requires each revision it names to be `accepted` or
-named by a remaining project, so a project that waits on a `working` revision
-cannot be withdrawn.
 
 ## Decision
 
@@ -125,36 +96,6 @@ agent working a project.
 - Candidates are found by an advisory script, and a generated report is read
   every quarter. Neither edits anything.
 
-## Alternatives considered
-
-- **Bring back draft ADRs.** `working` already is that state, and the drafts
-  would hold the same exploration under another name. Rejected.
-- **Leave exploration in `working` revisions.** What the index shows today,
-  with projects opened against undecided questions. Rejected.
-- **A separate document type for light decisions.** Needs a second index and a
-  second set of checks for no gain over a flag. Rejected.
-- **Keep design notes outside the repository.** No review, no lifecycle, and
-  the reasoning is lost when the notes are. Rejected.
-- **Condense in place without a frozen-section check.** Trusts every change to
-  keep the reasoning. Rejected: the point of `accepted` is that it cannot move.
-- **Renumber the whole corpus to close gaps.** Churn in every link for no
-  change in meaning. Rejected; numbers are never reused.
-
-## Consequences
-
-- A new directory, a new frontmatter type, a lifecycle-table change and
-  several checks.
-- Projects that wait on a `working` revision today are withdrawn or kept as
-  spikes as their decisions come up, one at a time, because the stage plan in
-  such a doc is lost on deletion until the revision is approved again.
-- Initiatives that used `phase` for an order that is not a dependency lose
-  that order, so each is checked when `phase` is removed.
-- Merging and demoting are manual and reviewed. They shrink the corpus only as
-  fast as the maintainer takes them up.
-- [`docs/decisions/README.md`](../README.md), [`docs/projects/README.md`](../../projects/README.md)
-  and [`docs/README.md`](../../README.md) describe the rules, and `AGENTS.md`
-  routes a change to the right kind of doc.
-
 ## Invariants
 
 - A question that has no chosen solution is not a decision, and no decision or
@@ -171,14 +112,6 @@ agent working a project.
 - A way for an agent to compact records unattended.
 - Exploration of private-side work, which waits for its own decision.
 
-## Validation
-
-- The exploration checks, the frozen-section comparison, the weight checks and
-  the project limits are tests under `tools/tests/doc_scripts/`, each with a
-  control that fails without the rule.
-- The quarterly report shows stale explorations, aging `working` revisions,
-  the number of active projects, and consolidation candidates.
-
 ## Reconsideration triggers
 
 - Open explorations pile up faster than they close.
@@ -186,10 +119,3 @@ agent working a project.
 - Light records keep being revised into full ones.
 - External contributors open pull requests, so the doc workflow needs a gate
   that the maintainer-only rules do not.
-
-## Revision notes
-
-Revision 4 adds a pre-decision tier, a second weight, project rules that follow
-from them, and the compaction operations. Revision 3's closing rule is
-unchanged, apart from letting a project that names only `working` revisions be
-withdrawn.

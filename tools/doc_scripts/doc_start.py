@@ -10,8 +10,10 @@ rule reads only the docs a change adds, so a project that was already waiting
 on a `working` decision is not re-judged.
 
 A project moves to `building` only once its plan is confirmed: no longer a draft,
-with `allowed_paths` set, and, for a plan that was a draft, with the stage table
-read again against the approved decision (ADR 0037 revision 5). The re-reading is
+with `allowed_paths` set and complete (suggest_project_scope.completeness_errors), and,
+for a plan that was a draft, with the stage table read again against the approved
+decision (ADR 0037 revision 5). While it builds, its scope may widen, in a change of
+its own, but not narrow: it narrows only when the project closes. The re-reading is
 shown by a change to the Execution plan, or by a `Plan-Confirmed: <path>` trailer
 on a commit of the change when the table needed none.
 """
@@ -33,6 +35,11 @@ def _plan_table(text: str) -> str:
     return match.group(1).strip() if match else ""
 
 
+def starts_building(before: str | None, after: str) -> bool:
+    """Whether the change sets this project to `building`, as opposed to leaving it there."""
+    return split(after)[0].get("status") == "building" and (split(before)[0] if before is not None else {}).get("status") != "building"
+
+
 def building_errors(path: str, before: str | None, after: str, confirmed: set[str] | None) -> list[str]:
     """What stops one project doc moving to `building`. `before` is the doc on the base (None when
     the change adds it) and `after` as the change leaves it. `confirmed` holds the paths named by
@@ -40,7 +47,10 @@ def building_errors(path: str, before: str | None, after: str, confirmed: set[st
     in the making), when the re-reading is not judged."""
     old = split(before)[0] if before is not None else {}
     new = split(after)[0]
-    if new.get("status") != "building" or old.get("status") == "building":
+    if old.get("status") == "building" and new.get("status") == "building":
+        dropped = sorted(set(old.get("allowed_paths") or []) - set(new.get("allowed_paths") or []))
+        return [f"{path}: allowed_paths drops `{entry}` — a scope narrows only when the project closes" for entry in dropped]
+    if not starts_building(before, after):
         return []
     errors = []
     if new.get("plan") == "draft":

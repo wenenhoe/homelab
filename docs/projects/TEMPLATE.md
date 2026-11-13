@@ -11,6 +11,7 @@ summary: "<one line; feeds the generated index>"
 # super_project: <slug>     # optional grouping of projects into an initiative
 # allowed_paths:          # set before status: building; the globs this work may change (see README.md#choosing-the-scope)
 #   - path/to/thing/**
+# sweep_terms: []         # names the work removes or renames; the start gate checks every file mentioning one is in scope or under "Not in"
 # depends_on:
 #   - project: PROJ-other-project
 #     reason: "Concrete prerequisite: work here cannot proceed until it is done"

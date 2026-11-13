@@ -166,6 +166,9 @@ def _validate_project(path: Path, data: dict) -> None:
         _fail(path, "'blocked' must be true or false")
     if data.get("blocked") is True and not data.get("blocked_reason"):
         _fail(path, "blocked: true needs a 'blocked_reason' field")
+    terms = data.get("sweep_terms")
+    if "sweep_terms" in data and not (isinstance(terms, list) and all(isinstance(t, str) and t.strip() for t in terms)):
+        _fail(path, "'sweep_terms' must be a list of non-empty strings")
     if "plan" in data and data["plan"] not in PLANS:
         _fail(path, f"'plan' must be one of {sorted(PLANS)}, not {data['plan']!r}")
     if "super_project" in data and not (isinstance(data["super_project"], str) and SLUG_RE.match(data["super_project"])):

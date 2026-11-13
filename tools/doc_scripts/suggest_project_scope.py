@@ -5,13 +5,16 @@ instead of where the author remembers them:
 
   named    paths the project doc says it will change: its Scope (without "Not in"), Execution
            plan and Acceptance criteria sections
-  closing  files the closing PR edits: every file that names the project doc, and the NIST
-           alignment page when it links a revision the close supersedes
-  sweep    every tracked file that mentions a --sweep TERM (a name the project removes, renames
-           or reshapes), outside decision history, for the author to put in scope or under
-           "Not in"
+  sweep    every tracked file that mentions a --sweep TERM or one of the project's
+           `sweep_terms` (a name the project removes, renames or reshapes), outside decision
+           history, for the author to put in scope or under "Not in"
 
-Advisory: prints and exits 0. It reads the project doc and the tree as they stand now, not the
+The files a closing PR edits need no entry: the ones that name the deleted project doc, the
+decision revisions, the NIST page when it links a revision the close supersedes, and the topics
+index are exempt (doc_scope.py). The named and sweep passes also run as the gate on a project
+moving to `building` (completeness_errors; check_project_start.py).
+
+Advisory as a command: prints and exits 0. It reads the project doc and the tree as they stand now, not the
 base, since it is meant for writing the scope. docs/projects/README.md#scope says what the scope
 is for.
 """
@@ -28,7 +31,6 @@ from pathlib import Path
 from doc_scripts.doc_frontmatter import ROOT, read_frontmatter
 from doc_scripts.doc_scope import IMPLICIT_PATTERNS, PROJECT_DOC_RE, glob_to_regex, lifecycle_paths
 
-NIST_PAGE = "docs/topics/engineering/nist-800-53-alignment.md"
 CODE_SPAN_RE = re.compile(r"`([^`\n]+)`")
 LINK_RE = re.compile(r"\]\(([^)\s#]+)(?:#[^)\s]*)?\)")
 
@@ -47,13 +49,12 @@ class Report:
     allowed: list[str]
     exempt: dict[str, str]
     named: list[Finding] = field(default_factory=list)
-    closing: list[Finding] = field(default_factory=list)
     sweep: dict[str, list[Finding]] = field(default_factory=dict)
 
     def proposed(self) -> list[str]:
-        """Today's entries plus the named and closing ones that no other new entry already covers.
+        """Today's entries plus the named ones that no other new entry already covers.
         Sweep hits wait for the author's call."""
-        new = list(dict.fromkeys(f.entry for f in [*self.named, *self.closing]))
+        new = list(dict.fromkeys(f.entry for f in self.named))
         for entry in list(new):
             if any(other != entry and glob_to_regex(other).match(entry) for other in new):
                 new.remove(entry)
@@ -88,6 +89,12 @@ def stated_changes(text: str) -> str:
     Execution plan and the Acceptance criteria. Agent handoff and Risks also name files the project only reads."""
     scope = re.sub(r"^Not in:.*?(?:\n\s*\n|\Z)", "", section(text, "Scope"), flags=re.DOTALL | re.MULTILINE)
     return "\n".join([scope, section(text, "Execution plan"), section(text, "Acceptance criteria")])
+
+
+def not_in(text: str) -> str:
+    """The "Not in:" paragraph of the Scope section: what the project says it leaves alone."""
+    match = re.search(r"^Not in:.*?(?:\n\s*\n|\Z)", section(text, "Scope"), flags=re.DOTALL | re.MULTILINE)
+    return match.group(0) if match else ""
 
 
 def named_patterns(text: str, doc: str) -> list[str]:
@@ -140,26 +147,26 @@ def build_report(root: Path, doc: str, terms: list[str]) -> Report:
             count = f"{len(missing)} files; " if len(missing) > 1 else ""
             report.named.append(Finding(entry_for(pattern, tracked), missing, f"{count}named in the doc as `{pattern}`"))
 
-    for path in nul_list(root, "grep", "-l", "--null", "-I", "-F", "-e", f"projects/{Path(doc).name}"):
-        if path != doc and not covered(path):
-            report.closing.append(Finding(path, (path,), "names this project doc, so closing it edits this file"))
-
-    nist = root / NIST_PAGE
-    if nist.is_file() and not covered(NIST_PAGE):
-        page = nist.read_text(encoding="utf-8")
-        for old in (path for path, why in exempt.items() if why == "superseded"):
-            name = f"{Path(old).parent.name}/{Path(old).name}"
-            if name in page:
-                why = f"links `{name}`, which the close supersedes; the drift check fails until it names the successor"
-                report.closing.append(Finding(NIST_PAGE, (NIST_PAGE,), why))
-                break
-
-    for term in dict.fromkeys(terms):
+    text = (root / doc).read_text(encoding="utf-8")
+    declined = {f for pattern in named_patterns(not_in(text), doc) for f in files_named(pattern, tracked)}
+    for term in dict.fromkeys([*(fm.get("sweep_terms") or []), *terms]):
         hits = count_hits(root, term)
         report.sweep[term] = [
-            Finding(path, (path,), f"{n} line{'s' if n != 1 else ''}") for path, n in hits.items() if not in_history(path) and not covered(path)
+            Finding(path, (path,), f"{n} line{'s' if n != 1 else ''}")
+            for path, n in hits.items()
+            if not in_history(path) and not covered(path) and path not in declined
         ]
     return report
+
+
+def completeness_errors(root: Path, doc: str) -> list[str]:
+    """What the scope of a project that is starting to build lacks: a path its stages and criteria name,
+    or a file that mentions one of its `sweep_terms`, that is neither in `allowed_paths` nor under "Not in"."""
+    report = build_report(root, doc, [])
+    errors = [f"{doc}: allowed_paths lacks `{f.entry}` ({f.why})" for f in report.named]
+    for term, findings in report.sweep.items():
+        errors.extend(f'{doc}: allowed_paths lacks `{f.entry}` (mentions "{term}", {f.why}) — put it in scope or under "Not in"' for f in findings)
+    return errors
 
 
 def render(report: Report) -> str:
@@ -172,11 +179,9 @@ def render(report: Report) -> str:
     out = [f"{report.project_id} ({report.doc}): {len(report.allowed)} allowed_paths entries today", ""]
     out += block("Exempt without an entry", [f"{path}  ({why})" for path, why in report.exempt.items()])
     out += block("Named by the project doc, not covered", lines_of(report.named))
-    out += block("Edited by the closing PR, not covered", lines_of(report.closing))
     for term, findings in report.sweep.items():
         out += block(f'Mention "{term}", not covered: put each in scope or under "Not in"', lines_of(findings))
-    out += ["allowed_paths with the named and closing entries added:", "  allowed_paths:", *(f"    - {entry}" for entry in report.proposed()), ""]
-    out.append("Not detected: a new topic doc needs a row in docs/topics/README.md, which no scope exempts.")
+    out += ["allowed_paths with the named entries added:", "  allowed_paths:", *(f"    - {entry}" for entry in report.proposed()), ""]
     return "\n".join(out)
 
 

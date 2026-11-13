@@ -224,24 +224,24 @@ four lists. Each holds only files the scope doesn't cover yet, and `none`
 means that pass found nothing.
 
 - **Exempt without an entry** — the decision revisions the close edits (see
-  [Project scope check](#project-scope-check)).
+  [Project scope check](#project-scope-check)). The other files the close
+  edits, those naming the project doc, the NIST page and the topics index, are
+  exempt in the check and aren't listed.
 - **Named by the project doc** — tracked files named by a code-span path or a
   relative link in the doc's Scope (without its `Not in` paragraph), Execution
   plan and Acceptance criteria. A named directory becomes a `dir/**` entry. A
   path no tracked file matches, such as a file the project will create, isn't
   found.
-- **Edited by the closing PR** — every file that names the project doc, since
-  the drift check fails a path to a project doc that no longer exists, and
-  the NIST alignment page when it links a revision the close supersedes.
-- **Mentions of each `--sweep TERM`** — tracked files outside `docs/decisions/`
+- **Mentions of each `--sweep TERM`**, plus the doc's `sweep_terms` — tracked files outside `docs/decisions/`
   that mention a name the project removes, renames or reshapes (fixed text,
   ignoring case), with the number of matching lines. Each is the author's call:
-  put it in scope or name it under `Not in`. They stay out of the proposed block.
+  put it in scope or name it under `Not in`; a hit under `Not in` isn't listed.
+They stay out of the proposed block.
 
-It ends with the `allowed_paths` block that adds the named and closing entries
-to today's, leaving out an entry another new entry already covers. A new topic
-doc's row in `docs/topics/README.md` isn't found, and no scope exempts that
-file.
+It ends with the `allowed_paths` block that adds the named entries to today's,
+leaving out an entry another new entry already covers. The
+[project start check](#project-start-check) runs the named-file and sweep passes
+and fails on what they list.
 
 ## Renumbering a patch series' lineages
 
@@ -323,8 +323,11 @@ decision: the Execution plan changes in the same change, or a commit of the
 change carries a `Plan-Confirmed: <project doc path>` trailer when the table
 needed no change. The trailers are read from the commits between the merge-base
 and the head, as the `Editorial-Fix:` trailer is, so a pull request merged with
-a merge commit is judged by its own commits. A project already `building` is
-not judged again, and the `check-doc-change` hook on the index does not judge
+a merge commit is judged by its own commits. The scope must
+also be complete: the named-file and `sweep_terms` passes of the scope
+suggestions find nothing the scope lacks and `Not in` doesn't decline. A project
+already `building` is not re-gated, but its scope can't narrow (it narrows only
+when the project closes), and the `check-doc-change` hook on the index does not judge
 the trailer, which is written with the commit message after the hook runs.
 
 It runs where the close check runs, with the same merge-base diff and the same

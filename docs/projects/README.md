@@ -200,7 +200,10 @@ the doc's prose or links, as a wording or link sweep across every doc
 does, doesn't tie the change to it. Every other file that change touches must
 match `allowed_paths`, apart from what the workflow itself produces:
 project docs, the generated decision index and project-planning view
-(a status change regenerates both), and the decision revisions its
+(a status change regenerates both), the topics index, every file that names a
+project doc the change deletes (the drift check fails a path to a doc that no
+longer exists), the NIST alignment page when it links a revision the change
+supersedes, and the decision revisions its
 close edits: the one `decision:` names, each one in `also_implements:`,
 and the revision each of those supersedes, since accepting a successor
 marks its predecessor `superseded`. The predecessor is the one named by
@@ -211,7 +214,9 @@ One that touches several scoped projects gets the union of their scopes.
 
 The scope in force is the one on the base branch, not the one in the
 change, so widening `allowed_paths` is its own change, reviewed before it
-is used. A project doc that is new in a change has no scope yet.
+is used. A project doc that is new in a change has no scope yet. Once a
+project is `building`, its scope may widen but not narrow: it narrows only when
+the project closes.
 
 This is the mechanical half of the "scope needs to grow" stop condition:
 work that needs a file outside `allowed_paths` fails the check and stops.
@@ -223,8 +228,8 @@ where it runs is in
 
 ### Choosing the scope
 
-A project's scope is every file its pull requests edit, the one that
-closes it included. Widening it is its own change, so each file found
+A project's scope is every file its pull requests edit, apart from what the
+workflow itself produces (see [Scope](#scope)). Widening it is its own change, so each file found
 late costs a pull request. Derive the scope from the project instead of
 from memory of where the work lives:
 
@@ -237,21 +242,22 @@ from memory of where the work lives:
    such name (a product, a pin, a variable, a key), search the tree. A file
    that mentions it is in scope, or is named under "Not in" with the
    reason. Don't list the places you remember: the ones you forgot are the
-   ones that stop the work.
-3. **Walk the closing pull request.** It deletes the project doc, so every
-   file that names the doc changes too. The decision revisions it edits are
-   [exempt](#scope). The NIST alignment page is not: it changes when it
-   links the revision being superseded. Neither are the topic docs that
-   will describe the new behavior, nor a new topic doc's row in
-   `docs/topics/README.md`.
+   ones that stop the work. List the names in the frontmatter's `sweep_terms`
+   so the start gate runs the search for you.
+3. **Add the topic docs that will describe the new behavior.** The closing
+   pull request's own edits (the files that name the project doc, the NIST
+   page, the decision revisions, the topics index) are [exempt](#scope).
 4. **Shape the entries.** A directory glob for a component the project
    changes, an exact file for anything peripheral. Never an exact file
    inside a component the project already changes: the next file in that
    directory is the next widening.
 
 [`suggest_project_scope`](../topics/engineering/ci/doc-checks.md#scope-suggestions)
-runs the searches behind steps 1 to 3 and prints the entries that are
-missing. What a hit means is still the author's call.
+runs the searches behind steps 1 and 2 and prints the entries that are
+missing. What a hit means is still the author's call, but the check that
+moves a project to `building` runs the same searches and fails on a path the
+plan names, or a file that mentions a `sweep_terms` term, that the scope neither
+covers nor lists under "Not in".
 
 ## Public repo
 

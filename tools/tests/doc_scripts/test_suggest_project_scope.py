@@ -11,7 +11,6 @@ from _doc_fixtures import GitRepo, revision, write_doc
 from doc_scripts import suggest_project_scope as cli
 
 DOC = "docs/projects/p.md"
-NIST = "docs/topics/engineering/nist-800-53-alignment.md"
 
 
 def body(in_line: str = "In: the `src/app/` role and [the topic](../topics/app.md).", not_in: str = "Not in: `src/other/thing.py`.") -> str:
@@ -195,63 +194,49 @@ class TestExempt:
         assert report(repo).exempt == {}
 
 
-class TestClosing:
-    def test_a_file_that_names_the_project_doc_is_reported(self, repo):
-        repo.write("docs/topics/other.md", "See [the project](../projects/p.md).\n")
-        repo.commit("a topic doc that links the project")
-        found = report(repo).closing
-        assert entries(found) == ["docs/topics/other.md"]
-        assert "closing it edits this file" in found[0].why
+class TestNotIn:
+    def test_reads_the_not_in_paragraph(self):
+        assert "src/other/thing.py" in cli.not_in(body())
+        assert "src/app" not in cli.not_in(body())
 
-    def test_the_project_doc_and_the_generated_views_are_not_reported(self, repo):
-        repo.write("docs/projects/README.md", "| [`p.md`](p.md) |\n[p](projects/p.md)\n")
-        repo.write("docs/project-planning.md", "[p](projects/p.md)\n")
-        repo.write("docs/projects/p-notes.md", "[p](projects/p.md)\n")
-        repo.commit("indexes and a sibling that name the project")
-        assert report(repo).closing == []
+    def test_a_doc_without_one_gives_nothing(self):
+        assert cli.not_in("## Scope\n\nIn: `src/app/`.\n") == ""
 
-    def test_a_decision_revision_that_names_the_project_is_reported(self, repo):
-        revision(repo.root, "0002-y", 0, body="Built by [the project](../../projects/p.md).\n")
-        repo.commit("an ADR that links the project")
-        assert entries(report(repo).closing) == ["docs/decisions/0002-y/revision-000.md"]
 
-    def test_the_decision_revision_the_project_implements_is_exempt_even_when_it_names_the_project(self, repo):
-        revision(repo.root, "0001-x", 0, body="Built by [the project](../../projects/p.md).\n")
-        repo.commit("the implemented ADR links the project")
-        write_doc(repo.root, DOC, front(decision="ADR-0001/0"), body())
-        assert report(repo).closing == []
+class TestSweepTerms:
+    def test_the_frontmatter_terms_are_swept_with_the_command_line_ones(self, repo):
+        repo.write("legacy/a.md", "widget\n")
+        repo.write("legacy/b.md", "gatus\n")
+        repo.commit("mentions")
+        write_doc(repo.root, DOC, front(sweep_terms=["widget"]), body())
+        assert set(report(repo, "gatus").sweep) == {"widget", "gatus"}
 
-    @pytest.fixture
-    def superseding(self, repo) -> GitRepo:
-        revision(repo.root, "0001-x", 0)
-        revision(repo.root, "0001-x", 1, supersedes=0)
-        write_doc(repo.root, DOC, front(decision="ADR-0001/1"), body())
-        return repo
+    def test_a_hit_under_not_in_is_acknowledged(self, repo):
+        repo.write("src/other/thing.py", "widget\n")
+        repo.commit("a mention in a file the scope declines")
+        write_doc(repo.root, DOC, front(sweep_terms=["widget"]), body())
+        assert report(repo).sweep["widget"] == []
 
-    def test_the_nist_page_is_reported_when_it_links_the_revision_the_close_supersedes(self, superseding):
-        superseding.write(NIST, "| AC-6 | [ADR 0001](../../decisions/0001-x/revision-000.md) |\n")
-        superseding.commit("the NIST page links the original")
-        found = report(superseding).closing
-        assert entries(found) == [NIST]
-        assert "revision-000.md" in found[0].why
 
-    def test_the_nist_page_is_not_reported_when_it_links_only_the_successor(self, superseding):
-        superseding.write(NIST, "| AC-6 | [ADR 0001](../../decisions/0001-x/revision-001.md) |\n")
-        superseding.commit("the NIST page links the successor")
-        assert report(superseding).closing == []
+class TestCompletenessErrors:
+    def test_a_scope_lacking_a_named_path_fails(self, repo):
+        errors = cli.completeness_errors(repo.root, DOC)
+        assert any("allowed_paths lacks `src/app/**`" in e for e in errors)
 
-    def test_the_nist_page_is_not_reported_when_the_project_supersedes_nothing(self, repo):
-        revision(repo.root, "0001-x", 0)
-        repo.write(NIST, "| AC-6 | [ADR 0001](../../decisions/0001-x/revision-000.md) |\n")
-        repo.commit("the NIST page links an original nothing supersedes")
-        write_doc(repo.root, DOC, front(decision="ADR-0001/0"), body())
-        assert report(repo).closing == []
+    def test_a_complete_scope_passes(self, repo):
+        write_doc(repo.root, DOC, front(allowed_paths=["src/app/**", "docs/topics/app.md"]), body())
+        assert cli.completeness_errors(repo.root, DOC) == []
 
-    def test_the_nist_page_is_not_reported_when_the_scope_covers_it(self, superseding):
-        superseding.write(NIST, "| AC-6 | [ADR 0001](../../decisions/0001-x/revision-000.md) |\n")
-        superseding.commit("the NIST page links the original")
-        write_doc(superseding.root, DOC, front(decision="ADR-0001/1", allowed_paths=[NIST]), body())
-        assert report(superseding).closing == []
+    def test_a_file_mentioning_a_sweep_term_fails_until_covered_or_declined(self, repo):
+        repo.write("legacy/a.md", "widget\n")
+        repo.commit("a mention")
+        write_doc(repo.root, DOC, front(allowed_paths=["src/app/**", "docs/topics/app.md"], sweep_terms=["widget"]), body())
+        errors = cli.completeness_errors(repo.root, DOC)
+        assert len(errors) == 1
+        assert 'mentions "widget"' in errors[0]
+        assert "legacy/a.md" in errors[0]
+        write_doc(repo.root, DOC, front(allowed_paths=["src/app/**", "docs/topics/app.md", "legacy/a.md"], sweep_terms=["widget"]), body())
+        assert cli.completeness_errors(repo.root, DOC) == []
 
 
 class TestSweep:
@@ -296,11 +281,9 @@ class TestSweep:
 
 
 class TestProposed:
-    def test_keeps_todays_entries_then_adds_the_named_and_closing_ones_without_repeats(self, repo):
-        repo.write("docs/topics/other.md", "See [the project](../projects/p.md) and [the topic](app.md).\n")
-        repo.commit("a topic doc that links the project")
+    def test_keeps_todays_entries_then_adds_the_named_ones_without_repeats(self, repo):
         write_doc(repo.root, DOC, front(allowed_paths=["docs/topics/app.md"]), body())
-        assert report(repo).proposed() == ["docs/topics/app.md", "src/app/**", "docs/topics/other.md"]
+        assert report(repo).proposed() == ["docs/topics/app.md", "src/app/**"]
 
     def test_an_entry_inside_another_new_entry_is_left_out(self, repo):
         # `src/app/` and `src/app/tasks.yaml` are both named; the directory glob covers the file
@@ -315,7 +298,7 @@ class TestCli:
     def test_prints_every_section_and_exits_zero_even_with_findings(self, repo):
         code, out = repo.run_cli("p", "--sweep", "widget")
         assert code == 0, out
-        for heading in ("Exempt without an entry", "Named by the project doc, not covered", "Edited by the closing PR, not covered", 'Mention "widget"'):
+        for heading in ("Exempt without an entry", "Named by the project doc, not covered", 'Mention "widget"'):
             assert heading in out
         assert "- src/app/**" in out
 
@@ -323,7 +306,7 @@ class TestCli:
         write_doc(repo.root, DOC, front(allowed_paths=["src/app/**", "docs/topics/app.md"]), body())
         code, out = repo.run_cli("p")
         assert code == 0, out
-        assert out.count("  none") == 3
+        assert out.count("  none") == 2
         assert "- src/app/**" in out
 
     @pytest.mark.parametrize("arg", ["p", "p.md", "docs/projects/p.md"], ids=["name", "file-name", "path"])

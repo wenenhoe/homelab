@@ -8,6 +8,16 @@ summary: Chained jobs on the CD agent, the monthly leaf-credential rotation that
 decision: ADR-0074/0
 also_implements: [ADR-0075/0]
 super_project: pull-based-cd
+allowed_paths:
+  - ansible/roles/cd_agent/**
+  - ansible/filter_plugins/cd_agent_chain.py
+  - ansible/inventory/inventory.yaml
+  - ansible/inventory/group_vars/cd_agent.yaml
+  - ansible/inventory/host_vars/storage.yaml
+  - ansible/roles/cloud_sync/**
+  - ansible/tests/test_cd_agent_*.py
+  - docs/topics/deploy/cd-agent-host.md
+  - docs/topics/secrets/cloud-credentials/rotation.md
 ---
 
 # CD Agent Chained Jobs, Rotation and Job SSH Keys

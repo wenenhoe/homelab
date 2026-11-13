@@ -12,6 +12,25 @@ super_project: pull-based-cd
 depends_on:
   - project: PROJ-operator-host
     reason: Nothing can apply the role until VM 302 exists, because `sshd` accepts the operator host's address alone
+allowed_paths:
+  - ansible/roles/cd_agent/**
+  - ansible/filter_plugins/cd_agent_chain.py
+  - ansible/playbooks/cd-agent.yaml
+  - ansible/inventory/inventory.yaml
+  - ansible/inventory/group_vars/cd_agent.yaml
+  - ansible/inventory/group_vars/all/main.yaml
+  - ansible/inventory/group_vars/all/secret_catalog.yaml
+  - ansible/molecule-coverage/thresholds.yaml
+  - ansible/tests/test_cd_agent_*.py
+  - tools/cd_agent/**
+  - tools/tests/cd_agent/**
+  - tools/cloud_credentials/systemd/**
+  - tools/cloud_credentials/rotate_leaf_keys.py
+  - tools/tests/cloud_credentials/test_rotate_leaf_keys.py
+  - docs/topics/deploy/cd-agent-host.md
+  - docs/topics/deploy/cd-agent-runner.md
+  - docs/topics/infra/host-hardening.md
+  - docs/topics/secrets/cloud-credentials/rotation.md
 ---
 
 # CD Agent Host

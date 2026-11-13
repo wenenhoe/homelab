@@ -7,6 +7,15 @@ blocked: false
 summary: Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host.
 decision: ADR-0042/0
 super_project: off-site-monitoring
+allowed_paths:
+  - ansible/inventory/inventory.yaml
+  - ansible/inventory/group_vars/all/main.yaml
+  - docker/gatus/**
+  - docker/beszel-hub/**
+  - docker/beszel-agent/**
+  - docs/topics/infra/network-infra.md
+  - docs/topics/monitoring/beszel.md
+  - docs/topics/monitoring/gatus.md
 ---
 
 # Monitoring Host Isolation

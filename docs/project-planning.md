@@ -113,3 +113,4 @@ first, so one that has stood still is the first row.
 | [`post-compromise-archive-relay.md`](explorations/post-compromise-archive-relay.md) | How could the lab notice that an archive a compromised host made has been relayed offsite as if it were genuine? | 2026-11-11 |
 | [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-11 |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? | 2026-11-12 |
+| [`remote-series-landing.md`](explorations/remote-series-landing.md) | How could a series be reviewed and landed from the laptop or the phone away from home, and where would the thing that lands it run? | 2026-11-13 |

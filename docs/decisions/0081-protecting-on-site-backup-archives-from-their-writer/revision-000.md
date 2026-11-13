@@ -119,7 +119,11 @@ flags and the same identity shapes as production:
   lifecycle job skips a version whose lock has not ended, so an archive is
   removed only after both its prune and its lock are over. Stored data is
   therefore about the retention window plus two days; the marker's own removal
-  takes one more daily run and frees nothing.
+  takes one more daily run and frees nothing. An archive's `.sig`
+  ([ADR 0079](../0079-knowing-a-backup-archive-came-from-its-host/revision-000.md))
+  is pruned by the signing unit once its archive is no longer listed, and then
+  expires by the same rules, so a signature is locked from its upload and removed
+  after its own prune and lock.
 - **Run the jobs beside SeaweedFS.** An admin server and a worker restricted to
   `s3_lifecycle,vacuum` run next to the all-in-one server in the SeaweedFS
   stack, in its network namespace (`network_mode: service:seaweedfs`), so the
@@ -214,7 +218,7 @@ flags and the same identity shapes as production:
   archive version before its lock ends.
 - No backup identity holds an action that sets retention or bypasses it.
 - An archive's data is removed only after it has been pruned and its lock has
-  ended.
+  ended, and so is its signature's.
 - The admin API of the SeaweedFS stack is not routed through Caddy.
 - No app's retention is shorter than the lock window.
 
@@ -235,7 +239,8 @@ flags and the same identity shapes as production:
   against a target with a short explicit retention, and asserts that an expired
   superseded version and an orphaned marker are removed and a locked one is not.
   A count-based rule stands in for the day count there, since a day cannot
-  elapse in a test.
+  elapse in a test. The scenario includes an archive's `.sig`, pruned by the
+  signing unit, and asserts it is removed on the same terms.
 - A unit test over `backup_plan` fails when an app's retention is below the lock
   window.
 - The operational signals for a stopped worker and for the volume's free space, once named.

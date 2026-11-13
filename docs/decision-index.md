@@ -302,7 +302,7 @@ lists only the ones no project names.
 | [0093](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) | original | Proxmox node install | Working | [`proxmox-node-install.md`](projects/proxmox-node-install.md) |
 | [0096](decisions/0096-knowing-the-pre-commit-hooks-that-run-are-the-reviewed-ones/revision-000.md) | original | Pre-commit hook pins | Working | — |
 | [0102](decisions/0102-knowing-what-a-tofu-change-will-do/revision-000.md) | original | Tofu change review | Working | [`tofu-plan-guard.md`](projects/tofu-plan-guard.md) |
-| [0114](decisions/0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md) | original | Remote series landing | Working | — |
+| [0114](decisions/0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md) | original | Remote series landing | Working | [`gatehouse.md`](projects/gatehouse.md) |
 
 ## History
 

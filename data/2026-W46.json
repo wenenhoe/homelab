@@ -1185,6 +1185,249 @@
      "opened (not-started)"
     ]
    ]
+  },
+  {
+   "cat": "scope",
+   "sha": "79b693862e2fa15cca236f756db44ca11e45395c",
+   "date": "2026-11-13T10:30:05+08:00",
+   "kind": "pr",
+   "pr": 809,
+   "title": "mark plans on undecided revisions as drafts",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d581b04601d0a90a0c97d794cec6a1cdc11b150e",
+   "date": "2026-11-13T10:34:16+08:00",
+   "kind": "pr",
+   "pr": 810,
+   "title": "check the project plan and the shape of a stage",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: project-start-gate",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "efeef25fef105316ef2d88e420f4a91d8e8551cc",
+   "date": "2026-11-13T10:41:54+08:00",
+   "kind": "pr",
+   "pr": 811,
+   "title": "drop the invalid uv manager from the Python package rules",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c882fec303b458763a57edc9f4bdae8562c20ae9",
+   "date": "2026-11-13T10:51:45+08:00",
+   "kind": "pr",
+   "pr": 812,
+   "title": "gate a project's move to building",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: project-start-gate",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "deabcde525ae431082278bae9ed7434c693f3767",
+   "date": "2026-11-13T11:22:35+08:00",
+   "kind": "pr",
+   "pr": 813,
+   "title": "check that a project's scope is complete before it builds",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: project-start-gate",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3590b7fbb038f9079d63023ae5bd6a3b33cc11ee",
+   "date": "2026-11-13T11:39:14+08:00",
+   "kind": "pr",
+   "pr": 814,
+   "title": "warn when a project is sized for a review",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: project-start-gate",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a31c4b6486a120a5376572f56a6b2b2a9ecf38a6",
+   "date": "2026-11-13T11:56:53+08:00",
+   "kind": "pr",
+   "pr": 815,
+   "title": "validate the Renovate config with the pinned Renovate",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "5f6a8368dca7827b3fdc6af7a767ec43268a85de",
+   "date": "2026-11-13T12:11:07+08:00",
+   "kind": "pr",
+   "pr": 816,
+   "title": "give the projects that are building a scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "edb01512e85fc3c6e393bf2540303c2f903d373b",
+   "date": "2026-11-13T12:13:34+08:00",
+   "kind": "pr",
+   "pr": 817,
+   "title": "merge the bind-mount restart into the bind-mounted config files",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: compose-restart-on-changed-mount",
+   "events": [
+    [
+     "project",
+     "compose-restart-on-changed-mount",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "d5ab4cb0800a1641bf808eb7dbced8c28384cc59",
+   "date": "2026-11-13T12:21:58+08:00",
+   "kind": "pr",
+   "pr": 818,
+   "title": "close the project start gate and accept its decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: project-start-gate",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r004 \u00b7 decision and project documentation workflow",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0037 r005 \u00b7 decision and project documentation workflow",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "project-start-gate",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "6aff4f99caf63aa695417fc9fc8f7ca44f43d374",
+   "date": "2026-11-13T13:01:43+08:00",
+   "kind": "pr",
+   "pr": 819,
+   "title": "remind the SSH key stages to read ADR 0075 once approved",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cd-agent-job-ssh-keys",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "70fdf1c989fb07d8cca3b2a3de2c7dfe69d665bc",
+   "date": "2026-11-13T13:04:08+08:00",
+   "kind": "pr",
+   "pr": 820,
+   "title": "prune a backup archive's signature with the archive",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: backup-archive-signing",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "46ac9bd8b4ae4be2d25cd54ab0d18b4d251b898c",
+   "date": "2026-11-13T13:08:40+08:00",
+   "kind": "pr",
+   "pr": 821,
+   "title": "let a \"Not in\" paragraph decline a path the plan names",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "71703e9a17b4350e0bc5e590a29be7654ada17cb",
+   "date": "2026-11-13T13:11:07+08:00",
+   "kind": "pr",
+   "pr": 822,
+   "title": "merge the CD agent AppRoles into the CD agent project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cd-agent-approles",
+   "events": [
+    [
+     "project",
+     "cd-agent-approles",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "def0613e5bc7902ad1dcb962a870ca4a40d7a14c",
+   "date": "2026-11-13T13:19:57+08:00",
+   "kind": "pr",
+   "pr": 823,
+   "title": "state the desktops' Minecraft and KMS flows",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "a1f13ee34b920616fc14cb04064f2ca2d0e78d89",
+   "date": "2026-11-13T22:59:47+08:00",
+   "kind": "pr",
+   "pr": 824,
+   "title": "open the question of landing a series remotely",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "2a2498a317f2cc4a1338a046fd51ae2a220fd775",
+   "date": "2026-11-13T23:02:14+08:00",
+   "kind": "pr",
+   "pr": 825,
+   "title": "decide a console for landing a series away from the laptop",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatehouse",
+   "events": [
+    [
+     "adr",
+     "ADR 0114 r000 \u00b7 landing a series from a device other than the laptop",
+     "added (working)"
+    ],
+    [
+     "project",
+     "gatehouse",
+     "opened (not-started)"
+    ]
+   ]
   }
  ]
 }

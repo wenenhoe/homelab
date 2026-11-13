@@ -134,6 +134,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | Doc | Covers |
 | :--- | :--- |
 | [`reviewing-this-repo.md`](engineering/reviewing-this-repo.md) | A reader's map from each claim the repo makes to the doc that explains it and the test or check that holds it up. |
+| [`data-classification.md`](engineering/data-classification.md) | The classes of information (public, private, local, secret), the questions that place a kind of information in one, and the rules that follow. |
 | [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style, shell test style. |
 | [`pre-commit.md`](engineering/pre-commit.md) | The pre-commit hooks and what each checks, which stage runs when, and where each tool's config lives. |
 | [`checks-without-docker.md`](engineering/checks-without-docker.md) | Running the checks in an environment with no Docker or no registry access, such as a hosted sandbox or a restricted host: the hooks to skip, linters run by hand, and testing against a private daemon with an imported rootfs. |

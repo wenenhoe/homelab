@@ -61,7 +61,6 @@ class TestPullRequestMode:
         repo.commit("edit")
         code, out = repo.pr()
         assert code == 0, out
-        assert "nothing to start-check" in out
 
     def test_a_renamed_placeholder_is_judged_as_added(self, repo):
         repo.branch()
@@ -99,3 +98,96 @@ class TestStagedMode:
     def test_nothing_staged_passes(self, repo):
         code, out = repo.run_cli("--staged")
         assert code == 0, out
+
+
+PLAN = "\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n| 1 | {stage} | Not started | it works |\n"
+
+
+def write_plan(repo: GitRepo, name: str, stage: str = "Build it", **fields) -> None:
+    fields.setdefault("decision", "ADR-0002/0")
+    project(repo.root, name, **fields).write_text(
+        (repo.root / f"docs/projects/{name}.md").read_text(encoding="utf-8") + PLAN.format(stage=stage), encoding="utf-8"
+    )
+
+
+class TestBuildingGate:
+    """A project starts building with a confirmed plan and a scope (ADR 0037 revision 5)."""
+
+    @pytest.fixture
+    def waiting(self, repo) -> GitRepo:
+        """Two approved-decision projects on main: one a draft plan with a scope, one a confirmed plan without."""
+        write_plan(repo, "draft", plan="draft", allowed_paths=["docs/**"])
+        write_plan(repo, "confirmed", allowed_paths=None)
+        repo.commit("projects")
+        repo.branch()
+        return repo
+
+    def start(self, repo, name, message="start", **fields) -> tuple[int, str]:
+        stage = "Build it, again" if fields.pop("restage", False) else "Build it"
+        write_plan(repo, name, stage=stage, status="building", **fields)
+        repo.commit(message)
+        return repo.pr()
+
+    def test_a_confirmed_plan_with_a_scope_starts(self, waiting):
+        code, out = self.start(waiting, "confirmed", allowed_paths=["docs/**"])
+        assert code == 0, out
+
+    def test_a_draft_that_is_still_a_draft_fails(self, waiting):
+        code, out = self.start(waiting, "draft", plan="draft", allowed_paths=["docs/**"], restage=True)
+        assert code == 1, out
+        assert "plan: draft" in out
+
+    def test_no_scope_fails(self, waiting):
+        code, out = self.start(waiting, "confirmed")
+        assert code == 1, out
+        assert "no allowed_paths" in out
+
+    def test_an_empty_scope_fails(self, waiting):
+        code, out = self.start(waiting, "confirmed", allowed_paths=[])
+        assert code == 1, out
+        assert "no allowed_paths" in out
+
+    def test_a_draft_confirmed_with_a_changed_stage_table_starts(self, waiting):
+        code, out = self.start(waiting, "draft", plan="confirmed", allowed_paths=["docs/**"], restage=True)
+        assert code == 0, out
+
+    def test_a_draft_confirmed_with_an_unchanged_stage_table_fails(self, waiting):
+        code, out = self.start(waiting, "draft", plan="confirmed", allowed_paths=["docs/**"])
+        assert code == 1, out
+        assert "Plan-Confirmed: docs/projects/draft.md" in out
+
+    def test_the_trailer_on_a_commit_of_the_change_excuses_an_unchanged_table(self, waiting):
+        code, out = self.start(waiting, "draft", message="start\n\nPlan-Confirmed: docs/projects/draft.md", plan="confirmed", allowed_paths=["docs/**"])
+        assert code == 0, out
+
+    def test_a_trailer_for_another_project_does_not_excuse_it(self, waiting):
+        code, out = self.start(waiting, "draft", message="start\n\nPlan-Confirmed: docs/projects/other.md", plan="confirmed", allowed_paths=["docs/**"])
+        assert code == 1, out
+
+    def test_a_project_already_building_is_not_regated(self, waiting):
+        write_plan(waiting, "confirmed", status="building", allowed_paths=["docs/**"])
+        waiting.commit("start")
+        waiting.git("checkout", "-q", "-B", "main")
+        waiting.branch("later")
+        write_plan(waiting, "confirmed", status="building", allowed_paths=None)
+        waiting.commit("drop the scope")
+        code, out = waiting.run_cli("--base", "main", "--head", "later")
+        assert code == 0, out
+
+    def test_a_new_doc_that_starts_as_building_needs_a_scope(self, waiting):
+        code, out = self.start(waiting, "fresh")
+        assert code == 1, out
+        assert "no allowed_paths" in out
+
+    def test_staged_does_not_judge_the_trailer(self, waiting):
+        write_plan(waiting, "draft", plan="confirmed", status="building", allowed_paths=["docs/**"])
+        waiting.git("add", "-A")
+        code, out = waiting.run_cli("--staged")
+        assert code == 0, out
+
+    def test_staged_still_fails_a_draft_or_a_missing_scope(self, waiting):
+        write_plan(waiting, "confirmed", status="building")
+        waiting.git("add", "-A")
+        code, out = waiting.run_cli("--staged")
+        assert code == 1, out
+        assert "no allowed_paths" in out

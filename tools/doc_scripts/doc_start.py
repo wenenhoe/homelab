@@ -8,14 +8,54 @@ as a draft plan (`plan: draft`) for sizing and the roadmap (ADR 0037 revision 5)
 the question stays in the decision or an exploration until it is approved. The
 rule reads only the docs a change adds, so a project that was already waiting
 on a `working` decision is not re-judged.
+
+A project moves to `building` only once its plan is confirmed: no longer a draft,
+with `allowed_paths` set, and, for a plan that was a draft, with the stage table
+read again against the approved decision (ADR 0037 revision 5). The re-reading is
+shown by a change to the Execution plan, or by a `Plan-Confirmed: <path>` trailer
+on a commit of the change when the table needed none.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, load_lineages, read_frontmatter
-from doc_scripts.doc_scope import PROJECT_DOC_RE
+from doc_scripts.doc_frozen import split
+from doc_scripts.doc_scope import EXECUTION_PLAN_RE, PROJECT_DOC_RE
+
+PLAN_CONFIRMED_RE = re.compile(r"^Plan-Confirmed:[ \t]*(\S+)[ \t]*$", re.MULTILINE)
+
+
+def _plan_table(text: str) -> str:
+    match = EXECUTION_PLAN_RE.search(text)
+    return match.group(1).strip() if match else ""
+
+
+def building_errors(path: str, before: str | None, after: str, confirmed: set[str] | None) -> list[str]:
+    """What stops one project doc moving to `building`. `before` is the doc on the base (None when
+    the change adds it) and `after` as the change leaves it. `confirmed` holds the paths named by
+    `Plan-Confirmed:` trailers on the change's commits; None when they are not known yet (a commit
+    in the making), when the re-reading is not judged."""
+    old = split(before)[0] if before is not None else {}
+    new = split(after)[0]
+    if new.get("status") != "building" or old.get("status") == "building":
+        return []
+    errors = []
+    if new.get("plan") == "draft":
+        errors.append(
+            f"{path}: status: building, but plan: draft — read the stage table again against the approved decision, "
+            "then set plan: confirmed or remove the field"
+        )
+    if not new.get("allowed_paths"):
+        errors.append(f"{path}: status: building, but no allowed_paths — set the scope once, as building starts")
+    if old.get("plan") == "draft" and confirmed is not None and _plan_table(before or "") == _plan_table(after) and path not in confirmed:
+        errors.append(
+            f"{path}: the plan was a draft and the stage table is unchanged — change it where the approved decision needs it, "
+            f"or say it was read and needs none with a `Plan-Confirmed: {path}` trailer on a commit of the change"
+        )
+    return errors
 
 
 def start_errors(added: list[str], result_root: Path = ROOT) -> list[str]:

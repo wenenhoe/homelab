@@ -4,8 +4,11 @@ and ADR 0037 revisions 4 and 5 for why:
   - adds a `not-started` project whose decision revision is not `approved`, unless
     its plan is a draft;
   - moves a project to `building` with the plan still a draft, no `allowed_paths`,
-    or a draft whose stage table was not read again (a change to it, or a
-    `Plan-Confirmed: <path>` trailer on a commit of the change).
+    a scope that lacks a path the plan names or a file that mentions a
+    `sweep_terms` term (and is not under "Not in"), or a draft whose stage table was
+    not read again (a change to it, or a `Plan-Confirmed: <path>` trailer on a
+    commit of the change);
+  - narrows the `allowed_paths` of a project that is building.
 
 Two modes, both reading the docs as they stand once the change is applied:
 
@@ -28,7 +31,8 @@ from doc_scripts.check_project_close import export_docs
 from doc_scripts.doc_frontmatter import ROOT
 from doc_scripts.doc_git import file_at, git
 from doc_scripts.doc_scope import PROJECT_DOC_RE
-from doc_scripts.doc_start import PLAN_CONFIRMED_RE, building_errors, start_errors
+from doc_scripts.doc_start import PLAN_CONFIRMED_RE, building_errors, start_errors, starts_building
+from doc_scripts.suggest_project_scope import completeness_errors
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,7 +64,10 @@ def main(argv: list[str] | None = None) -> int:
         try:
             errors = start_errors(added, Path(tmp))
             for path in changes:
-                errors.extend(building_errors(path, file_at(args.root, base, path), file_at(args.root, head, path) or "", confirmed))
+                before, after = file_at(args.root, base, path), file_at(args.root, head, path) or ""
+                errors.extend(building_errors(path, before, after, confirmed))
+                if starts_building(before, after):
+                    errors.extend(completeness_errors(args.root, path))
         except SystemExit as exc:  # a doc in the result that doesn't parse: the drift check names it properly
             print(f"::error::the docs after this change don't parse, so the start can't be judged: {str(exc).replace(f'{tmp}/', '')}")
             return 1

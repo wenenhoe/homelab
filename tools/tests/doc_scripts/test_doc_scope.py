@@ -190,6 +190,32 @@ class TestScopeErrors:
         assert len(found) == 1, found
         assert "revision-000.md" in found[0]
 
+    def test_the_topics_index_is_implicitly_allowed(self, scoped, errors):
+        assert errors([scoped(), "docs/topics/README.md"]) == []
+
+    def test_a_file_that_names_a_deleted_project_doc_is_exempt(self, base, scoped, root):
+        doc = scoped()
+        found = scope.scope_errors([doc, "docs/topics/links.md", "docs/topics/other.md"], base.get, root, exempt=frozenset({"docs/topics/links.md"}))
+        assert len(found) == 1 and "other.md" in found[0]
+
+    NIST = "docs/topics/engineering/nist-800-53-alignment.md"
+
+    def test_the_nist_page_is_exempt_when_it_links_a_superseded_revision(self, root, base, scoped):
+        revision(root, "0001-x", 0)
+        revision(root, "0001-x", 1)
+        doc = scoped(decision="ADR-0001/1")
+        base["docs/decisions/0001-x/revision-001.md"] = {"supersedes": 0}
+        page = "| AC-6 | [ADR 0001](../../decisions/0001-x/revision-000.md) |\n"
+        assert scope.scope_errors([doc, self.NIST], base.get, root, base_text=lambda p: page) == []
+
+    def test_the_nist_page_is_not_exempt_when_it_links_only_the_successor(self, root, base, scoped):
+        revision(root, "0001-x", 0)
+        revision(root, "0001-x", 1)
+        doc = scoped(decision="ADR-0001/1")
+        base["docs/decisions/0001-x/revision-001.md"] = {"supersedes": 0}
+        page = "| AC-6 | [ADR 0001](../../decisions/0001-x/revision-001.md) |\n"
+        assert len(scope.scope_errors([doc, self.NIST], base.get, root, base_text=lambda p: page)) == 1
+
     def test_two_touched_projects_get_the_union_of_their_scopes(self, scoped, errors):
         a = scoped("a", ["src/**"])
         b = scoped("b", ["tools/**"])

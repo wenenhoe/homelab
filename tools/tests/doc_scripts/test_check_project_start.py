@@ -100,13 +100,13 @@ class TestStagedMode:
         assert code == 0, out
 
 
-PLAN = "\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n| 1 | {stage} | Not started | it works |\n"
+PLAN = "\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n| 1 | {stage} | Not started | {exit} |\n"
 
 
-def write_plan(repo: GitRepo, name: str, stage: str = "Build it", **fields) -> None:
+def write_plan(repo: GitRepo, name: str, stage: str = "Build it", note: str = "it works", **fields) -> None:
     fields.setdefault("decision", "ADR-0002/0")
     project(repo.root, name, **fields).write_text(
-        (repo.root / f"docs/projects/{name}.md").read_text(encoding="utf-8") + PLAN.format(stage=stage), encoding="utf-8"
+        (repo.root / f"docs/projects/{name}.md").read_text(encoding="utf-8") + PLAN.format(stage=stage, exit=note), encoding="utf-8"
     )
 
 
@@ -145,7 +145,7 @@ class TestBuildingGate:
     def test_an_empty_scope_fails(self, waiting):
         code, out = self.start(waiting, "confirmed", allowed_paths=[])
         assert code == 1, out
-        assert "no allowed_paths" in out
+        assert "allowed_paths" in out
 
     def test_a_draft_confirmed_with_a_changed_stage_table_starts(self, waiting):
         code, out = self.start(waiting, "draft", plan="confirmed", allowed_paths=["docs/**"], restage=True)
@@ -169,10 +169,43 @@ class TestBuildingGate:
         waiting.commit("start")
         waiting.git("checkout", "-q", "-B", "main")
         waiting.branch("later")
-        write_plan(waiting, "confirmed", status="building", allowed_paths=None)
-        waiting.commit("drop the scope")
+        write_plan(waiting, "confirmed", status="building", allowed_paths=["docs/**", "src/**"], sweep_terms=["zzz-nothing"])
+        waiting.commit("widen the scope")
         code, out = waiting.run_cli("--base", "main", "--head", "later")
         assert code == 0, out
+
+    def test_a_project_that_is_building_cannot_narrow_its_scope(self, waiting):
+        write_plan(waiting, "confirmed", status="building", allowed_paths=["docs/**", "src/**"])
+        waiting.commit("start")
+        waiting.git("checkout", "-q", "-B", "main")
+        waiting.branch("later")
+        write_plan(waiting, "confirmed", status="building", allowed_paths=["docs/**"])
+        waiting.commit("narrow the scope")
+        code, out = waiting.run_cli("--base", "main", "--head", "later")
+        assert code == 1, out
+        assert "drops `src/**`" in out
+
+    def test_starting_needs_a_scope_that_covers_what_the_plan_names(self, waiting):
+        waiting.write("src/app/tasks.yaml", "x: 1\n")
+        waiting.commit("a file the plan names")
+        waiting.git("checkout", "-q", "-B", "main")
+        waiting.branch("later")
+        write_plan(waiting, "confirmed", status="building", allowed_paths=["docs/**"], note="`src/app/tasks.yaml`")
+        waiting.commit("start")
+        code, out = waiting.run_cli("--base", "main", "--head", "later")
+        assert code == 1, out
+        assert "allowed_paths lacks" in out
+
+    def test_starting_needs_a_scope_that_covers_every_sweep_hit(self, waiting):
+        waiting.write("legacy/a.md", "widget\n")
+        waiting.commit("a mention")
+        waiting.git("checkout", "-q", "-B", "main")
+        waiting.branch("later")
+        write_plan(waiting, "confirmed", status="building", allowed_paths=["docs/**"], sweep_terms=["widget"])
+        waiting.commit("start")
+        code, out = waiting.run_cli("--base", "main", "--head", "later")
+        assert code == 1, out
+        assert 'mentions "widget"' in out
 
     def test_a_new_doc_that_starts_as_building_needs_a_scope(self, waiting):
         code, out = self.start(waiting, "fresh")

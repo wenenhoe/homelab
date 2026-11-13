@@ -220,6 +220,24 @@ class TestPullRequestMode:
         repo.commit("close the project")
         assert repo.pr()[0] == 1
 
+    def test_files_that_name_a_deleted_project_doc_need_no_entry(self, repo):
+        repo.write("docs/topics/links.md", "See [p](../projects/p.md).\n")
+        repo.commit("a doc that links the project")
+        repo.git("checkout", "-q", "-B", "main")
+        repo.branch()
+        repo.git("rm", "-q", PROJECT)
+        repo.write("docs/topics/links.md", "See nothing.\n")
+        repo.commit("close the project")
+        code, out = repo.pr()
+        assert code == 0, out
+
+    def test_a_file_that_does_not_name_it_still_needs_an_entry(self, repo):
+        repo.branch()
+        repo.git("rm", "-q", PROJECT)
+        repo.write("other/b.py", "b = 2\n")
+        repo.commit("close the project")
+        assert repo.pr()[0] == 1
+
 
 class TestStagedMode:
     def test_staged_changes_outside_the_scope_fail(self, repo):

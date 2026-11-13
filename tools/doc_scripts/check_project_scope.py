@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT
-from doc_scripts.doc_git import base_frontmatter_loader, file_at, git
+from doc_scripts.doc_git import base_frontmatter_loader, file_at, git, git_grep_files
 from doc_scripts.doc_scope import PROJECT_DOC_RE, is_worked, scope_errors
 
 
@@ -43,7 +43,9 @@ def main(argv: list[str] | None = None) -> int:
     changed = [c for c in changed if c]
 
     worked = lambda path: is_worked(file_at(args.root, base, path), file_at(args.root, head, path))  # noqa: E731
-    errors = scope_errors(changed, base_frontmatter_loader(args.root, base), args.root, worked)
+    deleted = [c for c in changed if PROJECT_DOC_RE.fullmatch(c) and file_at(args.root, head, c) is None]
+    naming = frozenset(path for doc in deleted for path in git_grep_files(args.root, base, f"projects/{Path(doc).name}") if path != doc)
+    errors = scope_errors(changed, base_frontmatter_loader(args.root, base), args.root, worked, lambda path: file_at(args.root, base, path), naming)
     if errors:
         for e in errors:
             print(f"::error::{e}")

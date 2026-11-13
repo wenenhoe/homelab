@@ -21,7 +21,9 @@ PROJECT_DOC_RE = re.compile(r"docs/projects/(?!(?:README|TEMPLATE)\.md$)[^/]+\.m
 # Bookkeeping the workflow itself produces for any project change: every project doc,
 # and the generated views a status change regenerates (the projects README is a project
 # doc's sibling; the decision index and project-planning.md live elsewhere).
-IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/decision-index.md", "docs/project-planning.md")
+IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/decision-index.md", "docs/project-planning.md", "docs/topics/README.md")
+
+NIST_PAGE = "docs/topics/engineering/nist-800-53-alignment.md"
 
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
@@ -161,6 +163,8 @@ def scope_errors(
     base_frontmatter: Callable[[str], dict | None],
     root: Path = ROOT,
     worked: Callable[[str], bool] = lambda path: True,
+    base_text: Callable[[str], str | None] = lambda path: None,
+    exempt: frozenset[str] = frozenset(),
 ) -> list[str]:
     """`changed` are repo-relative posix paths the change touches (a rename counts as
     both paths). `base_frontmatter(path)` returns a doc's frontmatter as it stood on the
@@ -168,7 +172,9 @@ def scope_errors(
     revision's when looking up what it supersedes. Scope is read from the base so a
     change can't widen its own scope and then use it. `worked(path)` says whether the
     change works that project doc (see is_worked); a doc it merely touches in passing
-    binds nothing."""
+    binds nothing. `exempt` holds the files that name a project doc the change deletes, which closing
+    it edits whatever the scope says; `base_text(path)` gives a file as it stood on the base, to see
+    whether the NIST alignment page links a revision the change supersedes, which edits it too."""
     changed = sorted(set(changed))
     scoped = []
     for path in changed:
@@ -179,7 +185,11 @@ def scope_errors(
     if not scoped:
         return []
     allowed = [glob_to_regex(p) for _, fm in scoped for p in fm["allowed_paths"]] + [glob_to_regex(p) for p in IMPLICIT_PATTERNS]
-    exact = {p for _, fm in scoped for p in lifecycle_paths(fm, base_frontmatter, root)}
+    lifecycle = {path: why for _, fm in scoped for path, why in lifecycle_paths(fm, base_frontmatter, root).items()}
+    exact = {*lifecycle, *exempt}
+    page = base_text(NIST_PAGE) or ""
+    if any(f"{Path(old).parent.name}/{Path(old).name}" in page for old, why in lifecycle.items() if why == "superseded"):
+        exact.add(NIST_PAGE)
     owners = ", ".join(f"{fm['id']} ({path})" for path, fm in scoped)
     return [
         f"{f}: outside the allowed_paths of {owners} as they stand on the base branch — widen them in their own change first, or drop this file from the change"

@@ -236,6 +236,14 @@ class TestProjectValidation:
     def test_both_plans_are_accepted(self, root, plan):
         assert fm_mod.read_frontmatter(project(root, "p", plan=plan))["plan"] == plan
 
+    def test_sweep_terms_are_a_list_of_strings(self, root):
+        assert fm_mod.read_frontmatter(project(root, "p", sweep_terms=["widget", "gatus"]))["sweep_terms"] == ["widget", "gatus"]
+
+    @pytest.mark.parametrize("terms", ["widget", [""], [1], ["ok", " "]])
+    def test_other_sweep_terms_are_rejected(self, root, terms):
+        with pytest.raises(SystemExit, match="'sweep_terms' must be a list"):
+            fm_mod.read_frontmatter(project(root, "p", sweep_terms=terms))
+
     @pytest.mark.parametrize("plan", ["final", "Draft", True, ""])
     def test_another_plan_is_rejected(self, root, plan):
         with pytest.raises(SystemExit, match="'plan' must be one of"):

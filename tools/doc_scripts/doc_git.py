@@ -24,6 +24,14 @@ def file_at(root: Path, ref: str, path: str) -> str | None:
         return None
 
 
+def git_grep_files(root: Path, ref: str, term: str) -> list[str]:
+    """The text files at `ref` that contain `term`, as repo-relative paths (git grep exits 1 for none)."""
+    done = subprocess.run(["git", "-C", str(root), "grep", "-l", "-z", "-I", "-F", "-e", term, ref], check=False, capture_output=True, text=True)
+    if done.returncode > 1:
+        raise SystemExit(f"git grep failed: {done.stderr.strip()}")
+    return [item.removeprefix(f"{ref}:") for item in done.stdout.split("\0") if item]
+
+
 def base_frontmatter_loader(root: Path, ref: str):
     """`load(path)` returns the frontmatter of any doc as it stood at `ref`, or None."""
 

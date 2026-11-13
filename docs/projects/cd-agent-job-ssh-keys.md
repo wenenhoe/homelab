@@ -28,7 +28,7 @@ Carries out [ADR 0074 (Job chaining)](../decisions/0074-following-one-automation
 
 In: the chaining mechanism in the `cd_agent` role; the rotation job and `redeploy-storage` in the agent's inventory; a native `rclone` on the host; key generation in the `cd_agent` role, the inventory reading a job's key, and authorizing the public half on `storage` for `redeploy-storage`.
 
-Not in: the AppRoles and their delivery ([`cd-agent-approles.md`](cd-agent-approles.md)); rotating the three rotation-tier credentials, which stays human-attended; failure alerts ([ADR 0072 (Job heartbeats)](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)); moving `deploy` off the shared key; an SSH certificate authority.
+Not in: the AppRoles and their delivery ([`cd-agent.md`](cd-agent.md)); rotating the three rotation-tier credentials, which stays human-attended; failure alerts ([ADR 0072 (Job heartbeats)](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)); moving `deploy` off the shared key; an SSH certificate authority.
 
 ## Decision
 
@@ -66,8 +66,8 @@ The rotation job runs `python -m cloud_credentials.rotate_leaf_keys`, which rota
 
 ## Open items
 
-- Neither job can log in to OpenBao until its credentials are in its credentials directory; delivering them is [`cd-agent-approles.md`](cd-agent-approles.md)'s.
-- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'. The SSH key is not among [`cd-agent-approles.md`](cd-agent-approles.md)'s four files, and `ansible/inventory/inventory.yaml` reads the key from `~/.ssh/proxmox_vm_servers`; Stages 3 and 4 give the job its own key.
+- Neither job can log in to OpenBao until its credentials are in its credentials directory; delivering them is [`cd-agent.md`](cd-agent.md)'s.
+- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'. The SSH key is not among [`cd-agent.md`](cd-agent.md)'s four files, and `ansible/inventory/inventory.yaml` reads the key from `~/.ssh/proxmox_vm_servers`; Stages 3 and 4 give the job its own key.
 - Where the public half is recorded for the operator to apply, and how it travels from the agent to that record.
 - How the job's `known_hosts` entry for `storage` is established, since the unit's filesystem is read-only outside its state directory.
 - Whether `deploy.yaml`'s `localhost` plays, which are not a connection to `storage`, still use the shared key's path.

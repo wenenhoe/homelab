@@ -9,18 +9,16 @@ decision: ADR-0047/0
 super_project: pull-based-cd
 depends_on:
   - project: PROJ-cd-agent
-    reason: the AppRole is retired only once the agent host runs the jobs
-  - project: PROJ-cd-agent-approles
-    reason: the agent's own AppRoles must be live and proven first
+    reason: the AppRole is retired only once the agent host runs the jobs and its own AppRoles are live and proven
 ---
 
 # Retire controller's Standing AppRole
 
-Last of three projects in the `pull-based-cd` initiative: once the [agent host](cd-agent.md) and [its AppRoles](cd-agent-approles.md) are live and proven, `controller`'s standing AppRole is deleted outright.
+Last of two projects in the `pull-based-cd` initiative: once the [agent host](cd-agent.md) and its AppRoles are live and proven, `controller`'s standing AppRole is deleted outright.
 
 ## Scope
 
-Deleting `controller`'s Era A AppRole and its policy, and the on-demand token minting that replaces it. Not in scope: the agent host ([`cd-agent.md`](cd-agent.md)) and its AppRoles ([`cd-agent-approles.md`](cd-agent-approles.md)).
+Deleting `controller`'s Era A AppRole and its policy, and the on-demand token minting that replaces it. Not in scope: the agent host and its AppRoles ([`cd-agent.md`](cd-agent.md)).
 
 ## Decision
 

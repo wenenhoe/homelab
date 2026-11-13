@@ -263,8 +263,8 @@ lists only the ones no project names.
 
 | ADR | Revision | Decision | Status | Implemented by |
 | :--- | :--- | :--- | :--- | :--- |
-| [0020](decisions/0020-automation-identity-and-access-scope/revision-001.md) | revision 1 | Automation identity scope | Approved | [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| [0022](decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md) | revision 1 | Controller TLS trust | Approved | [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
+| [0020](decisions/0020-automation-identity-and-access-scope/revision-001.md) | revision 1 | Automation identity scope | Approved | [`cd-agent.md`](projects/cd-agent.md) |
+| [0022](decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md) | revision 1 | Controller TLS trust | Approved | [`cd-agent.md`](projects/cd-agent.md) |
 | [0042](decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md) | original | Monitoring host loss | Approved | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) |
 | [0043](decisions/0043-host-os-hardening-baseline/revision-000.md) | original | Host hardening baseline | Approved | [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md), [`operator-host.md`](projects/operator-host.md) |
 | [0044](decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) | original (c) | CD agent trigger | Approved | [`cd-agent.md`](projects/cd-agent.md) |

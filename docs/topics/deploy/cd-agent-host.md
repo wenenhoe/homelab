@@ -55,7 +55,7 @@ For a job named `deploy`:
 | :--- | :--- |
 | `cd-agent-deploy` (user and group) | A system user with `/usr/sbin/nologin` as its shell and its state directory as its home. |
 | `/var/lib/cd-agent/deploy` | The runner's state directory ([`cd-agent-runner.md`](cd-agent-runner.md#state-directory)), mode `0700`, owned by the job's user. |
-| `/etc/cd-agent/credentials/deploy` | Where the job's credential files go, mode `0700`, owned by the job's user. The directory keeps every other user out whatever a file's own mode. The role creates the directory and no files; delivery is the AppRoles work ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md)). The job's unit sets `HOMELAB_SECRETS_DIR` to it, so the job reads its OpenBao credential and `main-domain` from there ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)). |
+| `/etc/cd-agent/credentials/deploy` | Where the job's credential files go, mode `0700`, owned by the job's user. The directory keeps every other user out whatever a file's own mode. The role creates the directory and no files; delivery is the AppRoles work ([`cd-agent.md`](../../projects/cd-agent.md)). The job's unit sets `HOMELAB_SECRETS_DIR` to it, so the job reads its OpenBao credential and `main-domain` from there ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)). |
 | `cd-agent-deploy.service`, `cd-agent-deploy.timer` | The job's units in `/etc/systemd/system`. |
 
 `/etc/cd-agent/credentials` is mode `0711`, so a job's user can reach its own directory but not list the others.
@@ -139,7 +139,7 @@ Until the file exists the push fails and the endpoint alerts after its first mis
 
 ## Not done by the role
 
-- Credential files, and the copy of step-ca's root certificate a job verifies OpenBao against. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
+- Credential files, and the copy of step-ca's root certificate a job verifies OpenBao against. Delivery is [`cd-agent.md`](../../projects/cd-agent.md)'s.
 - Failure alerts, and heartbeats until a job names one ([above](#heartbeats)); both depend on [ADR 0072 (Job heartbeats)](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 

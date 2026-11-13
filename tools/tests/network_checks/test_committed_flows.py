@@ -62,3 +62,11 @@ def test_a_deny_with_a_control_from_its_own_zone_is_not_tagged_cross_zone(flow_l
 
 def test_the_smoke_flows_come_from_every_zone(flow_list):
     assert {flow.source for flow in flow_list.flows if "smoke" in flow.tags} == set(flow_list.zones)
+
+
+def test_a_flow_that_needs_a_service_listening_carries_the_listener_tag(flow_list):
+    needs_listener = {("192.168.20.4", 25565), ("192.168.20.3", 1688)}
+    flows = [flow for flow in flow_list.flows if flow.destination.port is not None and (str(flow.destination.address), flow.destination.port) in needs_listener]
+
+    assert flows
+    assert [flow.id for flow in flows if "listener" not in flow.tags] == []

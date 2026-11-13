@@ -73,12 +73,12 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 - A render that differs from today's, even in whitespace, recreates the agent and proxy on every host at the first deploy. The exit condition compares the renders before the move merges.
 - The rules file is deployed to hosts that never start the proxy. It is a 0644 file with no secret in it.
 - A host that gains a backed-up app without an entry fails in CI and at deploy time. That is the intent; nothing is skipped quietly.
-- [`bind-mounted-config-files.md`](bind-mounted-config-files.md) and this project both edit `app_catalog.yaml` and the deploy topic docs, and [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) makes the `compose` role restart a container whose bind-mounted file changed. Once that lands, the proxy's hash label in the compose file duplicates it; stage 2 here drops the label only if it has.
+- [`bind-mounted-config-files.md`](bind-mounted-config-files.md) and this project both edit `app_catalog.yaml` and the deploy topic docs, and that project's stage 1 makes the `compose` role restart a container whose bind-mounted file changed. Once that lands, the proxy's hash label in the compose file duplicates it; stage 2 here drops the label only if it has.
 - [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) names `ansible/roles/backup_agent/files/docker-api-rules.cfg` as its model, and its open item 1 asks how a rules file reaches the host. This project moves that file and answers it for `backup-agent`; this project updates the mention in that doc in the same change, which `allowed_paths` does not bound (project docs are exempt).
 
 ## Open items
 
-None.
+- Sizing reviewed against ADR 0037 revision 5: kept as one stage. It is a distinct app change with its own design items, and no neighbour's work closes with it.
 
 ## Closing checklist
 

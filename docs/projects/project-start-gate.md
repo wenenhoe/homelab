@@ -56,9 +56,18 @@ Update at the start and end of each PR that works a stage.
 | 3 | The start gate | Done | A change that sets a project `building` fails unless the decision is `approved`, the plan is not a draft and the stage table or a `Plan-Confirmed:` trailer shows it was read, and `allowed_paths` is set |
 | 4 | Scope completeness | Done | The gate runs the helper's named-file pass and each `sweep_terms` term and fails on an entry the scope lacks; the topics index, the files naming a deleted project doc and the NIST page for a superseded revision need no entry, so the helper's closing-pull-request pass is gone; a scope narrows only at close |
 | 5 | Size warnings and guidance | Done | A check warns on a one-row project that no other project alone depends on, more than six stages, a second stage added after building starts, chained projects naming one revision that no outside reason separates, and a stage that waits on another project in prose; the projects README states the sizing principle and what a stage is |
-| 6 | Review the existing projects | Not started | Every project and its decision has been read against the sizing rules, and each merge, split or fix that came of it is merged or recorded; each project already `building` carries a scope derived with the helper |
+| 6 | Review the existing projects | Done | Every project and its decision has been read against the sizing rules, and each merge, split or fix that came of it is merged or recorded; each project already `building` carries a scope derived with the helper |
 
 Stage status is `Not started`, `In progress`, or `Done`.
+
+## Review outcomes
+
+Every project was read against the sizing rules (ADR 0037 revision 5).
+
+- Merged: `compose-restart-on-changed-mount` into `bind-mounted-config-files`, as its first stage.
+- Kept, with the reason in the project's Open items: `backup-agent-compose-app` and `beszel-agent-docker-api-rules` (one stage each), `coding-agent-egress` after `coding-agent-network`, and `vm-401-retirement` after `workstation-management`.
+- Given a scope with the helper: `cd-agent`, `cd-agent-approles`, `cd-agent-job-ssh-keys`, `monitoring-host-isolation` and `opnsense-config`, the projects that were already building.
+- Left as they are: `cd-agent` and `cd-agent-approles` name different decisions, so no chain warning fires, though `cd-agent`'s second stage waits on the AppRoles' delivery, which its Open items record. `cd-agent-job-ssh-keys` builds while ADR 0075, which it also implements, is `working`; its third stage starts once that is `approved`.
 
 ## Acceptance criteria
 

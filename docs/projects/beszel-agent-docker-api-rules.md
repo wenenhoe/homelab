@@ -83,6 +83,8 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 2. Whether the rules admit `GET /info` and `GET /images/{name}/json`. Today's flags refuse both, so a file that names only the first five calls changes nothing the hub shows. Admitting them is a change in what the agent can read and is the maintainer's call.
 3. Where the call-set check runs. `beszel-agent` has no role or scenario of its own, and the fake socket and checker that `backup_agent` uses live under that role. Sharing them moves files out of a role this project must not change, so that needs its own change first; copying them duplicates a checker.
 
+Sizing reviewed against ADR 0037 revision 5: kept as one stage. It changes one app's proxy rules and its check, and no neighbour's work closes with it.
+
 ## Closing checklist
 
 Before deleting this doc, work through the [closing checklist](README.md#closing-checklist). It is the only copy.

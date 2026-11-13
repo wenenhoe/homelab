@@ -90,6 +90,7 @@ Backup, offsite copies, and getting data back.
 | [`fire-drill.md`](disaster-recovery/fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
 | [`coverage.md`](disaster-recovery/coverage.md) | The generated table of every catalog app with its hosts, volumes, routes, backup, service record and newest restoring drill. |
 | [`cloud-sync.md`](disaster-recovery/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
+| [`operating-modes.md`](disaster-recovery/operating-modes.md) | The four modes the lab runs in (Normal, Away, Dark, Dark+Away): what runs in each, which clocks keep running while the node is off, and the checks on the way in and out. |
 
 ## monitoring/
 

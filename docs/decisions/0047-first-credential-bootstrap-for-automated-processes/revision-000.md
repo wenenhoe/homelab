@@ -109,7 +109,7 @@ sequenceDiagram
 
 ## Validation
 
-[`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md) verifies that the `cert` role refuses the operator's common name when the original provisioner signs it. [`cd-agent-approles.md`](../../projects/cd-agent-approles.md) verifies that a wrapped `secret_id` unwraps once and that a second unwrap fails. A grep of the roles, playbooks, `docker/` and `tools/` for AppRole use finds only the identities listed in Context.
+[`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md) verifies that the `cert` role refuses the operator's common name when the original provisioner signs it. [`cd-agent.md`](../../projects/cd-agent.md) verifies that a wrapped `secret_id` unwraps once and that a second unwrap fails. A grep of the roles, playbooks, `docker/` and `tools/` for AppRole use finds only the identities listed in Context.
 
 ## Reconsideration triggers
 

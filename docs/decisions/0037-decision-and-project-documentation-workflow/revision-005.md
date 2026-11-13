@@ -7,7 +7,7 @@ short: Decision and project workflow
 solution: "A project builds only after an approved decision and a confirmed plan, its scope is fixed when building starts, a project is sized to close on its own, and a superseded record keeps only what it decided"
 summary: "How a project is started, scoped and sized, how a draft plan differs from a confirmed one, and what a superseded decision keeps."
 topic: documentation-process
-status: approved
+status: accepted
 supersedes: 4
 related: [ADR-0061, ADR-0080, ADR-0082]
 ---
@@ -16,15 +16,7 @@ related: [ADR-0061, ADR-0080, ADR-0082]
 
 ## Context
 
-Revision 4 lets a project exist on a `working` decision as `de-risking`, limited to spikes and reading code. Four things followed.
-
-**De-risking became a stage.** Projects waiting on a `working` revision open with a stage that resolves its assumptions or spikes them, and the template tells an author to name such a stage `Spike` and finish it before approval. The two checks that look for it read only the first word of a stage's title and only the docs a change adds, so the stage passes under another name and every project already waiting is left alone. The assumptions are then tracked twice, in the decision and in the project, and some stage exit conditions are only a change to a decision's state.
-
-**A plan written early goes stale unseen.** A project drawn up while its decision is `working` has stages that the resolved assumptions may change, and nothing makes anyone read the stage table again when building starts.
-
-**Scope is guessed too early and widened late.** `allowed_paths` is optional, is set when stages are still unclear, and is widened one pull request at a time as work finds files the author forgot. The helper that suggests a scope is advisory and no check runs it.
-
-**Project boundaries cut across dependencies.** Projects that name one decision are chained by `depends_on` and cannot be accepted until the last closes. Stages wait on another project's stage in prose, where `depends_on` and the planning view cannot see it. Projects with one stage row, and projects that keep gaining stages after building starts, sit beside projects that are plainly one unit of work.
+Revision 4 lets a project exist on a `working` decision as `de-risking`. Four problems followed. De-risking became a stage, so assumptions were tracked in the decision and in the project. A plan written while its decision was `working` went stale, with nothing to make anyone read it again at the start. `allowed_paths` was optional and guessed early, then widened one pull request at a time. Project boundaries cut across dependencies: projects on one decision were chained, stages waited on another project's stage in prose, and some projects had one stage row while others kept gaining stages.
 
 ## Decision
 
@@ -41,7 +33,7 @@ Everything in revisions 0 to 4 stands except where this revision says otherwise.
 **Scope is fixed when building starts.**
 
 - Every `building` project has `allowed_paths`; no project is exempt for work an agent will not touch, because all work here is agent work.
-- The gate runs the checks that find what the scope is missing: the files the doc names, the files the closing pull request edits, and the files that mention each name in the doc's `sweep_terms` (the products, pins, variables and keys the project removes, renames or reshapes).
+- The gate runs the checks that find what the scope is missing: the files the doc names and the files that mention each name in the doc's `sweep_terms` (the products, pins, variables and keys the project removes, renames or reshapes).
 - The scope then changes only by widening, as its own earlier pull request, or by narrowing at close. A stage added after building starts is a plan revision: it is allowed while the stage is `Not started`, and its paths are widened first.
 - A change that works a project doc needs no entry for the files the workflow itself edits: the topics index, the files that name a project doc the change deletes, and the NIST alignment page when it links a revision the change supersedes.
 
@@ -65,7 +57,6 @@ Everything in revisions 0 to 4 stands except where this revision says otherwise.
 
 ## Consequences
 
-- Projects that wait on a `working` revision lose their spike stages and gain `plan: draft`, and `building` projects gain a scope. Both are one-time edits to existing docs.
 - Starting a project costs a plan read and a scope derivation at the gate instead of widenings during the work.
 - Chained projects on one revision and one-row projects are reviewed and merged, split or kept one at a time.
 - [`docs/projects/README.md`](../../projects/README.md), [`docs/decisions/README.md`](../README.md) and the project template state the rules.
@@ -93,7 +84,3 @@ Everything in revisions 0 to 4 stands except where this revision says otherwise.
 - Widenings continue at the rate they had before the gate.
 - Draft plans are confirmed by trailer without a change to the stage table in most starts.
 - Follow-on projects made by splitting accumulate with no dependency of their own.
-
-## Revision notes
-
-Revision 5 changes how a project starts, how its scope is set, and how it is sized, and records the cut of a superseded revision. Revision 4's compaction operations and explorations are unchanged.

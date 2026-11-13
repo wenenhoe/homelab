@@ -140,15 +140,15 @@ def build_report(root: Path, doc: str, terms: list[str]) -> Report:
 
     report = Report(doc, fm["id"], allowed, exempt)
 
-    stated = stated_changes((root / doc).read_text(encoding="utf-8"))
+    text = (root / doc).read_text(encoding="utf-8")
+    declined = {f for pattern in named_patterns(not_in(text), doc) for f in files_named(pattern, tracked)}
+    stated = stated_changes(text)
     for pattern in named_patterns(stated, doc):
-        missing = tuple(f for f in files_named(pattern, tracked) if not in_history(f) and not covered(f))
+        missing = tuple(f for f in files_named(pattern, tracked) if not in_history(f) and not covered(f) and f not in declined)
         if missing:
             count = f"{len(missing)} files; " if len(missing) > 1 else ""
             report.named.append(Finding(entry_for(pattern, tracked), missing, f"{count}named in the doc as `{pattern}`"))
 
-    text = (root / doc).read_text(encoding="utf-8")
-    declined = {f for pattern in named_patterns(not_in(text), doc) for f in files_named(pattern, tracked)}
     for term in dict.fromkeys([*(fm.get("sweep_terms") or []), *terms]):
         hits = count_hits(root, term)
         report.sweep[term] = [

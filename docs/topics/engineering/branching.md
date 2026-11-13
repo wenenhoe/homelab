@@ -16,9 +16,9 @@ Repository rulesets (Settings > Rules) enforce this; none of it is in the reposi
 
 | Ruleset | Applies to | Rules | Bypass |
 | :--- | :--- | :--- | :--- |
-| `main` | `main` | The 15 required checks ([`pipeline.md`](ci/pipeline.md#requiring-checks-before-merge)), no deletion, no force push. | Nobody |
+| `main` | `main` | The 16 required checks ([`pipeline.md`](ci/pipeline.md#requiring-checks-before-merge)), no deletion, no force push. | Nobody |
 | `main-review` | `main` | A pull request, merge commits only, and an `update` rule that refuses every change to anyone off the bypass list. | The Admin role, for pull requests only: a promotion can be merged, nothing can be pushed. |
-| `maintenance-and-develop` | `maintenance`, `develop` | A pull request and the same 15 checks. | The Admin role and the Renovate app, always: a direct push is allowed. |
+| `maintenance-and-develop` | `maintenance`, `develop` | A pull request and the same 16 checks. | The Admin role and the Renovate app, always: a direct push is allowed. |
 | `keep-branches` | `maintenance`, `develop` | No deletion, no force push. | Nobody, so it holds for the maintainer and the app too. |
 
 Two facts shape the table. An approving review is not used on `main`: an approval from the Renovate app counts towards one, and a sole maintainer cannot approve their own pull request, so the `update` rule is what stops any credential but the maintainer merging. And the `keep-branches` rules sit in their own ruleset because a rule in a ruleset with a bypass list can be bypassed, and GitHub's "delete branch on merge" acts as the merging actor, so with a bypass it removes the branch a promotion came from. Rules with no bypass list cannot be bypassed, so the setting can stay on for every other branch.

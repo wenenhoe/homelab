@@ -19,6 +19,7 @@ type in the repo. The scoped outputs:
 | `deploy_ordering` | `ansible/inventory/**`, `ansible/playbooks/**`, `ansible/roles/secrets/**`, `ansible/roles/restore/**`, `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`, `pyproject.toml`/`uv.lock`. |
 | `uv_lock` | `pyproject.toml`/`uv.lock`. |
 | `mermaid_check` | Any `.md` file, or `tools/doc_scripts/check_mermaid.py`, which holds the pinned image. Not narrowed by the comment-only rule below: a doc change is never a no-op. See [Mermaid render check](doc-checks.md#mermaid-render-check). |
+| `renovate_config` | `.github/renovate.json5`, `.github/workflows/renovate.yml`, which holds the Renovate version pin, or `tools/ci/gates/renovate_config.py`. Not narrowed by the comment-only rule below. Gates `renovate-config-check`; see [Validating the config](renovate.md#validating-the-config). |
 | `tofu` | Anything under `tofu/`, which includes the committed provider lock file. Not narrowed by the comment-only rule below. Gates `tofu-checks`; see [the `tofu-checks` job](pipeline.md#jobs). |
 | `shell_tests` | Any `.sh` or `.sh.j2` file, `tools/tests/shell/**`, `tools/ci/shell_tests/**`, or `tools/ci/verification.py`. Not narrowed by the comment-only rule below. See [Shell tests](shell-tests.md#in-ci). |
 | `shell_test_pins` | `tools/ci/shell_tests/**` or `tools/ci/verification.py`. Gates the pin check inside the `shell-tests` job. See [Shell test pins](shell-test-pins.md#where-it-runs). |

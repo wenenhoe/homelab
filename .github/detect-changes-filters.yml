@@ -130,6 +130,14 @@ image_provenance:
 mermaid_check:
   - '**/*.md'
   - 'tools/doc_scripts/check_mermaid.py'
+# Gates renovate-config-check: the config, the workflow whose `renovate-version`
+# names the Renovate that reads it (a bump of that pin is tried against the
+# config), and the check itself — see
+# docs/topics/engineering/ci/renovate.md#validating-the-config.
+renovate_config:
+  - '.github/renovate.json5'
+  - '.github/workflows/renovate.yml'
+  - 'tools/ci/gates/renovate_config.py'
 # Gates tofu-checks: the root module, its modules and tests, and the committed
 # provider lock file, all under tofu/.
 tofu:

@@ -5,8 +5,8 @@ its backups, what each step is run with, and what is still done by hand. The
 scripts the steps call are in [`rebuild-tools.md`](rebuild-tools.md); the one host
 that cannot take the plain cycle is in [`rebuild-storage.md`](rebuild-storage.md).
 Backup and restore mechanics are in [`backup.md`](backup.md) and
-[`restore.md`](restore.md), and what a restore proved is in
-[`fire-drill.md`](fire-drill.md#results).
+[`restore.md`](restore.md), and the real restore a rebuild ends with is in
+[`fire-drill.md`](fire-drill.md#real-fire-drill).
 
 ## The cycle
 
@@ -27,7 +27,7 @@ flowchart TB
     end
     subgraph back["Steps 9-13: bring it back"]
         direction LR
-        B1["Deploy"] --> B2["Restore apps"] --> B3["Beszel<br/>fingerprint"] --> B4["Check host<br/>and DNS"] --> B5["Record in fire drill,<br/>drop dump"]
+        B1["Deploy"] --> B2["Restore apps"] --> B3["Beszel<br/>fingerprint"] --> B4["Check host<br/>and DNS"] --> B5["Record the drill,<br/>drop dump"]
     end
     prep --> swap --> back
 ```
@@ -46,7 +46,7 @@ flowchart TB
 | 10 | Restore the host's apps | `python3 ansible/scripts/restore_all.py --host <host>` (`--skip step-ca` on `security`) | yes |
 | 11 | Set the host's new Beszel agent fingerprint in the hub | [`beszel.md`](../monitoring/beszel.md#rebuilding-a-host) | no |
 | 12 | Check the host, then that both DNS servers agree on it | `cd tools && python3 -m rebuild_check.host <host>`; `python3 -m rebuild_check.dns <host>` ([what they check](rebuild-tools.md#what-the-checks-look-at)) | yes |
-| 13 | Record the restore in the fire drill, then delete the dump and `fstrim` the pool | [`fire-drill.md`](fire-drill.md#results); [`retire_vm.sh`](rebuild-tools.md#retire_vmsh) `drop-dump` | partly |
+| 13 | Record the restore in the private drill record, then delete the dump and `fstrim` the pool | [`fire-drill.md`](fire-drill.md#results); [`retire_vm.sh`](rebuild-tools.md#retire_vmsh) `drop-dump` | partly |
 
 Why the order inside the cycle:
 
@@ -104,8 +104,8 @@ using the live gateway at `.1` throughout.
 - The generated record for `services` has the same address as the hand-written
   one it replaces. The `ns1` record in that zone is written by hand, repeats the
   address and stays.
-- `kms` and `wastebin` have a `backup` and are restored from `storage`, so their
-  row in the fire drill's results also checks that an archive comes back from that
+- `kms` and `wastebin` have a `backup` and are restored from `storage`, so the
+  drill that restores them also checks that an archive comes back from that
   host. Every other app is rebuilt by the deploy, including `dashy`, whose data
   volume [is not backed up](../../../ansible/inventory/group_vars/all/app_catalog.yaml).
 

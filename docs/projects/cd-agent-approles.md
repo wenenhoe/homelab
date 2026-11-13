@@ -8,6 +8,21 @@ summary: The CD agent's four CIDR-bound AppRoles, and the delivery and rotation 
 decision: ADR-0020/1
 also_implements: [ADR-0022/1]
 super_project: pull-based-cd
+allowed_paths:
+  - docker/openbao/policies/cd-agent-*.hcl
+  - docker/openbao/policies/vault-bootstrap.hcl
+  - ansible/roles/cd_agent/**
+  - ansible/roles/secrets/**
+  - ansible/inventory/group_vars/cd_agent.yaml
+  - ansible/tests/test_cd_agent_*.py
+  - tools/cd_agent/**
+  - tools/tests/cd_agent/**
+  - tools/utils/repo.py
+  - tools/tests/utils/**
+  - tools/cloud_credentials/**
+  - tools/tests/cloud_credentials/**
+  - docs/topics/secrets/openbao-cd-agent-approles.md
+  - docs/topics/deploy/cd-agent-host.md
 ---
 
 # CD Agent Credentials

@@ -7,6 +7,21 @@ blocked: false
 summary: The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the production gateway rebuilt from it.
 decision: ADR-0089/0
 super_project: tofu-vm-provisioning
+allowed_paths:
+  - ansible/roles/opnsense_gateway/**
+  - ansible/playbooks/opnsense.yaml
+  - ansible/tests/test_opnsense_*.py
+  - tofu/modules/proxmox_opnsense_vm/**
+  - tofu/scratch/opnsense/**
+  - tofu/tests/proxmox_opnsense_vm.tftest.hcl
+  - tools/tests/opnsense_seed/**
+  - tools/tests/opnsense_acceptance/**
+  - README.md
+  - docs/topics/infra/tofu/opnsense-vm.md
+  - docs/topics/infra/tofu/opnsense-gateway.md
+  - docs/topics/infra/tofu/opnsense-scratch-gateway.md
+  - docs/topics/infra/vm-provisioning.md
+  - docs/topics/services/bind9.md
 ---
 
 # OPNsense Gateway Configuration

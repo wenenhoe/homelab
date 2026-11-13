@@ -82,7 +82,7 @@ The coding-agent zone and the egress proxy are not stages here, so they do not h
 
 ## Existing-zone policy (draft)
 
-The policy for the existing zones is written from the flows below, default-deny between VLANs, and replaces the hand-built rules instead of importing them. Each row names where it comes from; a row marked *confirm* rests on an answer from the maintainer or a document not yet read for it, and a row marked *written but off* is in the play with `enabled: false` until its owner settles the fact it rests on. Enabling it is a one-line change in the role's defaults, and the flow list's probes follow the flows. This section becomes the first entries of the flow list of [`network-boundary-checks.md`](network-boundary-checks.md) once its schema exists, and is deleted with this project.
+The policy for the existing zones is written from the flows below, default-deny between VLANs, and replaces the hand-built rules instead of importing them. Each row names where it comes from; a row marked *confirm* rests on an answer from the maintainer or a document not yet read for it, and a row marked *written but off* is in the play with `enabled: false` until its owner settles the fact it rests on. Enabling it is a one-line change in the role's defaults, and the flow list's probes follow the flows. The rows a canary can try from a zone are in the flow list of [`network-boundary-checks.md`](network-boundary-checks.md), and the rows sourced from a host stay here until this project closes. At close the rest goes to [`tofu/opnsense-gateway.md`](../topics/infra/tofu/opnsense-gateway.md) as the play's description, and this section is deleted.
 
 Traffic between two hosts on the same VLAN is switched on the bridge and never reaches the gateway, so it needs no rule: the five hosts on VLAN 20 reach each other (backups to SeaweedFS, OpenBao on 8200, Beszel agents to the hub, Gatus pushes, DNS between the zone servers) without one. Only flows that cross a VLAN, reach the gateway itself or leave through the WAN are listed.
 
@@ -102,8 +102,6 @@ Traffic between two hosts on the same VLAN is switched on the bridge and never r
 | 12 | Tailscale subnet router (VLAN 20) | VLAN 70 host, VM 302 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |
 | 13 | VLANs 20, 40 and 60 (the experimental block with Internet) | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
 | 14 | VLAN 30 | WAN | Any, for now, except direct DNS as in row 14 | ADR 0058 wants only the proxy's allowlist here, and the proxy does not exist yet | ADR 0058, [`coding-agent-egress.md`](coding-agent-egress.md) |
-| 15 | VLAN 40 desktops (the VM 4XX hosts) | `play` | 25565 | Minecraft clients | Maintainer |
-| 16 | VLAN 40 desktops | `services` | 1688 | KMS activation | Maintainer |
 
 Not on the list, so denied: any flow from VLAN 70 to another zone (ADR 0053), from VLAN 50 (the experimental block without Internet) and VLAN 60 to another zone or, for VLAN 50, to the WAN, and from any zone to the gateway's management ports other than rows 2 and 3.
 
@@ -111,7 +109,7 @@ The VLAN scheme gives one VLAN per VMID hundred, so the experimental block with 
 
 Outbound NAT stays in automatic mode, which the seed sets, so the play writes no NAT rules: every zone's traffic to the WAN leaves with the gateway's WAN address, which is how the operator host reaches the Proxmox node. There is no inbound forward. An Internet rule passes a zone's traffic to everything outside the private ranges, so a zone cannot reach another zone or the node through it.
 
-Hosts that reach `services` through the Tailscale subnet router (VM 202, `192.168.20.2`) share VLAN 20 with it and need no rule, and neither do remote players reaching `play` the same way. Rows 16 and 17 are the only inbound flows across a VLAN.
+Hosts that reach `services` through the Tailscale subnet router (VM 202, `192.168.20.2`) share VLAN 20 with it and need no rule, and neither do remote players reaching `play` the same way. The only inbound flows across a VLAN, the desktops' Minecraft and KMS flows, are in the flow list ([`network-boundary-checks.md`](../topics/infra/network-boundary-checks.md)), not in this table.
 
 The untagged `lan` network (`192.168.0.0/24`, with its own DHCP range) retires as a zone. It was the old non-DDNS desktop network, also used for Windows template setup and other experiments, and its hosts move to VLAN 50 when they need no Internet and to VLAN 60 when they do (the template setup is the second). The gateway's untagged interface stays, because the VLAN devices sit on it, but it serves no hosts and the play writes no DHCP range or rules for it.
 

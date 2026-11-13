@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Lock the on-site backup bucket in compliance mode so the host that wrote an archive cannot delete it, and expire superseded versions once their lock ends, as ADR 0081 decides.
 decision: ADR-0081/0
+plan: draft
 super_project: backup-archive-protection
 allowed_paths:
   - docker/seaweedfs/**

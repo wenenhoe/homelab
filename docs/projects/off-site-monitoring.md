@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Relocate monitoring to a GCP e2-micro so it survives loss of the whole site.
 decision: ADR-0049/0
+plan: draft
 super_project: off-site-monitoring
 depends_on:
   - project: PROJ-gcp-e2-micro-provisioning

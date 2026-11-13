@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: A filtering egress proxy for the coding-agent zone and VLAN 30, and canary probes that check the whole boundary from outside the host.
 decision: ADR-0053/0
+plan: draft
 super_project: coding-agent-host
 depends_on:
   - project: PROJ-coding-agent-network

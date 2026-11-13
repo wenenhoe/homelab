@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host.
 decision: ADR-0073/0
+plan: draft
 super_project: off-site-monitoring
 ---
 

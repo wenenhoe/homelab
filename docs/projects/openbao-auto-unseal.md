@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Seal OpenBao with an OCI KMS key so a reboot of `security` needs no operator, and let the maintenance job reboot that host again.
 decision: ADR-0018/1
+plan: draft
 ---
 
 # OpenBao Auto-Unseal

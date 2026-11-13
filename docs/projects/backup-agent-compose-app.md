@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: "Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app."
 decision: ADR-0088/0
+plan: draft
 super_project: compose-stack-files
 allowed_paths:
   - docker/backup-agent/**

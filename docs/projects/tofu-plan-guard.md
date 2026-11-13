@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: "Build the guard that checks a saved Tofu plan against a committed allow-list of destructive actions, the wrapper that applies the checked plan, and the pull request check that fails an address removed without one, then accept the decision."
 decision: ADR-0102/0
+plan: draft
 allowed_paths:
   - tools/tofu_guard/**
   - tools/tests/tofu_guard/**

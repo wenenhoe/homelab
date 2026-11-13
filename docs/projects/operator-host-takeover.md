@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: The egress allowlist for VLAN 30, then the controller's toolchain and credentials moved onto the operator host.
 decision: ADR-0058/0
+plan: draft
 super_project: controller-separation
 depends_on:
   - project: PROJ-operator-host

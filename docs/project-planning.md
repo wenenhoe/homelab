@@ -99,6 +99,7 @@ first, so one that has stood still is the first row.
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
 | [0096](decisions/0096-knowing-the-pre-commit-hooks-that-run-are-the-reviewed-ones/revision-000.md) | **Knowing the pre-commit hooks that run are the ones that were reviewed** — How the pre-commit hook code and the images hooks pull are made to be the ones a commit names, so they change only in a pull request that shows the change. | Each hook repository is pinned to a full commit SHA with its tag in a comment, each docker hook's image is pinned by digest in the config, and Renovate moves both in a reviewed pull request | Working |
+| [0114](decisions/0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md) | **Landing a series from a device other than the laptop** — Where a series is reviewed and landed when the laptop is out of reach, and how the host that does it holds no standing power over main. | A web console on its own VM behind a DMZ interface, reached over the tailnet, signed in with Pocket ID and merging with a GitHub App user token that lives for one series | Working |
 
 ## Open explorations
 
@@ -113,4 +114,3 @@ first, so one that has stood still is the first row.
 | [`post-compromise-archive-relay.md`](explorations/post-compromise-archive-relay.md) | How could the lab notice that an archive a compromised host made has been relayed offsite as if it were genuine? | 2026-11-11 |
 | [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-11 |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? | 2026-11-12 |
-| [`remote-series-landing.md`](explorations/remote-series-landing.md) | How could a series be reviewed and landed from the laptop or the phone away from home, and where would the thing that lands it run? | 2026-11-13 |

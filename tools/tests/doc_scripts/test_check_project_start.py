@@ -36,12 +36,14 @@ class TestPullRequestMode:
         assert code == 1, out
         assert "docs/projects/fresh.md" in out
         assert "ADR-0001/0 is working" in out
+        assert "plan: draft" in out
 
     @pytest.mark.parametrize(
         ("name", "fields"),
         [
             pytest.param("approved", {"status": "not-started", "decision": "ADR-0002/0"}, id="on an approved decision"),
-            pytest.param("spike", {"status": "de-risking", "decision": "ADR-0001/0"}, id="de-risking on a working decision"),
+            pytest.param("draft", {"status": "not-started", "decision": "ADR-0001/0", "plan": "draft"}, id="a draft plan on a working decision"),
+            pytest.param("waiting", {"status": "de-risking", "decision": "ADR-0001/0", "plan": "draft"}, id="de-risking draft on a working decision"),
             pytest.param("free", {"status": "not-started"}, id="no decision"),
         ],
     )

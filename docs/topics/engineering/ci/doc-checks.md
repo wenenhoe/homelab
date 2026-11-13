@@ -122,13 +122,20 @@ these narrow, structural things:
   that is `building` on it. Projects without a `decision:` are never
   gated. `depends_on` entries name existing project docs, never
   themselves, and form no cycle.
-- A project's status must agree with its stage table: `not-started` fails with
-  a stage `In progress` or `Done`, and `de-risking` or `building` fails with
-  every stage `Not started`. A doc with no stage rows is not judged.
-- A stage named `Spike` or `Spikes` that is not `Done` fails when the project's
-  `decision:` revision is `approved` or `accepted`: the revision was approved
-  before the assumption was resolved, or the spike is build work under another
-  name. A finished spike stays as history.
+- A project's status must agree with its stage table: `not-started` and
+  `de-risking` fail with a stage `In progress` or `Done`, and `building` fails
+  with every stage `Not started`. A doc with no stage rows is not judged.
+- A stage whose title starts as a spike, an assumption (resolve, settle,
+  verify, de-risk), a decision (write, decide), an acceptance, a docs-only
+  change or an operational run (roll out, drill, production migration) fails
+  unless it is `Done`: assumptions and decisions are settled under the
+  decision, acceptance is the closing checklist, docs travel with the change,
+  and a run is an acceptance criterion
+  ([ADR 0037 revision 5](../../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md)).
+  The patterns are `STAGE_KINDS` in `doc_scope.py`. A finished one stays as
+  history.
+- A project whose `decision:` revision is `working` must carry `plan: draft`.
+  `plan` is `draft` or `confirmed`; absent counts as confirmed.
 - A `superseded` revision keeps only the frozen sections (Problem, Decision,
   Invariants, Non-goals, Reconsideration triggers): any other `##` section
   fails, naming it. `check_doc_drift --fix` cuts the revision to those
@@ -303,8 +310,8 @@ view lists it, so the gap is visible but not blocked.
 [`tools/doc_scripts/check_project_start.py`](../../../../tools/doc_scripts/check_project_start.py) enforces the start rule in
 [ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md):
 a project doc that a change adds is `not-started` only when its `decision:`
-revision is `approved`, or it names none. A project on a `working` revision
-starts as `de-risking`, limited to spikes and reading code. The rule reads
+revision is `approved`, or it names none, or it is a draft plan (`plan: draft`).
+A project on a `working` revision is a draft for sizing and the roadmap. The rule reads
 only the docs the change adds (a rename counts as one), so a project that was
 already waiting on a `working` revision is not re-judged.
 

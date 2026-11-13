@@ -235,15 +235,18 @@ class TestStageTable:
     def test_not_started_with_a_started_stage_fails(self, root, stage):
         assert_one_error(self.errors(root, "not-started", "Not started", stage), "not-started", stage)
 
-    @pytest.mark.parametrize("status", ["de-risking", "building"])
-    def test_an_active_status_with_no_stage_started_fails(self, root, status):
-        assert_one_error(self.errors(root, status, "Not started", "Not started"), status, "no stage has started")
+    def test_building_with_no_stage_started_fails(self, root):
+        assert_one_error(self.errors(root, "building", "Not started", "Not started"), "building", "no stage has started")
+
+    @pytest.mark.parametrize("stage", ["In progress", "Done"])
+    def test_de_risking_with_a_stage_started_fails(self, root, stage):
+        assert_one_error(self.errors(root, "de-risking", "Not started", stage), "de-risking", stage, "nothing builds")
 
     @pytest.mark.parametrize(
         ("status", "stages"),
         [
             ("not-started", ("Not started", "Not started")),
-            ("de-risking", ("In progress", "Not started")),
+            ("de-risking", ("Not started", "Not started")),
             ("building", ("Done", "Not started")),
             ("building", ("Done", "Done")),
         ],
@@ -256,34 +259,79 @@ class TestStageTable:
         assert graph.project_errors(root) == []
 
 
-class TestSpikeStage:
-    def errors(self, root, revision_status, *stages):
-        revision(root, "0001-a", 0, status=revision_status)
-        path = project(root, "p", status={"working": "not-started", "approved": "building", "accepted": "done"}[revision_status], decision="ADR-0001/0")
+class TestStageKinds:
+    """A stage is a change that merges with its docs (ADR 0037 revision 5)."""
+
+    def errors(self, root, *stages):
+        path = project(root, "p", status="building")
         rows = "\n".join(f"| {i} | {title} | {status} | done |" for i, (title, status) in enumerate(stages, 1))
         table = f"\n## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n{rows}\n"
         path.write_text(path.read_text(encoding="utf-8") + table, encoding="utf-8")
         return graph.project_errors(root)
 
-    @pytest.mark.parametrize("revision_status", ["approved", "accepted"])
-    def test_an_unfinished_spike_under_a_settled_decision_fails(self, root, revision_status):
-        errors = self.errors(root, revision_status, ("Spike: the proxy", "In progress"), ("Build it", "Done"))
-        assert_one_error(errors, "Spike: the proxy", revision_status, "name the stage for what it builds")
+    @pytest.mark.parametrize(
+        ("title", "kind"),
+        [
+            ("Spike: the proxy", "a spike"),
+            ("Spikes: proxy and bridge", "a spike"),
+            ("Resolve the assumptions and place the file", "an assumption stage"),
+            ("Settle the decision's assumptions", "an assumption stage"),
+            ("Verify the decision", "an assumption stage"),
+            ("De-risk the sandbox", "an assumption stage"),
+            ("Write the decision for the runtime", "a decision stage"),
+            ("Decide the fate of the templates", "a decision stage"),
+            ("Accept the decision", "an acceptance stage"),
+            ("Acceptance", "an acceptance stage"),
+            ("Docs", "a docs-only stage"),
+            ("Document the workflow", "a docs-only stage"),
+            ("Roll out and verify", "an operational run"),
+            ("Rebuild drill", "an operational run"),
+            ("Production migration", "an operational run"),
+            ("Convert the live bucket", "an operational run"),
+        ],
+    )
+    @pytest.mark.parametrize("status", ["Not started", "In progress"])
+    def test_a_stage_that_is_not_a_build_change_fails(self, root, title, kind, status):
+        errors = self.errors(root, (title, status), ("Build it", "In progress"))
+        assert_one_error(errors, title, kind, status)
 
-    def test_a_spike_under_a_working_decision_passes(self, root):
-        assert self.errors(root, "working", ("Spike: the proxy", "Not started")) == []
+    def test_a_finished_one_stays_as_history(self, root):
+        assert self.errors(root, ("Spike: the proxy", "Done"), ("Accept the decision", "Done"), ("Build it", "In progress")) == []
 
-    def test_a_finished_spike_stays_as_history(self, root):
-        assert self.errors(root, "approved", ("Spike: the proxy", "Done"), ("Build it", "In progress")) == []
+    @pytest.mark.parametrize(
+        "title",
+        [
+            "Build it, after the spike",
+            "Trial the proxy",
+            "The first quarter of exercises",
+            "Decommission VM 401",
+            "Verify at restore",
+            "The answer-file renderer and its tests",
+            "Docker image for the proxy",
+        ],
+    )
+    def test_a_build_stage_that_only_resembles_one_passes(self, root, title):
+        assert self.errors(root, (title, "In progress")) == []
 
-    def test_only_a_stage_named_a_spike_counts(self, root):
-        assert self.errors(root, "approved", ("Trial the proxy", "In progress")) == []
 
-    def test_a_stage_that_only_mentions_a_spike_is_not_one(self, root):
-        assert self.errors(root, "approved", ("Build it, after the spike", "In progress")) == []
+class TestPlan:
+    def errors(self, root, revision_status, **fields):
+        revision(root, "0001-a", 0, status=revision_status)
+        project(root, "p", status="not-started", decision="ADR-0001/0", **fields)
+        return graph.project_errors(root)
 
-    def test_the_plural_names_a_spike_too(self, root):
-        assert_one_error(self.errors(root, "approved", ("Spikes: proxy and bridge", "Not started"), ("Build it", "In progress")), "Spikes")
+    def test_a_project_on_a_working_decision_must_be_a_draft(self, root):
+        assert_one_error(self.errors(root, "working"), "working", "plan: draft")
+
+    def test_a_confirmed_plan_on_a_working_decision_fails(self, root):
+        assert_one_error(self.errors(root, "working", plan="confirmed"), "plan: draft")
+
+    def test_a_draft_on_a_working_decision_passes(self, root):
+        assert self.errors(root, "working", plan="draft") == []
+
+    @pytest.mark.parametrize("fields", [{}, {"plan": "draft"}, {"plan": "confirmed"}])
+    def test_an_approved_decision_takes_any_plan(self, root, fields):
+        assert self.errors(root, "approved", **fields) == []
 
 
 class TestProjectErrors:
@@ -329,7 +377,7 @@ class TestProjectErrors:
     def test_decision_gate_matrix(self, root, project_status, n, rev_status):
         for i, status in enumerate(DECISION_GATE_REVISION_STATUSES, start=1):
             revision(root, f"{i:04d}-x", 0, status=status)
-        project(root, "p", status=project_status, decision=f"ADR-{n:04d}/0")
+        project(root, "p", status=project_status, decision=f"ADR-{n:04d}/0", plan="draft")
         errors = graph.project_errors(root)
         if rev_status in DECISION_GATE_ALLOWED[project_status]:
             assert errors == []
@@ -338,7 +386,7 @@ class TestProjectErrors:
 
     def test_a_revision_dropping_back_to_working_stops_a_building_project(self, root):
         revision(root, "0001-x", 0, status="approved")
-        project(root, "p", status="building", decision="ADR-0001/0")
+        project(root, "p", status="building", decision="ADR-0001/0", plan="draft")
         assert graph.project_errors(root) == []
         revision_path = root / "docs/decisions/0001-x/revision-000.md"
         revision_path.write_text(revision_path.read_text(encoding="utf-8").replace("status: approved", "status: working"), encoding="utf-8")
@@ -392,7 +440,7 @@ class TestProjectErrors:
         revision(root, "0001-x", 0, status="approved")
         revision(root, "0001-x", 1, status="working", supersedes=0)
         project(root, "closing", status="done", decision="ADR-0001/0")
-        project(root, "other", status="not-started", decision="ADR-0001/1")
+        project(root, "other", status="not-started", decision="ADR-0001/1", plan="draft")
         assert_one_error(graph.project_errors(root), "another project not at done names it")
 
     def test_a_sibling_on_a_different_candidate_is_not_a_sibling(self, root):
@@ -405,8 +453,8 @@ class TestProjectErrors:
 
     def test_a_sibling_does_not_let_done_name_a_working_revision(self, root):
         revision(root, "0001-x", 0, status="working")
-        project(root, "closing", status="done", decision="ADR-0001/0")
-        project(root, "sibling", status="not-started", decision="ADR-0001/0")
+        project(root, "closing", status="done", decision="ADR-0001/0", plan="draft")
+        project(root, "sibling", status="not-started", decision="ADR-0001/0", plan="draft")
         assert_one_error(graph.project_errors(root), "closing.md: status: done needs decision ADR-0001/0")
 
     def test_an_accepted_revision_with_an_unfinished_sibling_is_still_refused(self, root):

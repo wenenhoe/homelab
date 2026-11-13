@@ -41,6 +41,8 @@ PROJECT_LIFECYCLE_STATUS = {"not-started", "de-risking", "building", "done"}
 EXPLORATION_STATUS = {"open"}
 # How much record a decision carries (ADR 0037 revision 4); a revision without `weight:` is full.
 WEIGHTS = {"full", "light"}
+# A project plan is a draft until building starts; absent counts as confirmed (ADR 0037 revision 5).
+PLANS = {"draft", "confirmed"}
 
 VALID_STATUS = {
     "adr-revision": ADR_REVISION_STATUS,
@@ -164,6 +166,8 @@ def _validate_project(path: Path, data: dict) -> None:
         _fail(path, "'blocked' must be true or false")
     if data.get("blocked") is True and not data.get("blocked_reason"):
         _fail(path, "blocked: true needs a 'blocked_reason' field")
+    if "plan" in data and data["plan"] not in PLANS:
+        _fail(path, f"'plan' must be one of {sorted(PLANS)}, not {data['plan']!r}")
     if "super_project" in data and not (isinstance(data["super_project"], str) and SLUG_RE.match(data["super_project"])):
         _fail(path, "'super_project' must be a lowercase-hyphen slug")
     for removed in ("track", "phase"):

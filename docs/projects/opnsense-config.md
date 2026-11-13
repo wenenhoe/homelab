@@ -96,7 +96,7 @@ Traffic between two hosts on the same VLAN is switched on the bridge and never r
 | 6 | Operator host | VM 303 | 22 | `playbooks/cd-agent.yaml` | `inventory.yaml` |
 | 7 | Operator host | VLAN 70 host | 22 | Provisioning the coding-agent host | ADR 0053. Added to the play by [`coding-agent-network.md`](coding-agent-network.md) |
 | 8 | Operator host | The node's WAN-side address | 8006, 22 | Tofu's API calls, and the first-boot script's SSH. The node is not on any VLAN: it is reached through the gateway's outbound NAT | Maintainer |
-| 9 | CD agent | VLAN 20 hosts | 22 | Deploys | Written but off until the CD agent's approles are settled against ADR 0044; owner [`cd-agent-approles.md`](cd-agent-approles.md) |
+| 9 | CD agent | VLAN 20 hosts | 22 | Deploys | Written but off until the CD agent's approles are settled against ADR 0044; owner [`cd-agent.md`](cd-agent.md) |
 | 10 | CD agent | `security` | 8200 | AppRole login | Written but off, as row 10 |
 | 11 | CD agent | `storage` | 443 | Rotated write key for `redeploy-storage` | `cd-agent-host.md`. Written but off, as row 10; it also waits for the remote state backend's port when the key serves the state bucket |
 | 12 | Tailscale subnet router (VLAN 20) | VLAN 70 host, VM 302 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |

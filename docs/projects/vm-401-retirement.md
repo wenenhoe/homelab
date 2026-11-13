@@ -47,6 +47,10 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - VM 401 is the only place some tooling or state may still live; retire it only after the operator host and the laptop have done every operation it did.
 
+## Open items
+
+- Sizing reviewed against ADR 0037 revision 5: kept apart from `workstation-management.md`, which it depends on. The laptop setup is independent work, and the retirement follows `operator-host-takeover.md`.
+
 ## Closing checklist
 
 Before deleting this doc, work through the [closing checklist](README.md#closing-checklist). It is the only copy.

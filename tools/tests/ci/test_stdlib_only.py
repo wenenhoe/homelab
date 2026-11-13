@@ -48,6 +48,7 @@ BARE_PYTHON = (
     "promotion/checklist.py",
     "gates/__init__.py",
     "gates/compose_health.py",
+    "gates/renovate_config.py",
     "gates/renovate_window.py",
     "gates/matrix_gate.py",
     "scan/__init__.py",

@@ -11,8 +11,9 @@
     // Age/Adoption/Passing/Confidence badges on PRs. Only covers the go,
     // npm, maven, pypi, nuget, packagist and rubygems datasources
     // (docs.renovatebot.com/merge-confidence) — of this repo's managers,
-    // only pep621/uv (pypi) qualifies; docker and ansible PRs won't show
-    // badges. No extra token needed: badges load client-side in the browser.
+    // only pep621 (pypi, which also moves uv.lock) qualifies; docker and
+    // ansible PRs won't show badges. No extra token needed: badges load
+    // client-side in the browser.
     "mergeConfidence:all-badges",
   ],
   // Authenticated as a GitHub App, Renovate commits through the API, so GitHub
@@ -88,7 +89,7 @@
 
   // Enabled by default in Renovate 43+, set explicitly anyway — this is
   // what keeps uv.lock's *transitive* pins current (direct deps already
-  // get their own update-lockfile PRs, see the pep621/uv packageRule).
+  // get their own update-lockfile PRs, see the pep621 packageRule).
   // schedule is set explicitly because lockFileMaintenance has its own
   // independent default ("before 4am on monday") that the top-level
   // `schedule` above does not override.
@@ -443,7 +444,7 @@
     // uv.lock whenever a newer one satisfying that range is out — the file
     // that actually determines what gets installed.
     {
-      matchManagers: ["pep621", "uv"],
+      matchManagers: ["pep621"],
       automerge: false,
       rangeStrategy: "update-lockfile",
     },
@@ -453,7 +454,7 @@
     // minor/patch-only, majors-stay-individual split as github-actions and
     // docker-compose/dockerfile groups.
     {
-      matchManagers: ["pep621", "uv"],
+      matchManagers: ["pep621"],
       matchUpdateTypes: ["minor", "patch"],
       groupName: "python dependencies (minor/patch)",
       groupSlug: "python-deps-minor-patch",

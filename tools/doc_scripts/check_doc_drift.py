@@ -31,6 +31,7 @@ from doc_scripts.doc_graph import (
 from doc_scripts.doc_records import record_errors
 from doc_scripts.doc_reliance import reliance_warnings
 from doc_scripts.doc_removed import ledger_errors
+from doc_scripts.doc_sizing import load_projects, size_warnings
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -434,6 +435,11 @@ def main(argv: list[str] | None = None) -> int:
         errors.extend(warnings)
     else:
         for w in warnings:
+            print(f"::warning::{w}")
+
+    # A project's size is a review prompt, never a failure (ADR 0037 revision 5).
+    if not errors:
+        for w in size_warnings(load_projects(ROOT)):
             print(f"::warning::{w}")
 
     if errors:

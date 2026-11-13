@@ -207,6 +207,19 @@ count as touching both paths. Path-level only: it can't tell whether an
 edit inside an allowed file is the permitted one, and a change that never
 works its project doc isn't bounded.
 
+## Project size warnings
+
+[`tools/doc_scripts/doc_sizing.py`](../../../../tools/doc_scripts/doc_sizing.py)
+holds the size rules of [ADR 0037 revision 5](../../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md).
+None fails a check; each prompts a review. `check_doc_drift.py` prints, as
+`::warning::`, a project with a single stage row that no other project alone
+depends on; one with more than six stages; two projects chained by `depends_on`
+that name one revision, unless a third depends on the earlier alone; and a stage
+row that names another project (its id, its doc path or a link to a sibling doc)
+next to a waiting word. The drift check prints them only when it has no errors.
+The [project start check](#project-start-check) warns when a stage is added to a
+project that was already building.
+
 ## Scope suggestions
 
 [`tools/doc_scripts/suggest_project_scope.py`](../../../../tools/doc_scripts/suggest_project_scope.py)

@@ -367,3 +367,62 @@ flows:
     expect: deny
     control: services-security-vault
     tags: [cross-zone]
+
+  # The desktops reach the Minecraft server and the KMS host, and no other zone does (rows 15 and 16 of the gateway's policy).
+  # The control of each deny is the desktops' own allow flow. The services zone holds both hosts, so its own traffic is
+  # switched on the bridge and never reaches the gateway. Each passes only while something listens on the host, so they carry
+  # the `listener` tag, which a run that must not depend on the service being up leaves out.
+  - id: desktops-play-minecraft
+    from: desktops
+    to: {address: 192.168.20.4, port: 25565}
+    kind: connect
+    expect: allow
+    tags: [desktops, listener]
+  - id: others-to-play-minecraft-denied
+    from: others
+    to: {address: 192.168.20.4, port: 25565}
+    kind: connect
+    expect: deny
+    control: desktops-play-minecraft
+    tags: [cross-zone, listener]
+  - id: isolated-to-play-minecraft-denied
+    from: isolated
+    to: {address: 192.168.20.4, port: 25565}
+    kind: connect
+    expect: deny
+    control: desktops-play-minecraft
+    tags: [cross-zone, listener]
+  - id: experimental-to-play-minecraft-denied
+    from: experimental
+    to: {address: 192.168.20.4, port: 25565}
+    kind: connect
+    expect: deny
+    control: desktops-play-minecraft
+    tags: [cross-zone, listener]
+  - id: desktops-services-kms
+    from: desktops
+    to: {address: 192.168.20.3, port: 1688}
+    kind: connect
+    expect: allow
+    tags: [desktops, listener]
+  - id: others-to-services-kms-denied
+    from: others
+    to: {address: 192.168.20.3, port: 1688}
+    kind: connect
+    expect: deny
+    control: desktops-services-kms
+    tags: [cross-zone, listener]
+  - id: isolated-to-services-kms-denied
+    from: isolated
+    to: {address: 192.168.20.3, port: 1688}
+    kind: connect
+    expect: deny
+    control: desktops-services-kms
+    tags: [cross-zone, listener]
+  - id: experimental-to-services-kms-denied
+    from: experimental
+    to: {address: 192.168.20.3, port: 1688}
+    kind: connect
+    expect: deny
+    control: desktops-services-kms
+    tags: [cross-zone, listener]

@@ -44,7 +44,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Sign each archive on its host | Not started | A Molecule scenario shows a `.sig` uploaded beside each archive by a unit on the host, signed with a root-only key that the agent container cannot read, and `backup.md` describes it |
+| 1 | Sign each archive on its host | Not started | A Molecule scenario shows a `.sig` uploaded beside each archive by a unit on the host, signed with a root-only key that the agent container cannot read, the unit deletes the `.sig` of an archive that is no longer listed, and `backup.md` describes it |
 | 2 | Relay the signature | Not started | A Molecule scenario relays an archive and its `.sig` to a target, and `cloud-sync.md` says each target's retention keeps a signature as long as its archive |
 | 3 | Verify at restore | Not started | The unit tests listed under Validation in ADR 0079 pass, the lag between an archive and its `.sig` is measured, a restore of an archive filed under another host's prefix is refused in a Molecule scenario with two fake hosts, and `restore.md` and `backup-threat-model.md` describe the check and the refusal |
 | 4 | Cover every backup host | Not started | A test fails when an app host has a backup schedule and no line in `allowed_signers`, and the restore has an explicit, logged override for archives written before signing |
@@ -79,8 +79,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 1. Where `allowed_signers` lives in the repository. ADR 0079 says only that it is checked in and read from the checkout.
 2. How a single-app restore verifies. ADR 0079 says it runs the same way as the batch restore, but the `restore` role takes an already-decrypted archive and never touches GPG or SeaweedFS, and the operator downloads and decrypts the object by hand, so the signature has to be checked before that step.
-3. How the on-site `.sig` objects are pruned with their archives. ADR 0079 does not say, and `backup_agent` prunes by each app's retention with a plain delete ([ADR 0081 (On-site archive deletion)](../decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md)).
-4. How long an archive may stay unsigned before the freshness check alerts.
+3. How long an archive may stay unsigned before the freshness check alerts.
 
 ## Closing checklist
 

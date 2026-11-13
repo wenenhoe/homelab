@@ -177,7 +177,7 @@ class TestNamed:
         assert entries(report(repo).named) == ["src/app/tasks.yaml"]  # only what the plan row names
 
     def test_a_glob_the_doc_names_is_kept_as_written(self, repo):
-        write_doc(repo.root, DOC, front(), body(in_line="In: `src/*/thing.py`."))
+        write_doc(repo.root, DOC, front(), body(in_line="In: `src/*/thing.py`.", not_in="Not in: `src/reads/only.py`."))
         found = {f.entry: f for f in report(repo).named}
         assert found["src/*/thing.py"].files == ("src/other/thing.py",)
 
@@ -219,6 +219,10 @@ class TestSweepTerms:
 
 
 class TestCompletenessErrors:
+    def test_a_named_path_under_not_in_is_acknowledged(self, repo):
+        write_doc(repo.root, DOC, front(allowed_paths=["docs/topics/app.md"]), body(not_in="Not in: `src/app/` beyond the topic doc."))
+        assert cli.completeness_errors(repo.root, DOC) == []
+
     def test_a_scope_lacking_a_named_path_fails(self, repo):
         errors = cli.completeness_errors(repo.root, DOC)
         assert any("allowed_paths lacks `src/app/**`" in e for e in errors)

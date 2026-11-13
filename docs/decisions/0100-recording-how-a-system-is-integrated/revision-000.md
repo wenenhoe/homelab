@@ -7,7 +7,8 @@ short: Recording a system's integration
 solution: One required-section topic doc per integrated system, linked from its app_catalog entry, checked by check_doc_drift, with a generated disaster-recovery coverage view
 summary: How the repository makes a new app, service or dependency state its dependencies, data, exposure, threat model, observability, disaster recovery and lifecycle when it is added, and keeps what a review of them finds out of git history.
 topic: documentation-process
-status: accepted
+status: superseded
+superseded_by: 1
 related: [ADR-0028, ADR-0037]
 ---
 
@@ -24,61 +25,6 @@ decision the author happened to be editing, and a question nobody asked
 (whether its data is backed up, whether a restore was ever exercised) has no
 place where its absence is visible. The gap is found when the system is needed
 back.
-
-## Context
-
-- **Where the answers live today.** The app-adding guide covers wiring, not a
-  threat model, an observability story or a restore path, and per-system topic
-  docs sit in different groups of `docs/topics/`, so a file name does not
-  identify the system it covers.
-- **What the repository already derives.** Which apps declare a `backup`, which
-  volumes they name and which hosts run them are data in `app_catalog` and
-  `host_vars`; the fire-drill doc records which apps each rehearsal restored.
-  Neither is joined to the other, so whether a backed-up app has ever been
-  restored cannot be read off one page. The existing checks do not ask whether
-  an entry has any documentation.
-- **The same sections fit each kind of system.** Drafts of one record for a
-  catalog app, for the certificate issuance and renewal a role installs, and for
-  the cloud storage targets each filled the six sections first proposed;
-  `Dependencies` was added afterwards, from the practice below. The role's
-  `Exposure` is "None" because it has no listener, and for a cloud target the
-  section is about what the host sends out and with which credential, which is
-  why it names both directions. A draft also needed facts the repository does not
-  hold, such as what an app keeps in its data volume, which is why a section may
-  say what is unknown.
-- **The fire-drill table joins to the catalog.** Every name in its "Apps covered"
-  column is a catalog key, in any case and with an optional parenthetical, so no
-  structured column is needed. The join also shows an app that is backed up and
-  was never restored, and a restored system that has no `backup` entry because
-  its backup is its own, as OpenBao's snapshot is.
-- **A view the apply hooks do not name stops the apply.** With the view missing
-  from the list the hooks name, a real `git am` stops on a stale view and makes
-  no commit. A patch that carries the view itself conflicts across two series,
-  which is why patches leave generated views out.
-- **Rebuild order is a dependency question.** A host comes back only if what each
-  system needs to start is back first; the rebuild of `security` needed its own
-  procedure because two systems each needed the other
-  ([ADR 0099 (Rebuilding security from nothing)](../0099-rebuilding-security-from-nothing/revision-000.md)).
-  Nothing records, per system, what it needs and what needs it.
-- **Established practice.** Operational readiness reviews
-  ([AWS Well-Architected, OPS07-BP02](https://docs.aws.amazon.com/wellarchitected/latest/framework/ops_ready_to_support_const_orr.html))
-  and production readiness reviews
-  ([Google SRE book, chapter 32](https://sre.google/sre-book/evolving-sre-engagement-model/))
-  check each service against a standing list of questions. Service catalogs such
-  as [Backstage](https://backstage.io/docs/features/software-catalog/descriptor-format)
-  hold per-service metadata beside the code, and
-  [Shostack's four questions](https://github.com/adamshostack/4QuestionFrame/blob/main/README.md)
-  frame a lightweight threat model: what we are working on, what can go wrong,
-  what we do about it, and whether that worked. This record borrows their shape,
-  claims conformance with none of them, and calls the recurring review an
-  **operational readiness review** (ORR).
-- **A review's findings are not public.** What an ORR finds is the gaps present at
-  the time, which [`docs/README.md#public-repo`](../../README.md#public-repo) keeps
-  out of git history. Its questions are the sections and checks below, which can
-  be public.
-- **Per-system rationale is not an ADR.** An ADR records a contested choice
-  ([README](../README.md)); a routine integration has no contest, so it
-  needs a home that is not a decision.
 
 ## Decision
 
@@ -138,38 +84,6 @@ asks are the sections and checks above. Its findings are kept outside this
 repository and become public only as the ordinary change that closes a gap. A
 gap that no section would have caught is a reason to revise the section set.
 
-## Alternatives considered
-
-- **A checklist in the app-adding guide only.** Cheapest, and it is what exists
-  in spirit now. Nothing fails when it is skipped, so it drifts. Lost on
-  enforcement.
-- **The answers as structured fields in `app_catalog`.** One source and
-  checkable, but a threat model is prose with links, and the catalog describes
-  deployment, not reasoning. Lost on fit.
-- **One ADR per integration.** Gives each a lineage and a state, but a routine
-  integration has no competing solution, and the lineage rules would turn
-  every app into a decision record. Lost on cost for no contest.
-- **Criticality tiers that scale what a record must hold.** Scorecard products
-  grade services bronze, silver and gold. With this few systems the one-line
-  "does not apply" does the same job without a second scheme. Lost on weight.
-- **Derive the record's file name from the app name.** Simple to check, but
-  existing records sit in different topic groups, and moving them to fit a name
-  would break links for no gain. Lost on churn.
-
-## Consequences
-
-- Every new catalog app costs one record. For the apps that exist without one,
-  the exemption list is the debt, and it is visible as a list that has to be
-  emptied.
-- The `doc:` key is a catalog field, so `adding-an-app.md`'s field table, the
-  catalog check and `host-vars.md` change with it.
-- The apply hooks name their generated views in a fixed list; the coverage view
-  joins that list.
-- The record states current behavior, so it changes in the same pull request as
-  the system does, like any topic doc.
-- The coverage view reads catalog fields by name, so renaming one changes the
-  generator.
-
 ## Invariants
 
 - No catalog app lacks a record unless it is on the shrinking exemption list.
@@ -187,13 +101,6 @@ gap that no section would have caught is a reason to revise the section set.
   not decided here.
 - Changing the security and reliability defaults in `AGENTS.md`.
 - Covering tools that are not deployed (repository scripts, CI helpers).
-
-## Validation
-
-`check_doc_drift.py` for the sections and the link; `check-app-catalog` for the
-`doc:` key's shape; a test that the coverage view is current, the way the
-other generated views are checked; and the apply hooks' test, which fails when
-the view is missing from the list the hooks name.
 
 ## Reconsideration triggers
 

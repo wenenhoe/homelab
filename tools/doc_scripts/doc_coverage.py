@@ -1,18 +1,13 @@
 """The generated coverage view (ADR 0100): one row per catalog app with its hosts, volumes,
-routes and their authentication, backup, service record, and the newest fire drill that
-restored it. Rendered into `docs/topics/disaster-recovery/coverage.md` by generate_doc_indexes.py
-and never hand-edited.
+routes and their authentication, backup, service record and recovery tier. Rendered into
+`docs/topics/disaster-recovery/coverage.md` by generate_doc_indexes.py and never hand-edited.
 
-The drill column reads the "Apps covered" cell of the fire-drill results table. Each
-comma-separated item there is a catalog key in any case, with an optional parenthetical, or
-`None` for a drill that restored no app. An item that matches neither fails the generation, so a
-renamed or misspelled app cannot silently drop out of the view.
+The view derives everything from the app catalog and the inventory. It shows no result of any exercise.
 """
 
 from __future__ import annotations
 
 import os
-import re
 from pathlib import Path
 
 from utils.app_catalog import CATALOG_RELATIVE, CatalogError, load_backup_inventory, load_catalog
@@ -20,47 +15,15 @@ from utils.app_catalog import CATALOG_RELATIVE, CatalogError, load_backup_invent
 from doc_scripts.doc_frontmatter import ROOT
 
 COVERAGE_RELATIVE = "docs/topics/disaster-recovery/coverage.md"
-FIRE_DRILL_RELATIVE = "docs/topics/disaster-recovery/fire-drill.md"
 INVENTORY_RELATIVE = "ansible/inventory"
-NO_APP = "none"
-DRILL_ROW_RE = re.compile(r"^\| (\d{4}-\d{2}-\d{2}) \| (.*?) \| ", re.MULTILINE)
-HEADER = "| App | Hosts | Volumes | Routes | Backup | Record | Newest restoring drill |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |"
+HEADER = "| App | Hosts | Volumes | Routes | Backup | Record | Tier |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |"
 
 
-def split_items(cell: str) -> list[str]:
-    """The comma-separated items of a cell, leaving commas inside parentheses alone."""
-    items, depth, current = [], 0, []
-    for char in cell:
-        depth += char == "("
-        depth -= char == ")" and depth > 0
-        if char == "," and depth == 0:
-            items.append("".join(current))
-            current = []
-        else:
-            current.append(char)
-    items.append("".join(current))
-    return [item.strip() for item in items if item.strip()]
-
-
-def item_name(item: str) -> str:
-    """The name part of an item: lower-cased, backticks removed, any trailing parenthetical dropped."""
-    return re.sub(r"\s*\(.*\)\s*$", "", item).replace("`", "").strip().lower()
-
-
-def drill_dates(text: str, keys: set[str]) -> dict[str, str]:
-    """App key -> the date of the newest fire-drill row that lists it. A name that is neither a key nor `None` raises."""
-    newest: dict[str, str] = {}
-    unknown: list[str] = []
-    for date, cell in DRILL_ROW_RE.findall(text):
-        for item in split_items(cell):
-            name = item_name(item)
-            if name in keys:
-                newest[name] = max(date, newest.get(name, date))
-            elif name != NO_APP:
-                unknown.append(f"{date}: {item}")
-    if unknown:
-        raise SystemExit("the fire-drill table's 'Apps covered' column must hold catalog app keys or `None`; no key matches: " + "; ".join(unknown))
-    return newest
+def tier_of(entry: dict) -> int:
+    """1 when the catalog says so, else 2 for an app with a backup, else 3 (ADR 0101)."""
+    if entry.get("recovery_tier") == 1:
+        return 1
+    return 2 if entry.get("backup") else 3
 
 
 def _cell(values: list[str]) -> str:
@@ -74,7 +37,6 @@ def render_coverage_table(root: Path = ROOT) -> str:
     except CatalogError as exc:
         raise SystemExit(str(exc)) from exc
     default_cron = str(inventory.defaults.get("cron", "—"))
-    dates = drill_dates((root / FIRE_DRILL_RELATIVE).read_text(encoding="utf-8"), set(catalog))
     view_dir = (root / COVERAGE_RELATIVE).parent
     rows = []
     for name, app in catalog.items():
@@ -94,7 +56,5 @@ def render_coverage_table(root: Path = ROOT) -> str:
             backup_cell = "—"
         doc = app.get("doc")
         record = f"[{Path(doc).name}]({os.path.relpath(root / doc, view_dir)})" if isinstance(doc, str) else "—"
-        rows.append(
-            f"| `{name}` | {_cell(hosts)} | {_cell([f'`{v}`' for v in volumes])} | {_cell(route_cells)} | {backup_cell} | {record} | {dates.get(name, '—')} |"
-        )
+        rows.append(f"| `{name}` | {_cell(hosts)} | {_cell([f'`{v}`' for v in volumes])} | {_cell(route_cells)} | {backup_cell} | {record} | {tier_of(app)} |")
     return "\n".join([HEADER, *rows])

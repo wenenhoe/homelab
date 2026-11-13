@@ -131,6 +131,25 @@ be built before this one can be applied or live. Projects that name one revision
 and are chained by `depends_on` are one project unless something outside the work
 separates them, such as hardware, or another project depends on the first alone.
 
+### Sizing a project
+
+Size is a warning and a review, never a failure. The drift check warns on:
+
+- **One stage row,** unless another project depends on this one alone. Such a
+  project is a stage of a neighbour, a single change that needs no project, or
+  under-staged.
+- **More than six stages.** Review it for a split.
+- **A stage added after building starts** (the pull request check warns). Review
+  it for a split rather than growing the project.
+- **Chained projects that name one revision,** unless another project depends on
+  the first alone.
+- **A stage that waits on another project in prose,** by naming its id, its doc
+  or a link to it. Move the stage, or make the waiting stages a project that
+  `depends_on` the other. There are no stage-level dependencies.
+
+How and where the warnings run is in
+[`docs/topics/engineering/ci/doc-checks.md#project-size-warnings`](../topics/engineering/ci/doc-checks.md#project-size-warnings).
+
 ## What goes in one
 
 The shape of [`TEMPLATE.md`](TEMPLATE.md): scope, the decision it

@@ -71,6 +71,7 @@ The rotation job runs `python -m cloud_credentials.rotate_leaf_keys`, which rota
 - Where the public half is recorded for the operator to apply, and how it travels from the agent to that record.
 - How the job's `known_hosts` entry for `storage` is established, since the unit's filesystem is read-only outside its state directory.
 - Whether `deploy.yaml`'s `localhost` plays, which are not a connection to `storage`, still use the shared key's path.
+- ADR 0075 is `working`. When it is `approved`, read stages 3 and 4 against it before starting them, and change the stage table if it says otherwise.
 
 ## Closing checklist
 

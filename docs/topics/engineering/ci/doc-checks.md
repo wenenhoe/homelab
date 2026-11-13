@@ -307,13 +307,25 @@ view lists it, so the gap is visible but not blocked.
 
 ## Project start check
 
-[`tools/doc_scripts/check_project_start.py`](../../../../tools/doc_scripts/check_project_start.py) enforces the start rule in
-[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md):
-a project doc that a change adds is `not-started` only when its `decision:`
+[`tools/doc_scripts/check_project_start.py`](../../../../tools/doc_scripts/check_project_start.py) enforces the start rules in
+[ADR 0037 revision 4 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md)
+and [revision 5](../../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md).
+A project doc that a change adds is `not-started` only when its `decision:`
 revision is `approved`, or it names none, or it is a draft plan (`plan: draft`).
 A project on a `working` revision is a draft for sizing and the roadmap. The rule reads
 only the docs the change adds (a rename counts as one), so a project that was
 already waiting on a `working` revision is not re-judged.
+
+A change that moves a project to `building` fails unless its plan is no longer a
+draft and `allowed_paths` is set, the scope being set once, as building starts.
+A plan that was a draft must also show it was read again against the approved
+decision: the Execution plan changes in the same change, or a commit of the
+change carries a `Plan-Confirmed: <project doc path>` trailer when the table
+needed no change. The trailers are read from the commits between the merge-base
+and the head, as the `Editorial-Fix:` trailer is, so a pull request merged with
+a merge commit is judged by its own commits. A project already `building` is
+not judged again, and the `check-doc-change` hook on the index does not judge
+the trailer, which is written with the commit message after the hook runs.
 
 It runs where the close check runs, with the same merge-base diff and the same
 staged-changes behavior: the `project-checks` job in CI, and the

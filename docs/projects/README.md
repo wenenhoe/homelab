@@ -74,10 +74,13 @@ assumptions are settled in the decision, not in a stage, and a question no
 decision covers yet stays in an [exploration](../explorations/README.md) until
 it is approved. A project's `plan` is `draft` or `confirmed`; absent counts as
 confirmed. Read the stage table again against the approved decision before
-building starts.
+building starts: the change that sets `status: building` also sets `plan:
+confirmed` (or drops the field), sets `allowed_paths`, and either changes the
+Execution plan or carries a `Plan-Confirmed: <project doc path>` trailer on a
+commit when the table needed no change.
 [`check_project_start.py`](../../tools/doc_scripts/check_project_start.py)
 fails a change that adds a project on a decision that is not `approved` unless
-it is a draft plan; it reads only the docs the change adds, so a project already
+it is a draft plan, and one that sets a project `building` without those; it reads only the docs the change adds for the first, so a project already
 waiting on a `working` revision is left alone until that revision is approved
 or the project is withdrawn
 ([When a project finishes](#when-a-project-finishes)). More than the limit in
@@ -176,8 +179,9 @@ and stop; don't improvise around it.
 
 ## Scope
 
-A project doc may declare `allowed_paths`: the file globs its work may
-change.
+A project doc declares `allowed_paths`: the file globs its work may
+change. It is set once, in the change that sets `status: building`, which
+the drift check requires; a project that is not building yet may omit it.
 
 ```yaml
 allowed_paths:

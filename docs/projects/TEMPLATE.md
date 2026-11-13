@@ -9,7 +9,7 @@ blocked: false              # true only for an impediment that isn't another pro
 summary: "<one line; feeds the generated index>"
 # decision: ADR-NNNN/N      # the one revision this implements (its label: 0, or 0-b); omit if no ADR is needed
 # super_project: <slug>     # optional grouping of projects into an initiative
-# allowed_paths:          # optional; the globs this work may change (see README.md#choosing-the-scope)
+# allowed_paths:          # set before status: building; the globs this work may change (see README.md#choosing-the-scope)
 #   - path/to/thing/**
 # depends_on:
 #   - project: PROJ-other-project

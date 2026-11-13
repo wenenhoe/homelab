@@ -41,7 +41,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Run the admin and worker beside SeaweedFS | Not started | A Molecule scenario on the SeaweedFS target shows the worker registering `s3_lifecycle` and `vacuum` over loopback, no container on `caddy-proxy` reaching the admin, and the admin API unrouted through Caddy |
 | 2 | Declare the locked bucket | Not started | `seaweedfs_bucket` creates a bucket with versioning, Object Lock and a compliance default retention of `backup_defaults.retention_days`, is idempotent on it, a unit test over `backup_plan` fails when an app's retention is below that window, the `identity_scoping` scenario shows a scoped identity's delete of a fresh archive by `VersionId` refused and the bucket-admin identity's too, and the `AWS-0090` entry in `.trivyignore` is removed |
-| 3 | Declare the lifecycle rules and the signal | Not started | A Molecule scenario drives the lifecycle job on demand against a target with a short explicit retention, and an expired superseded version and an orphaned marker are removed while a locked version is not; the stopped-worker signal and the free-space signal each fire in their tests |
+| 3 | Declare the lifecycle rules and the signal | Not started | A Molecule scenario drives the lifecycle job on demand against a target with a short explicit retention, and an expired superseded version, an orphaned marker and a pruned archive's `.sig` are removed while a locked version is not; the stopped-worker signal and the free-space signal each fire in their tests |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -78,7 +78,6 @@ Run by the operator on `storage`, through the S3 API, once the stages are merged
 ## Open items
 
 1. Which collection or API call declares the lifecycle rules, since `amazon.aws` 11.5.0 has no lifecycle module.
-2. How the on-site `.sig` objects that [`backup-archive-signing.md`](backup-archive-signing.md) adds are removed when their archive is: ADR 0081 does not mention them, and the lifecycle rules above act on noncurrent versions and delete markers.
 
 ## Closing checklist
 

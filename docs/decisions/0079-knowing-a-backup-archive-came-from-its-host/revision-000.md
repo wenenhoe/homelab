@@ -8,7 +8,7 @@ solution: A detached signature per archive from a per-host key, checked at resto
 summary: How a restore shows that the archive it is about to apply was written by the host it claims to be from, whoever else can write to the places archives are kept.
 topic: backup-recovery
 status: working
-related: [ADR-0006, ADR-0010, ADR-0012]
+related: [ADR-0006, ADR-0010, ADR-0012, ADR-0081]
 ---
 
 # 0079. Knowing a backup archive came from its host
@@ -91,6 +91,15 @@ already have `ssh-keygen`. Checked with OpenSSH 9.6 on a throwaway key pair:
 - **Refuse, don't fall back.** If the newest object fails verification, the
   restore stops, names the object and why, and applies nothing. An operator can
   name an older archive on purpose; the restore never chooses one silently.
+- **Signatures follow their archive.** The signing unit deletes the `.sig` of
+  an archive that is no longer listed under the host's prefix, with a plain
+  delete through the host's own identity, and never while the archive is listed.
+  `backup_agent` still prunes archives alone. On a bucket with Object Lock
+  ([ADR 0081](../0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md))
+  the delete leaves a marker that the lifecycle rules remove once the
+  signature's lock has ended; on one without, it frees the space. The order in
+  which the lock and the signing land does not matter, because the unit's delete
+  is the same in both.
 - **Rotation.** A replaced or rebuilt host gets a new key and a new line. The old
   line stays, with `valid-before` set to the replacement time, and the restore
   verifies at the signature time the archive's name carries, so archives signed
@@ -162,6 +171,7 @@ already have `ssh-keygen`. Checked with OpenSSH 9.6 on a throwaway key pair:
 - `allowed_signers` changes only through a reviewed diff, and the restore never
   reads it from the archive store.
 - A failed verification stops the restore. It never selects an older archive.
+- A signature is removed only after its archive is no longer listed.
 
 ## Non-goals
 

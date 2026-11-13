@@ -61,6 +61,18 @@ What the app may do on each branch is the rulesets' business, not the token's: i
 
 To rotate the key, generate a second private key in the app's settings, replace the secret, run the workflow once with `workflow_dispatch`, and delete the old key. To change a permission, change it in the app's settings and accept the new permissions on the installation, in the same change as the workflow's `permission-*` inputs and the table above; `tools/tests/ci/branches/test_renovate_workflow.py` fails when the workflow asks for something else.
 
+## Validating the config
+
+Renovate stops every pull request while `renovate.json5` is invalid, and only the scheduled run reads it, so a mistake that reached `main` was found by the bot's issue, not by a check. The `renovate-config-check` job runs [`ci.gates.renovate_config`](../../../../tools/ci/gates/renovate_config.py) when the config, `renovate.yml` or the check changes.
+
+- It runs `renovate-config-validator --strict --no-global` from the Renovate image `renovate.yml` pins, `renovate-version` with its digest, in a container with no network. Judging the config by the version that will read it is the point: a Renovate release can start rejecting a value the previous one ignored, and the pull request that bumps the pin is the one that changes `renovate.yml`, so the bump is tried against the config before it merges.
+- `--no-global` is required. The validator treats a named file as the self-hosted global config unless told otherwise, which checks the wrong option set for a repository's file. `--strict` also fails a config that needs migrating.
+- The validator is the one every Renovate release ships (`renovate-config-validator`, [documented by Renovate](https://docs.renovatebot.com/config-validation/)), not a third-party action. The image also carries RE2, so the regex managers' patterns are checked by the engine that runs them.
+- Exit status 1 is a rejection and prints the validator's output. Exit status 2 means no verdict: the pin cannot be read or Docker could not pull or run the image.
+- A preset the config extends must be one Renovate ships; the container cannot fetch one from a repository.
+
+`tools/tests/ci/gates/test_renovate_config.py` covers the command and each verdict, and `test_renovate_config_workflow.py` the job and its filter.
+
 ## Checking a run
 
 - A run that opens nothing on a Monday or Thursday is usually the window check's job to explain; its failure names the time the run started.

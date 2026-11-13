@@ -96,6 +96,7 @@ parse on an older Python than the repo's own. The rest run through
 | `provenance` | `tools/ci/provenance/**`, or a file that can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the scripts, workflow and Python constant a Renovate manager tracks), changed | Each pinned image digest is one its publisher signed or attested — see [Image provenance check](image-provenance-check.md). |
 | `shell-tests` | a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py`, changed | Fetches the pinned Bats clones and runs the shell tests on them, with the project's locked Python environment for the templates — see [Shell tests](shell-tests.md). A change to the pin file or the tooling beside it also checks each pinned tag — see [Shell test pins](shell-test-pins.md). |
 | `mermaid-check` | a markdown file, or `tools/doc_scripts/check_mermaid.py`, changed | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](doc-checks.md#mermaid-render-check). |
+| `renovate-config-check` | `.github/renovate.json5`, `.github/workflows/renovate.yml` (which pins the Renovate version), or `tools/ci/gates/renovate_config.py` changed | `.github/renovate.json5` is a valid Renovate repo config under the pinned Renovate image — see [Validating the config](renovate.md#validating-the-config). |
 | `tofu-checks` | anything under `tofu/` changed | In `tofu/`: `tofu fmt -check -recursive`, `tofu init -backend=false -lockfile=readonly`, `tofu validate` and `tofu test`, on the OpenTofu version the job pins, and the same init and validate again in `tofu/scratch/opnsense` and `tofu/scratch/ubuntu`, two more roots that share the first one's lock file. Needs no state, credentials or Proxmox: the tests mock the provider. |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
@@ -124,6 +125,7 @@ flowchart TD
     relchk["release-checksums<br/>(pinned release hash or its checker changed)"]
     provenance["provenance<br/>(pinned image reference or its checker changed)"]
     mermaid["mermaid-check<br/>(markdown or its check changed)"]
+    renovatechk["renovate-config-check<br/>(Renovate config or its pin changed)"]
     shellchk["shell-tests<br/>(shell script, shell test or pin changed)"]
     tofuchk["tofu-checks<br/>(anything under tofu/ changed)"]
     molecule["molecule<br/>(any role touched — matrix)"]
@@ -133,7 +135,7 @@ flowchart TD
     dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 
-    detect --> lint & uvlock & pytest & deployorder & relchk & provenance & mermaid & shellchk & tofuchk & molecule & boottest & synchk & dockerbuild
+    detect --> lint & uvlock & pytest & deployorder & relchk & provenance & mermaid & renovatechk & shellchk & tofuchk & molecule & boottest & synchk & dockerbuild
     detect --> trivy
     warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & shellchk & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
@@ -307,7 +309,7 @@ The workflow triggers on `pull_request_target`, so the workflow and the code it 
 
 ## Requiring checks before merge
 
-The rulesets on `main`, `maintenance` and `develop` require the same 15
+The rulesets on `main`, `maintenance` and `develop` require the same 16
 checks ([`branching.md`](../branching.md#the-rulesets)). GitHub's rulesets
 (Settings > Rules) reference jobs by their check-run name: the job's name alone
 (`pre-commit-checks`, with no workflow name before it), or, for a job that
@@ -316,9 +318,9 @@ calls a reusable workflow, the calling job and the called one
 
 `warm-pre-commit-cache`, `pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
-`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`
+`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `renovate-config-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`
 and `trivy-scan / ansible-misconfig-scan` are required directly, with
-`matrix-jobs-gate` below as the fifteenth; all are safe to
+`matrix-jobs-gate` below as the sixteenth; all are safe to
 require: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required

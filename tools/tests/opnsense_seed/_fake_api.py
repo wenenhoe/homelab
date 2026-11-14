@@ -7,7 +7,8 @@ Faults: nomirror (the firmware status is an error), latest-differs (the update l
 the pin), noreboot (the update job ends with done, not a reboot), stuck (the update never
 ends), badversion (the version is unchanged after the update), keylost (the key is refused
 after the update), authopen (a wrong secret is accepted after the update), silentreboot (the gateway goes down as the update job ends and
-comes back with no job log, so the script never sees the reboot status).
+comes back with no job log, so the script never sees the reboot status), slowreboot (the gateway is unreachable for several seconds after the update
+and a request made meanwhile waits for it to come back and is then answered, as TCP retries do).
 """
 
 from __future__ import annotations
@@ -66,8 +67,11 @@ class FakeApi:
                 state, fault, now = api.state, api.fault, time.monotonic()
                 with api.lock:
                     if state["reboot_at"] and now >= state["reboot_at"]:
-                        state.update(reboot_at=None, last_done="", down_until=now + 1.5)
-                if now < state["down_until"]:
+                        state.update(reboot_at=None, last_done="", down_until=now + (6.0 if fault == "slowreboot" else 1.5))
+                if now < state["down_until"] and fault == "slowreboot":
+                    time.sleep(state["down_until"] - now)
+                    now = time.monotonic()
+                elif now < state["down_until"]:
                     self.close_connection = True
                     return  # an empty reply, as a web server that is restarting gives
                 if fault == "keylost" and state["updated"]:

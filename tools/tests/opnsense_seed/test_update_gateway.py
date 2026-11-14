@@ -78,6 +78,20 @@ def test_a_reboot_that_finished_before_the_job_was_seen_to_end_still_counts(upda
     assert "CHECK the API answers again after the update: PASS" in output
 
 
+def test_a_reboot_that_holds_requests_instead_of_refusing_them_is_still_seen(update):
+    status, output, _ = update("slowreboot", env={"DOWN_TIMEOUT": "10", "UP_PROBE_TIMEOUT": "1"})
+
+    assert status == 0, output
+    assert "CHECK the gateway went down for the reboot: PASS" in output
+
+
+def test_with_a_long_poll_timeout_a_held_request_hides_the_reboot(update):
+    status, output, _ = update("slowreboot", env={"DOWN_TIMEOUT": "4", "UP_PROBE_TIMEOUT": "60"})
+
+    assert status != 0
+    assert "CHECK the gateway went down for the reboot: FAIL" in output
+
+
 def test_update_that_ends_without_a_reboot_passes(update):
     status, output, _ = update("noreboot")
     assert status == 0, output

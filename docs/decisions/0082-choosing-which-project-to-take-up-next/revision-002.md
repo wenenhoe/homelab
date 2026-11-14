@@ -7,7 +7,7 @@ short: Choosing the next project
 solution: "Keep the derived Unblocks count and add a Roadmap view with a row per initiative, in a maintainer-kept order, and a column per derived state; the order ranks initiatives, never a project, and no frontmatter field carries it"
 summary: How the repo shows which project or decision to take up next across initiatives, when status and dependencies are recorded but a preferred order between unrelated projects is not.
 topic: documentation-process
-status: approved
+status: accepted
 supersedes: 1
 related: [ADR-0028, ADR-0037]
 ---
@@ -24,22 +24,17 @@ and none of it is kept true by someone remembering to edit it.
 
 ## Context
 
-Revision 0 had a Next up view that listed startable projects by status and
-Unblocks; revision 1 dropped it as unused and kept no view that ranks startable
-projects. The maintainer still chooses between them, by initiative:
-which goal to move before which, while other goals keep moving in parallel. A
-single ranked list of projects does not say that, and revision 1 listed a hand
-written order as an alternative because no check can compare it with the
-dependencies it has to respect.
-
-An order between initiatives has no dependency to contradict. An initiative's
-own projects keep their dependency order, which is derived. The remaining
-risk is the one revision 1 named: a stored order is a stored urgency, and git
-history dates each change to it. The rule in
-[`docs/README.md#public-repo`](../../README.md#public-repo) rules out
-recording why, so the order carries no reason. The maintainer reviewed the
-first list and found that a coarse order with no reason attached does not tell
-a reader that a given security gap exists, so it stays in the public repo.
+The maintainer chooses between startable projects by initiative: which goal to
+move before which, while other goals keep moving in parallel. A single ranked
+list of projects does not say that, and a hand-written order of projects cannot
+be compared with the dependencies it has to respect. An order between
+initiatives has no dependency to contradict, and an initiative's own projects
+keep their derived dependency order. The remaining risk is that a stored order
+is a stored urgency, and git history dates each change to it. The rule in
+[`docs/README.md#public-repo`](../../README.md#public-repo) rules out recording
+why, so the order carries no reason. The maintainer reviewed the first list and
+found that a coarse order with no reason attached does not tell a reader that a
+given security gap exists, so it stays in the public repo.
 
 ## Decision
 
@@ -98,9 +93,6 @@ Projects view does, each with its Unblocks count when that is not zero. A
 - The order is a judgement the docs now hold. It can be wrong and nothing
   says so; the dated history of the list is the only record of what it was.
 - A project's priority inside an initiative is still not expressed.
-- [`project-planning.md`](../../project-planning.md) describes the view and
-  [`doc-checks.md`](../../topics/engineering/ci/doc-checks.md#doc-index-generation)
-  the generator.
 
 ## Invariants
 

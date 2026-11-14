@@ -33,7 +33,7 @@ The private certificate authority for internal TLS, on `security`. Its initialis
 
 ## Disaster recovery
 
-Recovery tier 1. The `data` volume is backed up on the generic schedule ([`backup.md`](../disaster-recovery/backup.md)). A rebuild of `security` needs the CA archive fetched and decrypted by hand before any secret is reachable ([`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md#still-done-by-hand)). The restore was exercised on 2026-11-02 ([`fire-drill.md`](../disaster-recovery/fire-drill.md)); that drill did not record the root fingerprint against a host that trusts it. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Recovery tier 1. The `data` volume is backed up on the generic schedule ([`backup.md`](../disaster-recovery/backup.md)). A rebuild of `security` needs the CA archive fetched and decrypted by hand before any secret is reachable ([`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md#still-done-by-hand)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

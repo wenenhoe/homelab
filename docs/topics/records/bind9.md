@@ -34,7 +34,7 @@ The authoritative, non-recursive internal DNS: a primary on `services` and a sec
 
 ## Disaster recovery
 
-Not backed up; recovery tier 3. The zones are derived from the repository, so redeploying the role rebuilds them, and the secondary refills by transfer. A secondary that has never transferred answers `SERVFAIL` for its zones until the primary is reachable ([`bind9.md`](../services/bind9.md#a-secondary)). No fire drill has restored it, and none is needed for data. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Not backed up; recovery tier 3. The zones are derived from the repository, so redeploying the role rebuilds them, and the secondary refills by transfer. A secondary that has never transferred answers `SERVFAIL` for its zones until the primary is reachable ([`bind9.md`](../services/bind9.md#a-secondary)). It holds no data a restore would bring back. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

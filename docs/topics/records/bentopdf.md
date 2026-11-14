@@ -26,7 +26,7 @@ A self-hosted PDF toolbox on `services`. The catalog's facts are in the [coverag
 
 ## Disaster recovery
 
-Nothing to back up; recovery tier 3. A deploy rebuilds it ([`exercises.md`](../disaster-recovery/exercises.md)). No drill has covered it.
+Nothing to back up; recovery tier 3. A deploy rebuilds it ([`exercises.md`](../disaster-recovery/exercises.md)).
 
 ## Lifecycle
 

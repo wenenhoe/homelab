@@ -31,7 +31,7 @@ The hub of the host and container monitor, running once on `security`. The conne
 
 ## Disaster recovery
 
-Backed up: `data` at the default schedule, with the container stopped while it is archived ([`backup.md`](../disaster-recovery/backup.md)). It was restored on 2026-11-02 on the rebuilt `security`; the hub then showed the host once its fingerprint was set ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). After a rebuild of `security`, restore the hub first so the fingerprint can be fixed ([`beszel.md`](../monitoring/beszel.md#rebuilding-a-host)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Backed up: `data` at the default schedule, with the container stopped while it is archived ([`backup.md`](../disaster-recovery/backup.md)). After a rebuild of `security`, restore the hub first so the fingerprint can be fixed ([`beszel.md`](../monitoring/beszel.md#rebuilding-a-host)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

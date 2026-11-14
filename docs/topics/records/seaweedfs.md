@@ -31,7 +31,7 @@ The on-site S3 store that every host's backups go to, running single-node on `st
 
 ## Disaster recovery
 
-Recovery tier 1. It has no `backup` entry: it is the backup target, and its archives are relayed to the clouds ([`cloud-sync.md`](../disaster-recovery/cloud-sync.md)). It is rebuilt beside the old VM, the bucket is copied across and DNS is flipped ([`rebuild-storage.md`](../disaster-recovery/rebuild-storage.md)). That was exercised on 2026-11-05; no archive was restored from the rebuilt store ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Recovery tier 1. It has no `backup` entry: it is the backup target, and its archives are relayed to the clouds ([`cloud-sync.md`](../disaster-recovery/cloud-sync.md)). It is rebuilt beside the old VM, the bucket is copied across and DNS is flipped ([`rebuild-storage.md`](../disaster-recovery/rebuild-storage.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

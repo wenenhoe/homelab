@@ -29,7 +29,7 @@ A URL shortener with its web client, on `services`. The catalog's facts are in t
 
 ## Disaster recovery
 
-Not backed up; recovery tier 3. Unknown: whether any links exist that would be lost; see the Data section. A deploy rebuilds the containers. No drill has covered it.
+Not backed up; recovery tier 3. Unknown: whether any links exist that would be lost; see the Data section. A deploy rebuilds the containers.
 
 ## Lifecycle
 

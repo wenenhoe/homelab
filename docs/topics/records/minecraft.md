@@ -29,7 +29,7 @@ A Fabric game server with a map viewer and an in-stack backup container, on `pla
 
 ## Disaster recovery
 
-Backed up: only the `backups` volume, which `mc-backup` fills at 04:00 and the host archives at 04:30; the cloud copy goes to OCI only ([`backup.md`](../disaster-recovery/backup.md), [`cloud-sync.md`](../disaster-recovery/cloud-sync.md)). The restore has two steps: the volume restore, then `restore-minecraft-world.yaml` unpacks the newest tar into `data` ([`restore.md`](../disaster-recovery/restore.md)). It was exercised on 2026-11-01 on the rebuilt `play`; only the server log was checked, and the world's contents were not compared ([`fire-drill.md`](../disaster-recovery/fire-drill.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Backed up: only the `backups` volume, which `mc-backup` fills at 04:00 and the host archives at 04:30; the cloud copy goes to OCI only ([`backup.md`](../disaster-recovery/backup.md), [`cloud-sync.md`](../disaster-recovery/cloud-sync.md)). The restore has two steps: the volume restore, then `restore-minecraft-world.yaml` unpacks the newest tar into `data` ([`restore.md`](../disaster-recovery/restore.md)). Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
 
 ## Lifecycle
 

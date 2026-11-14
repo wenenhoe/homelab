@@ -31,6 +31,7 @@ Machines and what sits beneath the apps: hosts, network, hypervisor, provisionin
 | Doc | Covers |
 | :--- | :--- |
 | [`network-boundary-checks.md`](infra/network-boundary-checks.md) | The flow list of expected flows between the zones, the rules its loader enforces and the hook that runs them, and the probe module and runner that try the flows from the canaries. |
+| [`scratch-gateway-runs.md`](infra/scratch-gateway-runs.md) | The single command that runs a written spec against a scratch gateway: the spec's keys and steps, what a run checks before it starts, what it leaves behind and what it leaves to `acceptance.sh`. |
 | [`vm-provisioning.md`](infra/vm-provisioning.md) | The scheme OpenTofu-driven Proxmox provisioning rests on (VMID, VLAN, IP and MAC), the Tofu↔Ansible inventory handoff, and how to install and run Tofu. Links to the docs below for what Tofu builds. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
 | [`tofu/ubuntu-vms.md`](infra/tofu/ubuntu-vms.md) | The Ubuntu template and VM modules, the prepared cloud image (initramfs, hosts template, timezone) and the scratch Ubuntu VM. |
 | [`tofu/opnsense-vm.md`](infra/tofu/opnsense-vm.md) | The OPNsense VM module, its image, the seed disk and the first-boot script that answers the importer. |

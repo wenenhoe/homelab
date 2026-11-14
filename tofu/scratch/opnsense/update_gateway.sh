@@ -10,7 +10,8 @@
 # not land on WANT_VERSION is refused unless ALLOW_LATEST=1.
 # Environment: GW_IP / GW_PORT (default LAN_IP / 443), ALLOW_LATEST=1,
 #   SERIAL_SOCKET (checks the console answers with a login prompt or its menu after a reboot),
-#   POLL (seconds between polls, default 5), UPDATE_TIMEOUT / UP_TIMEOUT (seconds).
+#   POLL (seconds between polls, default 5), UPDATE_TIMEOUT / UP_TIMEOUT (seconds), UP_PROBE_TIMEOUT (seconds a poll of
+#   the API waits for an answer, default 5; API_TIMEOUT, default 60, applies to every other call).
 # Prints "CHECK name: PASS|FAIL" lines; the exit status is the number of FAIL lines.
 set -u
 # shellcheck disable=SC1090
@@ -51,7 +52,9 @@ except Exception:
     pass' "$1" "$2"
 }
 
-api_up() { [ "$(api -o /dev/null -w '%{http_code}' "https://$name:$port/api/diagnostics/system/system_information")" = 200 ]; }
+# The up and down polls give up quickly. With the long request timeout a request that starts while the gateway is rebooting is
+# retried by TCP and connects once it is back, so the outage is never seen.
+api_up() { [ "$(API_TIMEOUT=${UP_PROBE_TIMEOUT:-5} api -o /dev/null -w '%{http_code}' "https://$name:$port/api/diagnostics/system/system_information")" = 200 ]; }
 wait_state() { # wait_state up|down SECONDS
   local end=$((SECONDS + $2))
   while [ "$SECONDS" -lt "$end" ]; do

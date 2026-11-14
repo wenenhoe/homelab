@@ -10,6 +10,8 @@ topic: deployment-platform
 status: approved
 related: [ADR-0040, ADR-0048, ADR-0053, ADR-0058]
 relies_on:
+  - adr: ADR-0058
+    reason: "Its management rule admits the GUI, API and SSH only from the operator host, so it presupposes which machine the operator host is."
   - adr: ADR-0053
     reason: "Its management rule is argued not to conflict with the subnet router being admitted to the coding-agent VLAN only, which ADR 0053 sets."
 ---

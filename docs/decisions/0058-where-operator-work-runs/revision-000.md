@@ -9,6 +9,9 @@ summary: Where Ansible, Tofu, the tools utilities, and break-glass access run, o
 topic: deployment-platform
 status: working
 related: [ADR-0013, ADR-0020, ADR-0044, ADR-0047, ADR-0048, ADR-0053, ADR-0056]
+relies_on:
+  - adr: ADR-0053
+    reason: "Its outbound rule sends the host's Internet traffic through the domain-filtering proxy that ADR 0053 sets, under an allowlist of its own for this VLAN."
 ---
 
 # 0058. Where operator work runs

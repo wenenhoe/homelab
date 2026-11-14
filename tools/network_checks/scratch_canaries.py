@@ -121,6 +121,13 @@ def teardown() -> None:
             run("ip", "link", "del", fields[1].split("@")[0], check=False)
 
 
+def refuse_redirects(scope: str, ns: str) -> None:
+    """Switch off ICMP redirects for an interface or for `all`/`default`. The key is written with slashes: sysctl reads a
+    dot in a dotted key as a separator, so a VLAN sub-interface such as `opc0p.40` would otherwise name a path that is not
+    there."""
+    run("sysctl", "-q", "-w", f"net/ipv4/conf/{scope}/accept_redirects=0", ns=ns)
+
+
 def build(plan: dict, bridge: str, vlan: bool) -> None:
     tagged = vlan and filtering(bridge)
     for index, host in enumerate(hosts(plan)):
@@ -136,15 +143,15 @@ def build(plan: dict, bridge: str, vlan: bool) -> None:
             run("bridge", "vlan", "add", "dev", link, "vid", str(host["vlan"]))
         run("ip", "link", "set", "lo", "up", ns=ns)
         for scope in ("all", "default"):
-            run("sysctl", "-q", "-w", f"net.ipv4.conf.{scope}.accept_redirects=0", ns=ns)
+            refuse_redirects(scope, ns)
         run("ip", "link", "set", peer, "up", ns=ns)
-        run("sysctl", "-q", "-w", f"net.ipv4.conf.{peer}.accept_redirects=0", ns=ns)
+        refuse_redirects(peer, ns)
         device = peer
         if vlan:
             device = f"{peer}.{host['vlan']}"
             run("ip", "link", "add", "link", peer, "name", device, "type", "vlan", "id", str(host["vlan"]), ns=ns)
             run("ip", "link", "set", device, "up", ns=ns)
-            run("sysctl", "-q", "-w", f"net.ipv4.conf.{device}.accept_redirects=0", ns=ns)
+            refuse_redirects(device, ns)
         for address in host["addresses"]:
             run("ip", "addr", "add", f"{address}/24", "dev", device, ns=ns)
         run("ip", "route", "add", "default", "via", host["gateway"], ns=ns)

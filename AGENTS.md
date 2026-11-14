@@ -11,6 +11,11 @@ pointed to instead.
   lifecycle and the stop conditions.
 - [`docs/README.md`](docs/README.md) — where each kind of doc goes, and
   the public-repo rule.
+- [`docs/topics/engineering/data-classification.md`](docs/topics/engineering/data-classification.md)
+  — the four classes (Public, Private, Local, Secret) and the questions
+  that place a piece of information. Read it before writing anything
+  that touches a weakness, a date the lab is unavailable, or a drill or
+  exercise result. When unsure, write the more closed class.
 - [`docs/topics/engineering/conventions.md`](docs/topics/engineering/conventions.md)
   — naming and structural rules that span components, including the
   Python unit test conventions (style, fixtures, test doubles,

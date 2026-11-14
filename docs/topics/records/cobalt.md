@@ -13,13 +13,13 @@ A media-download proxy on `services`. The catalog's facts are in the [coverage t
 
 ## Exposure
 
-- Its Caddy route sets `auth: false`, so Tinyauth does not gate it ([`caddy.md`](../services/caddy.md)). Unknown: why it opts out; check the compose file and the commit that added the route.
+- Its Caddy route sets `auth: false`, so Tinyauth does not gate it ([`caddy.md`](../services/caddy.md)). It is a public API endpoint: clients call it directly with no browser session, so Tinyauth cannot gate it, as the catalog entry's comment says.
 - Outbound, it fetches whatever address a request names. It drops every capability and exposes port 9000 to Caddy only.
 
 ## Threat model
 
 - With no authentication, anyone who can reach the host name can make the server fetch third-party content, which is an abuse and a request-forgery risk. Unknown: whether the route is reachable beyond the tailnet; check the Caddy and DNS exposure and [`tailnet-policy.md`](../infra/tailnet-policy.md).
-- Unknown: whether the container can reach internal addresses. Check its network membership on `caddy-proxy`, where it can see other containers.
+- The container is on `caddy-proxy`, the network every proxied app shares, so it can reach the other containers' ports on it. Unknown: whether it can reach other internal addresses; check the host's Docker network and the gateway's rules.
 
 ## Observability
 

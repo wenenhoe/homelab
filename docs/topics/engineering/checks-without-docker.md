@@ -25,6 +25,33 @@ Replay a `.series` file the way the maintainer will ([`landing-a-series.md`](lan
 - Set `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, and `SKIP` to the hooks that cannot run here (`gitleaks`, `zizmor` and the `-docker` ones, `ansible-lint`); say which were skipped.
 - From `tools/` in a checkout of the tool: `uv run python -m land_series FILE.series --repo CLONE --base origin/main --no-fetch --dry-run`. It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and stops for a layer on its stop list.
 
+A layer that touches a path on the stop list prints `Read the patch, then type 'yes' to replay it:` and waits for a terminal. A session with no terminal answers it under a pseudo-terminal, once it has read the layer's patch, and starts the replay as a background command that writes to a log file, because a foreground command is cut off after 10 minutes. This driver answers that prompt and no other, and passes its arguments to `land_series`:
+
+```python
+import os
+import pty
+import sys
+
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp("uv", ["uv", "run", "python", "-m", "land_series", *sys.argv[1:]])
+tail = b""
+while True:
+    try:
+        chunk = os.read(fd, 4096)
+    except OSError:
+        break
+    sys.stdout.buffer.write(chunk)
+    sys.stdout.flush()
+    tail = (tail + chunk)[-200:]
+    if tail.endswith(b"to replay it: "):
+        os.write(fd, b"yes\n")
+        tail = b""
+sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))
+```
+
+A replay whose log has stopped growing while no `pre-commit`, `pytest` or `uv` process runs is waiting at that prompt and is not computing.
+
 A change to `.githooks/` or to how `git am` is used is tested with a real `git am` in a throwaway repository.
 
 ## Docker without registries

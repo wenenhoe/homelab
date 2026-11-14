@@ -2,11 +2,10 @@
 id: PROJ-initiative-roadmap
 title: "Initiative roadmap"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Add the Roadmap view to the generated project planning (a row per initiative in a kept order, columns for in progress, startable and waiting, projects with no initiative last), the initiative list it reads and the check that keeps the list complete, then accept the decision."
 decision: ADR-0082/2
-plan: draft
 allowed_paths:
   - tools/doc_scripts/generate_doc_indexes.py
   - tools/tests/doc_scripts/test_generate_doc_indexes.py
@@ -35,8 +34,7 @@ or mode. Each is its own change.
 
 ## Decision
 
-[ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-002.md), `working`.
-This project waits until the revision is `approved`.
+[ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-002.md), `approved`.
 
 ## Execution plan
 
@@ -44,7 +42,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The view and its list | Not started | `project-planning.md` has a Roadmap section with one row per initiative in list order, a last row for projects with no initiative, and the columns In progress, Startable and Waiting; the generator fails for each of the three list errors; the unit tests cover the order, the last column and the failures; `doc-checks.md` describes the view. |
+| 1 | The view and its list | In progress | `project-planning.md` has a Roadmap section with one row per initiative in list order, a last row for projects with no initiative, and the columns In progress, Startable and Waiting; the generator fails for each of the three list errors; the unit tests cover the order, the last column and the failures; `doc-checks.md` describes the view. |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

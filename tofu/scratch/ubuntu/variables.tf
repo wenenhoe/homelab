@@ -36,6 +36,12 @@ variable "vm_id" {
   type        = number
 }
 
+variable "lan_bridge" {
+  description = "Bridge the NIC attaches to. The module's default is the lab's VLAN-aware bridge; the scratch gateway's isolated bridge puts the VM behind a scratch gateway."
+  type        = string
+  default     = "vmbr1"
+}
+
 variable "name" {
   description = "VM name, also its hostname."
   type        = string

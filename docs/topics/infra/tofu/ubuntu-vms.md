@@ -44,7 +44,7 @@ SHA-256 in `ubuntu_image_url` and `ubuntu_image_checksum`
 
 | Aspect | Behaviour |
 | :--- | :--- |
-| Accepts | A `vm_id` in 2XX to 5XX whose last two digits are 02 to 49 (not the reserved, gateway or DHCP-pool host parts) |
+| Accepts | A `vm_id` in 2XX to 7XX whose last two digits are 02 to 49 (not the reserved, gateway or DHCP-pool host parts) |
 | Nameservers | The VLAN's gateway by default; `dns_servers` replaces them |
 | Search domain | `dns_domain`, the lab's internal zone, with no default: a VM with no search domain gets a copy of the node's own |
 | Sizing | `cores`, `memory_mb`, `disk_gb` default in [`variables.tf`](../../../../tofu/modules/proxmox_ubuntu_vm/variables.tf); a larger host overrides them |
@@ -242,7 +242,8 @@ output names the static address.
 
 | Input | Notes |
 | :--- | :--- |
-| `vm_id` | No default. Picks the zone, because the module derives the VLAN from its hundred. The VM reaches only what that zone's gateway rules allow: the gateway play gives VLAN 50 no access to the internet (`internet: false` in [`opnsense_gateway_zones`](../../../../ansible/roles/opnsense_gateway/defaults/main.yaml)). A VM in VLAN 60 or 70 needs the module's accepted range widened first. In a zone the play serves with Kea (host numbers 10 to 245, `opnsense_gateway_dhcp_pool`), a host part of 02 to 09 stays clear of the pool |
+| `vm_id` | No default. Picks the zone, because the module derives the VLAN from its hundred. The VM reaches only what that zone's gateway rules allow: the gateway play gives VLAN 50 no access to the internet (`internet: false` in [`opnsense_gateway_zones`](../../../../ansible/roles/opnsense_gateway/defaults/main.yaml)). In a zone the play serves with Kea (host numbers 10 to 245, `opnsense_gateway_dhcp_pool`), a host part of 02 to 09 stays clear of the pool |
+| `lan_bridge` | `vmbr1`, the lab's VLAN-aware bridge. The scratch gateway's isolated bridge (`vmbr9`) puts the VM behind a scratch gateway built with the VM's VLAN in `SEED_VLANS` ([`opnsense-scratch-gateway.md`](opnsense-scratch-gateway.md#building-it)) |
 | `ssh_public_keys`, `dns_domain` | No default |
 | `cores`, `memory_mb`, `disk_gb` | 2, 2048 and 16 |
 

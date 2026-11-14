@@ -176,6 +176,23 @@ line_of() {
   assert_output --partial "TF_VAR_vm_id=599"
 }
 
+@test "the seed keeps its own VLAN list unless SEED_VLANS names one" {
+  run -0 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  run calls_to build_seed
+  refute_output --partial "--vlans"
+  : > "$CALLS"
+  SEED_VLANS=20,30,40,50,60,70 run -0 "$SCRIPT" up "$BATS_TEST_TMPDIR/out-70" "$URL" "$SUM"
+  run calls_to build_seed
+  assert_output --partial "--vlans 20,30,40,50,60,70"
+}
+
+@test "up refuses a SEED_VLANS that is not a list of tags, before it builds anything" {
+  SEED_VLANS='70;rm' run -1 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  assert_output --partial "SEED_VLANS must be comma-separated VLAN tags"
+  run calls_to build_seed
+  assert_output ""
+}
+
 @test "a failed apply is retried, and three failures stop the run with the way to clean up" {
   APPLY_FAILS=2 run -0 "$SCRIPT" up "$OUT" "$URL" "$SUM"
   run calls_to tofu

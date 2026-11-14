@@ -7,7 +7,7 @@ short: Choosing the next project
 solution: "Keep the derived Unblocks count and add a Roadmap view with a row per initiative, in a maintainer-kept order, and a column per derived state; the order ranks initiatives, never a project, and no frontmatter field carries it"
 summary: How the repo shows which project or decision to take up next across initiatives, when status and dependencies are recorded but a preferred order between unrelated projects is not.
 topic: documentation-process
-status: working
+status: approved
 supersedes: 1
 related: [ADR-0028, ADR-0037]
 ---
@@ -37,7 +37,9 @@ own projects keep their dependency order, which is derived. The remaining
 risk is the one revision 1 named: a stored order is a stored urgency, and git
 history dates each change to it. The rule in
 [`docs/README.md#public-repo`](../../README.md#public-repo) rules out
-recording why, so the order carries no reason.
+recording why, so the order carries no reason. The maintainer reviewed the
+first list and found that a coarse order with no reason attached does not tell
+a reader that a given security gap exists, so it stays in the public repo.
 
 ## Decision
 
@@ -87,15 +89,7 @@ Projects view does, each with its Unblocks count when that is not zero. A
   home for one view, and renaming `project-planning.md` would break the links
   that name it.
 - **The order in a private repository.** The maintainer chose to keep the
-  roadmap public; see the assumption below.
-
-## Assumptions
-
-- **Claim:** A coarse order between initiatives, with no reason attached, does
-  not tell a reader that a given security gap exists.
-  **Breaks if wrong:** The list has to leave the public repo, and the view
-  would need a private input.
-  **Checked by:** The maintainer's review of the first list before approval.
+  roadmap public; see Context.
 
 ## Consequences
 
@@ -135,3 +129,5 @@ The `generate-doc-indexes` hook regenerates the views on every commit.
 - The list changes often enough that its dated history reads as a log of
   urgency.
 - A second maintainer needs an order inside an initiative.
+- The order starts to tell a reader where a security gap is, so the list has to
+  leave the public repo and the view needs a private input.

@@ -1428,6 +1428,360 @@
      "opened (not-started)"
     ]
    ]
+  },
+  {
+   "cat": "planned",
+   "sha": "5da357d6f6386e23c1552122111e07d695f0c2b2",
+   "date": "2026-11-14T15:49:44+08:00",
+   "kind": "pr",
+   "pr": 826,
+   "title": "add the operating modes topic",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "7bbc000e008714c78d964288c4711a23d1a671f9",
+   "date": "2026-11-14T15:52:08+08:00",
+   "kind": "pr",
+   "pr": 827,
+   "title": "propose an initiative roadmap view",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: initiative-roadmap",
+   "events": [
+    [
+     "adr",
+     "ADR 0082 r002 \u00b7 choosing which project to take up next",
+     "added (working)"
+    ],
+    [
+     "project",
+     "initiative-roadmap",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "afc4b4b71d749c9de4ef528facd178027f7aa3c6",
+   "date": "2026-11-14T15:54:34+08:00",
+   "kind": "pr",
+   "pr": 828,
+   "title": "add the data classification framework",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "b5a0765574dd2fb29dbcbe28e8b549b7966e82ac",
+   "date": "2026-11-14T15:56:39+08:00",
+   "kind": "pr",
+   "pr": 829,
+   "title": "keep exercise results out of the coverage view and the repository",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0100 r001 \u00b7 recording how a system is integrated",
+     "added (approved)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "01cc5e7fee3692b6574f6f7b64c0678429c22a43",
+   "date": "2026-11-14T16:00:49+08:00",
+   "kind": "pr",
+   "pr": 830,
+   "title": "show each system's recovery tier in the coverage view",
+   "type": "refactor",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0100 r000 \u00b7 recording how a system is integrated",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0100 r001 \u00b7 recording how a system is integrated",
+     "approved \u2192 accepted"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "dd67b3bf9a0d36ceb94c422440ed7a8dea3e55a3",
+   "date": "2026-11-14T16:03:14+08:00",
+   "kind": "pr",
+   "pr": 831,
+   "title": "keep exercise results out of the fire-drill doc",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: dr-exercises",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "654ccca4f5af375c2256acb5b4a1924633d4d621",
+   "date": "2026-11-14T16:05:39+08:00",
+   "kind": "pr",
+   "pr": 832,
+   "title": "describe each system's design in its record, not a drill's outcome",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ce82217f47414735e1062ac6ec10d16afe2c1269",
+   "date": "2026-11-14T16:11:23+08:00",
+   "kind": "pr",
+   "pr": 833,
+   "title": "point agents at the data classification framework",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "5b854a6797fc2256ce93a2d5fa3ce6317a4021e0",
+   "date": "2026-11-14T16:22:33+08:00",
+   "kind": "pr",
+   "pr": 834,
+   "title": "declare that the operator work host relies on the egress proxy",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "a20fb3dbbbe155c22473db0445483dbf6fb230e5",
+   "date": "2026-11-14T16:24:37+08:00",
+   "kind": "pr",
+   "pr": 835,
+   "title": "state the Tailscale router's uptime need on its own ground",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0097 r000 \u00b7 how a tailscale node is configured",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0097 r001 \u00b7 how a tailscale node is configured",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "75a0b5e3be20cc64119e9125a5c4c2e60d025ae7",
+   "date": "2026-11-14T16:26:41+08:00",
+   "kind": "pr",
+   "pr": 836,
+   "title": "state the Tofu state backend's host exclusion for whichever host runs Tofu",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0103 r000 \u00b7 where tofus state is held",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0103 r001 \u00b7 where tofus state is held",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "c93bfc1cdd139b312496ff26544ebabbc876fb71",
+   "date": "2026-11-14T17:09:33+08:00",
+   "kind": "pr",
+   "pr": 837,
+   "title": "approve the initiative roadmap revision of ADR 0082",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0082 r002 \u00b7 choosing which project to take up next",
+     "working \u2192 approved"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "3ec8f10b4b368086e2dbe65118f79af6727e92cd",
+   "date": "2026-11-14T17:11:58+08:00",
+   "kind": "pr",
+   "pr": 838,
+   "title": "start the initiative roadmap project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: initiative-roadmap",
+   "events": [
+    [
+     "project",
+     "initiative-roadmap",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "a686537a6345f4b30cfdffa4ed246465923c4c83",
+   "date": "2026-11-14T17:16:30+08:00",
+   "kind": "pr",
+   "pr": 839,
+   "title": "add an initiative roadmap to the generated project planning",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: initiative-roadmap",
+   "events": [
+    [
+     "adr",
+     "ADR 0082 r001 \u00b7 choosing which project to take up next",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0082 r002 \u00b7 choosing which project to take up next",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "initiative-roadmap",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "0899e71ad178288f1ea97a7207b35045fc47c273",
+   "date": "2026-11-14T22:20:17+08:00",
+   "kind": "pr",
+   "pr": 840,
+   "title": "ask how scratch-gateway runs are set up and collected",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "6bb4334df5030a13c766610d45d9d15e226eda45",
+   "date": "2026-11-14T22:24:49+08:00",
+   "kind": "pr",
+   "pr": 841,
+   "title": "give the update script's up and down polls a request timeout of their own",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "a5871b7f6bad7eaf42a4adfdbd860d90099422cf",
+   "date": "2026-11-14T22:27:14+08:00",
+   "kind": "pr",
+   "pr": 842,
+   "title": "say how to answer the stop-list prompt when verifying a series",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ec6b202edc1be50c1748b4f2ea4d05693576b182",
+   "date": "2026-11-14T22:54:23+08:00",
+   "kind": "pr",
+   "pr": 843,
+   "title": "set the canaries' redirect sysctl through a path that keeps a dotted interface name whole",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "8e8536581b04e4eb3f49070008e9377529d0bd3b",
+   "date": "2026-11-14T23:18:11+08:00",
+   "kind": "pr",
+   "pr": 844,
+   "title": "record the play and the canary flows on a QEMU gateway",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "97ba6ec6f691275294c1dbd9317e02835bdeac8f",
+   "date": "2026-11-15T00:11:13+08:00",
+   "kind": "pr",
+   "pr": 845,
+   "title": "record the image cache and correct the runner and operator-host notes",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "2c57c18f046176016729762d8212d4cadc694d27",
+   "date": "2026-11-15T00:31:45+08:00",
+   "kind": "pr",
+   "pr": 846,
+   "title": "say how a QEMU backend would be triggered, scheduled and pinned",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b15d985740d4f214481192406e691c2c6fd49c54",
+   "date": "2026-11-15T01:44:19+08:00",
+   "kind": "pr",
+   "pr": 847,
+   "title": "let a scratch gateway's seed carry extra VLANs",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9a5496867444c4feeb63561a625ee72d4515296c",
+   "date": "2026-11-15T02:14:12+08:00",
+   "kind": "pr",
+   "pr": 848,
+   "title": "run a written spec's steps against a scratch gateway with one command",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
   }
  ]
 }

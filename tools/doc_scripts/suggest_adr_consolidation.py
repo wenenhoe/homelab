@@ -18,9 +18,8 @@ with the status each record had when it was read. The report leaves such a pair
 out until one of its records changes status or goes, and then lists the row to
 read again.
 
-  --report   also print the quarterly report: open explorations that have
-             stood still, `working` revisions untouched for a long time, and
-             whether too many projects are active.
+  --report   also print the quarterly report: whether too many projects are
+             active, and where to find the approved revisions no project names.
 """
 
 from __future__ import annotations

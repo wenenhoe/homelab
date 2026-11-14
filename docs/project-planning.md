@@ -1,6 +1,6 @@
 # Project Planning
 
-Four generated, cross-cutting views; none is a rules doc. For what a
+Five generated, cross-cutting views; none is a rules doc. For what a
 project is and its lifecycle, see [`projects/README.md`](projects/README.md);
 for what an ADR is and its revision states, see
 [`decisions/README.md`](decisions/README.md); for every ADR by number and
@@ -17,9 +17,19 @@ reason, `waiting on` the projects it depends on that still exist, or `waiting
 on` its decision revision, named by its short name, when that is not yet
 approved; more than one are joined with a semicolon. `—` means nothing does, so a not-started project with
 `—` can be started. Neither cell is stored, per
-[ADR 0082 (Choosing the next project)](decisions/0082-choosing-which-project-to-take-up-next/revision-001.md).
+[ADR 0082 (Choosing the next project)](decisions/0082-choosing-which-project-to-take-up-next/revision-002.md).
 
 **Covers**, in every table of projects, is the project's `summary:`.
+
+**Roadmap** has one row per initiative, in the order kept in
+[`projects/README.md`](projects/README.md#initiatives), then a last row for
+projects with no initiative. The order ranks initiatives and says where to
+look first; work in any row that has a startable project. A project is in
+**In progress** when it is building or de-risking, in **Startable** when it is
+not started and its Blocker is `—`, and in **Waiting** when it is not started
+and something stands in the way. A cell lists projects by dependency depth,
+then file name, each with its Unblocks count when that is not zero; a done
+project is not shown.
 
 **Super Projects** groups every project that belongs to one
 (`super_project:` is set) by build order — projects by dependency depth,
@@ -47,6 +57,19 @@ calls for a project, while a working one still has to be settled.
 **Open explorations** lists every question in
 [`explorations/`](explorations/README.md) with the date it last changed, oldest
 first, so one that has stood still is the first row.
+
+## Roadmap
+
+| Initiative | In progress | Startable | Waiting |
+| :--- | :--- | :--- | :--- |
+| `controller-separation` | — | — | [`operator-host.md`](projects/operator-host.md) (unblocks 5), [`workstation-management.md`](projects/workstation-management.md) (unblocks 1), [`operator-host-takeover.md`](projects/operator-host-takeover.md) (unblocks 1), [`vm-401-retirement.md`](projects/vm-401-retirement.md) |
+| `pull-based-cd` | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md), [`cd-agent.md`](projects/cd-agent.md) (unblocks 2) | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) |
+| `tofu-vm-provisioning` | [`opnsense-config.md`](projects/opnsense-config.md) | — | [`proxmox-node-install.md`](projects/proxmox-node-install.md), [`windows-vms.md`](projects/windows-vms.md) |
+| `backup-archive-protection` | — | — | [`backup-archive-retention-lock.md`](projects/backup-archive-retention-lock.md), [`backup-archive-signing.md`](projects/backup-archive-signing.md) |
+| `off-site-monitoring` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) (unblocks 1), [`off-site-monitoring.md`](projects/off-site-monitoring.md) |
+| `compose-stack-files` | — | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md), [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) |
+| `coding-agent-host` | — | — | [`coding-agent-network.md`](projects/coding-agent-network.md) (unblocks 6), [`coding-agent-egress.md`](projects/coding-agent-egress.md) (unblocks 5), [`coding-agent-host.md`](projects/coding-agent-host.md) (unblocks 2), [`coding-agent-access-path.md`](projects/coding-agent-access-path.md), [`coding-agent-management.md`](projects/coding-agent-management.md) |
+| (no initiative) | [`dr-exercises.md`](projects/dr-exercises.md), [`network-boundary-checks.md`](projects/network-boundary-checks.md) | [`molecule-container-hardening.md`](projects/molecule-container-hardening.md) | [`gatehouse.md`](projects/gatehouse.md), [`kms-image.md`](projects/kms-image.md), [`licence-check.md`](projects/licence-check.md), [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md), [`tailnet-policy-in-tofu.md`](projects/tailnet-policy-in-tofu.md), [`tofu-plan-guard.md`](projects/tofu-plan-guard.md) |
 
 ## Super Projects
 
@@ -81,7 +104,6 @@ first, so one that has stood still is the first row.
 | Project | Unblocks | Status | Blocker | Covers |
 | :--- | ---: | :--- | :--- | :--- |
 | [`dr-exercises.md`](projects/dr-exercises.md) | — | Building | — | Carry out the disaster-recovery exercise cadence: show each system's recovery tier in the coverage view, run the first quarter of exercises and record them privately, and accept the decision. |
-| [`initiative-roadmap.md`](projects/initiative-roadmap.md) | — | Building | — | Add the Roadmap view to the generated project planning (a row per initiative in a kept order, columns for in progress, startable and waiting, projects with no initiative last), the initiative list it reads and the check that keeps the list complete, then accept the decision. |
 | [`network-boundary-checks.md`](projects/network-boundary-checks.md) | — | Building | — | A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects. |
 | [`gatehouse.md`](projects/gatehouse.md) | — | Not started | waiting on [ADR-0114/0 (Remote series landing)](decisions/0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md) | A web console on its own VM that reviews and lands a patch series from the laptop or the phone over the tailnet, with a merge token that lives for one series. |
 | [`kms-image.md`](projects/kms-image.md) | — | Not started | waiting on [ADR-0091/0 (Activation host image)](decisions/0091-where-the-activation-hosts-image-comes-from/revision-000.md) | Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app. |

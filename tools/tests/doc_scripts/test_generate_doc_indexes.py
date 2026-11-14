@@ -298,6 +298,137 @@ class TestInitiativesTable:
         assert gen.render_initiatives_table(root) == "No project is grouped into an initiative."
 
 
+def initiatives(root, *names: str) -> None:
+    """The initiative list a roadmap reads: a numbered list under `## Initiatives`, followed by another section."""
+    items = "\n".join(f"{i}. `{name}` — what {name} delivers." for i, name in enumerate(names, 1))
+    readme = root / "docs/projects/README.md"
+    readme.parent.mkdir(parents=True, exist_ok=True)
+    readme.write_text(
+        f"# Projects\n\n## Initiatives\n\nIn this order.\n\n{items}\n\n## Lifecycle\n\n1. `not-an-initiative` — after the list.\n", encoding="utf-8"
+    )
+
+
+class TestRoadmapTable:
+    @pytest.fixture
+    def rows(self, root):
+        return lambda: gen.render_roadmap_table(root).splitlines()[2:]
+
+    def test_a_row_per_initiative_in_the_kept_order_then_the_projects_with_none(self, root, rows):
+        initiatives(root, "zeta", "alpha")
+        project(root, "a", super_project="alpha")
+        project(root, "z", super_project="zeta")
+        project(root, "loose")
+        assert gen.render_roadmap_table(root).splitlines()[0] == "| Initiative | In progress | Startable | Waiting |"
+        assert rows() == [
+            "| `zeta` | — | [`z.md`](projects/z.md) | — |",
+            "| `alpha` | — | [`a.md`](projects/a.md) | — |",
+            "| (no initiative) | — | [`loose.md`](projects/loose.md) | — |",
+        ]
+
+    def test_the_last_row_is_there_when_every_project_has_an_initiative(self, root, rows):
+        initiatives(root, "alpha")
+        project(root, "a", super_project="alpha")
+        assert rows()[-1] == "| (no initiative) | — | — | — |"
+
+    def test_the_status_and_blocker_decide_the_column(self, root, rows):
+        initiatives(root, "t")
+        project(root, "build", super_project="t", status="building")
+        project(root, "spike", super_project="t", status="de-risking")
+        project(root, "ready", super_project="t")
+        project(root, "stuck", super_project="t", blocked=True, blocked_reason="needs hardware")
+        project(root, "after", super_project="t", depends_on=[{"project": "PROJ-ready", "reason": "x"}])
+        project(root, "finished", super_project="t", status="done")
+        assert rows()[0] == (
+            "| `t` | [`build.md`](projects/build.md), [`spike.md`](projects/spike.md) | [`ready.md`](projects/ready.md) (unblocks 1) | "
+            "[`stuck.md`](projects/stuck.md), [`after.md`](projects/after.md) |"
+        )
+
+    def test_a_project_waiting_on_an_unapproved_decision_is_waiting(self, root, rows):
+        initiatives(root, "t")
+        revision(root, "0001-a", 0, status="working")
+        revision(root, "0002-b", 0, status="approved")
+        project(root, "open", super_project="t", decision="ADR-0002/0")
+        project(root, "undecided", super_project="t", decision="ADR-0001/0")
+        assert rows()[0] == "| `t` | — | [`open.md`](projects/open.md) | [`undecided.md`](projects/undecided.md) |"
+
+    def test_a_project_resting_on_an_unsettled_decision_is_waiting(self, root, rows):
+        initiatives(root, "t")
+        revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
+        revision(root, "0002-b", 0, status="working")
+        project(root, "a", super_project="t", decision="ADR-0001/0")
+        assert rows()[0] == "| `t` | — | — | [`a.md`](projects/a.md) |"
+
+    def test_a_cell_lists_projects_by_dependency_depth_then_name(self, root, rows):
+        initiatives(root, "t")
+        project(root, "b", super_project="t", status="building")
+        project(root, "a-late", super_project="t", status="building", depends_on=[{"project": "PROJ-z-first", "reason": "x"}])
+        project(root, "z-first", super_project="t", status="building")
+        assert rows()[0].split("|")[2].strip() == "[`b.md`](projects/b.md), [`z-first.md`](projects/z-first.md) (unblocks 1), [`a-late.md`](projects/a-late.md)"
+
+    def test_a_project_with_no_initiative_goes_in_the_last_row_by_the_same_rules(self, root, rows):
+        initiatives(root, "t")
+        project(root, "a", super_project="t")
+        project(root, "loose-build", status="building")
+        project(root, "loose-wait", blocked=True, blocked_reason="needs hardware")
+        assert rows()[-1] == "| (no initiative) | [`loose-build.md`](projects/loose-build.md) | — | [`loose-wait.md`](projects/loose-wait.md) |"
+
+    def test_only_the_initiatives_section_is_read(self, root):
+        initiatives(root, "t")
+        project(root, "a", super_project="t")
+        assert "not-an-initiative" not in gen.render_roadmap_table(root)
+
+    def test_a_super_project_missing_from_the_list_fails(self, root):
+        initiatives(root, "t")
+        project(root, "a", super_project="t")
+        project(root, "b", super_project="unplaced")
+        with pytest.raises(SystemExit) as exc:
+            gen.render_roadmap_table(root)
+        assert str(exc.value) == "super_project 'unplaced' is not in the initiative list in docs/projects/README.md"
+
+    def test_an_initiative_listed_twice_fails(self, root):
+        initiatives(root, "t", "u", "t")
+        project(root, "a", super_project="t")
+        project(root, "b", super_project="u")
+        with pytest.raises(SystemExit) as exc:
+            gen.render_roadmap_table(root)
+        assert str(exc.value) == "initiative 't' is listed more than once in docs/projects/README.md"
+
+    def test_an_initiative_with_no_project_fails(self, root):
+        initiatives(root, "t", "finished")
+        project(root, "a", super_project="t")
+        with pytest.raises(SystemExit) as exc:
+            gen.render_roadmap_table(root)
+        assert str(exc.value) == "initiative 'finished' in docs/projects/README.md has no project"
+
+    def test_a_done_project_still_counts_as_a_project_of_its_initiative(self, root, rows):
+        initiatives(root, "t")
+        project(root, "a", super_project="t", status="done")
+        assert rows()[0] == "| `t` | — | — | — |"
+
+    def test_every_failure_is_named_at_once(self, root):
+        initiatives(root, "t", "t", "gone")
+        project(root, "a", super_project="t")
+        project(root, "b", super_project="unplaced")
+        with pytest.raises(SystemExit) as exc:
+            gen.render_roadmap_table(root)
+        assert str(exc.value).splitlines() == [
+            "initiative 't' is listed more than once in docs/projects/README.md",
+            "super_project 'unplaced' is not in the initiative list in docs/projects/README.md",
+            "initiative 'gone' in docs/projects/README.md has no project",
+        ]
+
+    def test_a_readme_without_the_section_fails(self, root):
+        project(root, "a")
+        (root / "docs/projects/README.md").write_text("# Projects\n", encoding="utf-8")
+        with pytest.raises(SystemExit, match="no '## Initiatives' section"):
+            gen.render_roadmap_table(root)
+
+    def test_a_missing_readme_fails_the_same_way(self, root):
+        project(root, "a")
+        with pytest.raises(SystemExit, match="no '## Initiatives' section"):
+            gen.render_roadmap_table(root)
+
+
 class TestStandaloneProjectsTable:
     @pytest.fixture
     def rows(self, root):
@@ -663,6 +794,27 @@ class TestSectionReplacement:
         path.write_text("# T\n\n## Lineages\n\nold\n", encoding="utf-8")
         assert gen.regenerate(path, "Lineages", "new", optional=True)
         assert path.read_text(encoding="utf-8") == "# T\n\n## Lineages\n\nnew\n"
+
+
+class TestEnsureSection:
+    def test_a_missing_section_is_added_ahead_of_the_one_named(self, root):
+        path = root / "README.md"
+        path.write_text("# T\n\nintro\n\n## Next\n\nkeep\n", encoding="utf-8")
+        gen.ensure_section(path, "Index", before="Next")
+        gen.regenerate(path, "Index", "new")
+        assert path.read_text(encoding="utf-8") == "# T\n\nintro\n\n## Index\n\nnew\n\n## Next\n\nkeep\n"
+
+    def test_a_present_section_is_left_alone(self, root):
+        path = root / "README.md"
+        path.write_text("# T\n\n## Index\n\nold\n\n## Next\n\nkeep\n", encoding="utf-8")
+        gen.ensure_section(path, "Index", before="Next")
+        assert path.read_text(encoding="utf-8") == "# T\n\n## Index\n\nold\n\n## Next\n\nkeep\n"
+
+    def test_with_no_section_to_add_it_before_the_file_is_unchanged(self, root):
+        path = root / "README.md"
+        path.write_text("# T\n", encoding="utf-8")
+        gen.ensure_section(path, "Index", before="Next")
+        assert path.read_text(encoding="utf-8") == "# T\n"
 
 
 class TestActiveProjectWarnings:

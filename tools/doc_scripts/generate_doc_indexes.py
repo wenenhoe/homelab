@@ -2,7 +2,7 @@
 """Regenerates the doc-index sections that would otherwise be hand-edited
 every time a project or decision lineage is added or changes status:
 
-- docs/project-planning.md: `## Super Projects`, `## Projects`,
+- docs/project-planning.md: `## Roadmap`, `## Super Projects`, `## Projects`,
   `## Decisions awaiting a project`, and `## Open explorations` (always).
 - docs/decision-index.md: `## By number`, `## By topic`, `## Open decisions`
   and `## History` (always).
@@ -117,7 +117,7 @@ def _waiting_on(fm: dict, projects: dict[str, tuple[Path, dict]], prefix: str = 
     return [f"[`{projects[d['project']][0].name}`]({prefix}{projects[d['project']][0].name})" for d in fm.get("depends_on", []) if d["project"] in projects]
 
 
-def _status_cells(
+def _status_pair(
     fm: dict,
     projects: dict[str, tuple[Path, dict]],
     decisions: dict[str, str],
@@ -127,14 +127,18 @@ def _status_cells(
     project_prefix: str,
     decision_prefix: str,
     rests_on: dict[str, list[str]] | None = None,
-) -> str:
-    """The Status and Blocker cells for a view, as the two cells of a row. The prefixes are the paths from the file the
+) -> tuple[str, str]:
+    """The Status and Blocker cells for a view. The prefixes are the paths from the file the
     view renders into to docs/projects/ and to docs/decisions/."""
     ref = fm.get("decision")
     text = f"{ref} ({decision_shorts[ref]})" if ref in decision_shorts else ref
     link = f"[{text}]({decision_prefix}{decision_paths[ref]})" if ref in decision_paths else None
-    status, blocker = project_status_cells(fm, _waiting_on(fm, projects, project_prefix), decisions.get(ref), link, (rests_on or {}).get(ref))
-    return f"{status} | {blocker}"
+    return project_status_cells(fm, _waiting_on(fm, projects, project_prefix), decisions.get(ref), link, (rests_on or {}).get(ref))
+
+
+def _status_cells(*args, **kwargs) -> str:
+    """The Status and Blocker cells of `_status_pair`, as the two cells of a row."""
+    return " | ".join(_status_pair(*args, **kwargs))
 
 
 def _unblocks(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
@@ -262,6 +266,70 @@ def render_initiatives_table(root: Path = ROOT) -> str:
         rows.append(f"|{initiative_cell}| [`{name}`](projects/{name}) | {_unblocks_cell(unblocks[fm['id']])} | {cells} | {_cell(fm['summary'])} |")
     header = "| Initiative | Project | Unblocks | Status | Blocker | Covers |\n| :--- | :--- | ---: | :--- | :--- | :--- |"
     return "\n".join([header, *rows])
+
+
+INITIATIVES_HEADING = "Initiatives"
+INITIATIVES_RELATIVE = "docs/projects/README.md"
+_INITIATIVE_ITEM = re.compile(r"^\d+\. `([^`]+)`", re.MULTILINE)
+
+
+def load_initiative_order(root: Path = ROOT) -> list[str]:
+    """The initiatives in the order the maintainer keeps them: the numbered list under
+    `## Initiatives` in docs/projects/README.md. The only stored order, and it holds initiatives,
+    never projects."""
+    text = (root / INITIATIVES_RELATIVE).read_text(encoding="utf-8") if (root / INITIATIVES_RELATIVE).is_file() else ""
+    section = re.search(rf"^## {INITIATIVES_HEADING}\n(.*?)(?=^## |\Z)", text, re.DOTALL | re.MULTILINE)
+    if not section:
+        raise SystemExit(f"{INITIATIVES_RELATIVE} has no '## {INITIATIVES_HEADING}' section, so the roadmap has no order to follow")
+    return _INITIATIVE_ITEM.findall(section.group(1))
+
+
+def initiative_list_errors(order: list[str], used: set[str]) -> list[str]:
+    """What keeps the list complete: every `super_project` is listed, once, and every listed
+    initiative has a project."""
+    errors = [f"initiative '{name}' is listed more than once in {INITIATIVES_RELATIVE}" for name in dict.fromkeys(n for n in order if order.count(n) > 1)]
+    errors += [f"super_project '{name}' is not in the initiative list in {INITIATIVES_RELATIVE}" for name in sorted(used - set(order))]
+    errors += [f"initiative '{name}' in {INITIATIVES_RELATIVE} has no project" for name in order if name not in used]
+    return errors
+
+
+ROADMAP_COLUMNS = ("In progress", "Startable", "Waiting")
+NO_INITIATIVE = "(no initiative)"
+
+
+def render_roadmap_table(root: Path = ROOT) -> str:
+    """One row per initiative in the kept order, then a row for projects with no `super_project`.
+    A project's column comes from its status and Blocker cell; a `done` project is not shown.
+    Fails, naming each, when the initiative list and the projects' `super_project` values disagree."""
+    projects = _load_projects(root)
+    order = load_initiative_order(root)
+    errors = initiative_list_errors(order, {fm["super_project"] for _, fm in projects.values() if "super_project" in fm})
+    if errors:
+        raise SystemExit("\n".join(errors))
+    decisions = _decision_statuses(root)
+    decision_paths = _decision_paths(root)
+    decision_shorts = _decision_shorts(root)
+    depths = _dependency_depths(projects)
+    unblocks = _unblocks(projects)
+    rests_on = _rests_on(root)
+    columns: dict[str | None, dict[str, list[tuple[int, str, str]]]] = {}
+    for pid, (path, fm) in projects.items():
+        if fm["status"] == "done":
+            continue
+        _, blocker = _status_pair(
+            fm, projects, decisions, decision_paths, decision_shorts, project_prefix="projects/", decision_prefix="decisions/", rests_on=rests_on
+        )
+        started = fm["status"] in ("building", "de-risking")
+        column = "In progress" if started else ("Startable" if blocker == "—" else "Waiting")
+        count = f" (unblocks {unblocks[pid]})" if unblocks[pid] else ""
+        columns.setdefault(fm.get("super_project"), {}).setdefault(column, []).append((depths[pid], path.name, f"[`{path.name}`](projects/{path.name}){count}"))
+
+    def row(label: str, initiative: str | None) -> str:
+        cells = [", ".join(cell for *_, cell in sorted(columns.get(initiative, {}).get(column, []))) or "—" for column in ROADMAP_COLUMNS]
+        return f"| {label} | " + " | ".join(cells) + " |"
+
+    header = "| Initiative | " + " | ".join(ROADMAP_COLUMNS) + " |\n| :--- | :--- | :--- | :--- |"
+    return "\n".join([header, *(row(f"`{name}`", name) for name in order), row(NO_INITIATIVE, None)])
 
 
 ADR_STATUS_DISPLAY = {
@@ -572,9 +640,19 @@ def regenerate(path: Path, heading: str, body: str, *, optional: bool = False) -
     return True
 
 
+def ensure_section(path: Path, heading: str, *, before: str) -> None:
+    """Adds an empty `## <heading>` section ahead of `## <before>` when the file has none. A patch
+    carries no generated view, so it cannot add the heading its generator fills."""
+    text = path.read_text(encoding="utf-8")
+    if not has_section(text, heading):
+        path.write_text(text.replace(f"## {before}\n", f"## {heading}\n\nPLACEHOLDER\n\n## {before}\n", 1), encoding="utf-8")
+
+
 def main() -> int:
     validate_adrs()
     planning = ROOT / "docs/project-planning.md"
+    ensure_section(planning, "Roadmap", before="Super Projects")
+    regenerate(planning, "Roadmap", render_roadmap_table())
     regenerate(planning, "Super Projects", render_initiatives_table())
     regenerate(planning, "Projects", render_standalone_projects_table())
     regenerate(planning, "Decisions awaiting a project", render_needs_project_table())

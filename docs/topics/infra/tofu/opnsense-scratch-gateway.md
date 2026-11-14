@@ -37,6 +37,7 @@ not the staged image.
 | `WAN_BRIDGE` | `vmbr1` | Untagged, or tagged with `WAN_VLAN_ID`, where a DHCP server gives it an address and a route out. The production WAN bridge is refused |
 | `LOCAL_PORT` | 8443 | The ssh forward to the gateway's GUI port. The operator host must resolve `OPNsense.internal` to `127.0.0.1` and have no proxy variables set |
 | `WANT_VERSION` | The pinned release | |
+| `SEED_VLANS` | The seed's own list (20 to 60) | Comma-separated VLAN tags the seed adds on the LAN device, such as `20,30,40,50,60,70`, for a zone the seed does not carry yet. The play's `opnsense_gateway_zones` has no entry for an added tag, so its interface carries none of the play's rules |
 | `PURGE_IMAGE=1` | | `down` also removes the staged image |
 | `UPLOAD_IMAGE=1` | | The operator host downloads the image and the module uploads it, for a node with no route to the mirror (about 7 GB free where `OUT_DIR` is) |
 

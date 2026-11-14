@@ -4,7 +4,7 @@ revision: 0
 type: adr
 title: Exercising disaster recovery often enough that it works when it is needed
 short: DR exercise cadence
-solution: A small set of exercise kinds on a cadence set by a recovery tier, with the tier derived from the catalog plus one flag for the systems every restore depends on, and results kept in the fire-drill table
+solution: A small set of exercise kinds on a cadence set by a recovery tier, with the tier derived from the catalog plus one flag for the systems every restore depends on, and results kept in a private record
 summary: Which disaster-recovery exercises the repository runs, how often, and how the cadence follows from what a system's loss would cost, so the restore paths are exercised before they are needed.
 topic: backup-recovery
 status: approved
@@ -29,7 +29,7 @@ the maintainer remembers, and a path that is never chosen is never tested.
   A rebuild runbook destroys and recreates a host from the repository and its
   backups. Automated checks prove that backups land
   ([ADR 0012 (Backup verification)](../0012-verifying-backups-actually-land/revision-000.md)).
-  The fire-drill table records each real restore, with its source.
+  The maintainer's drill record keeps each real restore, with its source, privately.
 - **No cadence is stated anywhere.** None of those documents or decisions says how
   often a drill runs, which apps it covers in turn, or when a cloud copy rather than
   the on-site one is the source.
@@ -55,9 +55,12 @@ the maintainer remembers, and a path that is never chosen is never tested.
   [`main.tf`](../../../tofu/main.tf) add up to 14 GB of RAM,
   and the live hosts use the same again, on a node with 32 GB. The estate cannot be
   rebuilt twice at once.
-- **The coverage view holds the evidence.** [ADR 0100 (Recording a system's integration)](../0100-recording-how-a-system-is-integrated/revision-000.md)
-  adds a generated table with the age of each system's newest restoring drill, from
-  the fire-drill table.
+- **The results are private.** How the exercises were run and what they found is
+  kept out of this repository
+  ([`data-classification.md`](../../topics/engineering/data-classification.md)).
+  [ADR 0100 (Recording a system's integration)](../0100-recording-how-a-system-is-integrated/revision-001.md)
+  shows each system's tier in the coverage view, and a check kept with the private
+  record reports the age of each system's newest restoring drill against this cadence.
 
 ## Decision
 
@@ -90,17 +93,17 @@ an upgrade of the secrets store or the authority, and a change of the authority'
 
 **When the cadence cannot be kept.** If the staged total-loss exercise does not fit in
 the isolated block, it is run as a tabletop of the same chain until it does, and the
-fire-drill table says so. A monthly restore that is missed is carried to the next month,
+private record says so. A monthly restore that is missed is carried to the next month,
 not skipped; a cadence missed for two quarters running is a reason to revise this record,
 not to ignore it.
 
-**Records.** Each real restore or rebuild is a row in the fire-drill table, with its
-source. A tabletop, a custody check and a total-loss exercise add a row too, saying
+**Records.** Each real restore or rebuild is an entry in the private drill record, with its
+source. A tabletop, a custody check and a total-loss exercise add an entry too, saying
 what was done and what it found, as a change to the procedure or the records and
 never as a security incident.
 
 **Review.** The recurring operational readiness review of ADR 0100 reads the
-coverage view's ages against this cadence. How it reports a late exercise is not
+private record's ages against this cadence. How it reports a late exercise is not
 decided here.
 
 ## Alternatives considered
@@ -118,7 +121,7 @@ decided here.
 
 ## Consequences
 
-- The coverage view gains a tier column, and `app_catalog` gains one optional key.
+- The coverage view gains a tier column, and `app_catalog` gains one optional key. The ages of drills are not in it.
 - An exercise doc under `docs/topics/disaster-recovery/` holds the procedures, the
   tabletop scenarios and the rule for each tier. It names no system.
 - The host migration counts as the first cycle of host rebuilds.
@@ -126,7 +129,7 @@ decided here.
 
 ## Invariants
 
-- Every real restore or rebuild leaves a row in the fire-drill table.
+- Every real restore or rebuild leaves an entry in the private drill record.
 - A tier 1 system is never exercised less often than the tier 2 cadence.
 - The tier of a system comes from the catalog, never from a list in prose.
 
@@ -141,7 +144,7 @@ decided here.
 ## Validation
 
 `check-app-catalog` for the `recovery_tier` key; the coverage view for each system's
-tier and the age of its newest restoring drill; the fire-drill table for what was done.
+tier; the private drill record for what was done and each system's newest restoring drill.
 
 ## Reconsideration triggers
 

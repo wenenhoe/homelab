@@ -1,0 +1,27 @@
+---
+# The boundary run of docs/topics/infra/network-boundary-checks.md as one spec: the play applies and checks clean, the runner passes
+# the flows of the two zones it reaches, and a block rule makes it fail the flow the rule breaks and pass it again once lifted.
+# The play's variables are those acceptance.sh writes: the play sees the runner's host at 192.168.40.250, so that address is the
+# operator host and the one reservation.
+name: rehearsal
+description: >-
+  The play applies to a scratch gateway and a second run with --check reports no change; every flow of the services and
+  desktops zones passes; a block rule on the services zone's DNS flow makes the runner fail it, and it passes again once the rule is lifted.
+gateway:
+  play_vars:
+    opnsense_gateway_operator_hosts: [192.168.40.250]
+    opnsense_gateway_operator_not_listed_ok: true
+    opnsense_gateway_forward_domains: [host.scratch.lab, lan.scratch.lab]
+    opnsense_gateway_dhcp_reservations:
+      - {name: scratch-reservation, zone: desktops, address: 192.168.40.250, mac: "bc:24:11:00:01:91"}
+block_rule: {source: 192.168.20.0/24, destination: 192.168.20.1, protocol: UDP, port: 53}
+steps:
+  - {id: play-apply, play: apply}
+  - {id: play-check, play: check, expect: unchanged}
+  - {id: services-flows, flows: {tags: [services]}}
+  - {id: desktops-flows, flows: {tags: [desktops]}}
+  - {id: dns-before-block, flows: {ids: [services-gateway-dns]}}
+  - {id: block-on, block: present}
+  - {id: dns-blocked, flows: {ids: [services-gateway-dns]}, expect: fail}
+  - {id: block-off, block: absent}
+  - {id: dns-restored, flows: {ids: [services-gateway-dns]}}

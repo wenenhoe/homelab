@@ -74,6 +74,8 @@ What the list does not hold yet:
 
 ## Running the checks against a scratch gateway
 
+The steps below are what [`scratch_run`](scratch-gateway-runs.md) runs from a spec; a person follows them by hand when the run is something a spec does not say.
+
 A scratch gateway has no canary VMs, so [`scratch_canaries.py`](../../../tools/network_checks/scratch_canaries.py) stands in for them with network namespaces on the Proxmox node, joined to the gateway's isolated bridge. The runner and the probe module are the ones that run in production; only what they connect to differs.
 
 `scratch_plan` writes the plan from the flow list and the gateway play's zones: each zone's gateway, canary and VLAN, a stand-in host for every service the connect flows reach inside a zone (a listener that accepts and closes), and the runner's host at `192.168.40.250` with a fixed MAC. `scratch_canaries.py up` then builds one namespace per zone with the zone's VLAN tag, a default route through the gateway, and an `sshd` on the canary's address that accepts the runner's key. The runner's host is a namespace too, so the gateway sees an operator host's address as the source. The runner itself stays on the machine that has the repository and reaches the canaries through `relay`, a ProxyCommand that opens each connection from the runner's namespace.

@@ -56,3 +56,9 @@ What no runner can show: the real `vmbr1` VLAN-aware bridge, the tailnet, the no
 ## Leaning
 
 The spec and the single command come first, whichever backend runs under them, since they remove the assembly and the carrying for the node as well. The QEMU backend on a runner is the first second backend to build, for the regression and rehearsal runs the projects above end on, with discovery runs on the node or the operator host. What would change it: a play or a canary run that behaves differently on the QEMU gateway from the node's, which has not happened in the flows and the block-rule round trip run so far, or no way to keep the QEMU layout tied to the module's.
+
+Leanings on how the QEMU backend would run, if it is built:
+
+- A workflow that runs on pull requests touching what the gateway depends on (the flow list, `tools/network_checks/`, the gateway role, `tofu/scratch/opnsense/`, the seed importer), and on a weekly schedule on the default branch, which keeps the image cache from expiring and lets pull requests read it. It is not a required check at first: the run is several minutes and the runner image changes under it.
+- The runner label is pinned to `ubuntu-26.04`, not `ubuntu-latest`, so the label's migration does not change what the run measures.
+- It stays a regression and rehearsal run. A run that looks for a hole does not go through public CI.

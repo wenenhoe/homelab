@@ -46,7 +46,7 @@ each app on every source and its age, and restores nothing
 ([`rebuild-tools.md`](rebuild-tools.md#what-the-checks-look-at)).
 
 **App restore.** The real fire drill in [`fire-drill.md`](fire-drill.md#real-fire-drill), on a scratch
-host. Pick the system whose newest row in the [results](fire-drill.md#results) is oldest, and a
+host. Pick the system whose newest restoring drill in the private drill record is oldest, and a
 tier 1 system when two are level. Compare the restored data with the archive, not only the
 exit status.
 
@@ -81,7 +81,7 @@ two years.
 ([`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#rebuilding-security)), then the
 storage host, then one app host, each from the cloud copies. It is staged because the node cannot
 hold the estate twice at once. If the chain does not fit in the isolated block, it is walked as a
-tabletop until it does, and the results row says so.
+tabletop until it does, and the drill record says so.
 
 **Re-test.** The part of the above that the change touched: a new backed-up app gets an app restore;
 a change to the backup or restore roles gets one on each tier; an upgrade of the secrets store or
@@ -89,11 +89,12 @@ the authority gets the bootstrap path; a new root gets a host rebuild, since eve
 
 ## Recording
 
-Every real restore or rebuild is a row in the fire-drill [results](fire-drill.md#results), with
-its source. A tabletop, a key-custody check and a total-loss exercise add a row too, saying what
-was done and what was found. What a tabletop finds is written as a change to a procedure or a
-record, never as a security incident or an exposure
-([`docs/README.md#public-repo`](../../README.md#public-repo)).
+Every real restore or rebuild is an entry in the private drill record, with its source. A tabletop, a
+key-custody check and a total-loss exercise add an entry too, saying what was done and what was found.
+What a tabletop finds is written as a change to a procedure or a record, never as a security incident or an
+exposure ([`docs/README.md#public-repo`](../../README.md#public-repo)). The results are not kept here
+([`data-classification.md`](../engineering/data-classification.md)); a check that reads the record against
+the cadence above reports a system or an exercise that is late.
 
 ## When the cadence cannot be kept
 

@@ -4,7 +4,7 @@ title: "DR exercises"
 type: project
 status: building
 blocked: false
-summary: "Carry out the disaster-recovery exercise cadence: show each system's recovery tier and drill age in the coverage view, run the first quarter of exercises, and accept the decision."
+summary: "Carry out the disaster-recovery exercise cadence: show each system's recovery tier in the coverage view, run the first quarter of exercises and record them privately, and accept the decision."
 decision: ADR-0101/0
 allowed_paths:
   - docs/topics/disaster-recovery/**
@@ -22,15 +22,15 @@ allowed_paths:
 
 Puts the exercise cadence of [ADR 0101 (DR exercise cadence)](../decisions/0101-exercising-disaster-recovery/revision-000.md)
 into practice. The decision, the [exercises page](../topics/disaster-recovery/exercises.md) and the
-`recovery_tier` catalog key are merged. What remains is showing the tier and the age of each system's
-newest restoring drill in one place, running the cadence for a quarter to see that it can be kept, and
-accepting the decision.
+`recovery_tier` catalog key are merged. What remains is showing the tier of each system in the coverage view,
+running the cadence for a quarter to see that it can be kept, and accepting the decision. The results of the
+exercises are kept in a private record, not here.
 
 ## Scope
 
-- The tier and the age of the newest restoring drill, as two columns of the coverage view
+- The tier, as a column of the coverage view
   ([`coverage.md`](../topics/disaster-recovery/coverage.md)).
-- The first quarter of exercises, each recorded in the fire-drill results.
+- The first quarter of exercises, each recorded in the private drill record.
 - The staged total-loss exercise, now that the host migration is done.
 - Accepting ADR 0101, and deleting this doc by its closing checklist.
 
@@ -48,17 +48,17 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | The exercises page and the `recovery_tier` key | Done | [`exercises.md`](../topics/disaster-recovery/exercises.md) is merged and `check-app-catalog` refuses any tier but `1` |
-| 2 | Tier and drill age in the coverage view | Not started | Each catalog app's row in the view shows its tier (the key, else whether it has a `backup`) and the age of the newest fire-drill row that restored it |
-| 3 | The first quarter of exercises | Not started | The fire-drill results hold a row for each of: a cloud-source restore, a key-custody check, an app restore of every tier 1 system, a host rebuild and a tabletop; whether the cadence could be kept is written into the next revision of ADR 0101 if it could not |
-| 4 | The staged total-loss exercise | Not started | The host migration is done, the chain is run in the isolated block or walked as a tabletop, and the results row says which |
+| 2 | Tier in the coverage view | Done | Each catalog app's row in the view shows its tier (the key, else whether it has a `backup`); the view shows no result of an exercise |
+| 3 | The first quarter of exercises | Not started | The private drill record holds an entry for each of: a cloud-source restore, a key-custody check, an app restore of every tier 1 system, a host rebuild and a tabletop; whether the cadence could be kept is written into the next revision of ADR 0101 if it could not |
+| 4 | The staged total-loss exercise | Not started | The host migration is done, the chain is run in the isolated block or walked as a tabletop, and the drill record says which |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
 - [x] `recovery_tier` is a checked catalog key and the exercises page states the rule and the cadence.
-- [ ] The coverage view shows each system's tier and the age of its newest restoring drill.
-- [ ] The first quarter's exercises are recorded in the fire-drill results.
+- [x] The coverage view shows each system's tier and no result of an exercise.
+- [ ] The first quarter's exercises are recorded in the private drill record.
 - [ ] ADR 0101 is `accepted`.
 
 ## Agent handoff
@@ -69,7 +69,7 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 - **Must not change:** any decision revision other than ADR 0101's own; the exercise cadence itself, which only a
   new revision of ADR 0101 changes.
 - **Relevant files and interfaces:** [`exercises.md`](../topics/disaster-recovery/exercises.md),
-  [`fire-drill.md`](../topics/disaster-recovery/fire-drill.md#results), `tools/doc_scripts/` (the generator that
+  [`fire-drill.md`](../topics/disaster-recovery/fire-drill.md#real-fire-drill), `tools/doc_scripts/` (the generator that
   writes the views), `ansible/inventory/group_vars/all/app_catalog.yaml`.
 - **Required checks:** `pre-commit run --all-files`.
 

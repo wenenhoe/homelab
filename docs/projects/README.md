@@ -252,7 +252,7 @@ the project closes.
 
 This is the mechanical half of the "scope needs to grow" stop condition:
 work that needs a file outside `allowed_paths` fails the check and stops.
-Omit the field for work no agent will touch. It is path-level only: it
+No building project is exempt, since all work here is agent work. It is path-level only: it
 can't tell whether an edit inside an allowed file is the permitted one,
 and a change that never touches its project doc isn't bounded. How and
 where it runs is in

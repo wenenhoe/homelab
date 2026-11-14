@@ -51,6 +51,27 @@ class TestHosts:
         assert "PasswordAuthentication no\n" in config
         assert "PermitRootLogin prohibit-password\n" in config
 
+    def test_redirects_are_refused_by_a_slash_key_so_a_dotted_interface_name_stays_one_name(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(scratch_canaries, "run", lambda *args, ns=None, check=True: calls.append((args, ns)))
+
+        scratch_canaries.refuse_redirects("opc0p.40", "opnc-runner")
+
+        assert calls == [(("sysctl", "-q", "-w", "net/ipv4/conf/opc0p.40/accept_redirects=0"), "opnc-runner")]
+
+    def test_building_a_vlan_host_sets_every_redirect_key_in_slash_form(self, monkeypatch):
+        calls = []
+        host = {"name": "runner", "mac": "02:00:00:00:00:01", "vlan": 40, "addresses": ["192.168.40.250"], "gateway": "192.168.40.1"}
+        monkeypatch.setattr(scratch_canaries, "run", lambda *args, ns=None, check=True: calls.append(args))
+        monkeypatch.setattr(scratch_canaries, "filtering", lambda bridge: True)
+        monkeypatch.setattr(scratch_canaries, "hosts", lambda plan: [host])
+
+        scratch_canaries.build({}, "br", vlan=True)
+
+        keys = [args[-1] for args in calls if args[0] == "sysctl"]
+        assert "net/ipv4/conf/opc0p.40/accept_redirects=0" in keys
+        assert all(key.startswith("net/ipv4/conf/") for key in keys)
+
     def test_the_module_is_written_for_the_python_a_node_has(self):
         """It runs under the node's own `python3`, older than the 3.14 the repo's formatter targets, which cannot read
         `except A, B:` without parentheses. A formatter that strips them must not reach this file."""

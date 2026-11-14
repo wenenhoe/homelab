@@ -12,5 +12,6 @@ module "scratch" {
   ssh_public_keys = var.ssh_public_keys
   dns_domain      = var.dns_domain
   dns_servers     = var.dns_servers
+  lan_bridge      = var.lan_bridge
   tags            = ["scratch"]
 }

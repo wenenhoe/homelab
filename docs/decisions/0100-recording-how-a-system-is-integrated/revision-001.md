@@ -7,7 +7,7 @@ short: Recording a system's integration
 solution: One required-section topic doc per integrated system, linked from its app_catalog entry, checked by check_doc_drift, with a generated disaster-recovery coverage view that shows each system's recovery tier and no drill outcome
 summary: How the repository makes a new app, service or dependency state its dependencies, data, exposure, threat model, observability, disaster recovery and lifecycle when it is added, and keeps what a review of them finds out of git history.
 topic: documentation-process
-status: approved
+status: accepted
 supersedes: 0
 related: [ADR-0028, ADR-0037]
 ---

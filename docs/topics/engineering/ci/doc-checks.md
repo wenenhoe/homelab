@@ -9,7 +9,7 @@ wired into `.config/.pre-commit-config.yaml` as a local hook, positioned before
 markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
 hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
-frontmatter and regenerates `docs/project-planning.md`'s Super Projects,
+frontmatter and regenerates `docs/project-planning.md`'s Roadmap, Super Projects,
 Projects, Decisions awaiting a project and Open explorations views, and
 `docs/decision-index.md`'s By number, By topic, Open decisions and History
 views in place, validating each doc's frontmatter as it goes.
@@ -19,7 +19,13 @@ frontmatter alone, with nothing stored for them. The same holds for the
 "Relies on" note a lineage carries in the decision index, with the target's
 state, and the "rests on ADR-NNNN (state)" label a project shows in its
 Blocker cell while its decision revision has an unmet `relies_on:`
-([ADR 0082 (Choosing the next project)](../../../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)). Same
+([ADR 0082 (Choosing the next project)](../../../decisions/0082-choosing-which-project-to-take-up-next/revision-002.md)). The Roadmap has a row per initiative, in the numbered list under `## Initiatives` in
+[`docs/projects/README.md`](../../../projects/README.md#initiatives), then a row for projects with no
+`super_project`, and sorts each project into In progress (building or de-risking), Startable (not started
+with a Blocker of `—`) or Waiting from the same Status and Blocker cells; a done project is not shown. The
+generator fails, naming each, for a `super_project` missing from the list, an initiative listed twice and
+an initiative that no project uses, and writes nothing. That list is the only stored order: it ranks
+initiatives, and no project field holds one. Same
 auto-fix pattern as the `ruff --fix` and `dclint-docker` hooks: a stale table
 fails the commit and shows the regenerated diff, rather than silently
 passing. It stops before writing anything when two lineage directories

@@ -47,6 +47,19 @@ shows "waiting on" while the predecessor still exists; remove the entry in the
 change that deletes the finished predecessor, or the checker fails on a
 dangling one.
 
+## Initiatives
+
+The initiatives, in the order the [Roadmap](../project-planning.md#roadmap) lists them, each with what it delivers. The order says where to look first, not that a later initiative waits for an earlier one. A project's `super_project:` is one of these names, and the generator fails when it is missing here, listed twice or used by no project
+([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-002.md)).
+
+1. `controller-separation` — the controller's work moved off VM 401 to an operator host and a managed workstation.
+2. `pull-based-cd` — production deploys run by a dedicated CD agent that pulls from the repository.
+3. `tofu-vm-provisioning` — the gateway, the Proxmox node and the Windows machines built from this repository.
+4. `backup-archive-protection` — backup archives that the host which wrote them can neither delete nor forge.
+5. `off-site-monitoring` — monitoring that keeps working when the lab or the site is lost.
+6. `compose-stack-files` — compose apps whose files and configuration deploy and restart reliably.
+7. `coding-agent-host` — a coding agent on its own isolated host, reached only through a reviewed path.
+
 ## Lifecycle
 
 | Status | Meaning | Linked `decision:` revision must be |
@@ -108,7 +121,7 @@ The generated views derive one more thing from the same fields.
 **Unblocks** is the number of existing projects that wait on a project,
 directly or through a chain of `depends_on`. It is not stored, and no field
 carries a priority
-([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-001.md)).
+([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-002.md)).
 
 ## What a stage is
 

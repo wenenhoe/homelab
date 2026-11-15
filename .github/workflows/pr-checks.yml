@@ -300,7 +300,7 @@ jobs:
           locked: "true"
 
       - name: Run unit tests
-        run: uv run pytest ansible/tests/ tools/tests/ -v
+        run: uv run pytest ansible/tests/ tools/tests/ -v -n auto --dist worksteal
 
   # Regression coverage for the ansible_host resolution ordering —
   # see docs/topics/engineering/ci/gates.md#deploy-ordering-check for what it catches and why.

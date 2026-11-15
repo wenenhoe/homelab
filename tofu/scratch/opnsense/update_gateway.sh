@@ -159,7 +159,7 @@ else
   wait_state up "$up_timeout"; check "the API answers again after the update" $?
   post core/firmware/status > "$dir/fw-status-after.json" 2> /dev/null
   after=$(jget "$dir/fw-status-after.json" product.product_version)
-  note "release now $after (firmware status '$(jget "$dir/fw-status-after.json" status)')"
+  note "release now $after (firmware status '$(jget "$dir/fw-status-after.json" status)': $(jget "$dir/fw-status-after.json" status_msg))"
   if [ "${after%%_*}" = "$want" ]; then check "the gateway runs $want after the update" 0; else check "the gateway runs $want after the update" 1; fi
   cfg after-update; check "the seed's seeded API user works after the update" $?
   if [ "$rebooted" = 1 ] && [ -n "${SERIAL_SOCKET:-}" ]; then

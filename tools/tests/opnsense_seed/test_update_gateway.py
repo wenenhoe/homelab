@@ -70,6 +70,12 @@ def test_update_with_a_reboot_lands_on_the_pin_and_keeps_the_seeded_key(update):
     assert "CHECK the seed's seeded API user works after the update: PASS" in output
 
 
+def test_the_firmware_status_after_the_update_is_printed_with_the_gateways_message(update):
+    status, output, _ = update()
+    assert status == 0, output
+    assert "release now 26.1.11_10 (firmware status 'none': No updates.)" in output
+
+
 def test_a_reboot_that_finished_before_the_job_was_seen_to_end_still_counts(update):
     status, output, _ = update("silentreboot", env={"DOWN_TIMEOUT": "3"})
 

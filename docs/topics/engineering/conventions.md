@@ -93,6 +93,12 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   setup a parametrized test would repeat, uses the built-in `subtests`
   fixture (`with subtests.test(...)`), so each case still reports on its
   own. Write no `subTest`.
+- **Parallel runs.** CI runs the suite across the runner's cores with
+  `pytest-xdist` (`-n auto --dist worksteal`), so a test runs in any order and
+  beside any other: it keeps its files under `tmp_path`, binds no fixed port,
+  and leaves no state in the environment or the repo checkout for another to
+  read. A test that cannot meet that is a bug in the test, not a reason to
+  run the suite serially.
 - **Import roots.** Declared once in `[tool.pytest]` in `pyproject.toml`;
   a test file adds nothing to `sys.path`. A new source directory that
   tests import from is added there. `strict = true` in that table makes

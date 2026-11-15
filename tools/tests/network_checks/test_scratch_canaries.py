@@ -83,6 +83,42 @@ class TestHosts:
         assert names <= set(sys.stdlib_module_names) | {"__future__"}
 
 
+class TestAZoneWhoseCanaryIsAVm:
+    @pytest.fixture
+    def plan(self, flows_path) -> dict:
+        plan = scratch_plan.build_plan(load_flow_list(flows_path), VLANS)
+        for zone in plan["zones"]:
+            if zone["name"] == "services":
+                zone["canary"] = None
+        return plan
+
+    def test_the_zone_host_holds_its_stand_ins_and_not_the_canary_address(self, plan):
+        assert {host["name"]: host["addresses"] for host in scratch_canaries.hosts(plan)}["services"] == ["192.168.20.5"]
+
+    def test_no_sshd_starts_for_it_and_the_other_zones_keep_theirs(self, plan, tmp_path, monkeypatch):
+        started = []
+        monkeypatch.setattr(scratch_canaries.subprocess, "Popen", lambda command, **kwargs: started.append(command) or type("P", (), {"pid": 1})())
+
+        scratch_canaries.start(tmp_path, plan)
+
+        sshd = [command[3] for command in started if "-D" in command]
+        assert sorted(sshd) == sorted(f"opnc-{zone['name']}" for zone in plan["zones"] if zone["canary"])
+        assert not (tmp_path / "sshd-services.conf").exists()
+        assert any("serve" in command for command in started if command[3] == "opnc-services")
+
+    def test_readiness_waits_for_no_ssh_on_it(self, plan, monkeypatch):
+        asked = []
+        monkeypatch.setattr(scratch_canaries, "listening", lambda zone, address, port: asked.append((zone, address, port)) or True)
+
+        scratch_canaries.wait_ready(plan)
+
+        expected = [(zone["name"], zone["canary"], 22) for zone in plan["zones"] if zone["canary"]]
+        expected += [(zone["name"], item["address"], item["port"]) for zone in plan["zones"] for item in zone["listeners"]]
+        assert sorted(asked) == sorted(expected)
+        assert ("services", "192.168.20.8", 22) not in asked
+        assert any(item[0] == "services" for item in asked)  # its stand-ins are still waited for
+
+
 NEEDS = ("ip", "nft", "sshd", "ssh", "ssh-keygen")
 can_build = os.geteuid() == 0 and all(shutil.which(tool) for tool in NEEDS)
 

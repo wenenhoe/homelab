@@ -10,7 +10,8 @@ it can be copied to the node on its own. `scratch_plan` writes the plan it reads
 
 `up` makes one namespace per zone, joined to the bridge by a veth pair with the zone's VLAN tag, a default route through
 the gateway's address in the zone and a fixed MAC. The zone's canary address answers SSH on 22 for the key given, so the
-runner's session reaches it as it would a canary VM. Each stand-in host of the plan accepts and closes TCP connections.
+runner's session reaches it as it would a canary VM. A zone whose `canary` in the plan is null gets no address and no sshd for it:
+a real VM on the bridge holds that address. Each stand-in host of the plan accepts and closes TCP connections.
 One more namespace holds the runner's host, at the address the gateway's play admits as an operator host.
 
 The runner itself stays where the repository is. Its SSH sessions leave through `relay` as a ProxyCommand, which opens the
@@ -56,7 +57,7 @@ def hosts(plan: dict) -> list[dict]:
             "vlan": zone["vlan"],
             "gateway": zone["gateway"],
             "mac": None,
-            "addresses": [zone["canary"]] + [item["address"] for item in zone["listeners"]],
+            "addresses": ([zone["canary"]] if zone["canary"] else []) + [item["address"] for item in zone["listeners"]],
         }
         for zone in plan["zones"]
     ]
@@ -163,13 +164,14 @@ def start(state: Path, plan: dict) -> list[subprocess.Popen]:
     sshd = shutil.which("sshd") or "/usr/sbin/sshd"
     Path("/run/sshd").mkdir(parents=True, exist_ok=True)
     for zone in plan["zones"]:
-        config = state / f"sshd-{zone['name']}.conf"
-        config.write_text(sshd_config(state, zone["name"], zone["canary"]))
-        procs.append(
-            subprocess.Popen(
-                ["ip", "netns", "exec", ns_name(zone["name"]), sshd, "-D", "-e", "-f", str(config)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        if zone["canary"]:
+            config = state / f"sshd-{zone['name']}.conf"
+            config.write_text(sshd_config(state, zone["name"], zone["canary"]))
+            procs.append(
+                subprocess.Popen(
+                    ["ip", "netns", "exec", ns_name(zone["name"]), sshd, "-D", "-e", "-f", str(config)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
             )
-        )
         for item in zone["listeners"]:
             command = ["ip", "netns", "exec", ns_name(zone["name"]), sys.executable, str(Path(__file__).resolve()), "serve", item["address"], str(item["port"])]
             procs.append(subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
@@ -183,7 +185,7 @@ def listening(zone: str, address: str, port: int) -> bool:
 
 def wait_ready(plan: dict) -> None:
     """Every canary and stand-in host answers inside its own namespace, so a timeout later is a block and not a dead host."""
-    pending = [(zone["name"], zone["canary"], 22) for zone in plan["zones"]]
+    pending = [(zone["name"], zone["canary"], 22) for zone in plan["zones"] if zone["canary"]]
     pending += [(zone["name"], item["address"], item["port"]) for zone in plan["zones"] for item in zone["listeners"]]
     deadline = time.monotonic() + READY_SECONDS
     while pending and time.monotonic() < deadline:
@@ -212,7 +214,7 @@ def up(plan_path: str, bridge: str, state_dir: str, key_path: str, vlan: bool) -
         teardown()
         raise
     (state / "runner").write_text(ns_name(RUNNER))
-    print(f"ready: {len(plan['zones'])} canaries, runner at {plan['runner']['address']}")
+    print(f"ready: {sum(1 for zone in plan['zones'] if zone['canary'])} canaries, runner at {plan['runner']['address']}")
     return 0
 
 

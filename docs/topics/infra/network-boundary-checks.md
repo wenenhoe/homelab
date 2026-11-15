@@ -41,8 +41,10 @@ Each flow is tried once, on a new connection, since a rule that cuts new connect
 
 ```sh
 cd tools
-python -m network_checks.runner --ssh-user USER [--ssh-command "ssh -i KEY -o BatchMode=yes"] [--tag smoke] [--flow ID]
+python -m network_checks.runner --ssh-user USER [--ssh-user-for ZONE=USER] [--ssh-command "ssh -i KEY -o BatchMode=yes"] [--tag smoke] [--flow ID]
 ```
+
+`--ssh-user-for` logs in to one zone's canary as another user, once per zone, for a canary whose account differs from the rest (a scratch VM has its own admin account, and a namespace canary takes `root`).
 
 It refuses a flow list that breaks a rule, selects the flows by tag or id (all when neither is given) and adds the control of each selected deny. It opens one SSH session to the canary of each source zone in the selection and decides each flow:
 

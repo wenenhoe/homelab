@@ -198,6 +198,14 @@ class TestExecute:
 
         assert sessions() == ["canary@127.0.0.2", "canary@127.0.0.130"]
 
+    def test_a_zone_with_its_own_user_is_logged_in_to_as_that_user_and_the_others_as_the_given_one(self, write_flows, fake_ssh, sessions, listening_port):
+        flow_list = loaded(write_flows, [flow("a1", "alpha", listening_port), flow("b1", "beta", listening_port)])
+
+        outcomes = run(flow_list, fake_ssh, zone_users={"beta": "scratch"})
+
+        assert sessions() == ["canary@127.0.0.2", "scratch@127.0.0.130"]
+        assert all(outcome.passed for outcome in outcomes.values())
+
     def test_a_session_that_fails_fails_its_flows_and_not_the_other_zones(self, write_flows, make_ssh, listening_port):
         ssh = make_ssh(
             """
@@ -285,6 +293,28 @@ class TestMain:
         assert code == 1
         assert "FAIL a-to-b: blocked:" in out
         assert "1 of 2 flows passed" in out
+
+    def test_ssh_user_for_logs_in_to_that_zones_canary_as_that_user(self, write_flows, args, sessions, port, capsys):
+        code = runner.main([*args, *self.flows_file(write_flows, "127.0.0.200", "127.0.0.1", port), "--ssh-user-for", "beta=scratch"])
+
+        assert code == 0
+        assert sessions() == ["canary@127.0.0.2", "scratch@127.0.0.130"]
+
+    @pytest.mark.parametrize(
+        ("given", "message"),
+        [
+            pytest.param(["--ssh-user-for", "beta"], "takes ZONE=USER", id="no-user"),
+            pytest.param(["--ssh-user-for", "=scratch"], "takes ZONE=USER", id="no-zone"),
+            pytest.param(["--ssh-user-for", "beta=a", "--ssh-user-for", "beta=b"], "once per zone", id="repeated-zone"),
+            pytest.param(["--ssh-user-for", "nowhere=scratch"], "names a zone the flow list does not have: nowhere", id="unknown-zone"),
+        ],
+    )
+    def test_a_mistaken_ssh_user_for_is_refused_before_any_session(self, write_flows, args, sessions, port, capsys, given, message):
+        code = runner.main([*args, *self.flows_file(write_flows, "127.0.0.200", "127.0.0.1", port), *given])
+
+        assert code == 2
+        assert message in capsys.readouterr().err
+        assert sessions() == []
 
     def test_a_flow_list_that_breaks_a_rule_is_not_run(self, write_flows, args, sessions, port, capsys):
         flows = [{"id": "a-to-b", "from": "alpha", "to": {"address": "127.0.0.200", "port": port}, "kind": "connect", "expect": "allow"}]

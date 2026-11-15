@@ -10,7 +10,7 @@ passed in the same run, since the destination or the canary may simply be down; 
 is added to the run. A probe the runner could not run, a session that failed and a flow with no result all count
 as failed, and the exit status is zero only if every flow in the run passed.
 
-Usage (from tools/): python -m network_checks.runner --ssh-user USER [--tag TAG] [--flow ID] [--ssh-command CMD]
+Usage (from tools/): python -m network_checks.runner --ssh-user USER [--ssh-user-for ZONE=USER] [--tag TAG] [--flow ID] [--ssh-command CMD]
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import json
 import shlex
 import subprocess
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -113,16 +114,25 @@ def evaluate(flows: list[Flow], results: dict[str, dict[str, str]], failures: di
 
 
 def execute(
-    flow_list: FlowList, flows: list[Flow], user: str, ssh_command: list[str], python: str = "python3", timeout: float = PROBE_TIMEOUT
+    flow_list: FlowList,
+    flows: list[Flow],
+    user: str,
+    ssh_command: list[str],
+    python: str = "python3",
+    timeout: float = PROBE_TIMEOUT,
+    zone_users: Mapping[str, str] | None = None,
 ) -> list[Outcome]:
-    """Try `flows` from their canaries, one session per source zone, and decide each."""
+    """Try `flows` from their canaries, one session per source zone, and decide each.
+
+    `zone_users` names the user to log in as for a zone whose canary is not like the others (a VM with its own admin account)."""
     results: dict[str, dict[str, str]] = {}
     failures: dict[str, str] = {}
     for zone in dict.fromkeys(flow.source for flow in flows):
         zone_flows = [flow for flow in flows if flow.source == zone]
         specs = [_spec(flow, timeout) for flow in zone_flows]
         try:
-            results.update(run_session(str(flow_list.zones[zone].canary), user, ssh_command, python, specs, timeout * len(specs) + SESSION_MARGIN))
+            canary = str(flow_list.zones[zone].canary)
+            results.update(run_session(canary, (zone_users or {}).get(zone, user), ssh_command, python, specs, timeout * len(specs) + SESSION_MARGIN))
         except SessionError as exc:
             failures.update({flow.id: str(exc) for flow in zone_flows})
     return evaluate(flows, results, failures)
@@ -131,16 +141,25 @@ def execute(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Try the flows of the flow list from the canaries.")
     parser.add_argument("--ssh-user", required=True, help="the user to log in to each canary as")
+    parser.add_argument("--ssh-user-for", action="append", default=[], metavar="ZONE=USER", help="log in to this zone's canary as USER instead (repeatable)")
     parser.add_argument("--ssh-command", default=DEFAULT_SSH_COMMAND, help="the ssh command and options, before user@canary")
     parser.add_argument("--remote-python", default="python3", help="the canary's Python")
     parser.add_argument("--tag", action="append", default=[], help="run the flows with this tag (repeatable)")
     parser.add_argument("--flow", action="append", default=[], help="run this flow by id (repeatable)")
     parser.add_argument("--flows", type=Path, default=FLOWS_PATH, help="the flow list (default: the committed one)")
     args = parser.parse_args(argv)
+    zone_users = dict(item.partition("=")[::2] for item in args.ssh_user_for)
+    if any(not zone or not user for zone, user in zone_users.items()) or len(zone_users) != len(args.ssh_user_for):
+        print("--ssh-user-for takes ZONE=USER, once per zone", file=sys.stderr)
+        return 2
     try:
         flow_list = load_flow_list(args.flows)
     except FlowListError as exc:
         print("\n".join(exc.problems), file=sys.stderr)
+        return 2
+    unknown = sorted(set(zone_users) - set(flow_list.zones))
+    if unknown:
+        print(f"--ssh-user-for names a zone the flow list does not have: {', '.join(unknown)}", file=sys.stderr)
         return 2
     violations = rules.check(flow_list)
     if violations:
@@ -154,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     if not flows:
         print("no flow is selected, so nothing was shown", file=sys.stderr)
         return 2
-    outcomes = execute(flow_list, flows, args.ssh_user, shlex.split(args.ssh_command), args.remote_python)
+    outcomes = execute(flow_list, flows, args.ssh_user, shlex.split(args.ssh_command), args.remote_python, zone_users=zone_users)
     for outcome in outcomes:
         print(f"{'PASS' if outcome.passed else 'FAIL'} {outcome.flow_id}: {outcome.message}")
     failed = [outcome for outcome in outcomes if not outcome.passed]

@@ -74,6 +74,7 @@ case "$cmd" in
   "SERIAL_SOCKET="*)
     echo "CHECK the gateway runs 26.1.11 after the update: PASS"
     [ -z "${UPDATE_FAIL:-}" ] || echo "CHECK the seed's API user works after the update: FAIL"
+    exit "${UPDATE_STATUS:-0}"
     ;;
 esac
 BODY
@@ -223,6 +224,22 @@ line_of() {
   : > "$CALLS"
   UPDATE_FAIL=1 run -1 "$SCRIPT" up "$OUT" "$URL" "$SUM"
   assert_output --partial "the update reported failed checks"
+  run grep -c -- '-O' "$CALLS"
+  assert_output 0
+}
+
+@test "the update's logs are copied back from the node before down removes them" {
+  run -0 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  run calls_to scp
+  assert_output --partial "root@pve:/tmp/opn-scratch.TEST/update"
+  assert_output --partial "$OUT/"
+}
+
+@test "an update that ends with a status and no failed check stops the run and says so, after the logs are copied" {
+  UPDATE_STATUS=3 run -1 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  assert_output --partial "the update ended with status 3 and no failed check"
+  run calls_to scp
+  assert_output --partial "root@pve:/tmp/opn-scratch.TEST/update"
   run grep -c -- '-O' "$CALLS"
   assert_output 0
 }

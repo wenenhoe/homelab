@@ -141,8 +141,13 @@ update_gateway() {
   scp -q "${ssh_opts[@]}" "$here/update_gateway.sh" "$envf" "$out/first-boot/gateway-cert.pem" "$NODE:$rd/"
   rm -f "$envf"
   node "mv $rd/.gateway.env $rd/gateway.env; chmod 600 $rd/gateway.env"
-  node "SERIAL_SOCKET=/var/run/qemu-server/$vmid.serial0 ALLOW_LATEST=${ALLOW_LATEST:-0} bash $rd/update_gateway.sh $rd/gateway.env $rd/gateway-cert.pem $want_version $rd/update" | tee "$out/update.txt"
+  # The script exits with its number of failed checks, and a failing pipeline would end this one before the message below.
+  local status=0
+  node "SERIAL_SOCKET=/var/run/qemu-server/$vmid.serial0 ALLOW_LATEST=${ALLOW_LATEST:-0} bash $rd/update_gateway.sh $rd/gateway.env $rd/gateway-cert.pem $want_version $rd/update" | tee "$out/update.txt" || status=$?
+  # Its job logs and firmware answers are on the node, which down removes, so they are copied back while they are there.
+  scp -qr "${ssh_opts[@]}" "$NODE:$rd/update" "$out/" || echo "the update's logs could not be copied from the node" >&2
   if grep -q ': FAIL$' "$out/update.txt"; then die "the update reported failed checks; see $out/update.txt"; fi
+  [ "$status" = 0 ] || die "the update ended with status $status and no failed check; see $out/update.txt"
 }
 
 open_tunnel() {

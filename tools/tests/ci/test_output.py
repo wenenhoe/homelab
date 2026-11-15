@@ -26,3 +26,17 @@ class TestWriteSummary:
         monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
         output.write_summary("Checks", ["a"])
         assert capsys.readouterr().out == ""
+
+
+class TestWriteSummaryMarkdown:
+    def test_the_text_is_appended_as_it_is_with_one_trailing_newline(self, root, monkeypatch):
+        summary = root / "summary.md"
+        monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+        output.write_summary_markdown("### Title\n\n| a |\n\n\n")
+        output.write_summary_markdown("more")
+        assert summary.read_text() == "### Title\n\n| a |\nmore\n"
+
+    def test_nothing_is_written_outside_actions(self, monkeypatch, capsys):
+        monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+        output.write_summary_markdown("text")
+        assert capsys.readouterr().out == ""

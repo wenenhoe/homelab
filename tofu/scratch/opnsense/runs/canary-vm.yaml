@@ -1,0 +1,23 @@
+---
+# A real VM as the services canary. The namespace canaries stand in for every zone's canary VM; here a scratch VM, cloned from the
+# Ubuntu template with the canary's VMID (208, so VLAN 20 and 192.168.20.8) on the scratch gateway's bridge, takes the services
+# zone's place. It answers the runner's ssh through the gateway only if its NIC's tag, the bridge and the zone's rules work, so
+# this shows the tagged-VM path against a zone whose rules exist. Needs the bridge to be VLAN-aware (LAN_BRIDGE).
+name: canary-vm
+description: >-
+  A scratch VM with the services canary's VMID and tag takes that canary's place on the scratch gateway: the play applies, the VM answers
+  over ssh through the gateway, and every flow of the services zone passes from the VM and every flow of the desktops zone from its namespace.
+canary_vm:
+  zone: services
+gateway:
+  play_vars:
+    opnsense_gateway_operator_hosts: [192.168.40.250]
+    opnsense_gateway_operator_not_listed_ok: true
+    opnsense_gateway_forward_domains: [host.scratch.lab, lan.scratch.lab]
+    opnsense_gateway_dhcp_reservations:
+      - {name: scratch-reservation, zone: desktops, address: 192.168.40.250, mac: "bc:24:11:00:01:91"}
+steps:
+  - {id: play-apply, play: apply}
+  - {id: canary-vm, vm: up}
+  - {id: services-flows, flows: {tags: [services]}}
+  - {id: desktops-flows, flows: {tags: [desktops]}}

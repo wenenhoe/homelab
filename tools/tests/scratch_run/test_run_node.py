@@ -11,7 +11,7 @@ from unittest.mock import create_autospec
 import pytest
 from scratch_run import node as node_module
 from scratch_run.node import REMOTE_DIR, NodeBackend, run_command
-from scratch_run.spec import Spec
+from scratch_run.spec import Spec, parse_spec
 from scratch_run_fakes import RecordingRunner
 
 REAL_WHICH = shutil.which
@@ -392,3 +392,228 @@ def test_a_log_over_the_limit_is_cut_to_its_end(out, runner):
     (out / "apply.txt").write_text("a" * 300_000 + "the end\n")
     kept = backend(out, runner).logs()["apply.txt"]
     assert len(kept) == 200_000 and kept.endswith("the end\n")
+
+
+KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItestkey runner@scratch"
+
+
+@pytest.fixture
+def vm_spec() -> Spec:
+    return parse_spec(
+        {
+            "name": "canary-vm",
+            "description": "d",
+            "canary_vm": {"zone": "services"},
+            "steps": [{"id": "vm-up", "vm": "up"}, {"id": "flows", "flows": {"tags": ["services"]}}],
+        }
+    )
+
+
+@pytest.fixture
+def vm_node(runner) -> RecordingRunner:
+    """A node with a VLAN-aware bridge and the Ubuntu template, and neither the gateway's VM nor the canary VM."""
+    runner.rules = {"vlan_filtering": (0, "1\n"), "qm status 106": (0, ""), **runner.rules}
+    return runner
+
+
+class Waiting(RecordingRunner):
+    """A runner whose ssh to the VM is refused `refusals` times before it answers."""
+
+    def __init__(self, refusals: int, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.refusals, self.asked = refusals, 0
+
+    def __call__(self, argv, **kwargs):
+        if any(word.startswith("scratch@") for word in argv):
+            self.calls.append((list(argv), None, None))
+            self.asked += 1
+            return (255, "Connection refused\n") if self.asked <= self.refusals else (0, "")
+        return super().__call__(argv, **kwargs)
+
+
+def overriding(runner: RecordingRunner, rules: dict[str, tuple[int, str]]) -> dict[str, tuple[int, str]]:
+    """`rules` first, so they are matched before the generic ones, and the runner's own rules for the same words dropped."""
+    return {**rules, **{word: answer for word, answer in runner.rules.items() if word not in rules}}
+
+
+def vm_backend(out, runner, spec, env=ENV, **kwargs):
+    sleeps: list[float] = []
+    made = NodeBackend(out, URL, SUM, env, runner=runner, resolver=lambda name: "127.0.0.1", sleep=sleeps.append, clock=lambda: float(sum(sleeps)), **kwargs)
+    made.sleeps = sleeps
+    (out / "first-boot").mkdir(exist_ok=True)
+    made.cert.write_text("cert")
+    made.up(spec)
+    (out / "runner_key.pub").write_text(KEY + "\n")  # the key `ssh-keygen` would have written
+    runner.calls.clear()
+    return made
+
+
+def test_a_run_with_a_canary_vm_that_can_start_has_no_problem(out, vm_node, vm_spec):
+    assert backend(out, vm_node).preflight(vm_spec) == []
+
+
+@pytest.mark.parametrize(
+    ("rule", "message"),
+    [
+        pytest.param({"vlan_filtering": (0, "0\n")}, "vmbr9 is not VLAN-aware", id="bridge-not-vlan-aware"),
+        pytest.param({"vlan_filtering": (1, "cat: no such file")}, "vmbr9 is not VLAN-aware", id="bridge-has-no-such-setting"),
+        pytest.param({"qm status 106": (1, "no such VM")}, "template VM 106", id="no-template"),
+        pytest.param({"qm status 208": (0, "status: running")}, "VM 208 exists on the node", id="canary-vm-left-from-an-earlier-run"),
+    ],
+)
+def test_what_stops_a_canary_vm_is_named(out, vm_node, vm_spec, rule, message):
+    vm_node.rules = overriding(vm_node, rule)
+    assert any(message in problem for problem in backend(out, vm_node).preflight(vm_spec))
+
+
+def test_a_template_vmid_from_the_environment_is_the_one_looked_for(out, vm_node, vm_spec):
+    vm_node.rules = overriding(vm_node, {"qm status 9000": (1, "")})
+    problems = backend(out, vm_node, env={**ENV, "TEMPLATE_VM_ID": "9000"}).preflight(vm_spec)
+    assert any("template VM 9000" in problem for problem in problems)
+
+
+def test_tofu_is_needed_only_for_a_spec_with_a_canary_vm(out, vm_node, vm_spec, rehearsal, monkeypatch):
+    monkeypatch.setattr(node_module.shutil, "which", lambda name: None if name == "tofu" else "/usr/bin/tool")
+    assert any("tofu is not installed" in problem for problem in backend(out, vm_node).preflight(vm_spec))
+    assert not any("tofu" in problem for problem in backend(out, vm_node).preflight(rehearsal))
+
+
+def test_a_spec_with_no_canary_vm_does_not_ask_about_the_bridge_or_the_template(out, runner, rehearsal):
+    backend(out, runner).preflight(rehearsal)
+    assert not any("vlan_filtering" in line or "qm status 106" in line for line in runner.lines())
+
+
+def test_the_canary_vm_is_built_after_the_namespaces_and_without_the_canary_address_they_would_hold(out, vm_node, vm_spec):
+    made = vm_backend(out, vm_node, vm_spec)
+    status, output = made.canary_vm(vm_spec)
+    assert status == 0, output
+    plan = json.loads((out / "plan.json").read_text())
+    assert {zone["name"]: zone["canary"] for zone in plan["zones"]}["services"] is None
+    assert all(zone["canary"] for zone in plan["zones"] if zone["name"] != "services")
+    lines = vm_node.lines()
+    order = [
+        next(index for index, line in enumerate(lines) if word in line)
+        for word in ("ssh-keygen", "scratch_canaries.py up", "init", "apply", "scratch@192.168.20.8")
+    ]
+    assert order == sorted(order)
+    assert output.splitlines()[-1] == "VM 208 answered over ssh at 192.168.20.8 after 0s"
+
+
+def test_tofu_gets_the_scratch_root_the_state_and_variables_in_the_state_directory_and_the_token_in_its_environment(out, vm_node, vm_spec):
+    made = vm_backend(out, vm_node, vm_spec)
+    made.canary_vm(vm_spec)
+    (init, _, _), (apply, env, cwd) = [call for call in vm_node.calls if call[0][0] == "tofu"]
+    assert init == ["tofu", "init", "-input=false", "-backend=false", "-lockfile=readonly"]
+    assert apply == ["tofu", "apply", "-input=false", "-auto-approve", f"-state={out / 'vm.tfstate'}", f"-var-file={out / 'vm.tfvars.json'}"]
+    assert cwd == made.repo / "tofu/scratch/ubuntu"
+    assert (env["TF_VAR_proxmox_api_token"], env["TF_VAR_proxmox_endpoint"], env["TF_DATA_DIR"]) == (
+        ENV["PROXMOX_API_TOKEN"],
+        ENV["PROXMOX_ENDPOINT"],
+        str(out / ".terraform-vm"),
+    )
+    assert "tok-secret-value" not in " ".join(" ".join(argv) for argv, _, _ in vm_node.calls)
+    assert json.loads((out / "vm.tfvars.json").read_text()) == {
+        "vm_id": 208,
+        "name": "canary-services",
+        "lan_bridge": "vmbr9",
+        "node_name": "pve",
+        "admin_username": "scratch",
+        "ssh_public_keys": [KEY],
+        "dns_domain": "scratch.lab",
+    }
+
+
+def test_the_vm_is_waited_for_through_the_runners_namespace_as_its_admin_user(out, vm_node, vm_spec):
+    made = vm_backend(out, vm_node, vm_spec)
+    made.canary_vm(vm_spec)
+    argv = next(argv for argv, _, _ in vm_node.calls if "scratch@192.168.20.8" in argv)
+    assert argv[-2:] == ["scratch@192.168.20.8", "true"]
+    assert argv[argv.index("-i") + 1] == str(out / "runner_key")
+    assert f"python3 {REMOTE_DIR}/scratch_canaries.py relay {REMOTE_DIR}/canaries %h %p" in next(word for word in argv if word.startswith("ProxyCommand="))
+
+
+def test_a_vm_that_answers_late_is_waited_for_and_each_refusal_is_shown(out, vm_spec):
+    slow = Waiting(2, rules={"qm status": (1, ""), "test -e": (1, "")})
+    shown: list[str] = []
+    made = vm_backend(out, slow, vm_spec, echo=shown.append)
+    status, output = made.canary_vm(vm_spec)
+    assert (status, made.sleeps) == (0, [10, 10])
+    assert output.splitlines()[-1] == "VM 208 answered over ssh at 192.168.20.8 after 20s"
+    assert len([line for line in shown if "not answered yet" in line]) == 2
+
+
+def test_a_vm_that_never_answers_fails_after_the_wait_and_says_the_last_refusal(out, vm_spec):
+    deaf = Waiting(10**6, rules={"qm status": (1, ""), "test -e": (1, "")})
+    made = vm_backend(out, deaf, vm_spec, env={**ENV, "VM_WAIT_SECONDS": "30"})
+    status, output = made.canary_vm(vm_spec)
+    assert (status, made.sleeps) == (1, [10, 10, 10])
+    assert output.splitlines()[-1] == "VM 208 did not answer over ssh at 192.168.20.8 within 30s"
+    assert "Connection refused" in output
+
+
+@pytest.mark.parametrize("word", ["init", "apply"])
+def test_a_tofu_step_that_fails_stops_the_build_without_waiting_and_the_vm_is_still_destroyed_at_teardown(out, vm_node, vm_spec, word):
+    made = vm_backend(out, vm_node, vm_spec)
+    vm_node.rules = overriding(vm_node, {f"tofu {word}": (1, "Error: clone failed\n")})
+    status, output = made.canary_vm(vm_spec)
+    assert status == 1 and "Error: clone failed" in output and output.splitlines()[-1] == "VM 208 was not built"
+    assert not any("scratch@" in line for line in vm_node.lines())
+    made.gateway_started = True
+    made.down()
+    assert any(line.startswith("tofu destroy") for line in vm_node.lines())
+
+
+def test_a_canary_that_cannot_be_set_up_stops_before_tofu(out, vm_node, vm_spec):
+    made = vm_backend(out, vm_node, vm_spec)
+    vm_node.rules = overriding(vm_node, {"mkdir": (1, "permission denied\n")})
+    status, output = made.canary_vm(vm_spec)
+    assert status == 1 and "permission denied" in output
+    assert not any(line.startswith("tofu") for line in vm_node.lines())
+
+
+def test_a_runner_key_that_is_not_there_stops_before_tofu(out, vm_node, vm_spec):
+    made = vm_backend(out, vm_node, vm_spec)
+    (out / "runner_key.pub").unlink()
+    status, _ = made.canary_vm(vm_spec)
+    assert status == 1
+    assert not any(line.startswith("tofu") for line in vm_node.lines())
+
+
+def test_a_vm_step_with_no_canary_vm_in_the_spec_runs_nothing(out, vm_node, rehearsal):
+    assert backend(out, vm_node).canary_vm(rehearsal) == (1, "the spec has no canary_vm\n")
+    assert vm_node.calls == []
+
+
+def test_the_runner_logs_in_to_the_vms_zone_as_the_vms_admin_user_and_to_the_others_as_root(out, vm_node, vm_spec, rehearsal):
+    made = vm_backend(out, vm_node, vm_spec)
+    made.canaries_up = True
+    made.flows(("services",), ())
+    argv = vm_node.calls[-1][0]
+    assert argv[argv.index("--ssh-user") + 1] == "root"
+    assert argv[argv.index("--ssh-user-for") + 1] == "services=scratch"
+    vm_node.calls.clear()
+    plain = backend(out, vm_node)
+    plain.canaries_up = True
+    plain.flows(("services",), ())
+    assert "--ssh-user-for" not in vm_node.calls[-1][0]
+
+
+def test_teardown_removes_the_canaries_then_the_vm_then_the_gateway_and_keeps_the_state_when_the_vm_cannot_be_destroyed(out, vm_node, vm_spec):
+    made = vm_backend(out, vm_node, vm_spec)
+    made.canary_vm(vm_spec)
+    vm_node.calls.clear()
+    vm_node.rules = overriding(vm_node, {"tofu destroy": (1, "Error: VM is locked\n")})
+    status, output = made.down()
+    lines = vm_node.lines()
+    assert status == 1 and "VM is locked" in output
+    assert "scratch_canaries.py down" in lines[0] and lines[1].startswith("tofu destroy") and lines[2].endswith(f"down {out}")
+    assert (out / "vm.tfstate").parent.exists()
+
+
+def test_a_clean_teardown_of_a_run_with_a_vm_destroys_it_with_the_same_state_and_variables(out, vm_node, vm_spec):
+    made = vm_backend(out, vm_node, vm_spec)
+    made.canary_vm(vm_spec)
+    vm_node.calls.clear()
+    assert made.down()[0] == 0
+    destroy = next(argv for argv, _, _ in vm_node.calls if argv[:2] == ["tofu", "destroy"])
+    assert f"-state={out / 'vm.tfstate'}" in destroy and f"-var-file={out / 'vm.tfvars.json'}" in destroy and "-auto-approve" in destroy

@@ -43,13 +43,13 @@ def test_a_spec_is_found_by_its_name(capsys):
 
 def test_an_unknown_name_lists_the_specs_there_are(capsys):
     assert main(["no-such-spec", "--check-spec"]) == 2
-    assert "the specs are: rehearsal, vlan-70-seed" in capsys.readouterr().err
+    assert f"the specs are: {', '.join(sorted(path.stem for path in RUNS.glob('*.yaml')))}" in capsys.readouterr().err
 
 
 def test_list_shows_each_spec_with_what_it_shows(capsys):
     assert main(["--list"]) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert [line.split(":")[0] for line in lines] == ["rehearsal", "vlan-70-seed"]
+    assert [line.split(":")[0] for line in lines] == sorted(path.stem for path in RUNS.glob("*.yaml"))
     assert all("NOT VALID" not in line for line in lines)
 
 

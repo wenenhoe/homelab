@@ -5,7 +5,7 @@ import tarfile
 
 import pytest
 from scratch_run.engine import EXIT_NOT_RUN, EXIT_OK, EXIT_STEP_FAILED, judge, run
-from scratch_run.spec import Step
+from scratch_run.spec import Step, parse_spec
 from scratch_run_fakes import FakeBackend
 
 APPLY = Step("s", "play", "apply", "ok")
@@ -15,6 +15,7 @@ FLOWS_PASS = Step("s", "flows", "", "pass", tags=("services",))
 FLOWS_FAIL = Step("s", "flows", "", "fail", flow_ids=("services-gateway-dns",))
 BLOCK = Step("s", "block", "present", "")
 VLANS = Step("s", "vlans", "check", "")
+VM = Step("s", "vm", "up", "")
 RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    failed=0\n"
 
 
@@ -39,6 +40,8 @@ RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    fa
         pytest.param(BLOCK, 4, "", False, id="block-fails"),
         pytest.param(VLANS, 0, "the gateway has 6 VLAN interfaces\n", True, id="vlans-match"),
         pytest.param(VLANS, 1, "the gateway has 5 VLAN interfaces\n", False, id="vlans-differ"),
+        pytest.param(VM, 0, "VM 208 answered over ssh\n", True, id="vm-answers"),
+        pytest.param(VM, 1, "VM 208 did not answer\n", False, id="vm-does-not-answer"),
     ],
 )
 def test_a_step_passes_only_with_the_outcome_the_spec_expects(step, status, output, passed):
@@ -165,3 +168,20 @@ def test_a_credential_value_in_a_kept_log_fails_the_run_and_no_archive_is_writte
     lines: list[str] = []
     assert run(rehearsal, backend, tmp_path, "T14", lambda: 0.0, say=lines.append) == EXIT_STEP_FAILED
     assert "A CREDENTIAL VALUE IS IN: apply.txt; no archive was written" in lines
+
+
+def test_a_vm_step_is_run_by_the_backend_and_says_what_happened_in_its_last_line(tmp_path):
+    spec = parse_spec(
+        {
+            "name": "canary-vm",
+            "description": "d",
+            "canary_vm": {"zone": "services"},
+            "steps": [{"id": "vm-up", "vm": "up"}, {"id": "flows", "flows": {"tags": ["services"]}}],
+        }
+    )
+    backend = FakeBackend(answers={"vm": (0, "tofu applied\nVM 208 answered over ssh after 40s\n")})
+    lines: list[str] = []
+    assert run(spec, backend, tmp_path, "T20", lambda: 0.0, say=lines.append) == EXIT_OK
+    assert backend.calls == ["preflight", "up", "vm", "flows:services", "logs", "down"]
+    assert "STEP vm-up: running (vm up)" in lines
+    assert "STEP vm-up: PASS (VM 208 answered over ssh after 40s; 0s)" in lines

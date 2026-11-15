@@ -11,8 +11,9 @@ Run from `tools/`. SPEC is a name such as `rehearsal` (a file in `tofu/scratch/o
 token, the image, OUT_DIR and the rest come from the settings file (`~/.config/homelab/scratch-run.env`, or `--env-file`),
 a real environment variable or a flag, in that order of increasing weight; see `scratch_run.settings`. OUT_DIR holds the
 gateway's state and credentials, must be outside the repository, and gets the results in OUT_DIR/<name>-<stamp>/ and one
-archive. A run opens the ssh master to the node itself when it is down (asking for your login on this terminal) and
-leaves it up for an hour; its socket is SSH_CONTROL_PATH, default ~/.cache/scratch-run/ssh.sock.
+archive; each run builds in OUT_DIR/state-<name>-<stamp>/, which a clean teardown removes. A run opens the ssh master
+to the node itself when it is down (asking for your login on this terminal) and leaves it up for an hour; its socket is
+SSH_CONTROL_PATH, default ~/.cache/scratch-run/ssh.sock.
 Exit status: 0 every step had its expected outcome, 1 one did not, 2 the run could not start.
 """
 
@@ -110,12 +111,15 @@ def main(
     if master is not None and (problem := master.ensure()):
         print(problem, file=sys.stderr)
         return EXIT_NOT_RUN
-    backend = backend_factory(out_dir, args.image_url or env.get(IMAGE_URL, ""), args.image_checksum or env.get(IMAGE_CHECKSUM, ""), env)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    # Every run builds in a directory of its own: the gateway script refuses one that still holds an earlier run's credentials.
+    state_dir = out_dir / f"state-{spec.name}-{stamp}"
+    backend = backend_factory(state_dir, args.image_url or env.get(IMAGE_URL, ""), args.image_checksum or env.get(IMAGE_CHECKSUM, ""), env)
     if args.preflight:
         problems = backend.preflight(spec)
         print("\n".join(f"- {problem}" for problem in problems) if problems else f"{spec.name}: ready to run")
         return EXIT_NOT_RUN if problems else EXIT_OK
-    return run(spec, backend, out_dir, time.strftime("%Y%m%d-%H%M%S"), time.monotonic, keep=args.keep)
+    return run(spec, backend, out_dir, stamp, time.monotonic, keep=args.keep)
 
 
 def ssh_action(action: str, master: Master | None) -> int:

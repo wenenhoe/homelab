@@ -19,6 +19,7 @@ from typing import Protocol
 from scratch_run.spec import Spec, Step
 
 RECAP_RE = re.compile(r"^localhost +:.*\bchanged=(\d+)\b", re.MULTILINE)
+FLOW_FAILED_RE = re.compile(r"^FAIL ", re.MULTILINE)
 MIN_SECRET_LENGTH = 8  # a shorter value would match ordinary text
 EXIT_OK, EXIT_STEP_FAILED, EXIT_NOT_RUN = 0, 1, 2
 RUNNER_NOTHING_SELECTED = 2  # network_checks.runner's status for a selection that holds no flow
@@ -61,9 +62,10 @@ def judge(step: Step, status: int, output: str) -> tuple[bool, str]:
     if step.kind == "flows":
         if step.expect == "pass":
             return status == 0, f"the runner exited {status}, wanted 0"
-        failed_as_wanted = status not in (0, RUNNER_NOTHING_SELECTED)
-        return failed_as_wanted, f"the runner exited {status}, wanted a failure of the flows" + (
-            "" if failed_as_wanted else " (0 means they passed; 2 means none was selected)"
+        # A runner that crashed also exits non-zero; only a flow it reports as failed is the failure wanted.
+        failed_as_wanted = status not in (0, RUNNER_NOTHING_SELECTED) and FLOW_FAILED_RE.search(output) is not None
+        return failed_as_wanted, f"the runner exited {status}, wanted a flow reported as failed" + (
+            "" if failed_as_wanted else " (none was: they passed, none was selected, or the runner crashed)"
         )
     if status != 0:
         return False, f"the play exited {status}"
@@ -110,15 +112,18 @@ def run(spec: Spec, backend: Backend, out_dir: Path, stamp: str, clock: Callable
 
     def record(step_id: str, kind: str, passed: bool, detail: str, started: float, output: str) -> None:
         (results / f"{step_id}.txt").write_text(output)
-        outcomes.append(Outcome(step_id, kind, detail, passed, clock() - started))
-        say(f"STEP {step_id}: {'PASS' if passed else 'FAIL'} ({detail})")
+        seconds = clock() - started
+        outcomes.append(Outcome(step_id, kind, detail, passed, seconds))
+        say(f"STEP {step_id}: {'PASS' if passed else 'FAIL'} ({detail}; {seconds:.0f}s)")
 
     started = clock()
+    say("STEP up: building the gateway (its log follows; this takes minutes)")
     status, output = backend.up(spec)
     record("up", "setup", status == 0, f"the gateway build exited {status}", started, output)
     if status == 0:
         for step in spec.steps:
             started = clock()
+            say(f"STEP {step.id}: running ({step.kind} {step.mode or ','.join((*step.tags, *step.flow_ids))})")
             if step.kind == "play":
                 status, output = backend.play(spec, step.mode)
             elif step.kind == "flows":
@@ -131,6 +136,7 @@ def run(spec: Spec, backend: Backend, out_dir: Path, stamp: str, clock: Callable
         say("--keep: the gateway is still up; remove it with the backend's own down")
     else:
         started = clock()
+        say("STEP down: removing the gateway")
         status, output = backend.down()
         record("down", "teardown", status == 0, f"the removal exited {status}", started, output)
     leaks = _leaks(results, backend.secrets())
@@ -142,6 +148,8 @@ def run(spec: Spec, backend: Backend, out_dir: Path, stamp: str, clock: Callable
     archive = out_dir / f"results-{spec.name}-{stamp}.tgz"
     _bundle(results, archive)
     failed = [o.id for o in outcomes if not o.passed]
+    say("\n".join(f"  {'PASS' if o.passed else 'FAIL'} {o.id:<20} {o.seconds:>5.0f}s" for o in outcomes))
+    say(f"  total {sum(o.seconds for o in outcomes):.0f}s")
     say("ALL STEPS PASSED" if not failed else f"{len(failed)} STEP(S) FAILED: {', '.join(failed)}")
     say(f"results: {archive}")
     return EXIT_OK if not failed else EXIT_STEP_FAILED

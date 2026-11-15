@@ -17,6 +17,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Protocol
@@ -36,19 +37,48 @@ TIMEOUT = 3600
 TIMED_OUT = 124
 
 
+Echo = Callable[[str], None]
+
+
 class Runner(Protocol):
-    def __call__(self, argv: Sequence[str], *, env: Mapping[str, str] | None = None, cwd: Path | None = None, timeout: int = TIMEOUT) -> tuple[int, str]: ...
+    def __call__(
+        self, argv: Sequence[str], *, env: Mapping[str, str] | None = None, cwd: Path | None = None, timeout: int = TIMEOUT, on_output: Echo | None = None
+    ) -> tuple[int, str]: ...
 
 
-def run_command(argv: Sequence[str], *, env: Mapping[str, str] | None = None, cwd: Path | None = None, timeout: int = TIMEOUT) -> tuple[int, str]:
-    """Run a command and answer with its exit status and its output, standard error included."""
+def run_command(
+    argv: Sequence[str], *, env: Mapping[str, str] | None = None, cwd: Path | None = None, timeout: int = TIMEOUT, on_output: Echo | None = None
+) -> tuple[int, str]:
+    """Run a command and answer with its exit status and its output, standard error included.
+
+    `on_output` gets each line as the command prints it, so a long command can be watched; the answer holds all of it.
+    """
     try:
-        done = subprocess.run(list(argv), env=env, cwd=cwd, timeout=timeout, capture_output=True, text=True, stdin=subprocess.DEVNULL, check=False)
+        process = subprocess.Popen(
+            list(argv), env=env, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1
+        )
     except FileNotFoundError as error:
         return 127, f"{error}\n"
-    except subprocess.TimeoutExpired:
-        return TIMED_OUT, f"timed out after {timeout} seconds: {shlex.join(argv)}\n"
-    return done.returncode, done.stdout + done.stderr
+    expired = threading.Event()
+    timer = threading.Timer(timeout, lambda: (expired.set(), process.kill()))
+    timer.start()
+    lines: list[str] = []
+    try:
+        assert process.stdout is not None  # noqa: S101 - stdout is a pipe
+        for line in process.stdout:
+            lines.append(line)
+            if on_output is not None:
+                on_output(line.rstrip("\n"))
+        status = process.wait()
+    finally:
+        timer.cancel()
+    if expired.is_set():
+        return TIMED_OUT, "".join(lines) + f"timed out after {timeout} seconds: {shlex.join(argv)}\n"
+    return status, "".join(lines)
+
+
+def print_indented(line: str) -> None:
+    print(f"    | {line}", flush=True)
 
 
 def resolve_host(name: str) -> str | None:
@@ -68,6 +98,7 @@ class NodeBackend:
         runner: Runner = run_command,
         resolver: Callable[[str], str | None] = resolve_host,
         repo: Path = REPO,
+        echo: Echo | None = print_indented,
     ) -> None:
         self.out = out_dir
         self.image_url = image_url
@@ -76,6 +107,8 @@ class NodeBackend:
         self.run = runner
         self.resolver = resolver
         self.repo = repo
+        self.echo = echo
+        self.remembered: list[str] = []
         self.node = env.get("NODE", "")
         self.ansible = env.get("ANSIBLE_PLAYBOOK", "ansible-playbook")
         self.local_port = env.get("LOCAL_PORT", "8443")
@@ -167,9 +200,9 @@ class NodeBackend:
         env = {**self.env, "WANT_VERSION": self.env.get("WANT_VERSION") or self.release()}
         if spec.vlans:
             env["SEED_VLANS"] = ",".join(str(vlan) for vlan in spec.vlans)
-        self.out.mkdir(parents=True, exist_ok=True)
+        self.out.mkdir(parents=True, exist_ok=True, mode=0o700)  # it will hold the gateway's credentials
         self.gateway_started = True
-        status, output = self.run([str(self.gateway_script), "up", str(self.out), self.image_url, self.image_checksum], env=env)
+        status, output = self.run([str(self.gateway_script), "up", str(self.out), self.image_url, self.image_checksum], env=env, on_output=self.echo)
         if status == 0 and not self.cert.is_file():
             return 1, output + f"\nno certificate at {self.cert}\n"
         if status == 0:
@@ -180,7 +213,7 @@ class NodeBackend:
         argv = [self.ansible, "playbooks/opnsense.yaml", "--diff", "-e", f"@{self.out / 'extra-vars.json'}", *self._ansible_vars({})]
         if mode == "check":
             argv.insert(2, "--check")
-        return self.run(argv, env=self._noproxy_env(), cwd=self.repo / "ansible")
+        return self.run(argv, env=self._noproxy_env(), cwd=self.repo / "ansible", on_output=self.echo)
 
     def block(self, spec: Spec, state: str) -> tuple[int, str]:
         rule = spec.block_rule
@@ -194,7 +227,7 @@ class NodeBackend:
             "block_port": rule.port,
             "block_state": state,
         }
-        return self.run([self.ansible, str(self.block_playbook), "-e", json.dumps(extra)], env=self._noproxy_env(), cwd=self.repo)
+        return self.run([self.ansible, str(self.block_playbook), "-e", json.dumps(extra)], env=self._noproxy_env(), cwd=self.repo, on_output=self.echo)
 
     def _canary_up(self) -> tuple[int, str]:
         """Put the plan, the canaries' script and the runner's key on the node and build the namespaces."""
@@ -222,7 +255,7 @@ class NodeBackend:
         ]
         transcript = ""
         for argv in steps:
-            status, output = self.run(argv, timeout=600)
+            status, output = self.run(argv, timeout=600, on_output=self.echo)
             transcript += f"$ {shlex.join(argv)}\n{output}"
             if status != 0:
                 return status, transcript
@@ -255,23 +288,28 @@ class NodeBackend:
             argv += ["--tag", tag]
         for flow in ids:
             argv += ["--flow", flow]
-        status, output = self.run(argv, env={**self.env, "PYTHONPATH": "."}, cwd=self.repo / "tools")
+        status, output = self.run(argv, env={**self.env, "PYTHONPATH": "."}, cwd=self.repo / "tools", on_output=self.echo)
         return status, transcript + output
 
     def down(self) -> tuple[int, str]:
         status, transcript = 0, ""
         if self.canaries_up:
-            code, output = self._node(f"python3 {REMOTE_DIR}/scratch_canaries.py down; rm -rf {REMOTE_DIR}")
+            code, output = self.run(
+                ["ssh", *self._ssh_opts(), self.node, f"python3 {REMOTE_DIR}/scratch_canaries.py down; rm -rf {REMOTE_DIR}"], timeout=600, on_output=self.echo
+            )
             transcript += output
             status = code
         if self.gateway_started:
-            code, output = self.run([str(self.gateway_script), "down", str(self.out)], env=self.env)
+            self.secrets()  # learn them before the state goes: the engine asks after the removal
+            code, output = self.run([str(self.gateway_script), "down", str(self.out)], env=self.env, on_output=self.echo)
             transcript += output
             status = status or code
+        if status == 0 and self.gateway_started:
+            shutil.rmtree(self.out, ignore_errors=True)  # a removed gateway's credentials and key are worth nothing, and a stale file stops the next run
         return status, transcript
 
     def secrets(self) -> list[str]:
-        values = []
+        values = list(self.remembered)
         if self.creds.is_file():
             text = self.creds.read_text()
             for name in CREDENTIAL_NAMES:
@@ -281,4 +319,5 @@ class NodeBackend:
         token = self.env.get("PROXMOX_API_TOKEN", "")
         if "=" in token:
             values.append(token.rsplit("=", 1)[1])
-        return values
+        self.remembered = list(dict.fromkeys(values))
+        return self.remembered

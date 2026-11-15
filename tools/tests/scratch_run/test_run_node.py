@@ -230,3 +230,66 @@ def test_run_command_answers_127_for_a_program_that_is_not_there():
 def test_run_command_answers_124_when_the_time_runs_out():
     status, output = run_command([sys.executable, "-c", "import time; time.sleep(5)"], timeout=1)
     assert status == 124 and "timed out after 1 seconds" in output
+
+
+def echo_lines(lines):
+    return lines.append
+
+
+def test_every_long_command_gets_the_echo_so_its_output_can_be_watched(out, runner, rehearsal):
+    seen: list[str] = []
+    made = NodeBackend(out, URL, SUM, ENV, runner=runner, resolver=lambda name: "127.0.0.1", echo=echo_lines(seen))
+    (out / "first-boot").mkdir()
+    made.cert.write_text("cert")
+    made.up(rehearsal)
+    made.play(rehearsal, "apply")
+    made.block(rehearsal, "present")
+    made.flows(("services",), ())  # the canary setup steps, then the runner
+    made.down()
+    assert len(runner.calls) == 10 and all(echo is not None for echo in runner.echoed)
+    assert all(echo is made.echo for echo in runner.echoed)
+
+
+def test_a_probe_of_the_node_is_not_echoed(out, runner, rehearsal):
+    backend(out, runner).preflight(rehearsal)
+    assert runner.calls and all(echo is None for echo in runner.echoed)
+
+
+def test_up_makes_the_state_directory_for_the_owner_only(out, runner, rehearsal):
+    state = out / "state-rehearsal-T"
+    made = NodeBackend(state, URL, SUM, ENV, runner=runner, resolver=lambda name: "127.0.0.1")
+    made.up(rehearsal)
+    assert state.stat().st_mode & 0o077 == 0
+
+
+def test_a_clean_teardown_removes_the_state_but_the_secrets_stay_known_for_the_scan(out, runner, rehearsal):
+    state = out / "state-rehearsal-T"
+    state.mkdir()
+    (state / "credentials.tfvars").write_text('opnsense_api_secret = "api-secret-1"\n')
+    made = NodeBackend(state, URL, SUM, ENV, runner=runner, resolver=lambda name: "127.0.0.1")
+    made.gateway_started = True
+    assert made.down()[0] == 0
+    assert not state.exists()
+    assert made.secrets() == ["api-secret-1", "tok-secret-value"]
+
+
+def test_a_failed_teardown_keeps_the_state_to_clean_up_by_hand(out, runner, rehearsal):
+    state = out / "state-rehearsal-T"
+    state.mkdir()
+    runner.rules = {"scratch_gateway.sh down": (1, "tofu destroy failed")}
+    made = NodeBackend(state, URL, SUM, ENV, runner=runner, resolver=lambda name: "127.0.0.1")
+    made.gateway_started = True
+    runner.rules = {f"{made.gateway_script} down": (1, "tofu destroy failed")}
+    assert made.down()[0] == 1 and state.exists()
+
+
+def test_run_command_hands_each_line_to_the_echo_as_it_is_printed():
+    seen: list[str] = []
+    script = "import sys, time; print('one', flush=True); time.sleep(0.3); print('two', file=sys.stderr, flush=True)"
+    status, output = run_command([sys.executable, "-c", script], on_output=seen.append)
+    assert (status, output, seen) == (0, "one\ntwo\n", ["one", "two"])
+
+
+def test_a_command_that_times_out_still_answers_with_what_it_printed():
+    status, output = run_command([sys.executable, "-c", "import time; print('first', flush=True); time.sleep(10)"], timeout=1)
+    assert status == 124 and output.startswith("first\n") and "timed out after 1 seconds" in output

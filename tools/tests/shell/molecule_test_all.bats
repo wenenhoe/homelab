@@ -113,3 +113,22 @@ molecule --base-config /fake/toplevel/.config/molecule/config.yml test -s c"
   assert_success
   assert_equal "$(find "$BATS_TEST_TMPDIR" -name '*.md' | wc -l | tr -d ' ')" 0
 }
+
+@test "MOLECULE_TIMINGS_FILE gets a tab-separated row for each scenario that ran" {
+  MOLECULE_TIMINGS_FILE="$BATS_TEST_TMPDIR/timings.tsv" run bash "$SCRIPT" foo bar
+  assert_success
+  assert_equal "$(cut -f1,2,4 "$BATS_TEST_TMPDIR/timings.tsv")" "$(printf 'foo\ta\tpassed\nfoo\tb\tpassed\nfoo\tc\tpassed\nbar\tonly\tpassed')"
+  assert_regex "$(cut -f3 "$BATS_TEST_TMPDIR/timings.tsv" | tr '\n' ' ')" '^[0-9]+ [0-9]+ [0-9]+ [0-9]+ $'
+}
+
+@test "MOLECULE_TIMINGS_FILE records a failed scenario as FAILED and none after it, and the run still fails" {
+  MOLECULE_TIMINGS_FILE="$BATS_TEST_TMPDIR/timings.tsv" FAIL_ON=foo:b run -1 bash "$SCRIPT" foo
+  assert_equal "$(cut -f1,2,4 "$BATS_TEST_TMPDIR/timings.tsv")" "$(printf 'foo\ta\tpassed\nfoo\tb\tFAILED')"
+}
+
+@test "without MOLECULE_TIMINGS_FILE no timings file is written" {
+  cd "$BATS_TEST_TMPDIR"
+  run bash "$SCRIPT" foo
+  assert_success
+  assert_equal "$(find "$BATS_TEST_TMPDIR" -name '*.tsv' | wc -l)" "0"
+}

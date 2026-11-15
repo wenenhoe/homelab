@@ -20,7 +20,9 @@
 # name order and stopping at a role's first failure like --all does, so
 # the run can time every scenario. The timings print as a table and, when
 # GITHUB_STEP_SUMMARY is set, land in the job summary: they show which
-# roles are worth splitting across runners.
+# roles are worth splitting across runners. When MOLECULE_TIMINGS_FILE is
+# set, each row is also written there as tab-separated role, scenario,
+# seconds and result, which tools/ci/timing reads.
 #
 # Usage (run from ansible/):
 #   ./scripts/molecule-test-all.sh                     # every scenario, every role
@@ -114,6 +116,13 @@ echo
 echo "$table"
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     printf '### Molecule scenario timings\n\n%s\n' "$table" >>"$GITHUB_STEP_SUMMARY"
+fi
+
+if [ -n "${MOLECULE_TIMINGS_FILE:-}" ]; then
+    : >"$MOLECULE_TIMINGS_FILE"
+    for row in "${timings[@]}"; do
+        printf '%s\n' "${row//|/$'\t'}" >>"$MOLECULE_TIMINGS_FILE"
+    done
 fi
 
 echo

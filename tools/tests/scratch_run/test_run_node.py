@@ -307,3 +307,88 @@ def test_a_python_child_that_is_not_told_to_stay_unbuffered_holds_its_output_bac
     env = {key: value for key, value in os.environ.items() if key != "PYTHONUNBUFFERED"}
     assert run_command([sys.executable, "-c", script], env=env)[1].splitlines() == ["err", "out"]
     assert run_command([sys.executable, "-c", script], env={**env, "PYTHONUNBUFFERED": "1"})[1].splitlines() == ["out", "err"]
+
+
+def interface_list(*names: str) -> str:
+    return json.dumps({"floating": {"items": [{"value": ""}]}, "interfaces": {"items": [{"value": name, "label": name.upper()} for name in names]}})
+
+
+class FakeApi:
+    """A stand-in for `scratch_run.gateway_api.get` that answers one status and body and records the request."""
+
+    def __init__(self, status: int = 200, body: str = "") -> None:
+        self.status, self.body, self.requests = status, body, []
+
+    def __call__(self, url, *, cafile, key, secret, timeout=30):
+        self.requests.append({"url": url, "cafile": cafile, "key": key, "secret": secret})
+        return self.status, self.body
+
+
+def vlan_backend(out, runner, api, tags=(20, 30, 40, 50, 60, 70)):
+    made = NodeBackend(out, URL, SUM, ENV, runner=runner, resolver=lambda name: "127.0.0.1", api_get=api)
+    (out / "credentials.tfvars").write_text('opnsense_api_key = "key-value-1"\nopnsense_api_secret = "secret-value-1"\n')
+    spec = Spec("vlans", "d", tuple(tags), {}, None, ())
+    return made, spec
+
+
+def test_the_vlans_step_asks_the_gateway_through_the_forward_with_its_own_key_and_certificate(out, runner):
+    api = FakeApi(200, interface_list("lan", "wan", *(f"opt{n}" for n in range(1, 7))))
+    made, spec = vlan_backend(out, runner, api)
+    status, output = made.vlans(spec)
+    assert status == 0, output
+    assert api.requests == [
+        {"url": "https://OPNsense.internal:8443/api/firewall/filter/get_interface_list", "cafile": made.cert, "key": "key-value-1", "secret": "secret-value-1"}
+    ]
+    assert runner.calls == []
+    assert output.splitlines()[0] == "GET /api/firewall/filter/get_interface_list -> HTTP 200"
+    assert output.splitlines()[-1] == "the gateway has 6 VLAN interfaces (opt1, opt2, opt3, opt4, opt5, opt6); the spec seeds 6 VLANs (20, 30, 40, 50, 60, 70)"
+
+
+def test_the_vlans_step_fails_and_keeps_the_raw_answer_when_the_gateway_has_fewer_interfaces(out, runner):
+    body = interface_list("lan", "wan", *(f"opt{n}" for n in range(1, 6)))
+    made, spec = vlan_backend(out, runner, FakeApi(200, body))
+    status, output = made.vlans(spec)
+    assert status == 1
+    assert body in output
+    assert "the gateway has 5 VLAN interfaces" in output.splitlines()[-1]
+
+
+def test_the_vlans_step_without_api_credentials_fails_without_asking(out, runner):
+    api = FakeApi()
+    made, spec = vlan_backend(out, runner, api)
+    (out / "credentials.tfvars").write_text("")
+    assert made.vlans(spec)[0] == 1
+    assert api.requests == []
+
+
+def test_the_vlans_step_asks_the_port_the_forward_uses(out, runner):
+    api = FakeApi(200, interface_list("lan"))
+    made = NodeBackend(out, URL, SUM, {**ENV, "LOCAL_PORT": "9443"}, runner=runner, resolver=lambda name: "127.0.0.1", api_get=api)
+    (out / "credentials.tfvars").write_text('opnsense_api_key = "key-value-1"\nopnsense_api_secret = "secret-value-1"\n')
+    made.vlans(Spec("v", "d", (20,), {}, None, ()))
+    assert api.requests[0]["url"].startswith("https://OPNsense.internal:9443/")
+
+
+def test_the_build_logs_in_the_state_directory_are_handed_over_by_name(out, runner):
+    (out / "update").mkdir()
+    (out / "update" / "job-update.log").write_text("job ran\n")
+    (out / "update" / "fw-status-after.json").write_text('{"status": "error"}')
+    (out / "build-seed.txt").write_text("seed built\n")
+    (out / "apply.txt").write_text("apply done\n")
+    (out / "credentials.tfvars").write_text('opnsense_api_secret = "secret-value-1"\n')
+    assert backend(out, runner).logs() == {
+        "build-seed.txt": "seed built\n",
+        "apply.txt": "apply done\n",
+        "update-fw-status-after.json": '{"status": "error"}',
+        "update-job-update.log": "job ran\n",
+    }
+
+
+def test_a_gateway_that_never_got_built_has_no_logs(out, runner):
+    assert backend(out, runner).logs() == {}
+
+
+def test_a_log_over_the_limit_is_cut_to_its_end(out, runner):
+    (out / "apply.txt").write_text("a" * 300_000 + "the end\n")
+    kept = backend(out, runner).logs()["apply.txt"]
+    assert len(kept) == 200_000 and kept.endswith("the end\n")

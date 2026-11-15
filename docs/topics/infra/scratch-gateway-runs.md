@@ -41,6 +41,9 @@ A step has an `id` and exactly one of these:
 | `play: apply` or `play: check` | Runs the gateway's play, with `--check` for `check` | `ok` (exit 0, the default for `apply`), `unchanged` (exit 0 and the recap says `changed=0`, the default for `check`) or `changed` |
 | `flows: {tags: [...], ids: [...]}` | Runs the [runner](network-boundary-checks.md#the-probe-module-and-the-runner) on that selection, building the namespace canaries first on the first such step | `pass` (the default) or `fail`: at least one flow the runner reports as failed, so a selection that holds no flow and a runner that crashed do not count |
 | `block: present` or `block: absent` | Adds or lifts `block_rule` | None: it passes when the playbook succeeds |
+| `vlans: check` | Asks the gateway's API for its interfaces and passes when it has exactly the VLAN interfaces `gateway.vlans` seeds (below); the spec must set `gateway.vlans` | None |
+
+The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, so a gateway seeded with six VLANs has `opt1` to `opt6`. The step shows that the seed took the spec's list (six interfaces and not five); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
 
 A failed step does not stop the run: the later steps still run, so one archive shows everything, and the gateway is removed on every path unless `--keep` is given. The terminal shows each step as it starts, the log of each command as it prints (indented, and kept in the step's file), and for each step its time; the run ends with a table of the times and their total. Most of a run is the `up` step, which builds the gateway and updates its firmware, so its log is the one to watch.
 
@@ -48,7 +51,11 @@ A failed step does not stop the run: the later steps still run, so one archive s
 
 Each run builds in `OUT_DIR/state-<name>-<stamp>/`, which holds the gateway's credentials, its certificate and the runner's key. A clean teardown removes it. When the teardown fails, or with `--keep`, it stays, and `scratch_gateway.sh down` on it removes the gateway. The credentials are never in the results.
 
-`OUT_DIR/<name>-<stamp>/` holds one `<step id>.txt` per step (plus `up.txt` and `down.txt`), `results.json` and `results.md`, and `OUT_DIR/results-<name>-<stamp>.tgz` holds the same. Before the archive is written, every file is searched for the run's credential values (the seed's root password, one-time-code seed, API key and secret, and the secret half of the Proxmox token). A file that holds one fails the run and no archive is written.
+`OUT_DIR/<name>-<stamp>/` holds one `<step id>.txt` per step (plus `up.txt` and `down.txt`), `results.json` and `results.md`, and `OUT_DIR/results-<name>-<stamp>.tgz` holds the same.
+
+`logs/` in that directory holds what the build wrote to files and not to its output, taken before the gateway is removed: `build-seed.txt`, `init.txt` and `apply.txt`, and the firmware update's files from the node, which `down` removes there (`update-job-update.log`, `update-fw-status-before.json`, `update-fw-status-after.json`, `update-config-checks.txt` and the others of its directory). Each is cut to its last 200,000 characters. The update's own output is also in `up.txt`, where its release line carries the firmware's status message beside the status word.
+
+Before the archive is written, every file is searched for the run's credential values (the seed's root password, one-time-code seed, API key and secret, and the secret half of the Proxmox token). A file that holds one fails the run and no archive is written.
 
 ## Preflight
 
@@ -61,8 +68,9 @@ A run starts only when every precondition holds, and the message lists all that 
 ## What it does not do
 
 - The checks of [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope) stay in that script, and it still writes the play's variables itself.
+- It builds no VM behind the gateway. A VM on `vmbr9` with a VLAN tag (the [scratch Ubuntu VM](tofu/ubuntu-vms.md)) needs a zone for its VLAN in the play and in the flow list to have anything to reach, and VLAN 70 has none until [the coding agent's network](../../projects/coding-agent-network.md) reaches that stage.
 - It never touches the live gateway, and it shows nothing that the scratch gateway cannot: the real `vmbr1` bridge, the tailnet and the node's own firewall.
 
 ## Tests
 
-The tests of `tools/tests/scratch_run/` cover the loader (every refusal, and that each committed spec loads against the committed flow list), the engine against a backend with behaviour of its own, and the node backend through a runner that records each command it is given. None of them starts a gateway, so a change to the commands the node backend issues is shown to work only by a run on the node.
+The tests of `tools/tests/scratch_run/` cover the loader (every refusal, and that each committed spec loads against the committed flow list), the engine against a backend with behaviour of its own, and the node backend through a runner that records each command it is given, and the API read of the `vlans` step against a TLS server with a certificate of its own. None of them starts a gateway, so a change to the commands the node backend issues is shown to work only by a run on the node.

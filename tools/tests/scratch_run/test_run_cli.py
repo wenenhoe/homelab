@@ -38,7 +38,7 @@ def test_check_spec_reads_the_spec_and_needs_nothing_else(capsys):
 
 def test_a_spec_is_found_by_its_name(capsys):
     assert main(["vlan-70-seed", "--check-spec"]) == 0
-    assert capsys.readouterr().out == "vlan-70-seed: 4 steps, valid\n"
+    assert capsys.readouterr().out == "vlan-70-seed: 5 steps, valid\n"
 
 
 def test_an_unknown_name_lists_the_specs_there_are(capsys):

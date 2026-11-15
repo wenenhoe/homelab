@@ -14,6 +14,7 @@ CHECK_CHANGED = Step("s", "play", "check", "changed")
 FLOWS_PASS = Step("s", "flows", "", "pass", tags=("services",))
 FLOWS_FAIL = Step("s", "flows", "", "fail", flow_ids=("services-gateway-dns",))
 BLOCK = Step("s", "block", "present", "")
+VLANS = Step("s", "vlans", "check", "")
 RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    failed=0\n"
 
 
@@ -36,6 +37,8 @@ RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    fa
         pytest.param(FLOWS_FAIL, 2, "", False, id="nothing-selected-is-not-a-failure"),
         pytest.param(BLOCK, 0, "", True, id="block-ok"),
         pytest.param(BLOCK, 4, "", False, id="block-fails"),
+        pytest.param(VLANS, 0, "the gateway has 6 VLAN interfaces\n", True, id="vlans-match"),
+        pytest.param(VLANS, 1, "the gateway has 5 VLAN interfaces\n", False, id="vlans-differ"),
     ],
 )
 def test_a_step_passes_only_with_the_outcome_the_spec_expects(step, status, output, passed):
@@ -68,7 +71,7 @@ def test_a_step_with_the_wrong_outcome_fails_the_run_but_the_rest_still_run_and_
 def test_a_gateway_that_does_not_come_up_skips_the_steps_but_is_still_removed(rehearsal, tmp_path):
     backend = FakeBackend(answers={"up": (1, "tofu apply failed\n")})
     status = run(rehearsal, backend, tmp_path, "T3", lambda: 0.0, say=lambda line: None)
-    assert (status, backend.calls) == (EXIT_STEP_FAILED, ["preflight", "up", "down"])
+    assert (status, backend.calls) == (EXIT_STEP_FAILED, ["preflight", "up", "logs", "down"])
 
 
 def test_a_missing_precondition_stops_the_run_before_anything_is_built_and_names_each(rehearsal, tmp_path):
@@ -119,3 +122,46 @@ def test_the_run_ends_with_each_steps_time_and_the_total(rehearsal, tmp_path):
     table = next(line for line in lines if line.startswith("  PASS up"))
     assert "PASS up" in table and "PASS dns-restored" in table and "PASS down" in table
     assert f"  total {7 * len(rehearsal.steps) + 14}s" in lines
+
+
+def test_a_vlans_step_says_what_the_check_found_in_the_last_line_of_its_output():
+    assert judge(VLANS, 1, "GET /x -> HTTP 200\n{}\nthe gateway has 5 VLAN interfaces; the spec seeds 6\n\n") == (
+        False,
+        "the gateway has 5 VLAN interfaces; the spec seeds 6",
+    )
+    assert judge(VLANS, 1, "") == (False, "the check exited 1")
+
+
+def test_the_build_logs_are_kept_in_the_results_and_scanned_like_the_rest(rehearsal, tmp_path):
+    backend = FakeBackend(log_files={"build-seed.txt": "seed built\n", "update-job-update.log": "job ran\n"})
+    assert run(rehearsal, backend, tmp_path, "T10", lambda: 0.0, say=lambda line: None) == EXIT_OK
+    kept = tmp_path / "rehearsal-T10" / "logs"
+    assert {path.name: path.read_text() for path in kept.iterdir()} == {"build-seed.txt": "seed built\n", "update-job-update.log": "job ran\n"}
+    with tarfile.open(tmp_path / "results-rehearsal-T10.tgz") as tar:
+        assert "rehearsal-T10/logs/build-seed.txt" in tar.getnames()
+
+
+def test_the_logs_are_taken_before_the_gateway_is_removed_even_when_the_build_failed(rehearsal, tmp_path):
+    backend = FakeBackend(answers={"up": (1, "tofu apply failed\n")}, log_files={"apply.txt": "Error: VM create\n"})
+    run(rehearsal, backend, tmp_path, "T11", lambda: 0.0, say=lambda line: None)
+    assert backend.calls == ["preflight", "up", "logs", "down"]
+    assert (tmp_path / "rehearsal-T11" / "logs" / "apply.txt").read_text() == "Error: VM create\n"
+
+
+def test_a_run_with_no_logs_has_no_logs_directory(rehearsal, tmp_path):
+    run(rehearsal, FakeBackend(), tmp_path, "T12", lambda: 0.0, say=lambda line: None)
+    assert not (tmp_path / "rehearsal-T12" / "logs").exists()
+
+
+def test_a_log_name_cannot_put_a_file_outside_the_logs_directory(rehearsal, tmp_path):
+    backend = FakeBackend(log_files={"../../escaped.txt": "x\n"})
+    run(rehearsal, backend, tmp_path, "T13", lambda: 0.0, say=lambda line: None)
+    assert (tmp_path / "rehearsal-T13" / "logs" / "escaped.txt").is_file()
+    assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_a_credential_value_in_a_kept_log_fails_the_run_and_no_archive_is_written(rehearsal, tmp_path):
+    backend = FakeBackend(log_files={"apply.txt": "the key was s3cret-key-value\n"}, secret_values=["s3cret-key-value"])
+    lines: list[str] = []
+    assert run(rehearsal, backend, tmp_path, "T14", lambda: 0.0, say=lines.append) == EXIT_STEP_FAILED
+    assert "A CREDENTIAL VALUE IS IN: apply.txt; no archive was written" in lines

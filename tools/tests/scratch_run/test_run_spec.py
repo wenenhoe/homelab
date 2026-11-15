@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 import yaml
-from conftest import RUNS
 from scratch_run.spec import SpecError, load_spec, parse_spec
+from scratch_run_fakes import RUNS
 
 GOOD = {
     "name": "sample",

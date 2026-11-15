@@ -4,9 +4,9 @@ import json
 import tarfile
 
 import pytest
-from conftest import FakeBackend
 from scratch_run.engine import EXIT_NOT_RUN, EXIT_OK, EXIT_STEP_FAILED, judge, run
 from scratch_run.spec import Step
+from scratch_run_fakes import FakeBackend
 
 APPLY = Step("s", "play", "apply", "ok")
 CHECK_UNCHANGED = Step("s", "play", "check", "unchanged")

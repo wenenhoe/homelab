@@ -26,8 +26,8 @@ NODE=root@pve
 PROXMOX_ENDPOINT=https://pve:8006
 PROXMOX_API_TOKEN=user@pam!tokenid=secret
 
-# The master ssh connection to the node, so no step waits for a prompt.
-SSH_CONTROL_PATH=
+# The master ssh connection to the node is opened for you, and asks for your login once. Its socket defaults to
+# ~/.cache/scratch-run/ssh.sock; set SSH_CONTROL_PATH here to put it elsewhere.
 
 # Where a run keeps its state, credentials and results, and the pinned image. The checksum is the .img.bz2's SHA-256.
 {OUT_DIR}=~/scratch-run

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import tarfile
+from pathlib import Path
 
 import pytest
-from conftest import RUNS, FakeBackend
 from scratch_run.__main__ import main
+from scratch_run_fakes import RUNS, FakeBackend, masters
 
 SPEC = str(RUNS / "rehearsal.yaml")
 
@@ -88,7 +89,7 @@ def test_the_settings_file_supplies_the_environment_the_image_and_the_out_dir(tm
         tmp_path, f"NODE=root@pve\nSCRATCH_RUN_OUT_DIR={tmp_path / 'state'}\nSCRATCH_RUN_IMAGE_URL=https://x/a.img.bz2\nSCRATCH_RUN_IMAGE_CHECKSUM={'a' * 64}\n"
     )
     seen: dict = {}
-    assert main(["rehearsal", "--preflight", "--env-file", str(path)], environ={}, backend_factory=factory(FakeBackend(), seen)) == 0
+    assert main(["rehearsal", "--preflight", "--env-file", str(path)], environ={}, backend_factory=factory(FakeBackend(), seen), master_factory=masters()) == 0
     assert (seen["out"], seen["url"], seen["checksum"], seen["env"]["NODE"]) == (tmp_path / "state", "https://x/a.img.bz2", "a" * 64, "root@pve")
 
 
@@ -96,7 +97,7 @@ def test_a_flag_beats_the_environment_and_the_environment_beats_the_file(tmp_pat
     path = settings_file(tmp_path, "NODE=from-file\nSCRATCH_RUN_IMAGE_URL=from-file\nSCRATCH_RUN_OUT_DIR=/from/file\n")
     seen: dict = {}
     argv = ["rehearsal", str(tmp_path / "flag-out"), "--preflight", "--env-file", str(path), "--image-url", "from-flag"]
-    main(argv, environ={"NODE": "from-env"}, backend_factory=factory(FakeBackend(), seen))
+    main(argv, environ={"NODE": "from-env"}, backend_factory=factory(FakeBackend(), seen), master_factory=masters())
     assert (seen["out"], seen["url"], seen["env"]["NODE"]) == (tmp_path / "flag-out", "from-flag", "from-env")
 
 
@@ -106,7 +107,7 @@ def test_the_default_settings_file_is_used_when_it_exists(tmp_path, monkeypatch)
     settings_file(home / ".config/homelab", "NODE=from-default\nSCRATCH_RUN_OUT_DIR=~/state\n").rename(home / ".config/homelab/scratch-run.env")
     monkeypatch.setenv("HOME", str(home))
     seen: dict = {}
-    assert main(["rehearsal", "--preflight"], environ={}, backend_factory=factory(FakeBackend(), seen)) == 0
+    assert main(["rehearsal", "--preflight"], environ={}, backend_factory=factory(FakeBackend(), seen), master_factory=masters()) == 0
     assert (seen["env"]["NODE"], seen["out"]) == ("from-default", home / "state")
 
 
@@ -137,3 +138,78 @@ def test_a_run_bundles_its_results_in_the_out_dir(tmp_path, capsys):
     with tarfile.open(archives[0]) as tar:
         assert any(name.endswith("/results.md") for name in tar.getnames())
     assert "ALL STEPS PASSED" in capsys.readouterr().out
+
+
+def run_with_node(tmp_path, made, **options):
+    seen: dict = {}
+    status = main(
+        ["rehearsal", str(tmp_path / "out"), "--preflight"],
+        environ={"NODE": "root@pve"},
+        backend_factory=factory(FakeBackend(), seen),
+        master_factory=masters(made, **options),
+    )
+    return status, seen
+
+
+def test_the_ssh_master_is_opened_before_the_run_and_its_default_socket_reaches_the_backend(tmp_path):
+    made: list = []
+    status, seen = run_with_node(tmp_path, made)
+    assert status == 0 and made[0].asked == ["ensure"]
+    assert seen["env"]["SSH_CONTROL_PATH"] == str(Path("~/.cache/scratch-run/ssh.sock").expanduser()) == str(made[0].socket)
+
+
+def test_a_socket_from_the_settings_is_used(tmp_path):
+    made: list = []
+    main(
+        ["rehearsal", str(tmp_path / "out"), "--preflight"],
+        environ={"NODE": "n", "SSH_CONTROL_PATH": "/tmp/mine.sock"},
+        backend_factory=factory(FakeBackend()),
+        master_factory=masters(made),
+    )
+    assert made[0].socket == Path("/tmp/mine.sock")
+
+
+def test_a_master_that_cannot_be_opened_stops_the_run_with_the_reason(tmp_path, capsys):
+    backend = FakeBackend()
+    status = main(
+        ["rehearsal", str(tmp_path / "out")],
+        environ={"NODE": "n"},
+        backend_factory=factory(backend),
+        master_factory=masters(problem="ssh to n failed (exit 255)"),
+    )
+    assert status == 2 and "ssh to n failed (exit 255)" in capsys.readouterr().err
+    assert backend.calls == []
+
+
+def test_without_a_node_no_master_is_made(tmp_path):
+    made: list = []
+    main(["rehearsal", str(tmp_path / "out"), "--preflight"], environ={}, backend_factory=factory(FakeBackend()), master_factory=masters(made))
+    assert made == []
+
+
+def test_ssh_up_opens_the_master(capsys):
+    made: list = []
+    assert main(["--ssh", "up"], environ={"NODE": "n"}, master_factory=masters(made)) == 0
+    assert made[0].asked == ["ensure"] and "ssh master to n is up at" in capsys.readouterr().out
+
+
+def test_ssh_up_that_fails_says_why(capsys):
+    assert main(["--ssh", "up"], environ={"NODE": "n"}, master_factory=masters(problem="no way in")) == 2
+    assert "no way in" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(("up", "status", "word"), [(True, 0, "up"), (False, 1, "down")])
+def test_ssh_status_exits_0_only_when_the_master_is_up(up, status, word, capsys):
+    assert main(["--ssh", "status"], environ={"NODE": "n"}, master_factory=masters(up=up)) == status
+    assert f"is {word} (" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("up", "said"), [(True, "is closed"), (False, "was not up")])
+def test_ssh_down_closes_the_master_if_there_is_one(up, said, capsys):
+    assert main(["--ssh", "down"], environ={"NODE": "n"}, master_factory=masters(up=up)) == 0
+    assert said in capsys.readouterr().out
+
+
+def test_ssh_needs_a_node(capsys):
+    assert main(["--ssh", "up"], environ={}, master_factory=masters()) == 2
+    assert "NODE is not set" in capsys.readouterr().err

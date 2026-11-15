@@ -8,10 +8,10 @@ from pathlib import Path
 from unittest.mock import create_autospec
 
 import pytest
-from conftest import RecordingRunner
 from scratch_run import node as node_module
 from scratch_run.node import REMOTE_DIR, NodeBackend, run_command
 from scratch_run.spec import Spec
+from scratch_run_fakes import RecordingRunner
 
 REAL_WHICH = shutil.which
 URL = "https://mirror.example/opnsense/OPNsense-26.1-nano-amd64.img.bz2"

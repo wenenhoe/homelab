@@ -135,6 +135,7 @@ class NodeBackend:
         """The collection's modules reach the gateway through the ssh forward, so no proxy may sit in between."""
         env = {key: value for key, value in self.env.items() if key not in PROXY_VARS}
         env["ANSIBLE_NOCOLOR"] = "1"
+        env["PYTHONUNBUFFERED"] = "1"  # a Python child buffers a pipe, and the live log would then arrive in blocks
         return env
 
     def _ansible_vars(self, extra: Mapping[str, object]) -> list[str]:
@@ -288,7 +289,7 @@ class NodeBackend:
             argv += ["--tag", tag]
         for flow in ids:
             argv += ["--flow", flow]
-        status, output = self.run(argv, env={**self.env, "PYTHONPATH": "."}, cwd=self.repo / "tools", on_output=self.echo)
+        status, output = self.run(argv, env={**self.env, "PYTHONPATH": ".", "PYTHONUNBUFFERED": "1"}, cwd=self.repo / "tools", on_output=self.echo)
         return status, transcript + output
 
     def down(self) -> tuple[int, str]:

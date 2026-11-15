@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import sys
@@ -133,7 +134,7 @@ def test_the_play_runs_from_the_ansible_directory_with_no_proxy_and_the_backends
         "opnsense_gateway_api_port": 8443,
         "opnsense_gateway_credentials_file": str(made.creds),
     }
-    assert "HTTPS_PROXY" not in env and env["ANSIBLE_NOCOLOR"] == "1" and cwd == made.repo / "ansible"
+    assert "HTTPS_PROXY" not in env and env["ANSIBLE_NOCOLOR"] == "1" and env["PYTHONUNBUFFERED"] == "1" and cwd == made.repo / "ansible"
 
 
 def test_an_apply_has_no_check_flag(out, runner, rehearsal):
@@ -189,7 +190,7 @@ def test_the_runner_is_called_with_the_selection_and_a_proxy_command_through_the
     assert argv[argv.index("--tag") : argv.index("--tag") + 4] == ["--tag", "services", "--tag", "desktops"]
     assert argv[-2:] == ["--flow", "services-gateway-dns"]
     assert f"python3 {REMOTE_DIR}/scratch_canaries.py relay {REMOTE_DIR}/canaries %h %p" in argv[argv.index("--ssh-command") + 1]
-    assert (env["PYTHONPATH"], cwd) == (".", made.repo / "tools")
+    assert (env["PYTHONPATH"], env["PYTHONUNBUFFERED"], cwd) == (".", "1", made.repo / "tools")
 
 
 def test_a_canary_setup_step_that_fails_stops_the_setup_and_says_what_it_printed(out, runner):
@@ -219,7 +220,7 @@ def test_the_credential_values_and_the_tokens_secret_are_the_secrets(out, runner
 
 
 def test_run_command_answers_status_and_output_together():
-    status, output = run_command([sys.executable, "-c", "import sys; print('out'); print('err', file=sys.stderr); sys.exit(3)"])
+    status, output = run_command([sys.executable, "-c", "import sys; print('out', flush=True); print('err', file=sys.stderr, flush=True); sys.exit(3)"])
     assert (status, output) == (3, "out\nerr\n")
 
 
@@ -293,3 +294,16 @@ def test_run_command_hands_each_line_to_the_echo_as_it_is_printed():
 def test_a_command_that_times_out_still_answers_with_what_it_printed():
     status, output = run_command([sys.executable, "-c", "import time; print('first', flush=True); time.sleep(10)"], timeout=1)
     assert status == 124 and output.startswith("first\n") and "timed out after 1 seconds" in output
+
+
+def test_the_two_streams_arrive_in_the_order_the_child_wrote_them_when_it_does_not_buffer():
+    script = "import sys\nfor n in range(5):\n    print(f'out{n}', flush=True)\n    print(f'err{n}', file=sys.stderr, flush=True)"
+    assert run_command([sys.executable, "-c", script])[1].splitlines() == [f"{stream}{n}" for n in range(5) for stream in ("out", "err")]
+
+
+def test_a_python_child_that_is_not_told_to_stay_unbuffered_holds_its_output_back():
+    """Why the backend sets PYTHONUNBUFFERED: without it a Python child's stdout waits for the buffer, a pipe being no terminal."""
+    script = "import sys; print('out'); print('err', file=sys.stderr)"
+    env = {key: value for key, value in os.environ.items() if key != "PYTHONUNBUFFERED"}
+    assert run_command([sys.executable, "-c", script], env=env)[1].splitlines() == ["err", "out"]
+    assert run_command([sys.executable, "-c", script], env={**env, "PYTHONUNBUFFERED": "1"})[1].splitlines() == ["out", "err"]

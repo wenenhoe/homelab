@@ -117,7 +117,7 @@ class TestMain:
         monkeypatch.setattr(report.molecule_scope, "role_names", lambda _root: ["slow"])
         monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
         report.state.save(root / "s.json", recorded(slow={"a": 500, "b": 400, "c": 300, "d": 200}))
-        assert report.main(["--state", str(root / "s.json"), "--proposal", str(root / "p.yml")]) == 0
+        assert report.main(["--state", str(root / "s.json"), "--target-seconds", str(TARGET), "--proposal", str(root / "p.yml")]) == 0
         assert "| slow |" in capsys.readouterr().out
         assert yaml.safe_load((root / "p.yml").read_text()) == {"slow": [["a"], ["c", "d"], ["b"]]}
 

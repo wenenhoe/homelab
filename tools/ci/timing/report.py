@@ -28,7 +28,7 @@ from ci.scope import molecule_scope, molecule_shards
 from ci.scope.molecule_scope import REPO_ROOT
 from ci.timing import state
 
-DEFAULT_TARGET_SECONDS = 600
+DEFAULT_TARGET_SECONDS = 300
 DEFAULT_MIN_GAIN_SECONDS = 30
 DEFAULT_MIN_GAIN_RATIO = 0.1
 

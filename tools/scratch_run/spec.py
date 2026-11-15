@@ -10,11 +10,13 @@ every problem at once, so a mistake costs no gateway build. Standard library and
       vlans: [20, 30, 40, 50, 60, 70]   # optional: the seed's VLAN list
       play_vars: {opnsense_gateway_...: ...}  # optional: the play's -e variables
     block_rule: {source: ..., destination: ..., protocol: UDP, port: 53}
+    canary_vm: {zone: services}   # optional: a scratch VM takes that zone's canary address
     steps:
       - {id: play-apply, play: apply}                    # apply | check; expect: ok | unchanged | changed
       - {id: services, flows: {tags: [services]}}        # tags and/or ids; expect: pass | fail
       - {id: block-on, block: present}                   # present | absent, needs block_rule
       - {id: vlans, vlans: check}                        # the gateway has the VLAN interfaces `gateway.vlans` seeds
+      - {id: canary-vm, vm: up}                          # builds the canary VM and waits for it to answer over ssh; before any flows step
 """
 
 from __future__ import annotations
@@ -27,18 +29,26 @@ from pathlib import Path
 
 import yaml
 from network_checks.flow_list import FLOWS_PATH, FlowListError, load_flow_list
+from network_checks.scratch_plan import zone_vlans
 from utils.unique_key_yaml import UniqueKeyLoader
+
+from scratch_run import canary_vm
 
 NAME_RE = re.compile(r"[a-z][a-z0-9-]*")
 STEP_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
-TOP_KEYS = ("name", "description", "gateway", "block_rule", "steps")
+TOP_KEYS = ("name", "description", "gateway", "block_rule", "canary_vm", "steps")
 GATEWAY_KEYS = ("vlans", "play_vars")
 RULE_KEYS = ("source", "destination", "protocol", "port")
-STEP_KEYS = ("id", "play", "flows", "block", "vlans", "expect")
+CANARY_VM_KEYS = ("zone",)
+STEP_KEYS = ("id", "play", "flows", "block", "vlans", "vm", "expect")
 FLOWS_KEYS = ("tags", "ids")
-KINDS = ("play", "flows", "block", "vlans")
-MODES = {"play": ("apply", "check"), "block": ("present", "absent"), "vlans": ("check",)}
-NO_EXPECT = {"block": "a block step passes when the playbook succeeds", "vlans": "a vlans step passes when the gateway has the VLAN interfaces"}
+KINDS = ("play", "flows", "block", "vlans", "vm")
+MODES = {"play": ("apply", "check"), "block": ("present", "absent"), "vlans": ("check",), "vm": ("up",)}
+NO_EXPECT = {
+    "block": "a block step passes when the playbook succeeds",
+    "vlans": "a vlans step passes when the gateway has the VLAN interfaces",
+    "vm": "a vm step passes when the VM answers over ssh",
+}
 EXPECTS = {"play": ("ok", "unchanged", "changed"), "flows": ("pass", "fail")}
 DEFAULT_EXPECT = {"apply": "ok", "check": "unchanged", "flows": "pass"}
 # The backend sets these three itself, so a spec that sets them would be overridden or would override.
@@ -61,11 +71,16 @@ class BlockRule:
 @dataclass(frozen=True)
 class Step:
     id: str
-    kind: str  # play, flows, block or vlans
-    mode: str  # apply, check, present or absent; empty for flows
-    expect: str  # ok, unchanged, changed, pass or fail; empty for block and vlans
+    kind: str  # play, flows, block, vlans or vm
+    mode: str  # apply, check, present, absent or up; empty for flows
+    expect: str  # ok, unchanged, changed, pass or fail; empty for block, vlans and vm
     tags: tuple[str, ...] = ()
     flow_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CanaryVm:
+    zone: str
 
 
 @dataclass(frozen=True)
@@ -76,6 +91,7 @@ class Spec:
     play_vars: dict[str, object]
     block_rule: BlockRule | None
     steps: tuple[Step, ...]
+    canary_vm: CanaryVm | None = None
 
 
 def _unknown(where: str, raw: dict, allowed: tuple[str, ...], problems: list[str]) -> None:
@@ -145,6 +161,20 @@ def _block_rule(raw: object, problems: list[str]) -> BlockRule | None:
     return BlockRule(raw["source"], raw["destination"], raw["protocol"], raw["port"])
 
 
+def _canary_vm(raw: object, problems: list[str]) -> CanaryVm | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        problems.append("`canary_vm` must be a mapping")
+        return None
+    _unknown("`canary_vm`", raw, CANARY_VM_KEYS, problems)
+    zone = raw.get("zone")
+    if not (isinstance(zone, str) and zone):
+        problems.append("`canary_vm.zone` must name a zone of the flow list")
+        return None
+    return CanaryVm(zone)
+
+
 def _step(raw: object, index: int, problems: list[str]) -> Step | None:
     where = f"step {index}"
     if not isinstance(raw, dict):
@@ -208,6 +238,25 @@ def _check_flows(steps: list[Step], flows_path: Path, problems: list[str]) -> No
         problems.extend(f"step `{step.id}` names the flow `{flow}`, which the flow list does not have" for flow in step.flow_ids if flow not in known_ids)
 
 
+def _check_canary_vm(vm: CanaryVm, vlans: tuple[int, ...], steps: list[Step], flows_path: Path, problems: list[str]) -> None:
+    vm_steps = [index for index, step in enumerate(steps) if step.kind == "vm"]
+    if not vm_steps:
+        problems.append("`canary_vm` is set and no step uses it")
+    if len(vm_steps) > 1:
+        problems.append("at most one step may be a vm step")
+    if vm_steps and any(step.kind == "flows" for step in steps[: vm_steps[0]]):
+        problems.append("the vm step must come before every flows step, which build the namespace canaries the VM replaces one of")
+    try:
+        found = canary_vm.vm_id(vm.zone, load_flow_list(flows_path), zone_vlans())
+    except FlowListError as error:
+        problems.append(f"the flow list cannot be read: {error}")
+    except ValueError as error:
+        problems.append(f"`canary_vm.zone`: {error}")
+    else:
+        if vlans and found // 100 * 10 not in vlans:
+            problems.append(f"`canary_vm.zone` `{vm.zone}` is on VLAN {found // 100 * 10}, which `gateway.vlans` does not carry")
+
+
 def parse_spec(data: object, flows_path: Path = FLOWS_PATH) -> Spec:
     """The spec `data` describes, or a `SpecError` naming every problem."""
     if not isinstance(data, dict):
@@ -230,6 +279,7 @@ def parse_spec(data: object, flows_path: Path = FLOWS_PATH) -> Spec:
     vlans = _vlans(gateway.get("vlans"), problems)
     play_vars = _play_vars(gateway.get("play_vars"), problems)
     rule = _block_rule(data.get("block_rule"), problems)
+    vm = _canary_vm(data.get("canary_vm"), problems)
     raw_steps = data.get("steps")
     steps: list[Step] = []
     if not (isinstance(raw_steps, list) and raw_steps):
@@ -243,12 +293,16 @@ def parse_spec(data: object, flows_path: Path = FLOWS_PATH) -> Spec:
         problems.append("a block step needs `block_rule`")
     if rule is not None and not uses_block:
         problems.append("`block_rule` is set and no step uses it")
+    if vm is not None:
+        _check_canary_vm(vm, vlans, steps, flows_path, problems)
+    elif any(step.kind == "vm" for step in steps):
+        problems.append("a vm step needs `canary_vm`, the zone whose canary the VM replaces")
     if any(step.kind == "vlans" for step in steps) and not vlans:
         problems.append("a vlans step needs `gateway.vlans`, the list it compares the gateway with")
     _check_flows(steps, flows_path, problems)
     if problems:
         raise SpecError("\n".join(problems))
-    return Spec(name, description.strip(), vlans, play_vars, rule, tuple(steps))
+    return Spec(name, description.strip(), vlans, play_vars, rule, tuple(steps), vm)
 
 
 def load_spec(path: Path, flows_path: Path = FLOWS_PATH) -> Spec:

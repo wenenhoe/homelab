@@ -238,7 +238,8 @@ needs a real VM and keeps nothing of it. It clones the template through
 `proxmox_ubuntu_vm`, tags the VM `scratch`, and shares the main root's provider pin
 and lock file through symlinks, as the [scratch gateway](opnsense-scratch-gateway.md)'s
 root does. Its state and provider directory live outside the checkout. Its `ssh`
-output names the static address.
+output names the static address. A [scratch run](../scratch-gateway-runs.md#the-canary-vm) can build
+one as a zone's canary and tear it down again.
 
 | Input | Notes |
 | :--- | :--- |

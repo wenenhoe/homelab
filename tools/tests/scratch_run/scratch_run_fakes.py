@@ -54,6 +54,9 @@ class FakeBackend:
     def vlans(self, spec: Spec) -> tuple[int, str]:
         return self._answer("vlans")
 
+    def canary_vm(self, spec: Spec) -> tuple[int, str]:
+        return self._answer("vm")
+
     def logs(self) -> dict[str, str]:
         self.calls.append("logs")
         return self.log_files

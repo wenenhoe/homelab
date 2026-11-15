@@ -31,6 +31,7 @@ A spec is a YAML file under [`tofu/scratch/opnsense/runs/`](../../../tofu/scratc
 | `name`, `description` | The run's name, which is also its results directory, and what it shows |
 | `gateway.vlans` | Optional. The seed's VLAN list, passed to `scratch_gateway.sh` as `SEED_VLANS`; unset, the seed keeps its own list |
 | `gateway.play_vars` | Optional. The play's `-e` variables, each starting `opnsense_gateway_`. The three the backend sets (the CA file, the API port and the credentials file) are refused |
+| `canary_vm` | Optional. `zone`: the zone whose canary a scratch VM replaces (see [the canary VM](#the-canary-vm)). A `vm` step needs it and it needs a `vm` step |
 | `block_rule` | Optional. `source`, `destination`, `protocol` (`TCP` or `UDP`) and `port` of the quick block rule the block steps add and lift ([`block_rule.yaml`](../../../tofu/scratch/opnsense/boundary/block_rule.yaml)) |
 | `steps` | The steps, in order |
 
@@ -41,11 +42,24 @@ A step has an `id` and exactly one of these:
 | `play: apply` or `play: check` | Runs the gateway's play, with `--check` for `check` | `ok` (exit 0, the default for `apply`), `unchanged` (exit 0 and the recap says `changed=0`, the default for `check`) or `changed` |
 | `flows: {tags: [...], ids: [...]}` | Runs the [runner](network-boundary-checks.md#the-probe-module-and-the-runner) on that selection, building the namespace canaries first on the first such step | `pass` (the default) or `fail`: at least one flow the runner reports as failed, so a selection that holds no flow and a runner that crashed do not count |
 | `block: present` or `block: absent` | Adds or lifts `block_rule` | None: it passes when the playbook succeeds |
+| `vm: up` | Builds the canary VM and waits until it answers over ssh through the gateway; at most one, before every `flows` step (see [the canary VM](#the-canary-vm)). The VM is removed at teardown | None |
 | `vlans: check` | Asks the gateway's API for its interfaces and passes when it has exactly the VLAN interfaces `gateway.vlans` seeds (below); the spec must set `gateway.vlans` | None |
 
 The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, so a gateway seeded with six VLANs has `opt1` to `opt6`. The step shows that the seed took the spec's list (six interfaces and not five); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
 
 A failed step does not stop the run: the later steps still run, so one archive shows everything, and the gateway is removed on every path unless `--keep` is given. The terminal shows each step as it starts, the log of each command as it prints (indented, and kept in the step's file), and for each step its time; the run ends with a table of the times and their total. Most of a run is the `up` step, which builds the gateway and updates its firmware, so its log is the one to watch.
+
+## The canary VM
+
+The namespace canaries stand in for every zone's canary VM. With `canary_vm: {zone: ...}` and a `vm: up` step, one zone's canary is a real VM instead: a scratch Ubuntu VM ([`tofu/scratch/ubuntu`](tofu/ubuntu-vms.md#scratch-ubuntu-vm), cloned from the template) whose VMID is the one the [VMID scheme](vm-provisioning.md#vmid--vlan--ip-scheme) gives the canary's address: 208 for the services canary at `192.168.20.8`, with the zone's VLAN tag on its NIC and the lab's static address from cloud-init. The step makes that zone's namespace skip the canary address, applies the VM, and waits (600 seconds, `VM_WAIT_SECONDS`) for the runner's ssh to reach it through the gateway as the VM's admin user. The `flows` steps after it run the zone's flows from the VM, and the runner logs in to it with `--ssh-user-for`.
+
+The VM answers only if its NIC's tag, the bridge, the zone's rules and the address all work, so a pass shows the tagged-VM path end to end; a wrong tag is a VM that never answers. The step needs what the preflight checks:
+
+- **A VLAN-aware bridge.** Proxmox puts a VM NIC's tag on a bridge only when the bridge is VLAN-aware. Tick VLAN aware on `LAN_BRIDGE` in the web console and apply it, or point `LAN_BRIDGE` at an isolated bridge that already is. The namespace canaries and the gateway work on either kind. The namespace canaries take a different route on an aware bridge (the veth ports get the zone's VLANs on the bridge, not a VLAN device inside the namespace), so the first run after the change should be the [rehearsal](../../../tofu/scratch/opnsense/runs/rehearsal.yaml), and [`canary-vm`](../../../tofu/scratch/opnsense/runs/canary-vm.yaml) the one after it.
+- **The Ubuntu template** on the node (VM 106, or `TEMPLATE_VM_ID`) and `tofu` on this machine (`TOFU` names another).
+- **No VM at the canary's VMID** left from an earlier run.
+
+The VM's state and variables are in the run's state directory (`vm.tfstate`, `vm.tfvars.json`); a teardown whose destroy fails keeps them, and `tofu destroy` with them removes the VM by hand.
 
 ## What a run leaves
 
@@ -59,7 +73,7 @@ Before the archive is written, every file is searched for the run's credential v
 
 ## Preflight
 
-A run starts only when every precondition holds, and the message lists all that do not: the environment variables, the image URL and checksum in the shape `scratch_gateway.sh` requires, `OUT_DIR` outside the repository, the tools (`ssh`, `scp`, `ssh-keygen`, `ansible-playbook`, `ansible-galaxy`), `OPNsense.internal` resolving to `127.0.0.1` (with the `/etc/hosts` line to add), a prompt-free ssh path to the node, no VM at `VM_ID` and no `/root/scratch-run` left on the node from an earlier run, the pinned `oxlorg.opnsense` release and `httpx` in Ansible's Python, and a `scratch_gateway.sh` that takes `SEED_VLANS` when the spec sets `gateway.vlans`.
+A run starts only when every precondition holds, and the message lists all that do not: the environment variables, the image URL and checksum in the shape `scratch_gateway.sh` requires, `OUT_DIR` outside the repository, the tools (`ssh`, `scp`, `ssh-keygen`, `ansible-playbook`, `ansible-galaxy`), `OPNsense.internal` resolving to `127.0.0.1` (with the `/etc/hosts` line to add), a prompt-free ssh path to the node, no VM at `VM_ID` and no `/root/scratch-run` left on the node from an earlier run, the pinned `oxlorg.opnsense` release and `httpx` in Ansible's Python, and a `scratch_gateway.sh` that takes `SEED_VLANS` when the spec sets `gateway.vlans`. A spec with a `canary_vm` also needs `tofu`, a VLAN-aware bridge, the Ubuntu template and a free VMID, as above.
 
 ## Backends
 
@@ -68,8 +82,18 @@ A run starts only when every precondition holds, and the message lists all that 
 ## What it does not do
 
 - The checks of [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope) stay in that script, and it still writes the play's variables itself.
-- It builds no VM behind the gateway. A VM on `vmbr9` with a VLAN tag (the [scratch Ubuntu VM](tofu/ubuntu-vms.md)) needs a zone for its VLAN in the play and in the flow list to have anything to reach, and VLAN 70 has none until [the coding agent's network](../../projects/coding-agent-network.md) reaches that stage.
+- It builds one VM at most, the canary VM, and only for a zone the play and the flow list have. VLAN 70 has neither until [the coding agent's network](../../projects/coding-agent-network.md) reaches its Stage 2, so nothing here shows traffic over VLAN 70 (see below).
 - It never touches the live gateway, and it shows nothing that the scratch gateway cannot: the real `vmbr1` bridge, the tailnet and the node's own firewall.
+
+## Untested until VLAN 70 has a zone
+
+The VLAN 70 scratch kit (the seed's VLAN list, the VMID range up to 7XX and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 70 interface: the `vlan-70-seed` run. What no run shows yet, because the play has no zone for VLAN 70 and the flow list no row for it:
+
+- a VM tagged 70 reaching the gateway, which needs the zone's interface address and a pass rule;
+- the zone's flows (rows 8 and 13 of [`opnsense-config.md`](../../projects/opnsense-config.md)), and that default-deny holds in VLAN 70;
+- the canary VM for that zone, which is this step with `zone` naming it.
+
+They wait for Stage 2 of [the coding agent's network](../../projects/coding-agent-network.md). Its exit condition (the zone's flows pass on a scratch gateway) is the first run of a spec like `canary-vm` for the new zone. Until then a VM at VMID 708 on the scratch gateway would sit on an interface with no rules and could show only that it is blocked.
 
 ## Tests
 

@@ -42,6 +42,9 @@ class Backend(Protocol):
     def vlans(self, spec: Spec) -> tuple[int, str]:
         """Compare the gateway's VLAN interfaces with `spec.vlans`; the last line of the output says what was found."""
 
+    def canary_vm(self, spec: Spec) -> tuple[int, str]:
+        """Build the VM that takes the canary's place and wait until it answers; the last line of the output says how it went."""
+
     def logs(self) -> dict[str, str]:
         """The log files the gateway's build left behind, by file name, for the results to keep. Called before `down`."""
 
@@ -65,7 +68,7 @@ def judge(step: Step, status: int, output: str) -> tuple[bool, str]:
     """Whether a step had the outcome the spec expected, and a line saying why."""
     if step.kind == "block":
         return status == 0, f"the playbook exited {status}"
-    if step.kind == "vlans":
+    if step.kind in ("vlans", "vm"):
         lines = [line for line in output.splitlines() if line.strip()]
         return status == 0, lines[-1] if lines else f"the check exited {status}"
     if step.kind == "flows":
@@ -148,6 +151,8 @@ def run(spec: Spec, backend: Backend, out_dir: Path, stamp: str, clock: Callable
                 status, output = backend.flows(step.tags, step.flow_ids)
             elif step.kind == "vlans":
                 status, output = backend.vlans(spec)
+            elif step.kind == "vm":
+                status, output = backend.canary_vm(spec)
             else:
                 status, output = backend.block(spec, step.mode)
             passed, detail = judge(step, status, output)

@@ -35,6 +35,8 @@ Update at the start and end of each PR that works a stage.
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
+Until Stage 2 lands, these are untested: a VM tagged 70 reaching the gateway, the zone's flows (rows 8 and 13) and default-deny inside VLAN 70. The scratch kit shows only that a scratch gateway seeded with VLAN 70 has its interface (the `vlan-70-seed` run); [`scratch-gateway-runs.md`](../topics/infra/scratch-gateway-runs.md#untested-until-vlan-70-has-a-zone) says what each remaining check needs. Stage 2's exit condition is the first run of a `canary-vm`-style spec for the new zone.
+
 ### Stage 1 — tailnet route
 
 VM 202 advertises the VLAN's route, and the tailnet policy grants it to the laptop on `tcp:22` only, with `tests` asserting that no other node has it. This stage only adds its grant to the policy's explicit grants, as [`operator-host.md`](operator-host.md)'s Stage 1 does: copy the current policy first and use the console's preview before saving. Advertise or approve the route only after the saved policy grants it to the laptop alone.

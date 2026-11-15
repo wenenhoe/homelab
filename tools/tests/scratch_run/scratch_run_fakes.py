@@ -22,6 +22,7 @@ class FakeBackend:
     secret_values: list[str] = field(default_factory=list)
     calls: list[str] = field(default_factory=list)
     blocked: bool = False  # a block rule is present: the DNS flow it breaks fails, as on a gateway
+    log_files: dict[str, str] = field(default_factory=dict)  # what `logs` hands over
 
     def _answer(self, name: str) -> tuple[int, str]:
         self.calls.append(name)
@@ -49,6 +50,10 @@ class FakeBackend:
     def block(self, spec: Spec, state: str) -> tuple[int, str]:
         self.blocked = state == "present"
         return self._answer(f"block:{state}")
+
+    def logs(self) -> dict[str, str]:
+        self.calls.append("logs")
+        return self.log_files
 
     def down(self) -> tuple[int, str]:
         return self._answer("down")

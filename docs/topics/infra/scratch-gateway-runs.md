@@ -48,7 +48,11 @@ A failed step does not stop the run: the later steps still run, so one archive s
 
 Each run builds in `OUT_DIR/state-<name>-<stamp>/`, which holds the gateway's credentials, its certificate and the runner's key. A clean teardown removes it. When the teardown fails, or with `--keep`, it stays, and `scratch_gateway.sh down` on it removes the gateway. The credentials are never in the results.
 
-`OUT_DIR/<name>-<stamp>/` holds one `<step id>.txt` per step (plus `up.txt` and `down.txt`), `results.json` and `results.md`, and `OUT_DIR/results-<name>-<stamp>.tgz` holds the same. Before the archive is written, every file is searched for the run's credential values (the seed's root password, one-time-code seed, API key and secret, and the secret half of the Proxmox token). A file that holds one fails the run and no archive is written.
+`OUT_DIR/<name>-<stamp>/` holds one `<step id>.txt` per step (plus `up.txt` and `down.txt`), `results.json` and `results.md`, and `OUT_DIR/results-<name>-<stamp>.tgz` holds the same.
+
+`logs/` in that directory holds what the build wrote to files and not to its output, taken before the gateway is removed: `build-seed.txt`, `init.txt` and `apply.txt`, and the firmware update's files from the node, which `down` removes there (`update-job-update.log`, `update-fw-status-before.json`, `update-fw-status-after.json`, `update-config-checks.txt` and the others of its directory). Each is cut to its last 200,000 characters. The update's own output is also in `up.txt`, where its release line carries the firmware's status message beside the status word.
+
+Before the archive is written, every file is searched for the run's credential values (the seed's root password, one-time-code seed, API key and secret, and the secret half of the Proxmox token). A file that holds one fails the run and no archive is written.
 
 ## Preflight
 

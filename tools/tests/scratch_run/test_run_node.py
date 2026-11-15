@@ -307,3 +307,28 @@ def test_a_python_child_that_is_not_told_to_stay_unbuffered_holds_its_output_bac
     env = {key: value for key, value in os.environ.items() if key != "PYTHONUNBUFFERED"}
     assert run_command([sys.executable, "-c", script], env=env)[1].splitlines() == ["err", "out"]
     assert run_command([sys.executable, "-c", script], env={**env, "PYTHONUNBUFFERED": "1"})[1].splitlines() == ["out", "err"]
+
+
+def test_the_build_logs_in_the_state_directory_are_handed_over_by_name(out, runner):
+    (out / "update").mkdir()
+    (out / "update" / "job-update.log").write_text("job ran\n")
+    (out / "update" / "fw-status-after.json").write_text('{"status": "error"}')
+    (out / "build-seed.txt").write_text("seed built\n")
+    (out / "apply.txt").write_text("apply done\n")
+    (out / "credentials.tfvars").write_text('opnsense_api_secret = "secret-value-1"\n')
+    assert backend(out, runner).logs() == {
+        "build-seed.txt": "seed built\n",
+        "apply.txt": "apply done\n",
+        "update-fw-status-after.json": '{"status": "error"}',
+        "update-job-update.log": "job ran\n",
+    }
+
+
+def test_a_gateway_that_never_got_built_has_no_logs(out, runner):
+    assert backend(out, runner).logs() == {}
+
+
+def test_a_log_over_the_limit_is_cut_to_its_end(out, runner):
+    (out / "apply.txt").write_text("a" * 300_000 + "the end\n")
+    kept = backend(out, runner).logs()["apply.txt"]
+    assert len(kept) == 200_000 and kept.endswith("the end\n")

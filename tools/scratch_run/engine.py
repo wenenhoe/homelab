@@ -39,6 +39,9 @@ class Backend(Protocol):
 
     def block(self, spec: Spec, state: str) -> tuple[int, str]: ...
 
+    def logs(self) -> dict[str, str]:
+        """The log files the gateway's build left behind, by file name, for the results to keep. Called before `down`."""
+
     def down(self) -> tuple[int, str]:
         """Remove everything `up` and the steps made. Safe to call after a failed `up`."""
 
@@ -83,6 +86,15 @@ def judge(step: Step, status: int, output: str) -> tuple[bool, str]:
 def _leaks(directory: Path, secrets: list[str]) -> list[str]:
     values = [value for value in secrets if len(value) >= MIN_SECRET_LENGTH]
     return sorted({path.name for path in directory.rglob("*") if path.is_file() for value in values if value in path.read_text(errors="replace")})
+
+
+def _keep_logs(directory: Path, logs: dict[str, str]) -> None:
+    """Write the build's log files under `directory`; a name is cut to its last part, so none can land outside it."""
+    if not logs:
+        return
+    directory.mkdir(mode=0o700)
+    for name, text in logs.items():
+        (directory / Path(name).name).write_text(text)
 
 
 def _bundle(directory: Path, archive: Path) -> None:
@@ -132,6 +144,7 @@ def run(spec: Spec, backend: Backend, out_dir: Path, stamp: str, clock: Callable
                 status, output = backend.block(spec, step.mode)
             passed, detail = judge(step, status, output)
             record(step.id, step.kind, passed, detail, started, output)
+    _keep_logs(results / "logs", backend.logs())
     if keep:
         say("--keep: the gateway is still up; remove it with the backend's own down")
     else:

@@ -24,6 +24,7 @@ from typing import Protocol
 from network_checks.flow_list import load_flow_list
 from network_checks.scratch_plan import build_plan, zone_vlans
 
+from scratch_run.settings import IMAGE_CHECKSUM, IMAGE_URL
 from scratch_run.spec import Spec
 
 REPO = Path(__file__).resolve().parents[2]
@@ -122,9 +123,9 @@ class NodeBackend:
             if not self.env.get(name):
                 problems.append(f"{name} is not set")
         if not re.fullmatch(r"https://[A-Za-z0-9._~:/%+-]+\.img\.bz2", self.image_url) or "-nano-" not in self.image_url.rsplit("/", 1)[-1]:
-            problems.append("the image URL must be an https:// URL of an OPNsense nano .img.bz2 file")
+            problems.append(f"the image URL must be an https:// URL of an OPNsense nano .img.bz2 file (--image-url, or {IMAGE_URL} in the settings)")
         if not re.fullmatch(r"[0-9a-f]{64}", self.image_checksum):
-            problems.append("the image checksum must be 64 lowercase hexadecimal characters")
+            problems.append(f"the image checksum must be 64 lowercase hexadecimal characters (--image-checksum, or {IMAGE_CHECKSUM} in the settings)")
         if self.out.resolve().is_relative_to(self.repo.resolve()):
             problems.append(f"OUT_DIR holds credentials and must be outside the repository: {self.out}")
         for tool in ("ssh", "scp", "ssh-keygen", self.ansible, "ansible-galaxy"):

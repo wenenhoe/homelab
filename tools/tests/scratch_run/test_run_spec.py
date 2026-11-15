@@ -18,6 +18,7 @@ GOOD = {
         {"id": "check", "play": "check"},
         {"id": "services", "flows": {"tags": ["services"], "ids": ["services-gateway-dns"]}, "expect": "fail"},
         {"id": "block-on", "block": "present"},
+        {"id": "vlans", "vlans": "check"},
     ],
 }
 
@@ -38,9 +39,10 @@ def test_the_committed_specs_load_against_the_committed_flow_list(subtests):
 
 def test_a_good_spec_is_read_with_its_defaults():
     spec = parse_spec(GOOD)
-    apply, check, services, block = spec.steps
+    apply, check, services, block, vlans = spec.steps
     assert (spec.vlans, spec.block_rule.port) == ((20, 70), 53)
-    assert (apply.expect, check.expect, services.expect, block.expect) == ("ok", "unchanged", "fail", "")
+    assert (apply.expect, check.expect, services.expect, block.expect, vlans.expect) == ("ok", "unchanged", "fail", "", "")
+    assert (vlans.kind, vlans.mode) == ("vlans", "check")
     assert (services.tags, services.flow_ids) == (("services",), ("services-gateway-dns",))
 
 
@@ -62,12 +64,15 @@ def test_a_good_spec_is_read_with_its_defaults():
         pytest.param(broken(lambda s: s["block_rule"].update(port=0)), "port number", id="bad-port"),
         pytest.param(broken(lambda s: s["block_rule"].update(source="elsewhere")), "`block_rule.source` must be", id="bad-source"),
         pytest.param(broken(lambda s: s.pop("block_rule")), "a block step needs `block_rule`", id="block-without-rule"),
-        pytest.param(broken(lambda s: s["steps"].pop()), "no step uses it", id="rule-without-block"),
+        pytest.param(broken(lambda s: s["steps"].pop(3)), "no step uses it", id="rule-without-block"),
         pytest.param(broken(lambda s: s["steps"][1].update(id="apply")), "`apply` is used twice", id="repeated-step-id"),
-        pytest.param(broken(lambda s: s["steps"][0].update(flows={"tags": ["x"]})), "exactly one of play, flows, block", id="two-kinds"),
+        pytest.param(broken(lambda s: s["steps"][0].update(flows={"tags": ["x"]})), "exactly one of play, flows, block, vlans", id="two-kinds"),
         pytest.param(broken(lambda s: s["steps"][0].update(play="destroy")), "one of apply, check", id="bad-play-mode"),
         pytest.param(broken(lambda s: s["steps"][0].update(expect="pass")), "one of ok, unchanged, changed", id="wrong-play-expect"),
         pytest.param(broken(lambda s: s["steps"][3].update(expect="ok")), "takes no `expect`", id="block-expect"),
+        pytest.param(broken(lambda s: s["steps"][4].update(expect="pass")), "takes no `expect`", id="vlans-expect"),
+        pytest.param(broken(lambda s: s["steps"][4].update(vlans="apply")), "`vlans` to be one of check", id="bad-vlans-mode"),
+        pytest.param(broken(lambda s: s["gateway"].pop("vlans")), "a vlans step needs `gateway.vlans`", id="vlans-step-without-the-list"),
         pytest.param(broken(lambda s: s["steps"][2].update(flows={})), "mapping of `tags` and/or `ids`", id="empty-flows"),
         pytest.param(broken(lambda s: s["steps"][2].update(flows={"tags": []})), "non-empty list of names", id="empty-tags"),
         pytest.param(broken(lambda s: s["steps"][2].update(flows={"tags": ["no-such-tag"]})), "tag `no-such-tag`, which no flow has", id="unknown-tag"),

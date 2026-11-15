@@ -14,6 +14,7 @@ CHECK_CHANGED = Step("s", "play", "check", "changed")
 FLOWS_PASS = Step("s", "flows", "", "pass", tags=("services",))
 FLOWS_FAIL = Step("s", "flows", "", "fail", flow_ids=("services-gateway-dns",))
 BLOCK = Step("s", "block", "present", "")
+VLANS = Step("s", "vlans", "check", "")
 RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    failed=0\n"
 
 
@@ -36,6 +37,8 @@ RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    fa
         pytest.param(FLOWS_FAIL, 2, "", False, id="nothing-selected-is-not-a-failure"),
         pytest.param(BLOCK, 0, "", True, id="block-ok"),
         pytest.param(BLOCK, 4, "", False, id="block-fails"),
+        pytest.param(VLANS, 0, "the gateway has 6 VLAN interfaces\n", True, id="vlans-match"),
+        pytest.param(VLANS, 1, "the gateway has 5 VLAN interfaces\n", False, id="vlans-differ"),
     ],
 )
 def test_a_step_passes_only_with_the_outcome_the_spec_expects(step, status, output, passed):
@@ -119,6 +122,14 @@ def test_the_run_ends_with_each_steps_time_and_the_total(rehearsal, tmp_path):
     table = next(line for line in lines if line.startswith("  PASS up"))
     assert "PASS up" in table and "PASS dns-restored" in table and "PASS down" in table
     assert f"  total {7 * len(rehearsal.steps) + 14}s" in lines
+
+
+def test_a_vlans_step_says_what_the_check_found_in_the_last_line_of_its_output():
+    assert judge(VLANS, 1, "GET /x -> HTTP 200\n{}\nthe gateway has 5 VLAN interfaces; the spec seeds 6\n\n") == (
+        False,
+        "the gateway has 5 VLAN interfaces; the spec seeds 6",
+    )
+    assert judge(VLANS, 1, "") == (False, "the check exited 1")
 
 
 def test_the_build_logs_are_kept_in_the_results_and_scanned_like_the_rest(rehearsal, tmp_path):

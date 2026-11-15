@@ -39,6 +39,9 @@ class Backend(Protocol):
 
     def block(self, spec: Spec, state: str) -> tuple[int, str]: ...
 
+    def vlans(self, spec: Spec) -> tuple[int, str]:
+        """Compare the gateway's VLAN interfaces with `spec.vlans`; the last line of the output says what was found."""
+
     def logs(self) -> dict[str, str]:
         """The log files the gateway's build left behind, by file name, for the results to keep. Called before `down`."""
 
@@ -62,6 +65,9 @@ def judge(step: Step, status: int, output: str) -> tuple[bool, str]:
     """Whether a step had the outcome the spec expected, and a line saying why."""
     if step.kind == "block":
         return status == 0, f"the playbook exited {status}"
+    if step.kind == "vlans":
+        lines = [line for line in output.splitlines() if line.strip()]
+        return status == 0, lines[-1] if lines else f"the check exited {status}"
     if step.kind == "flows":
         if step.expect == "pass":
             return status == 0, f"the runner exited {status}, wanted 0"
@@ -140,6 +146,8 @@ def run(spec: Spec, backend: Backend, out_dir: Path, stamp: str, clock: Callable
                 status, output = backend.play(spec, step.mode)
             elif step.kind == "flows":
                 status, output = backend.flows(step.tags, step.flow_ids)
+            elif step.kind == "vlans":
+                status, output = backend.vlans(spec)
             else:
                 status, output = backend.block(spec, step.mode)
             passed, detail = judge(step, status, output)

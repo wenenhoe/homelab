@@ -51,6 +51,9 @@ class FakeBackend:
         self.blocked = state == "present"
         return self._answer(f"block:{state}")
 
+    def vlans(self, spec: Spec) -> tuple[int, str]:
+        return self._answer("vlans")
+
     def logs(self) -> dict[str, str]:
         self.calls.append("logs")
         return self.log_files

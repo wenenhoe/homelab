@@ -14,6 +14,7 @@ every problem at once, so a mistake costs no gateway build. Standard library and
       - {id: play-apply, play: apply}                    # apply | check; expect: ok | unchanged | changed
       - {id: services, flows: {tags: [services]}}        # tags and/or ids; expect: pass | fail
       - {id: block-on, block: present}                   # present | absent, needs block_rule
+      - {id: vlans, vlans: check}                        # the gateway has the VLAN interfaces `gateway.vlans` seeds
 """
 
 from __future__ import annotations
@@ -33,10 +34,11 @@ STEP_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*")
 TOP_KEYS = ("name", "description", "gateway", "block_rule", "steps")
 GATEWAY_KEYS = ("vlans", "play_vars")
 RULE_KEYS = ("source", "destination", "protocol", "port")
-STEP_KEYS = ("id", "play", "flows", "block", "expect")
+STEP_KEYS = ("id", "play", "flows", "block", "vlans", "expect")
 FLOWS_KEYS = ("tags", "ids")
-KINDS = ("play", "flows", "block")
-MODES = {"play": ("apply", "check"), "block": ("present", "absent")}
+KINDS = ("play", "flows", "block", "vlans")
+MODES = {"play": ("apply", "check"), "block": ("present", "absent"), "vlans": ("check",)}
+NO_EXPECT = {"block": "a block step passes when the playbook succeeds", "vlans": "a vlans step passes when the gateway has the VLAN interfaces"}
 EXPECTS = {"play": ("ok", "unchanged", "changed"), "flows": ("pass", "fail")}
 DEFAULT_EXPECT = {"apply": "ok", "check": "unchanged", "flows": "pass"}
 # The backend sets these three itself, so a spec that sets them would be overridden or would override.
@@ -59,9 +61,9 @@ class BlockRule:
 @dataclass(frozen=True)
 class Step:
     id: str
-    kind: str  # play, flows or block
+    kind: str  # play, flows, block or vlans
     mode: str  # apply, check, present or absent; empty for flows
-    expect: str  # ok, unchanged, changed, pass or fail; empty for block
+    expect: str  # ok, unchanged, changed, pass or fail; empty for block and vlans
     tags: tuple[str, ...] = ()
     flow_ids: tuple[str, ...] = ()
 
@@ -178,13 +180,13 @@ def _step(raw: object, index: int, problems: list[str]) -> Step | None:
         if mode not in MODES[kind]:
             problems.append(f"{where} needs `{kind}` to be one of {', '.join(MODES[kind])}")
             return None
-        if kind == "block":
+        if kind in NO_EXPECT:
             if expect is not None:
-                problems.append(f"{where} takes no `expect`: a block step passes when the playbook succeeds")
+                problems.append(f"{where} takes no `expect`: {NO_EXPECT[kind]}")
             expect = ""
         else:
             expect = expect or DEFAULT_EXPECT[mode]
-    if kind != "block" and expect not in EXPECTS[kind]:
+    if kind not in NO_EXPECT and expect not in EXPECTS[kind]:
         problems.append(f"{where} needs `expect` to be one of {', '.join(EXPECTS[kind])}")
         return None
     return Step(step_id, kind, mode, expect, tags, ids)
@@ -241,6 +243,8 @@ def parse_spec(data: object, flows_path: Path = FLOWS_PATH) -> Spec:
         problems.append("a block step needs `block_rule`")
     if rule is not None and not uses_block:
         problems.append("`block_rule` is set and no step uses it")
+    if any(step.kind == "vlans" for step in steps) and not vlans:
+        problems.append("a vlans step needs `gateway.vlans`, the list it compares the gateway with")
     _check_flows(steps, flows_path, problems)
     if problems:
         raise SpecError("\n".join(problems))

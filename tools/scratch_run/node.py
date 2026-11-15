@@ -25,6 +25,7 @@ from typing import Protocol
 from network_checks.flow_list import load_flow_list
 from network_checks.scratch_plan import build_plan, zone_vlans
 
+from scratch_run import gateway_api
 from scratch_run.settings import IMAGE_CHECKSUM, IMAGE_URL
 from scratch_run.spec import Spec
 
@@ -43,6 +44,7 @@ LOG_LIMIT = 200_000  # characters kept of one log, the end of it
 
 
 Echo = Callable[[str], None]
+ApiGet = Callable[..., tuple[int, str]]
 
 
 class Runner(Protocol):
@@ -104,6 +106,7 @@ class NodeBackend:
         resolver: Callable[[str], str | None] = resolve_host,
         repo: Path = REPO,
         echo: Echo | None = print_indented,
+        api_get: ApiGet = gateway_api.get,
     ) -> None:
         self.out = out_dir
         self.image_url = image_url
@@ -113,6 +116,7 @@ class NodeBackend:
         self.resolver = resolver
         self.repo = repo
         self.echo = echo
+        self.api_get = api_get
         self.remembered: list[str] = []
         self.node = env.get("NODE", "")
         self.ansible = env.get("ANSIBLE_PLAYBOOK", "ansible-playbook")
@@ -241,6 +245,15 @@ class NodeBackend:
             "block_state": state,
         }
         return self.run([self.ansible, str(self.block_playbook), "-e", json.dumps(extra)], env=self._noproxy_env(), cwd=self.repo, on_output=self.echo)
+
+    def vlans(self, spec: Spec) -> tuple[int, str]:
+        url = f"https://{MGMT_NAME}:{self.local_port}/{gateway_api.INTERFACE_LIST_PATH}"
+        key, secret = self._credential("opnsense_api_key"), self._credential("opnsense_api_secret")
+        if not (key and secret):
+            return 1, f"no API credentials in {self.creds}\n"
+        status, body = self.api_get(url, cafile=self.cert, key=key, secret=secret)
+        passed, verdict = gateway_api.judge_vlans(status, body, spec.vlans)
+        return (0 if passed else 1), f"GET /{gateway_api.INTERFACE_LIST_PATH} -> HTTP {status}\n{body.rstrip()}\n{verdict}\n"
 
     def logs(self) -> dict[str, str]:
         paths = [self.out / name for name in LOG_FILES]

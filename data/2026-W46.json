@@ -1782,6 +1782,78 @@
    "bot": false,
    "group": "tools/",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "889856a9317976860fba6d7cc7d55c37bcfc2ac7",
+   "date": "2026-11-15T12:11:22+08:00",
+   "kind": "pr",
+   "pr": 849,
+   "title": "add a scratch run spec for a seed that carries VLAN 70",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1b2c9683879a777ea4c0898965518b3465a0bf3c",
+   "date": "2026-11-15T19:16:16+08:00",
+   "kind": "pr",
+   "pr": 850,
+   "title": "read a scratch run's settings from a file and name its spec",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9b8cfdf047064f76debc71aea45313cf791cc0d7",
+   "date": "2026-11-15T22:12:39+08:00",
+   "kind": "pr",
+   "pr": 851,
+   "title": "show a scratch run's log as it happens and build each run in its own directory",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "0dec4650358a732ce0f7d0c9c81f1f4afdf88d83",
+   "date": "2026-11-15T22:35:07+08:00",
+   "kind": "pr",
+   "pr": 852,
+   "title": "weigh recorded timings against the CI test groups",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "04dc853d1380a593a61b4d16071a7e5997dd04ff",
+   "date": "2026-11-15T23:18:07+08:00",
+   "kind": "pr",
+   "pr": 853,
+   "title": "print the firmware's status message after the update",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0f28292b664b7eeac26fcedd141c8e32aaaac6fe",
+   "date": "2026-11-15T23:23:02+08:00",
+   "kind": "pr",
+   "pr": 854,
+   "title": "keep the gateway build's logs in a run's results",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
   }
  ]
 }

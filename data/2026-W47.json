@@ -1,0 +1,95 @@
+{
+ "week": "2026-W47",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "310671e4597ad037414e64223b3bfda01e42605d",
+   "date": "2026-11-16T00:11:45+08:00",
+   "kind": "pr",
+   "pr": 855,
+   "title": "run the unit tests across the runner's cores",
+   "type": "ci",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ecb0c83f308963058603f0fd721c161ae0574b17",
+   "date": "2026-11-16T00:15:58+08:00",
+   "kind": "pr",
+   "pr": 856,
+   "title": "write molecule scenario timings to a file",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0115 r000 \u00b7 keeping the molecule shard table balanced",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "1dfb5162790cb48ce6b7bb450cbe490ba6e60046",
+   "date": "2026-11-16T00:49:55+08:00",
+   "kind": "pr",
+   "pr": 857,
+   "title": "log in to one zone's canary as another user",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "45920a8d239c9644d5f05fe3e4dd7075c9f90664",
+   "date": "2026-11-16T00:52:21+08:00",
+   "kind": "pr",
+   "pr": 858,
+   "title": "build a scratch VM as a zone's canary",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: coding-agent-network",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "7be83356e93d37acd0e50ed1a9f1a77a015b03d2",
+   "date": "2026-11-16T00:59:45+08:00",
+   "kind": "pr",
+   "pr": 859,
+   "title": "refuse a scenario timed twice and name a role that sent no timings",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b8b9747a0712cd1adbcbc24ea07d9829b315caaa",
+   "date": "2026-11-16T02:00:21+08:00",
+   "kind": "pr",
+   "pr": 860,
+   "title": "aim the shard report at legs of five minutes",
+   "type": "ci",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "19d31f18050a2cddaabf92cdbe124227b8bcc1ba",
+   "date": "2026-11-16T02:11:25+08:00",
+   "kind": "pr",
+   "pr": 861,
+   "title": "Improve molecule sharding",
+   "type": "test",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  }
+ ]
+}

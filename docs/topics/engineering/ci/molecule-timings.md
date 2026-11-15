@@ -16,7 +16,7 @@ Each leg runs `molecule-test-all.sh` with `MOLECULE_TIMINGS_FILE` set, which wri
 
 ## The report
 
-`ci.timing.report` writes a table to the job summary and, when anything should change, `molecule-shards.proposed.yml` to the `molecule-timings` artifact (kept 30 days), next to `state.json`. For each measured role it packs the scenarios longest first into the least loaded shard, in as many shards as fit the target of 10 minutes a leg, and reports the role when:
+`ci.timing.report` writes a table to the job summary and, when anything should change, `molecule-shards.proposed.yml` to the `molecule-timings` artifact (kept 30 days), next to `state.json`. For each measured role it packs the scenarios longest first into the least loaded shard, in as many shards as fit the target of 5 minutes a leg, and reports the role when:
 
 - its longest leg is past the target and the new layout shortens it by at least 30 seconds and 10%;
 - fewer legs would hold it within the target, which saves about 15 seconds of setup for each leg dropped;

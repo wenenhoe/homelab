@@ -32,6 +32,7 @@ call it as `python -m <package>.<module>` from `tools/`
   [App catalog rules](gates.md#app-catalog-rules)).
 - `ci.images` — the image registry and the CI image builds.
 - `ci.scan` — setup for the security scans (the Trivy config, and the gitleaks run over a PR's commits).
+- `ci.timing` — the scheduled Molecule timing run: which roles to time again, folding the timings into the recorded state, and the shard table report (see [Molecule timings](molecule-timings.md)).
 - `ci.fixtures` — data a job seeds before a real run, derived from the repo
   (the deploy-ordering check's secrets).
 
@@ -188,7 +189,7 @@ role disagrees with the scenarios on disk, and
 `python_unit_tests` runs when the table changes. Adding a scenario to a split
 role therefore means adding it to a shard in the same PR.
 
-Shards were balanced on measured scenario times, longest first. A role is worth
+Shards were balanced on measured scenario times, longest first. A scheduled run keeps those times current and proposes a better table; see [Molecule timings](molecule-timings.md). A role is worth
 splitting when its leg is the longest in a typical run and its scenarios are
 spread evenly enough for the split to shorten it: a role dominated by one
 scenario can't get faster than that scenario. Each extra leg costs about 15

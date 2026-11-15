@@ -26,3 +26,11 @@ def write_summary(title: str, lines: list[str]) -> None:
     if path:
         with open(path, "a") as fh:
             fh.write(f"### {title}\n\n" + "\n".join(f"- {line}" for line in lines) + "\n")
+
+
+def write_summary_markdown(text: str) -> None:
+    """Append `text` to the job summary as it is, when running in Actions."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a") as fh:
+            fh.write(text.rstrip("\n") + "\n")

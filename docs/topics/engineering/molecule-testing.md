@@ -146,6 +146,8 @@ unique scenario names. A role stops at its first failing scenario, as
 `--all` does. Every scenario is timed: the script prints a table of
 seconds per scenario and, in CI, appends it to the job summary, which is
 the data for deciding whether a role is worth splitting across runners.
+With `MOLECULE_TIMINGS_FILE` set it also writes each row, tab-separated, to
+that file, which [the scheduled timing run](ci/molecule-timings.md) collects.
 
 `molecule_helpers`'s shared scaffolding — the reference table of its
 task files, and how the DinD test containers it prepares actually

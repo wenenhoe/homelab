@@ -142,6 +142,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |
 | [`ci/change-scoping.md`](engineering/ci/change-scoping.md) | How a change decides which jobs run: the scoped outputs `detect-changes` produces, Molecule watch sets, and the comment-only and formatting-only changes that queue nothing. |
 | [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing and Dockerfile builds. |
+| [`ci/molecule-timings.md`](engineering/ci/molecule-timings.md) | How the Molecule shard table is kept balanced: the scheduled run that times only the roles whose files changed, the recorded state, and the report that proposes a better table. |
 | [`ci/image-tag-check.md`](engineering/ci/image-tag-check.md) | The weekly check that every pinned image tag still exists in its registry. |
 | [`ci/release-checksum-check.md`](engineering/ci/release-checksum-check.md) | The check that each pinned release hash is the one its publisher signed, attested or lists, on pull requests and weekly. |
 | [`ci/image-provenance-check.md`](engineering/ci/image-provenance-check.md) | The check that each pinned image digest is one its publisher signed or attested, the signer fixed in the repository, on pull requests and weekly. |

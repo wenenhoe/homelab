@@ -1,0 +1,192 @@
+name: Molecule timings
+
+# Twice a week, and on demand. Times the Molecule scenarios of every role whose
+# measurement is out of date and reports whether .github/molecule-shards.yml
+# still balances them. A role is out of date when the files its Molecule run
+# reads changed since it was measured, or when its measurement is 90 days old,
+# so a run on a quiet week measures nothing and only reads the recorded state.
+# See docs/topics/engineering/ci/molecule-timings.md.
+#
+# The state is one JSON file in the Actions cache, restored by prefix, so the
+# newest entry wins. Restoring it counts as access, and a run twice a week
+# keeps it clear of GitHub's eviction of entries unused for 7 days; if it is
+# evicted anyway the next run measures every role again. Nothing is committed
+# and the token cannot write, so the table is changed by a pull request the
+# maintainer opens from the report.
+#
+# The minute is off the hour to stay clear of the top-of-the-hour crowd on
+# GitHub's scheduler.
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: "7 5 * * 3,6"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Measure every role, whatever its recorded measurement says
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: molecule-timings
+  cancel-in-progress: false
+
+env:
+  STATE_DIR: ${{ github.workspace }}/../molecule-timings-state
+
+jobs:
+  plan:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    outputs:
+      roles: ${{ steps.plan.outputs.roles }}
+      shards: ${{ steps.shards.outputs.shards }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          locked: "true"
+
+      # No entry has this key; the prefix finds the newest one a run saved.
+      - name: Restore the recorded timings
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.STATE_DIR }}
+          key: molecule-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: molecule-timings-
+
+      - name: Name the roles to measure
+        id: plan
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          args=()
+          if [ "$FORCE" = true ]; then args+=(--force); fi
+          uv run python -m ci.timing.plan --state "$STATE_DIR/state.json" "${args[@]}"
+        working-directory: tools
+
+      - name: Split the roles into molecule legs
+        id: shards
+        env:
+          ROLES: ${{ steps.plan.outputs.roles }}
+        run: uv run python -m ci.scope.molecule_shards
+        working-directory: tools
+
+  measure:
+    needs: plan
+    if: needs.plan.outputs.roles != '[]'
+    name: measure (${{ matrix.shard.name }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.plan.outputs.shards) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv + Ansible Galaxy collections
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          install-galaxy-collections: "true"
+
+      # The same run as the pull request's molecule job, with the timings
+      # written to a file as well. An empty scenarios list runs every scenario.
+      - name: Run molecule test — ${{ matrix.shard.name }}
+        env:
+          MATRIX_ROLE: ${{ matrix.shard.role }}
+          MATRIX_SCENARIOS: ${{ matrix.shard.scenarios }}
+          MOLECULE_TIMINGS_FILE: ${{ runner.temp }}/timings.tsv
+        run: |
+          args=()
+          for scenario in $MATRIX_SCENARIOS; do args+=(-s "$scenario"); done
+          uv run ./scripts/molecule-test-all.sh "$MATRIX_ROLE" "${args[@]}"
+        working-directory: ansible
+
+      # if: always() - the scenarios that passed before a failure are still
+      # in the file, and ci.timing.merge decides what it can record.
+      - name: Upload timings
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: timings-${{ matrix.shard.name }}
+          path: ${{ runner.temp }}/timings.tsv
+          if-no-files-found: ignore
+          retention-days: 1
+
+  record:
+    needs: [plan, measure]
+    # A leg that failed leaves the others' timings worth recording.
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          locked: "true"
+
+      - name: Restore the recorded timings
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.STATE_DIR }}
+          key: molecule-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: molecule-timings-
+
+      - name: Download timings
+        if: needs.plan.outputs.roles != '[]'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: timings-*
+          path: ${{ runner.temp }}/timings
+          merge-multiple: true
+
+      # A pattern that matches no artifact (every leg failed before it wrote
+      # one) leaves no directory behind, and the merge reads an empty one.
+      - name: Record the timings
+        if: needs.plan.outputs.roles != '[]'
+        env:
+          RESULTS: ${{ runner.temp }}/timings
+        run: |
+          mkdir -p "$RESULTS"
+          uv run python -m ci.timing.merge --state "$STATE_DIR/state.json" --results "$RESULTS" --out "$STATE_DIR/state.json"
+        working-directory: tools
+
+      - name: Compare the shard table with the timings
+        env:
+          OUT_DIR: ${{ runner.temp }}/molecule-timings-report
+        run: |
+          mkdir -p "$OUT_DIR"
+          uv run python -m ci.timing.report --state "$STATE_DIR/state.json" --proposal "$OUT_DIR/molecule-shards.proposed.yml"
+          cp "$STATE_DIR/state.json" "$OUT_DIR/state.json"
+        working-directory: tools
+
+      - name: Save the recorded timings
+        if: needs.plan.outputs.roles != '[]'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.STATE_DIR }}
+          key: molecule-timings-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload the report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: molecule-timings
+          path: ${{ runner.temp }}/molecule-timings-report
+          if-no-files-found: ignore
+          retention-days: 30

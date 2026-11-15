@@ -5,19 +5,23 @@
 # Shards are balanced on measured scenario times, heaviest shard first. Listed
 # order is only the order legs are handed to Actions, which doesn't promise to
 # start them in it.
+bind9:
+  - [secondary]
+  - [default, invalid_host_records]
 secrets:
-  - [vault_backed, delivered_root_cert, vault_approle_files_missing]
-  - [rotate_secret, default, manual_missing]
-  - [vault_manual_missing, cache_dir_env, vault_approle_missing]
-  - [snapshot_restore]
+  - [rotate_secret, vault_manual_missing, vault_approle_missing]
+  - [vault_backed, vault_approle_files_missing, cache_dir_env]
+  - [snapshot_restore, default, delivered_root_cert, manual_missing]
 step_ca_cert:
   - [signal_chown, san_drift]
   - [default, not_running, probe_fails]
   - [renewal_timing]
 compose:
-  - [reset, default]
-  - [cleanup, build]
-  - [volumes, scripts]
+  - [reset, scripts, build]
+  - [volumes, cleanup, default]
 backup_agent:
   - [default]
   - [no_stop_apps, varying_cron]
+restore:
+  - [multi_volume, validation_failure, uncompressed_archive]
+  - [confirmation_declined, default]

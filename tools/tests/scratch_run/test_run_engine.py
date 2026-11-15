@@ -30,7 +30,8 @@ RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    fa
         pytest.param(CHECK_CHANGED, 0, RECAP.format(n=0), False, id="changed-but-recap-says-0"),
         pytest.param(FLOWS_PASS, 0, "", True, id="flows-pass"),
         pytest.param(FLOWS_PASS, 1, "", False, id="flows-fail-unexpectedly"),
-        pytest.param(FLOWS_FAIL, 1, "", True, id="flows-fail-as-wanted"),
+        pytest.param(FLOWS_FAIL, 1, "FAIL services-gateway-dns: blocked\n", True, id="flows-fail-as-wanted"),
+        pytest.param(FLOWS_FAIL, 1, "Traceback: the runner crashed\n", False, id="a-crash-is-not-the-failure-wanted"),
         pytest.param(FLOWS_FAIL, 0, "", False, id="flows-pass-when-a-failure-was-wanted"),
         pytest.param(FLOWS_FAIL, 2, "", False, id="nothing-selected-is-not-a-failure"),
         pytest.param(BLOCK, 0, "", True, id="block-ok"),
@@ -98,3 +99,23 @@ def test_a_credential_value_in_a_result_fails_the_run_and_no_archive_is_written(
 def test_a_value_shorter_than_eight_characters_is_not_searched_for(rehearsal, tmp_path):
     backend = FakeBackend(answers={"flows:services": (0, "a short word\n")}, secret_values=["short"])
     assert run(rehearsal, backend, tmp_path, "T7", lambda: 0.0, say=lambda line: None) == EXIT_OK
+
+
+def test_a_run_says_what_it_is_doing_before_each_step_and_how_long_each_took(rehearsal, tmp_path):
+    lines: list[str] = []
+    ticks = iter(range(0, 10_000, 7))
+    run(rehearsal, FakeBackend(), tmp_path, "T8", lambda: float(next(ticks)), say=lines.append)
+    assert lines[0] == "STEP up: building the gateway (its log follows; this takes minutes)"
+    assert "STEP play-apply: running (play apply)" in lines
+    assert "STEP dns-blocked: running (flows services-gateway-dns)" in lines
+    assert "STEP down: removing the gateway" in lines
+    assert any(line.startswith("STEP up: PASS") and line.endswith("; 7s)") for line in lines)
+
+
+def test_the_run_ends_with_each_steps_time_and_the_total(rehearsal, tmp_path):
+    lines: list[str] = []
+    ticks = iter(range(0, 10_000, 7))
+    run(rehearsal, FakeBackend(), tmp_path, "T9", lambda: float(next(ticks)), say=lines.append)
+    table = next(line for line in lines if line.startswith("  PASS up"))
+    assert "PASS up" in table and "PASS dns-restored" in table and "PASS down" in table
+    assert f"  total {7 * len(rehearsal.steps) + 14}s" in lines

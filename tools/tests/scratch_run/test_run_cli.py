@@ -90,7 +90,8 @@ def test_the_settings_file_supplies_the_environment_the_image_and_the_out_dir(tm
     )
     seen: dict = {}
     assert main(["rehearsal", "--preflight", "--env-file", str(path)], environ={}, backend_factory=factory(FakeBackend(), seen), master_factory=masters()) == 0
-    assert (seen["out"], seen["url"], seen["checksum"], seen["env"]["NODE"]) == (tmp_path / "state", "https://x/a.img.bz2", "a" * 64, "root@pve")
+    assert (seen["out"].parent, seen["url"], seen["checksum"], seen["env"]["NODE"]) == (tmp_path / "state", "https://x/a.img.bz2", "a" * 64, "root@pve")
+    assert seen["out"].name.startswith("state-rehearsal-")
 
 
 def test_a_flag_beats_the_environment_and_the_environment_beats_the_file(tmp_path):
@@ -98,7 +99,7 @@ def test_a_flag_beats_the_environment_and_the_environment_beats_the_file(tmp_pat
     seen: dict = {}
     argv = ["rehearsal", str(tmp_path / "flag-out"), "--preflight", "--env-file", str(path), "--image-url", "from-flag"]
     main(argv, environ={"NODE": "from-env"}, backend_factory=factory(FakeBackend(), seen), master_factory=masters())
-    assert (seen["out"], seen["url"], seen["env"]["NODE"]) == (tmp_path / "flag-out", "from-flag", "from-env")
+    assert (seen["out"].parent, seen["url"], seen["env"]["NODE"]) == (tmp_path / "flag-out", "from-flag", "from-env")
 
 
 def test_the_default_settings_file_is_used_when_it_exists(tmp_path, monkeypatch):
@@ -108,7 +109,7 @@ def test_the_default_settings_file_is_used_when_it_exists(tmp_path, monkeypatch)
     monkeypatch.setenv("HOME", str(home))
     seen: dict = {}
     assert main(["rehearsal", "--preflight"], environ={}, backend_factory=factory(FakeBackend(), seen), master_factory=masters()) == 0
-    assert (seen["env"]["NODE"], seen["out"]) == ("from-default", home / "state")
+    assert (seen["env"]["NODE"], seen["out"].parent) == ("from-default", home / "state")
 
 
 def test_an_env_file_that_is_named_and_missing_is_an_error(tmp_path, capsys):

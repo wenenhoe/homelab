@@ -4,7 +4,7 @@ They live here and not in conftest.py because a test imports them by name, and `
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -40,7 +40,11 @@ class FakeBackend:
 
     def flows(self, tags: tuple[str, ...], ids: tuple[str, ...]) -> tuple[int, str]:
         status, output = self._answer("flows:" + ",".join((*tags, *ids)))
-        return (1, "services-gateway-dns failed\n") if self.blocked and "services-gateway-dns" in ids and status == 0 else (status, output)
+        return (
+            (1, "FAIL services-gateway-dns: blocked: TimeoutError: timed out\n")
+            if self.blocked and "services-gateway-dns" in ids and status == 0
+            else (status, output)
+        )
 
     def block(self, spec: Spec, state: str) -> tuple[int, str]:
         self.blocked = state == "present"
@@ -59,9 +63,19 @@ class RecordingRunner:
 
     rules: dict[str, tuple[int, str]] = field(default_factory=dict)  # a word in the command line -> its answer
     calls: list[tuple[list[str], dict[str, str] | None, Path | None]] = field(default_factory=list)
+    echoed: list[Callable[[str], None] | None] = field(default_factory=list)  # the `on_output` each call got
 
-    def __call__(self, argv: Sequence[str], *, env: Mapping[str, str] | None = None, cwd: Path | None = None, timeout: int = 0) -> tuple[int, str]:
+    def __call__(
+        self,
+        argv: Sequence[str],
+        *,
+        env: Mapping[str, str] | None = None,
+        cwd: Path | None = None,
+        timeout: int = 0,
+        on_output: Callable[[str], None] | None = None,
+    ) -> tuple[int, str]:
         self.calls.append((list(argv), dict(env) if env is not None else None, cwd))
+        self.echoed.append(on_output)
         line = " ".join(argv)
         for word, answer in self.rules.items():
             if word in line:

@@ -39,12 +39,14 @@ A step has an `id` and exactly one of these:
 | Step | Does | `expect` |
 | :--- | :--- | :--- |
 | `play: apply` or `play: check` | Runs the gateway's play, with `--check` for `check` | `ok` (exit 0, the default for `apply`), `unchanged` (exit 0 and the recap says `changed=0`, the default for `check`) or `changed` |
-| `flows: {tags: [...], ids: [...]}` | Runs the [runner](network-boundary-checks.md#the-probe-module-and-the-runner) on that selection, building the namespace canaries first on the first such step | `pass` (the default) or `fail`: a failure of the flows, so a selection that holds no flow does not count |
+| `flows: {tags: [...], ids: [...]}` | Runs the [runner](network-boundary-checks.md#the-probe-module-and-the-runner) on that selection, building the namespace canaries first on the first such step | `pass` (the default) or `fail`: at least one flow the runner reports as failed, so a selection that holds no flow and a runner that crashed do not count |
 | `block: present` or `block: absent` | Adds or lifts `block_rule` | None: it passes when the playbook succeeds |
 
-A failed step does not stop the run: the later steps still run, so one archive shows everything, and the gateway is removed on every path unless `--keep` is given.
+A failed step does not stop the run: the later steps still run, so one archive shows everything, and the gateway is removed on every path unless `--keep` is given. The terminal shows each step as it starts, the log of each command as it prints (indented, and kept in the step's file), and for each step its time; the run ends with a table of the times and their total. Most of a run is the `up` step, which builds the gateway and updates its firmware, so its log is the one to watch.
 
 ## What a run leaves
+
+Each run builds in `OUT_DIR/state-<name>-<stamp>/`, which holds the gateway's credentials, its certificate and the runner's key. A clean teardown removes it. When the teardown fails, or with `--keep`, it stays, and `scratch_gateway.sh down` on it removes the gateway. The credentials are never in the results.
 
 `OUT_DIR/<name>-<stamp>/` holds one `<step id>.txt` per step (plus `up.txt` and `down.txt`), `results.json` and `results.md`, and `OUT_DIR/results-<name>-<stamp>.tgz` holds the same. Before the archive is written, every file is searched for the run's credential values (the seed's root password, one-time-code seed, API key and secret, and the secret half of the Proxmox token). A file that holds one fails the run and no archive is written.
 

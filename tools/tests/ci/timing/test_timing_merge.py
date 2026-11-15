@@ -65,6 +65,21 @@ class TestMerge:
         assert merged["roles"] == {}
         assert problems == ["ghost: has no Molecule scenarios in this tree"]
 
+    def test_a_scenario_timed_twice_means_no_row_of_the_role_is_trusted(self):
+        rows = [("a", "x", 10, "passed"), ("a", "x", 12, "passed"), ("a", "y", 20, "passed")]
+        merged, problems = merge.merge(recorded(), CURRENT, ON_DISK, rows, TODAY)
+        assert merged["roles"] == {}
+        assert problems == ["a: not recorded (timed more than once: x)"]
+
+    def test_a_role_the_run_was_meant_to_time_that_sent_nothing_is_reported(self):
+        merged, problems = merge.merge(recorded(), CURRENT, ON_DISK, [("a", "x", 1, "passed"), ("a", "y", 1, "passed")], TODAY, expected=["a", "b"])
+        assert sorted(merged["roles"]) == ["a"]
+        assert problems == ["b: no timings received"]
+
+    def test_an_expected_role_the_tree_no_longer_has_is_not_reported_as_missing(self):
+        _, problems = merge.merge(recorded(), CURRENT, ON_DISK, [], TODAY, expected=["ghost"])
+        assert problems == []
+
     def test_a_newer_measurement_replaces_the_old_one(self):
         before = recorded(b=old("stale", default=99))
         merged, _ = merge.merge(before, CURRENT, ON_DISK, [("b", "default", 7, "passed")], TODAY)
@@ -87,3 +102,18 @@ class TestReadResults:
         (root / "bad.tsv").write_text("nonsense\n")
         with pytest.raises(state.ResultError, match=r"bad\.tsv:1"):
             merge.read_results(root)
+
+
+class TestMain:
+    def test_it_records_what_it_can_and_lists_what_it_could_not_in_the_job_summary(self, root, monkeypatch, capsys):
+        monkeypatch.setattr(merge.fingerprint, "fingerprints", lambda _root: CURRENT)
+        monkeypatch.setattr(merge.molecule_shards, "scenarios_on_disk", lambda _root, role: ON_DISK[role])
+        (root / "results").mkdir()
+        (root / "results" / "leg.tsv").write_text("a\tx\t1\tpassed\na\ty\t2\tpassed\n")
+        summary = root / "summary.md"
+        monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+        argv = ["--state", str(root / "s.json"), "--results", str(root / "results"), "--out", str(root / "s.json"), "--expect", '["a","b"]']
+        assert merge.main(argv) == 0
+        assert sorted(state.load(root / "s.json")["roles"]) == ["a"]
+        assert "::warning::b: no timings received" in capsys.readouterr().out
+        assert "- b: no timings received" in summary.read_text()

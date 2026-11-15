@@ -9,13 +9,18 @@ python -m scratch_run --list              # the specs there are, and what each s
 python -m scratch_run rehearsal --check-spec   # read the spec and check it against the flow list, nothing else
 python -m scratch_run rehearsal --preflight    # also check everything the run needs, then stop
 python -m scratch_run rehearsal                # run it
+python -m scratch_run --ssh status             # is the ssh master to the node up? (also: up, down)
 ```
 
 A spec is named by its file's stem in [`tofu/scratch/opnsense/runs/`](../../../tofu/scratch/opnsense/runs/rehearsal.yaml) or given as a path. The exit status is 0 when every step had the outcome the spec expected, 1 when one did not, and 2 when the run could not start.
 
 ## Settings
 
-Nothing is typed per run. `--init-env` writes the settings file, `KEY=VALUE` lines read as text and never run as a shell script, and the command reads it on every run. It holds the Proxmox token, so it has to be owned by you, mode 600 and outside the repository; the command refuses it otherwise. Beside the variables `scratch_gateway.sh` takes (`NODE`, `PROXMOX_ENDPOINT`, `PROXMOX_API_TOKEN`, `VM_ID`, `LAN_BRIDGE` and the rest) and `SSH_CONTROL_PATH`, `ANSIBLE_PLAYBOOK`, it holds `SCRATCH_RUN_OUT_DIR`, `SCRATCH_RUN_IMAGE_URL` and `SCRATCH_RUN_IMAGE_CHECKSUM`. A real environment variable beats the file, and a flag (`--image-url`, `--image-checksum`, `--env-file`, or `OUT_DIR` after the spec) beats both. `OUT_DIR` holds the gateway's state and credentials and has to be outside the repository too.
+Nothing is typed per run. `--init-env` writes the settings file, `KEY=VALUE` lines read as text and never run as a shell script, and the command reads it on every run. It holds the Proxmox token, so it has to be owned by you, mode 600 and outside the repository; the command refuses it otherwise. Beside the variables `scratch_gateway.sh` takes (`NODE`, `PROXMOX_ENDPOINT`, `PROXMOX_API_TOKEN`, `VM_ID`, `LAN_BRIDGE` and the rest) and `ANSIBLE_PLAYBOOK`, it holds `SCRATCH_RUN_OUT_DIR`, `SCRATCH_RUN_IMAGE_URL` and `SCRATCH_RUN_IMAGE_CHECKSUM`. A real environment variable beats the file, and a flag (`--image-url`, `--image-checksum`, `--env-file`, or `OUT_DIR` after the spec) beats both. `OUT_DIR` holds the gateway's state and credentials and has to be outside the repository too.
+
+## The ssh master
+
+`scratch_gateway.sh` and the node backend talk to the node without ever being able to answer a prompt, so a master connection has to be open first, at the socket `SSH_CONTROL_PATH` names (default `~/.cache/scratch-run/ssh.sock`, in a directory only you can enter). Every ssh command of the run, and the gateway's GUI tunnel, multiplex over it. The command checks the socket (`ssh -O check`) before a run or a preflight and, when no master answers, opens one on your terminal, which is where a key passphrase, a password or a hardware-key touch is asked for. An opened master stays up for an hour after its last use, so repeated runs ask once. A socket file a dead master left behind is removed first, because a new master refuses to start beside it. `--ssh up`, `--ssh status` and `--ssh down` do the same by hand: `status` exits 1 when no master is up. Without `NODE` set, no master is touched.
 
 ## The spec
 

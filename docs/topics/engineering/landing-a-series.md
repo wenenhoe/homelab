@@ -55,6 +55,10 @@ Every `git` and `gh` call goes through one runner (`tools/land_series/run.py`) t
 
 Progress goes to stderr: what the tool is doing to which pull request, and the pull request's address once it exists. On a terminal, a live block under it shows the last lines the running check printed (the replay) or the required checks that have not passed yet (the wait for CI), and is erased when that step ends, so each leaves one line behind. A failed check prints its output in full as before. Nothing is drawn when stderr is not a terminal or `TERM` is `dumb`; a pipe or a log file gets the progress lines alone. The run ends with one line per pull request, `<number>  merged|left open  <url>`. A kept branch that is checked out cannot be deleted; the tool says so, and you switch away and run `git branch -D` yourself.
 
+## Advice on a review
+
+After the replay, and again before each merge prompt of `--land`, the tool applies the criteria of [`pr-review.md`](pr-review.md#when-it-is-worth-asking) to each pull request's own commits and prints `Worth asking for a review:` with the criteria that tripped, the files that tripped them and a pointer to how to ask. A pull request that trips none gets no line. It is advice: it changes no exit status and stops nothing, a diff it cannot read gives none, and `--yes` skips the merge prompt and so its advice too.
+
 ## Not for
 
 - Changes to `tools/land_series` itself: apply those with `git am` ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)), so the tool that lands a series is reviewed and merged before it is used on one.

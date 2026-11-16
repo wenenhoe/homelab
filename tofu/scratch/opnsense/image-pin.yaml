@@ -1,4 +1,6 @@
 # The OPNsense nano image a QEMU scratch gateway boots, and its published SHA-256 (the .img.bz2's, from the release's checksum file).
-# A node run takes the same two values from its settings file instead.
+# The release-checksum check verifies `sha256` against the release's signed checksum file for `version`.
+# To bump, see docs/topics/infra/scratch-gateway-runs.md. A node run takes the url and checksum from its settings file instead.
+version: "26.1.6"
 url: https://pkg.opnsense.org/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2
 sha256: 3c16267c791abfc3e41d5249fcb0c245c03cb91e2f1aa4d53017f0f3454d03a1

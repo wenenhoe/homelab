@@ -7,6 +7,10 @@ its version live, and carries what its tier needs
 - Signed: the publisher signs a manifest. The manifest and signature are
   fetched and verified against the key committed under keys/, and the pinned
   hash must equal the manifest's line for the file.
+- Signed with an RSA key (SignedRsa): the same tier for a publisher that signs
+  its manifest with OpenSSL (a base64 RSA signature, a PEM public key). The
+  committed key is checked against the entry's fingerprint, and the signature
+  is verified with `openssl`.
 - Attested: the publisher publishes a build attestation for the file. The file
   is downloaded, must hash to the pin, and must pass `gh attestation verify`
   for the repository that builds it.
@@ -43,6 +47,7 @@ class Location:
 
 
 _FINGERPRINT = re.compile(r"[0-9A-F]{40}")
+_RSA_FINGERPRINT = re.compile(r"[0-9a-f]{64}")
 _REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 
 
@@ -81,6 +86,26 @@ class Signed(_Pinned):
             _template(self.name, "signature_url", self.signature_url)
         if not _FINGERPRINT.fullmatch(self.fingerprint):
             raise ValueError(f"{self.name}: fingerprint must be 40 upper-case hex digits")
+        _bare_name(self.name, self.file)
+
+
+@dataclass(frozen=True, kw_only=True)
+class SignedRsa(_Pinned):
+    tier: ClassVar[Tier] = Tier.SIGNED
+    # The artifact's name as the manifest lists it. `{version}` is the pinned version here and in the URLs.
+    file: str
+    manifest_url: str
+    signature_url: str
+    # The SHA-256 of the DER encoding of the signing public key, lower case, and the committed PEM file that must hold exactly that key.
+    fingerprint: str
+    key: str
+
+    def __post_init__(self) -> None:
+        _template(self.name, "file", self.file, url=False)
+        _template(self.name, "manifest_url", self.manifest_url)
+        _template(self.name, "signature_url", self.signature_url)
+        if not _RSA_FINGERPRINT.fullmatch(self.fingerprint):
+            raise ValueError(f"{self.name}: fingerprint must be 64 lower-case hex digits")
         _bare_name(self.name, self.file)
 
 
@@ -124,9 +149,10 @@ def _bare_name(entry: str, file: str) -> None:
         raise ValueError(f"{entry}: file must be a bare name")
 
 
-Entry = Signed | Attested | Listed | Unchecked
+Entry = Signed | SignedRsa | Attested | Listed | Unchecked
 
 _CD_AGENT = "ansible/roles/cd_agent/defaults/main.yaml"
+_OPNSENSE_IMAGE = "tofu/scratch/opnsense/image-pin.yaml"
 _OPENBAO_CLI = "ansible/roles/openbao_cli/defaults/main.yaml"
 KEYS = "tools/ci/checksums/keys"
 
@@ -156,5 +182,17 @@ ENTRIES: tuple[Entry, ...] = (
         signature_url="https://github.com/openbao/openbao/releases/download/v{version}/checksums.txt.gpgsig",
         fingerprint="66D15FDD87287219C8E15478D200CD702853E6D0",
         key=f"{KEYS}/openbao.asc",
+    ),
+    # The release series (26.1) is in the URLs and names the signing key.
+    # A bump to another series fails on a missing manifest until the entry and key are reviewed.
+    SignedRsa(
+        name="opnsense-image",
+        pin=Location(_OPNSENSE_IMAGE, "sha256"),
+        version=Location(_OPNSENSE_IMAGE, "version"),
+        file="OPNsense-{version}-nano-amd64.img.bz2",
+        manifest_url="https://pkg.opnsense.org/releases/26.1/OPNsense-{version}-checksums-amd64.sha256",
+        signature_url="https://pkg.opnsense.org/releases/26.1/OPNsense-{version}-checksums-amd64.sha256.sig",
+        fingerprint="dfa7ce14da8bd84d9e1f1b673c20583b94ae79303cb6fddd882130d0840f1a4b",
+        key=f"{KEYS}/opnsense-26.1.pem",
     ),
 )

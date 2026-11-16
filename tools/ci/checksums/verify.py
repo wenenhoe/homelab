@@ -11,7 +11,7 @@ tampered release.
 A failure of any entry fails the run, an unreachable manifest included: a pin
 that could not be compared has not been shown to be the publisher's.
 
-Needs `gpg` for signed entries, and `gh` with GH_TOKEN set for attested ones;
+Needs `gpg` for signed entries and `openssl` for RSA-signed ones, and `gh` with GH_TOKEN set for attested ones;
 `gh` is retried as ci.verification describes. Standard library only.
 
 Usage (from tools/): python -m ci.checksums.verify [ENTRY ...]
@@ -33,8 +33,8 @@ from pathlib import Path
 from typing import IO, Any
 
 from ci import proc
-from ci.checksums import gpg, manifest, pins
-from ci.checksums.registry import ENTRIES, Attested, Entry, Listed, Signed, Unchecked
+from ci.checksums import gpg, manifest, pins, rsa
+from ci.checksums.registry import ENTRIES, Attested, Entry, Listed, Signed, SignedRsa, Unchecked
 from ci.output import write_summary
 from ci.verification import ATTEMPTS, Sleep, attestation, backoff
 
@@ -132,6 +132,18 @@ def _check_signed(root: Path, entry: Signed, version: str, pin: str, fetch: Fetc
     return [problem] if problem else []
 
 
+def _check_signed_rsa(root: Path, entry: SignedRsa, version: str, pin: str, fetch: Fetch, run: proc.Runner) -> list[str]:
+    text = rsa.verify_manifest(
+        root / entry.key,
+        entry.fingerprint,
+        fetch(entry.manifest_url.format(version=version)),
+        fetch(entry.signature_url.format(version=version)),
+        run,
+    )
+    problem = manifest.mismatch(manifest.parse(text), entry.file.format(version=version), pin)
+    return [problem] if problem else []
+
+
 def _check_listed(entry: Listed, version: str, pin: str, fetch: Fetch) -> list[str]:
     listed = manifest.parse(fetch(entry.manifest_url.format(version=version)).decode(errors="replace"))
     problem = manifest.mismatch(listed, entry.file.format(version=version), pin)
@@ -153,13 +165,15 @@ def check_entry(root: Path, entry: Entry, fetch: Fetch, download: Download, run:
         version, pin = pins.read_pin(root, entry)
         if isinstance(entry, Signed):
             errors = _check_signed(root, entry, version, pin, fetch, run)
+        elif isinstance(entry, SignedRsa):
+            errors = _check_signed_rsa(root, entry, version, pin, fetch, run)
         elif isinstance(entry, Attested):
             errors = _check_attested(entry, version, pin, download, run, workdir, sleep)
         elif isinstance(entry, Listed):
             errors = _check_listed(entry, version, pin, fetch)
         else:
             errors = []
-    except (pins.PinError, FetchError, gpg.SignatureError) as exc:
+    except (pins.PinError, FetchError, gpg.SignatureError) as exc:  # rsa raises gpg's SignatureError
         errors = [str(exc)]
     return Outcome(entry, errors)
 

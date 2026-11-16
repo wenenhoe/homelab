@@ -14,10 +14,12 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from ci.checksums.registry import ENTRIES, Signed
+from ci.checksums import rsa
+from ci.checksums.registry import ENTRIES, Signed, SignedRsa
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SIGNED = [entry for entry in ENTRIES if isinstance(entry, Signed)]
+SIGNED_RSA = [entry for entry in ENTRIES if isinstance(entry, SignedRsa)]
 
 
 def primary_fingerprints(key: Path, home: Path) -> list[str]:
@@ -57,4 +59,18 @@ class TestCommittedKeys:
     def test_the_key_file_is_a_public_key(self, entry):
         text = (REPO_ROOT / entry.key).read_text()
         assert text.startswith("-----BEGIN PGP PUBLIC KEY BLOCK-----")
+        assert "PRIVATE" not in text
+
+
+@pytest.mark.parametrize("entry", SIGNED_RSA, ids=lambda entry: entry.name)
+class TestCommittedRsaKeys:
+    def test_the_key_file_is_committed(self, entry):
+        assert (REPO_ROOT / entry.key).is_file()
+
+    def test_the_key_file_holds_the_entrys_fingerprint_and_no_other_key(self, entry):
+        assert rsa.key_fingerprint(REPO_ROOT / entry.key) == entry.fingerprint
+
+    def test_the_key_file_is_a_public_key(self, entry):
+        text = (REPO_ROOT / entry.key).read_text()
+        assert text.startswith("-----BEGIN PUBLIC KEY-----")
         assert "PRIVATE" not in text

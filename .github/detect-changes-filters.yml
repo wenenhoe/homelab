@@ -117,6 +117,7 @@ release_checksums:
   - 'ansible/roles/openbao_cli/defaults/main.yaml'
   - 'ansible/roles/docker/defaults/main.yaml'
   - 'ansible/roles/tailscale_node/defaults/main.yaml'
+  - 'tofu/scratch/opnsense/image-pin.yaml'
 # Gates provenance: the checker and its registry and keys, and every file that
 # can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the
 # scripts, workflow and Python constant a Renovate manager tracks) — see

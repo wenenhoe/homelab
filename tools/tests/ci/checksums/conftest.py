@@ -1,7 +1,9 @@
-"""Fixtures for the checksum tests: real OpenPGP keys, and a repository tree the registry can read."""
+"""Fixtures for the checksum tests: real OpenPGP and RSA keys, and a repository tree the registry can read."""
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import subprocess
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -67,3 +69,38 @@ def make_signer(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Callable[.
 @pytest.fixture
 def signer(make_signer: Callable[..., Signer]) -> Signer:
     return make_signer()
+
+
+class RsaSigner:
+    """A generated RSA key whose signatures are OpenSSL's, in the form OPNsense publishes: base64 of a SHA-256 PKCS#1 v1.5 signature."""
+
+    def __init__(self, directory: Path, name: str = "rsa") -> None:
+        self.directory = directory
+        private = directory / f"{name}.private.pem"
+        subprocess.run(["openssl", "genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", str(private)], check=True, capture_output=True)
+        self.private = private
+        self.pem = subprocess.run(["openssl", "pkey", "-in", str(private), "-pubout"], check=True, capture_output=True, text=True).stdout
+
+    @property
+    def fingerprint(self) -> str:
+        body = "".join(self.pem.splitlines()[1:-1])
+        return hashlib.sha256(base64.b64decode(body)).hexdigest()
+
+    def sign(self, manifest: bytes) -> bytes:
+        source = self.directory / "to-sign"
+        source.write_bytes(manifest)
+        raw = subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(self.private), str(source)], check=True, capture_output=True).stdout
+        return base64.encodebytes(raw)
+
+
+@pytest.fixture
+def make_rsa_signer(tmp_path_factory: pytest.TempPathFactory) -> Callable[..., RsaSigner]:
+    def make(name: str = "rsa") -> RsaSigner:
+        return RsaSigner(tmp_path_factory.mktemp("r"), name)
+
+    return make
+
+
+@pytest.fixture
+def rsa_signer(make_rsa_signer: Callable[..., RsaSigner]) -> RsaSigner:
+    return make_rsa_signer()

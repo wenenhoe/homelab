@@ -9,7 +9,7 @@ import re
 
 import pytest
 from ci.checksums import registry
-from ci.checksums.registry import ENTRIES, Attested, Listed, Location, Signed, Tier, Unchecked
+from ci.checksums.registry import ENTRIES, Attested, Listed, Location, Signed, SignedRsa, Tier, Unchecked
 
 WHERE = {"pin": Location("defaults.yaml", "tool_sha256"), "version": Location("defaults.yaml", "tool_version")}
 SIGNED = {
@@ -49,6 +49,40 @@ class TestSigned:
         for missing in ("key", "fingerprint"):
             with pytest.raises(TypeError, match=missing):
                 Signed(**WHERE, **{k: v for k, v in SIGNED.items() if k != missing})
+
+
+SIGNED_RSA = {
+    "name": "tool",
+    "file": "tool-{version}.img.bz2",
+    "manifest_url": "https://example.invalid/{version}/sums",
+    "signature_url": "https://example.invalid/{version}/sums.sig",
+    "fingerprint": "a" * 64,
+    "key": "keys/tool.pem",
+}
+
+
+class TestSignedRsa:
+    def test_a_complete_entry_is_in_the_signed_tier(self):
+        assert SignedRsa(**WHERE, **SIGNED_RSA).tier is Tier.SIGNED
+
+    @pytest.mark.parametrize(
+        ("change", "message"),
+        [
+            pytest.param({"fingerprint": "A" * 64}, "64 lower-case hex", id="upper-case-fingerprint"),
+            pytest.param({"fingerprint": "a" * 40}, "64 lower-case hex", id="a-gpg-length-fingerprint"),
+            pytest.param({"manifest_url": "http://example.invalid/sums"}, "manifest_url must be an https URL", id="plain-http-manifest"),
+            pytest.param({"signature_url": "ftp://example.invalid/sig"}, "signature_url must be an https URL", id="non-https-signature"),
+            pytest.param({"signature_url": "https://example.invalid/{os}/sig"}, r"signature_url may only use \{version\}", id="other-placeholder"),
+            pytest.param({"file": "./tool.img.bz2"}, "file must be a bare name", id="dot-slash-file"),
+        ],
+    )
+    def test_an_entry_that_would_weaken_the_check_is_refused(self, change, message):
+        with pytest.raises(ValueError, match=message):
+            SignedRsa(**WHERE, **{**SIGNED_RSA, **change})
+
+    def test_the_signature_is_required_because_nothing_is_signed_in_place(self):
+        with pytest.raises(TypeError, match="signature_url"):
+            SignedRsa(**WHERE, **{k: v for k, v in SIGNED_RSA.items() if k != "signature_url"})
 
 
 ATTESTED = {"name": "tool", "artifact_url": "https://example.invalid/{version}/tool.tar.gz", "repository": "owner/tool"}
@@ -102,6 +136,7 @@ class TestRealRegistry:
             "uv": Tier.ATTESTED,
             "rclone": Tier.SIGNED,
             "openbao-cli": Tier.SIGNED,
+            "opnsense-image": Tier.SIGNED,
         }
 
     def test_every_pin_is_a_different_variable(self):
@@ -114,6 +149,21 @@ class TestRealRegistry:
         for entry in signed:
             with subtests.test(entry=entry.name):
                 assert re.fullmatch(rf"{re.escape(registry.KEYS)}/[a-z-]+\.asc", entry.key)
+
+    def test_the_rsa_signed_entries_have_a_key_file_and_a_fingerprint_each_of_their_own(self, subtests):
+        signed = [entry for entry in ENTRIES if isinstance(entry, SignedRsa)]
+        assert signed
+        assert len({entry.key for entry in signed}) == len({entry.fingerprint for entry in signed}) == len(signed)
+        for entry in signed:
+            with subtests.test(entry=entry.name):
+                assert re.fullmatch(rf"{re.escape(registry.KEYS)}/[a-z0-9.-]+\.pem", entry.key)
+
+    def test_the_opnsense_image_is_checked_against_the_release_series_that_signed_it(self):
+        entry = next(entry for entry in ENTRIES if entry.name == "opnsense-image")
+        assert isinstance(entry, SignedRsa)
+        assert entry.manifest_url.startswith("https://pkg.opnsense.org/releases/26.1/")
+        assert entry.signature_url == entry.manifest_url + ".sig"
+        assert entry.key.endswith("opnsense-26.1.pem")
 
     def test_the_attested_artifact_is_attested_for_the_repository_that_builds_it(self):
         uv = next(entry for entry in ENTRIES if entry.name == "uv")

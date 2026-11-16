@@ -22,6 +22,8 @@ class TestParse:
             pytest.param(f"{HASH}\ttool.zip", "tool.zip", HASH, id="tab"),
             pytest.param(f"{HASH.upper()}  tool.zip", "tool.zip", HASH, id="upper-case-hash"),
             pytest.param(f"{HASH}  tool v1.zip  ", "tool v1.zip", HASH, id="name-with-a-space"),
+            pytest.param(f"SHA256 (tool.zip) = {HASH}", "tool.zip", HASH, id="bsd"),
+            pytest.param(f"SHA256 (tool v1.zip)={HASH.upper()}  ", "tool v1.zip", HASH, id="bsd-compact-upper-case"),
         ],
     )
     def test_each_form_of_a_line_is_read(self, line, name, listed):
@@ -30,6 +32,14 @@ class TestParse:
     def test_lines_that_are_not_a_hash_and_a_name_are_ignored(self):
         text = f"# a comment\n\n{HASH[:-1]}  short.zip\n{HASH}\nnot a line\n{HASH}  real.zip\n"
         assert manifest.parse(text) == {"real.zip": {HASH}}
+
+    @pytest.mark.parametrize(
+        "line",
+        [f"SHA512 (tool.zip) = {HASH}", f"SHA256 () = {HASH}", f"SHA256 (tool.zip) = {HASH[:-1]}", f"SHA256 tool.zip = {HASH}", f"SHA256 (a)(b) = {HASH}"],
+        ids=["other-algorithm", "empty-name", "short-hash", "no-parentheses", "nested-parentheses"],
+    )
+    def test_a_bsd_line_that_is_not_a_sha256_of_a_name_is_ignored(self, line):
+        assert manifest.parse(f"{line}\n") == {}
 
     def test_a_name_listed_twice_keeps_both_hashes(self):
         assert manifest.parse(f"{HASH}  tool.zip\n{OTHER}  tool.zip\n") == {"tool.zip": {HASH, OTHER}}

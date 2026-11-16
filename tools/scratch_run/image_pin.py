@@ -1,7 +1,8 @@
 """The OPNsense image a QEMU run boots, pinned in the repository because a CI run has no settings file.
 
 A node run takes the image's URL and checksum from the operator's settings; a QEMU run on a runner has none, so the same two values are
-read from `tofu/scratch/opnsense/image-pin.yaml`. A setting or a flag still beats the file.
+read from `tofu/scratch/opnsense/image-pin.yaml`, whose `version` the release-checksum check uses to find the signed checksum file.
+A setting or a flag still beats the file.
 """
 
 from __future__ import annotations
@@ -18,7 +19,8 @@ from scratch_run.settings import IMAGE_CHECKSUM, IMAGE_URL
 PIN_FILE = Path(__file__).resolve().parents[2] / "tofu" / "scratch" / "opnsense" / "image-pin.yaml"
 URL_RE = re.compile(r"https://[A-Za-z0-9._~:/%+-]+\.img\.bz2")
 CHECKSUM_RE = re.compile(r"[0-9a-f]{64}")
-KEYS = ("url", "sha256")
+VERSION_RE = re.compile(r"[0-9]+(\.[0-9]+)+")
+KEYS = ("version", "url", "sha256")
 
 
 class ImagePinError(Exception):
@@ -27,6 +29,7 @@ class ImagePinError(Exception):
 
 @dataclass(frozen=True)
 class ImagePin:
+    version: str
     url: str
     sha256: str
 
@@ -47,8 +50,10 @@ def load_pin(path: Path = PIN_FILE) -> ImagePin:
     except (OSError, yaml.YAMLError) as error:
         raise ImagePinError(f"{path} cannot be read: {error}") from error
     if not isinstance(data, dict) or set(data) != set(KEYS) or not all(isinstance(data[key], str) for key in KEYS):
-        raise ImagePinError(f"{path} must hold exactly the strings `url` and `sha256`")
+        raise ImagePinError(f"{path} must hold exactly the strings `version`, `url` and `sha256`")
+    if not VERSION_RE.fullmatch(data["version"]) or data["url"].rsplit("/", 1)[-1] != f"OPNsense-{data['version']}-nano-amd64.img.bz2":
+        raise ImagePinError(f"{path}: `url` must name the file OPNsense-<version>-nano-amd64.img.bz2 for the `version` it holds")
     problems = image_problems(data["url"], data["sha256"])
     if problems:
         raise ImagePinError(f"{path}: " + "; ".join(problems))
-    return ImagePin(data["url"], data["sha256"])
+    return ImagePin(data["version"], data["url"], data["sha256"])

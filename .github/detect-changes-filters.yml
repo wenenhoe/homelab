@@ -60,6 +60,7 @@ python_unit_tests:
   - 'tools/tofu_inventory/**'
   - 'tools/rebuild_check/**'
   - 'tools/land_series/**'
+  - 'tools/review_criteria/**'
   - 'tools/network_checks/**'
   # The specs tools/tests/scratch_run/ loads against the flow list, and the package that runs them.
   - 'tools/scratch_run/**'

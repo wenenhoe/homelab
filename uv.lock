@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "sys_platform == 'linux2'",
@@ -202,7 +202,7 @@ wheels = [
 
 [[package]]
 name = "b2sdk"
-version = "2.13.3"
+version = "2.13.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-types" },
@@ -210,9 +210,9 @@ dependencies = [
     { name = "logfury" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/56/4c/ac383cdb2709b77c57da3f9383eb25354b857fa376636d8bcad21562c666/b2sdk-2.13.3.tar.gz", hash = "sha256:e7803a67713a6f846738d7c5fda1ae0032c9b093b59df8b0fb7e6c11801bdaf3", size = 210968, upload-time = "2026-11-06T19:36:35.762Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/10/d485324ed34fe3e3e52826daccd40621ffac381454c0c5439ab934b1bb02/b2sdk-2.13.4.tar.gz", hash = "sha256:1236a0644b3689b46aa7e7f72d9a2fb46a36d3a84982d0999ddb8f3e19bc90e1", size = 210995, upload-time = "2026-11-13T19:50:05.36Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/e8/01cc5f4e0e20a95fa9738b7bb37cfa4ed22b00cec6dc707287c9a5908b61/b2sdk-2.13.3-py3-none-any.whl", hash = "sha256:25abceee5a640d811eb04f433815dc4677d6d77a5cd6d2dd09f0ab4fcba857dd", size = 302036, upload-time = "2026-11-06T19:36:34.47Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/36/5bb4de13c799779c32ac10b8a84186146684aec7488ed069ddd379203d68/b2sdk-2.13.4-py3-none-any.whl", hash = "sha256:5f541df9744c67367105ddcf4950bc3c8ce511f572c5878d038893a9c7750b7c", size = 302051, upload-time = "2026-11-13T19:50:03.685Z" },
 ]
 
 [[package]]

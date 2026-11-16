@@ -20,6 +20,11 @@
     }
 }
 
+(strip_tinyauth_cookie) {
+    header_up Cookie "tinyauth-session-[^=;\s]*=[^;]*(;\s*|$)" ""
+    header_up Cookie "(;\s*)+$" ""
+}
+
 {% set tinyauth_apps = resolved_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
 {% if tinyauth_apps %}
 {{ tinyauth_host }}.{{ lan_domain }} {
@@ -43,7 +48,9 @@
         @{{ route.host }}_writes not method GET HEAD
         respond @{{ route.host }}_writes "Method Not Allowed" 405
         {% endif %}
-        reverse_proxy {{ route.upstream }}
+        reverse_proxy {{ route.upstream }} {
+            import strip_tinyauth_cookie
+        }
     }
 {% if not loop.last %}
 

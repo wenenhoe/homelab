@@ -52,3 +52,23 @@ def test_a_read_only_false_accepts_every_method() -> None:
 @pytest.mark.parametrize("value", [True, "", "yes", 1], ids=["true", "empty", "quoted-yes", "one"])
 def test_any_read_only_value_other_than_false_limits_the_route_to_read_methods(value: object) -> None:
     assert READ_ONLY in render({"read_only": value})
+
+
+STRIP = "import strip_tinyauth_cookie"
+
+
+def test_an_app_route_strips_the_tinyauth_cookie_before_proxying() -> None:
+    assert STRIP in route_block(render({}))
+
+
+def test_a_route_with_auth_off_still_strips_the_tinyauth_cookie() -> None:
+    assert STRIP in route_block(render({"auth": False}))
+
+
+def test_the_tinyauth_host_keeps_its_cookie() -> None:
+    app = {"name": "tinyauth", "upstream": "tinyauth:3000"}
+    env = jinja2.Environment(autoescape=False, trim_blocks=True, lstrip_blocks=True)  # noqa: S701 - a Caddyfile, not HTML
+    variables = {"caddy_local_certs": True, "tinyauth_host": "auth", "lan_domain": "lab.test", "caddy_domain": "lab.test", "resolved_apps": [app]}
+    text = env.from_string(TEMPLATE.read_text()).render(**variables)
+    start = text.index("auth.lab.test {")
+    assert STRIP not in text[start : text.index("\n}\n", start)]

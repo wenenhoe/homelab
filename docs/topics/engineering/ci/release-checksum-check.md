@@ -2,17 +2,17 @@
 
 Check that each pinned release hash is the publisher's. How it fits the pipeline is in [CI: PR Checks](pipeline.md); the scheduled-job overview is in [`scheduled-jobs.md`](scheduled-jobs.md).
 
-Each downloaded release this repo pins by sha256 (uv, rclone and the OpenBao
-CLI) is checked against the publisher: the pinned hash must
+Each downloaded release this repo pins by sha256 (uv, rclone, the OpenBao
+CLI and the OPNsense scratch-gateway image) is checked against the publisher: the pinned hash must
 be the one the publisher signed, attested or lists, whoever copied it into the
 file. The decision is
-[ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-000.md).
+[ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-001.md).
 It runs in two places: the `release-checksums` job of `pr-checks.yml`, when a
 PR changes the verifier and its keys or one of the files holding a pin, and
 `check-release-checksums.yml`, once a week and on demand,
 so a publisher's key rotation or moved manifest shows up even when no pin
 changed. Both run `python3 -m ci.checksums.verify` from `tools/`, which is
-standard-library only apart from the `gpg` and `gh` the runner image provides,
+standard-library only apart from the `gpg`, `openssl` and `gh` the runner image provides,
 and which takes entry names to check just those. The job is not a matrix job,
 so it can be required directly; a PR that changes no pin reports it skipped.
 
@@ -29,7 +29,7 @@ where each one is set:
 
 | Tier | What the check does | Pins today |
 | :--- | :--- | :--- |
-| Signed | Fetches the publisher's manifest and its signature, verifies them with `gpg` in a throwaway keyring holding only the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys/), and requires the pin to equal the manifest's line for the artifact. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`) |
+| Signed | Fetches the publisher's manifest and its signature, verifies them against the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys/), and requires the pin to equal the manifest's line for the artifact. An OpenPGP signature is verified with `gpg` in a throwaway keyring holding only that key; an RSA signature is verified with `openssl dgst -sha256 -verify` against the committed PEM public key. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`), the OPNsense image (a BSD-style checksum file and its detached base64 RSA `.sig`) |
 | Attested | Downloads the artifact, requires it to hash to the pin, then requires `gh attestation verify` to pass for the publisher's repository. | uv |
 | Listed | Requires the pin to equal the publisher's manifest line. The manifest is unsigned, so this catches a hash copied wrongly, not a publisher that served a bad artifact. | none |
 | None | The entry says why nothing can be checked. | none |
@@ -39,6 +39,14 @@ the keyring is built from the committed file, and a key file must hold exactly
 the fingerprint its entry names. A signature by an expired or revoked key, or
 by any other key, fails. A publisher that rotates its key fails the weekly run
 until the new key is reviewed and committed.
+
+An RSA key is a PEM file that holds exactly one public key and nothing else. Its
+fingerprint is the SHA-256 of the key's DER encoding, which is what
+`openssl pkey -pubin -in KEY.pem -outform DER | sha256sum` prints, and the check
+refuses the file when it holds another. OPNsense signs each release series with
+its own key (`opnsense-26.1.pem` for 26.1), and the entry's URLs name the series,
+so a bump to the next series fails with a missing manifest until the entry, its
+address and its key are changed together.
 
 ## Apt signing keys
 
@@ -59,6 +67,7 @@ rotates it, is in [`apt-signing-keys.md`](../../deploy/apt-signing-keys.md).
 - **A new pin** needs a registry entry in the same change; a test fails for any
   checksum pin the registry doesn't name. The entry sets its tier, and a signed
   one also names the fingerprint and a key file under `tools/ci/checksums/keys/`.
+  The registry scans `ansible/`, `docker/`, `tools/`, `.github/` and `tofu/`.
 - **A bump** (Renovate or by hand) is checked by the `release-checksums` job.
   A hash that differs from what the publisher signed, attested or lists fails
   it, whatever produced the hash. A uv release without an attestation fails its

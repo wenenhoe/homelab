@@ -16,7 +16,7 @@ from ci.checksums.registry import Entry, Location
 SHA256 = re.compile(r"[0-9a-f]{64}")
 VERSION = re.compile(r"[0-9][0-9A-Za-z.+_-]*")
 # The trees a pinned download can sit in. Docs are left out: they quote example hashes.
-SCAN_ROOTS = ("ansible", "docker", "tools", ".github")
+SCAN_ROOTS = ("ansible", "docker", "tools", ".github", "tofu")
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
 
 _VALUE = r"""(?:"(?P<double>[^"\n]*)"|'(?P<single>[^'\n]*)'|(?P<bare>[^\s#"']+))"""

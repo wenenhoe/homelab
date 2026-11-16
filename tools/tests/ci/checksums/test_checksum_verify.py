@@ -23,7 +23,7 @@ from unittest.mock import create_autospec
 import pytest
 from ci import proc
 from ci.checksums import verify
-from ci.checksums.registry import Attested, Listed, Location, Signed, Unchecked
+from ci.checksums.registry import Attested, Listed, Location, Signed, SignedRsa, Unchecked
 
 VERSION = "1.2.3"
 FILE = f"tool-{VERSION}.zip"
@@ -75,6 +75,33 @@ def signed_entry(signer, detached: bool = False) -> Signed:
         key="keys/tool.asc",
         **WHERE,
     )
+
+
+RSA_MANIFEST_URL = f"https://example.invalid/{VERSION}/sums"
+RSA_SIGNATURE_URL = f"{RSA_MANIFEST_URL}.sig"
+
+
+def rsa_entry(rsa_signer) -> SignedRsa:
+    return SignedRsa(
+        name="tool",
+        file="tool-{version}.zip",
+        manifest_url="https://example.invalid/{version}/sums",
+        signature_url="https://example.invalid/{version}/sums.sig",
+        fingerprint=rsa_signer.fingerprint,
+        key="keys/tool.pem",
+        **WHERE,
+    )
+
+
+def rsa_publisher(rsa_signer, pin: str, signed: bytes | None = None) -> Publisher:
+    """Serves a BSD-style manifest listing `pin`, signed by `rsa_signer`, as OPNsense publishes its."""
+    text = f"SHA256 ({FILE}) = {pin}\nSHA256 (other-{VERSION}.zip) = {OTHER_HASH}\n".encode()
+    return Publisher({RSA_MANIFEST_URL: text, RSA_SIGNATURE_URL: rsa_signer.sign(signed if signed is not None else text)})
+
+
+def commit_rsa_key(root: Path, rsa_signer) -> None:
+    (root / "keys").mkdir(exist_ok=True)
+    (root / "keys/tool.pem").write_text(rsa_signer.pem)
 
 
 def manifest_listing(pin: str) -> str:
@@ -163,6 +190,53 @@ class TestSignedManifest:
         publisher = Publisher({url: signer.clearsign(f"{self.PIN}  tool-9.9.9.zip\n")})
         assert check(tree(root, self.PIN, version="9.9.9"), signed_entry(signer), publisher).errors == []
         assert publisher.asked == [url]
+
+
+class TestSignedWithAnRsaKey:
+    """A BSD-style manifest and a detached base64 signature by an RSA key, as OPNsense publishes them."""
+
+    @pytest.fixture
+    def root(self, tmp_path, rsa_signer):
+        commit_rsa_key(tmp_path, rsa_signer)
+        return tree(tmp_path, ARTIFACT_HASH)
+
+    def test_a_pin_equal_to_the_signed_line_passes(self, root, rsa_signer):
+        outcome = check(root, rsa_entry(rsa_signer), rsa_publisher(rsa_signer, ARTIFACT_HASH))
+        assert outcome.ok
+
+    def test_a_pin_that_differs_from_the_signed_line_fails_and_names_the_signed_hash(self, root, rsa_signer):
+        outcome = check(root, rsa_entry(rsa_signer), rsa_publisher(rsa_signer, OTHER_HASH))
+        assert OTHER_HASH in failure(outcome)
+
+    def test_a_manifest_changed_after_it_was_signed_fails_even_though_it_lists_the_pin(self, root, rsa_signer):
+        publisher = rsa_publisher(rsa_signer, OTHER_HASH)
+        publisher.files[RSA_MANIFEST_URL] = f"SHA256 ({FILE}) = {ARTIFACT_HASH}\n".encode()
+        assert "no valid signature" in failure(check(root, rsa_entry(rsa_signer), publisher))
+
+    def test_a_manifest_signed_by_another_key_fails(self, root, rsa_signer, make_rsa_signer):
+        publisher = rsa_publisher(make_rsa_signer("other"), ARTIFACT_HASH)
+        assert "no valid signature" in failure(check(root, rsa_entry(rsa_signer), publisher))
+
+    def test_an_unreachable_signature_fails_the_entry(self, root, rsa_signer):
+        publisher = rsa_publisher(rsa_signer, ARTIFACT_HASH)
+        del publisher.files[RSA_SIGNATURE_URL]
+        assert "404" in failure(check(root, rsa_entry(rsa_signer), publisher))
+
+    def test_a_committed_key_that_is_not_the_entrys_fails_the_entry(self, root, rsa_signer, make_rsa_signer):
+        commit_rsa_key(root, make_rsa_signer("other"))
+        assert "holds" in failure(check(root, rsa_entry(rsa_signer), rsa_publisher(rsa_signer, ARTIFACT_HASH)))
+
+    def test_only_the_manifest_and_its_signature_are_fetched_never_a_key(self, root, rsa_signer):
+        publisher = rsa_publisher(rsa_signer, ARTIFACT_HASH)
+        check(root, rsa_entry(rsa_signer), publisher)
+        assert publisher.asked == [RSA_MANIFEST_URL, RSA_SIGNATURE_URL]
+
+    def test_a_missing_openssl_fails_the_entry(self, root, rsa_signer):
+        def run(args, cwd, capture):
+            raise FileNotFoundError(args[0])
+
+        outcome = check(root, rsa_entry(rsa_signer), rsa_publisher(rsa_signer, ARTIFACT_HASH), run)
+        assert "openssl is not installed" in failure(outcome)
 
 
 class TestSignedWithDetachedSignature:

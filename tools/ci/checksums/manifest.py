@@ -1,17 +1,19 @@
-"""Reading a `sha256sum`-style manifest, and comparing a pin with its line."""
+"""Reading a `sha256sum`-style or BSD-style manifest, and comparing a pin with its line."""
 
 from __future__ import annotations
 
 import re
 
 _LINE = re.compile(r"^(?P<hash>[0-9a-fA-F]{64})[ \t]+\*?(?P<name>\S.*?)[ \t]*$")
+# `sha256 -r`'s opposite, as OPNsense writes its checksum files: SHA256 (name) = hash
+_BSD_LINE = re.compile(r"^SHA256[ \t]+\((?P<name>[^()\s][^()]*?)\)[ \t]*=[ \t]*(?P<hash>[0-9a-fA-F]{64})[ \t]*$")
 
 
 def parse(text: str) -> dict[str, set[str]]:
     """File name -> every hash the manifest lists for it. A leading `./` on a name is dropped."""
     listed: dict[str, set[str]] = {}
     for line in text.splitlines():
-        match = _LINE.match(line)
+        match = _LINE.match(line) or _BSD_LINE.match(line)
         if match:
             listed.setdefault(match.group("name").removeprefix("./"), set()).add(match.group("hash").lower())
     return listed

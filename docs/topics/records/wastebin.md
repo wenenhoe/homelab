@@ -23,7 +23,7 @@ A paste service on `services`. The image build is in [`wastebin.md`](../services
 ## Observability
 
 - The container health check marks it unhealthy and Beszel shows that state ([`beszel.md`](../monitoring/beszel.md)); `restart: always` does not restart an unhealthy container. Gatus has no endpoint for it: the host's backup heartbeat shows that archives land, not that the service is up ([`gatus.md`](../monitoring/gatus.md)).
-- Unknown: whether the hub alerts on an unhealthy container. Check the hub's alert rules.
+- Alerts on the hub are set by hand in its database ([`beszel.md`](../monitoring/beszel.md#alert-notifications)); the repository declares none and none has fired, so nothing alerts on an unhealthy container.
 
 ## Disaster recovery
 

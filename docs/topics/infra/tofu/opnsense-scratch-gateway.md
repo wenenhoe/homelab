@@ -10,6 +10,10 @@ tofu/scratch/opnsense/scratch_gateway.sh down OUT_DIR
 tofu/scratch/opnsense/acceptance/acceptance.sh OUT_DIR IMAGE_URL IMAGE_CHECKSUM
 ```
 
+## Bridges
+
+The scratch bridges mirror the production pair: `vmbr0` is the real WAN and `vmbr1` the real VLAN-aware LAN, while `vmbr9` is the scratch gateway's VLAN-aware LAN and `vmbr8` its plain one. The scratch WAN stays on `vmbr1` with `WAN_VLAN_ID`, and `vmbr0` is refused.
+
 ## Building it
 
 `scratch_gateway.sh up` needs `NODE`, `PROXMOX_ENDPOINT` and `PROXMOX_API_TOKEN` set.
@@ -33,7 +37,7 @@ not the staged image.
 
 | Setting | Default | Notes |
 | :--- | :--- | :--- |
-| `LAN_BRIDGE` | `vmbr9` | Must exist with no ports and no address and be usable by the API token (`SDN.Use` on `/sdn/zones/localnetwork/<bridge>`), because the seed's LAN serves DHCP. The node takes `192.168.77.10` on it to reach the gateway |
+| `LAN_BRIDGE` | `vmbr9` | Must exist with no ports and no address and be usable by the API token (`SDN.Use` on `/sdn/zones/localnetwork/<bridge>`), because the seed's LAN serves DHCP. The node takes `192.168.77.10` on it to reach the gateway. It must also be VLAN-aware (`bridge-vlan-aware yes`) for a run with a canary VM, which the run's preflight checks; `vmbr8`, a plain bridge, serves any run without one |
 | `WAN_BRIDGE` | `vmbr1` | Untagged, or tagged with `WAN_VLAN_ID`, where a DHCP server gives it an address and a route out. The production WAN bridge is refused |
 | `LOCAL_PORT` | 8443 | The ssh forward to the gateway's GUI port. The operator host must resolve `OPNsense.internal` to `127.0.0.1` and have no proxy variables set |
 | `WANT_VERSION` | The pinned release | |

@@ -155,6 +155,8 @@ pveum acl modify /storage/backup --users tofu@pve --roles TofuProvision
 pveum acl modify /vms --users tofu@pve --roles TofuProvision
 pveum acl modify /sdn/zones/localnetwork/vmbr0 --users tofu@pve --roles TofuProvision
 pveum acl modify /sdn/zones/localnetwork/vmbr1 --users tofu@pve --roles TofuProvision
+pveum acl modify /sdn/zones/localnetwork/vmbr8 --users tofu@pve --roles TofuProvision
+pveum acl modify /sdn/zones/localnetwork/vmbr9 --users tofu@pve --roles TofuProvision
 pveum user token add tofu@pve skeleton --privsep=0
 ```
 
@@ -167,6 +169,8 @@ pveum user token add tofu@pve skeleton --privsep=0
 | `/vms` | Creating, cloning, configuring and starting VMs: every VM on the node, Tofu-managed or not |
 | `/sdn/zones/localnetwork/vmbr0` | Attaching the OPNsense WAN NIC to the physical bridge |
 | `/sdn/zones/localnetwork/vmbr1` | Attaching a NIC to the VLAN-aware bridge |
+| `/sdn/zones/localnetwork/vmbr8` | The scratch gateway's plain LAN, the fallback when no VLAN-aware bridge is wanted |
+| `/sdn/zones/localnetwork/vmbr9` | The scratch gateway's VLAN-aware LAN and its canary VM |
 
 The role order above matters only on a fresh setup: `TofuImageStore` must exist
 before the ACL names it. The image download needs `Sys.AccessNetwork` on the node, or

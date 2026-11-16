@@ -23,7 +23,7 @@ The forward-auth gate in front of every Caddy route that does not set `auth: fal
 ## Threat model
 
 - A flaw or misconfiguration in the gate exposes every app behind it. The config denies nothing by default at the ACL level (`policy: allow`); access control is that the login must succeed. Unknown: whether any app needs a per-group restriction; check the `acls` section against the apps' sensitivity.
-- A stolen session cookie gives access until it expires.
+- A stolen session cookie gives access until it expires. The cookie, `tinyauth-session-<identifier>`, is scoped to the parent domain, and Caddy removes it from every request it proxies to an app upstream ([Caddy topic](../services/caddy.md#caddyfile-generation)), so an app container never sees it.
 - A bypass through a route with `auth: false` is a catalog decision, shown in the [coverage table](../disaster-recovery/coverage.md).
 - Analytics are off in its config.
 

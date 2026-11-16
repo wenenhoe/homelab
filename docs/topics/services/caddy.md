@@ -28,6 +28,15 @@ Caddy's DNS-01 challenge support for DigitalOcean isn't in the stock image, so `
    reverse-proxies to `upstream`. Unmatched requests get `403 Access
    Denied`.
 
+Tinyauth's session cookie, `tinyauth-session-<identifier>`, is scoped to the
+parent domain, so the browser sends it to every app host. The
+`strip_tinyauth_cookie` snippet, imported by each app's `reverse_proxy`, removes
+it from the request before the upstream sees it. That covers routes with
+`auth: false` too. The `forward_auth` request is built separately from the
+proxied one, so Tinyauth still receives the cookie it needs, and Tinyauth's own
+domain block does not import the snippet. A request whose only cookie is the
+session cookie reaches the upstream with an empty `Cookie` header.
+
 ## Deploy ordering
 
 Config generation and deploy/restart happen in Play 2, before any

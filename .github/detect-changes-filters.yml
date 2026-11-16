@@ -67,6 +67,8 @@ python_unit_tests:
   # The OPNsense module's seed builder and first-boot driver; their tests are under tools/tests/opnsense_seed/.
   - 'tofu/modules/proxmox_opnsense_vm/seed/*.py'
   - 'tofu/modules/proxmox_opnsense_vm/first_boot/*.py'
+  # The module's Tofu files, which tools/tests/scratch_run/ reads to keep the QEMU layout of a scratch gateway equal to the VM's.
+  - 'tofu/modules/proxmox_opnsense_vm/*.tf'
   - 'tofu/scratch/opnsense/update_gateway.sh'
   # The progress log generator (ADR 0095); its tests are under tools/tests/.
   - 'tools/progress_log/**'

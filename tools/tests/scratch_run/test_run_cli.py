@@ -4,7 +4,9 @@ import tarfile
 from pathlib import Path
 
 import pytest
+from scratch_run import __main__ as cli
 from scratch_run.__main__ import main
+from scratch_run.image_pin import ImagePinError, load_pin
 from scratch_run_fakes import RUNS, FakeBackend, masters
 
 SPEC = str(RUNS / "rehearsal.yaml")
@@ -214,3 +216,51 @@ def test_ssh_down_closes_the_master_if_there_is_one(up, said, capsys):
 def test_ssh_needs_a_node(capsys):
     assert main(["--ssh", "up"], environ={}, master_factory=masters()) == 2
     assert "NODE is not set" in capsys.readouterr().err
+
+
+def test_the_qemu_backend_boots_the_pinned_image_when_none_is_given(tmp_path):
+
+    seen: dict = {}
+    assert main(["rehearsal", str(tmp_path / "out"), "--preflight", "--backend", "qemu"], environ={}, backend_factory=factory(FakeBackend(), seen)) == 0
+    assert (seen["url"], seen["checksum"]) == (load_pin().url, load_pin().sha256)
+
+
+def test_an_image_from_a_flag_beats_the_pin_for_the_qemu_backend(tmp_path):
+    seen: dict = {}
+    argv = ["rehearsal", str(tmp_path / "out"), "--preflight", "--backend", "qemu", "--image-url", "u", "--image-checksum", "c"]
+    main(argv, environ={}, backend_factory=factory(FakeBackend(), seen))
+    assert (seen["url"], seen["checksum"]) == ("u", "c")
+
+
+def test_the_node_backend_does_not_read_the_pin(tmp_path):
+    seen: dict = {}
+    main(["rehearsal", str(tmp_path / "out"), "--preflight"], environ={}, backend_factory=factory(FakeBackend(), seen))
+    assert (seen["url"], seen["checksum"]) == ("", "")
+
+
+def test_a_broken_pin_stops_a_qemu_run_before_the_backend_is_made(tmp_path, monkeypatch, capsys):
+
+    def broken():
+        raise ImagePinError("image-pin.yaml cannot be read")
+
+    monkeypatch.setattr(cli, "load_pin", broken)
+    backend = FakeBackend()
+    assert main(["rehearsal", str(tmp_path / "out"), "--backend", "qemu"], environ={}, backend_factory=factory(backend)) == 2
+    assert "cannot be read" in capsys.readouterr().err and backend.calls == []
+
+
+def test_a_node_in_the_environment_opens_no_master_for_the_qemu_backend(tmp_path):
+    made: list = []
+    main(
+        ["rehearsal", str(tmp_path / "out"), "--preflight", "--backend", "qemu"],
+        environ={"NODE": "n"},
+        backend_factory=factory(FakeBackend()),
+        master_factory=masters(made),
+    )
+    assert made == []
+
+
+def test_an_unknown_backend_is_refused(tmp_path):
+    with pytest.raises(SystemExit) as stop:
+        main(["rehearsal", str(tmp_path / "out"), "--backend", "docker"], environ={})
+    assert stop.value.code == 2

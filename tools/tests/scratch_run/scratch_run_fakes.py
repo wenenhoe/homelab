@@ -4,6 +4,7 @@ They live here and not in conftest.py because a test imports them by name, and `
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -70,11 +71,14 @@ class FakeBackend:
 
 @dataclass
 class RecordingRunner:
-    """A `scratch_run.node.Runner` that records each command and answers 0 unless a rule says otherwise."""
+    """A `scratch_run.gateway_steps.Runner` that records each command and answers 0 unless a rule says otherwise.
 
-    rules: dict[str, tuple[int, str]] = field(default_factory=dict)  # a word in the command line -> its answer
+    A rule's answer is a (status, output) pair, or a function of the argument list that makes the command's side effects and returns one."""
+
+    rules: dict[str, tuple[int, str] | Callable[[list[str]], tuple[int, str]]] = field(default_factory=dict)  # a word in the command line -> its answer
     calls: list[tuple[list[str], dict[str, str] | None, Path | None]] = field(default_factory=list)
     echoed: list[Callable[[str], None] | None] = field(default_factory=list)  # the `on_output` each call got
+    stdins: list[str | None] = field(default_factory=list)  # the `stdin` each call got
 
     def __call__(
         self,
@@ -84,17 +88,43 @@ class RecordingRunner:
         cwd: Path | None = None,
         timeout: int = 0,
         on_output: Callable[[str], None] | None = None,
+        stdin: str | None = None,
     ) -> tuple[int, str]:
         self.calls.append((list(argv), dict(env) if env is not None else None, cwd))
         self.echoed.append(on_output)
+        self.stdins.append(stdin)
         line = " ".join(argv)
         for word, answer in self.rules.items():
             if word in line:
-                return answer
+                return answer(list(argv)) if callable(answer) else answer
         return 0, ""
 
     def lines(self) -> list[str]:
         return [" ".join(argv) for argv, _, _ in self.calls]
+
+
+@dataclass
+class FakeProcess:
+    """A QEMU process: running until `exit_code` is set, and stopped by `terminate` unless `stuck` is set."""
+
+    exit_code: int | None = None
+    stuck: bool = False  # does not stop when asked, so the backend has to kill it
+    terminated: bool = False
+    killed: bool = False
+
+    def poll(self) -> int | None:
+        return self.exit_code
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+    def kill(self) -> None:
+        self.killed = True
+
+    def wait(self, timeout: float | None = None) -> int:
+        if self.stuck and not self.killed:
+            raise subprocess.TimeoutExpired("qemu", timeout or 0)
+        return 0
 
 
 class FakeMaster:

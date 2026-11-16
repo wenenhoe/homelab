@@ -4,6 +4,7 @@
     python -m scratch_run --list                     the specs there are
     python -m scratch_run SPEC [--preflight]         check what the run needs, then stop
     python -m scratch_run SPEC [--keep]              run it
+    python -m scratch_run SPEC --backend qemu        run it on a QEMU gateway on this machine, not on the Proxmox node
     python -m scratch_run --ssh up|status|down       open, check or close the ssh master connection a run rides on
     python -m scratch_run SPEC --check-spec          read the spec and check it against the flow list, nothing else
 
@@ -14,6 +15,8 @@ gateway's state and credentials, must be outside the repository, and gets the re
 archive; each run builds in OUT_DIR/state-<name>-<stamp>/, which a clean teardown removes. A run opens the ssh master
 to the node itself when it is down (asking for your login on this terminal) and leaves it up for an hour; its socket is
 SSH_CONTROL_PATH, default ~/.cache/scratch-run/ssh.sock.
+The qemu backend needs no node: it boots the image `tofu/scratch/opnsense/image-pin.yaml` pins (unless an image is given), caches it under
+SCRATCH_RUN_IMAGE_CACHE, and needs passwordless sudo, `/dev/kvm` and `OPNsense.internal` resolving to 192.168.77.1; see the topic doc.
 Exit status: 0 every step had its expected outcome, 1 one did not, 2 the run could not start.
 """
 
@@ -27,13 +30,17 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from scratch_run.engine import EXIT_NOT_RUN, EXIT_OK, EXIT_STEP_FAILED, Backend, run
-from scratch_run.node import REPO, NodeBackend
+from scratch_run.gateway_steps import REPO
+from scratch_run.image_pin import ImagePinError, load_pin
+from scratch_run.node import NodeBackend
+from scratch_run.qemu import QemuBackend
 from scratch_run.settings import DEFAULT_ENV_FILE, IMAGE_CHECKSUM, IMAGE_URL, OUT_DIR, SettingsError, init_env_file, merge, read_env_file
 from scratch_run.spec import SpecError, load_spec
 from scratch_run.ssh import DEFAULT_SOCKET, Master
 
 RUNS = REPO / "tofu" / "scratch" / "opnsense" / "runs"
 BackendFactory = Callable[[Path, str, str, Mapping[str, str]], Backend]
+BACKENDS: dict[str, BackendFactory] = {"node": NodeBackend, "qemu": QemuBackend}
 MasterFactory = Callable[[str, Path], Master]
 
 
@@ -56,7 +63,7 @@ def list_specs() -> None:
 def main(
     argv: list[str] | None = None,
     environ: Mapping[str, str] | None = None,
-    backend_factory: BackendFactory = NodeBackend,
+    backend_factory: BackendFactory | None = None,
     master_factory: MasterFactory = Master,
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -66,6 +73,7 @@ def main(
     parser.add_argument("--image-checksum", help=f"default: {IMAGE_CHECKSUM} in the settings")
     parser.add_argument("--env-file", type=Path, help=f"default: {DEFAULT_ENV_FILE}, when it exists")
     parser.add_argument("--keep", action="store_true", help="leave the gateway up when the steps are done")
+    parser.add_argument("--backend", choices=sorted(BACKENDS), default="node", help="where the gateway runs: the node (default) or QEMU here")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check-spec", action="store_true", help="only read the spec and check it against the flow list")
     mode.add_argument("--preflight", action="store_true", help="check the spec and what the run needs, then stop")
@@ -96,7 +104,7 @@ def main(
         return EXIT_NOT_RUN
     env = merge(os.environ if environ is None else environ, from_file)
     master = None
-    if env.get("NODE"):
+    if args.backend == "node" and env.get("NODE"):
         socket = Path(env.get("SSH_CONTROL_PATH") or DEFAULT_SOCKET).expanduser()
         env["SSH_CONTROL_PATH"] = str(socket)
         master = master_factory(env["NODE"], socket)
@@ -114,7 +122,15 @@ def main(
     stamp = time.strftime("%Y%m%d-%H%M%S")
     # Every run builds in a directory of its own: the gateway script refuses one that still holds an earlier run's credentials.
     state_dir = out_dir / f"state-{spec.name}-{stamp}"
-    backend = backend_factory(state_dir, args.image_url or env.get(IMAGE_URL, ""), args.image_checksum or env.get(IMAGE_CHECKSUM, ""), env)
+    image_url, image_checksum = args.image_url or env.get(IMAGE_URL, ""), args.image_checksum or env.get(IMAGE_CHECKSUM, "")
+    if args.backend == "qemu" and not (image_url or image_checksum):
+        try:
+            pin = load_pin()
+        except ImagePinError as error:
+            print(error, file=sys.stderr)
+            return EXIT_NOT_RUN
+        image_url, image_checksum = pin.url, pin.sha256
+    backend = (backend_factory or BACKENDS[args.backend])(state_dir, image_url, image_checksum, env)
     if args.preflight:
         problems = backend.preflight(spec)
         print("\n".join(f"- {problem}" for problem in problems) if problems else f"{spec.name}: ready to run")

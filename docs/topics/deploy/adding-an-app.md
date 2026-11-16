@@ -52,8 +52,10 @@ from `tools/`, lists the setuid files, file capabilities and shell-script
 privilege helpers it carries
 ([`scan_image.py`](../../../tools/container_hardening/scan_image.py)).
 
-Search for `no-new-privileges` under `docker/` to see which services have the
-pair today. What each one keeps, and why:
+The `check-compose-hardening` hook refuses a service without the pair, and a
+capability, host namespace, device or Docker socket mount with no entry and reason
+in `EXCEPTIONS` ([`ci/gates.md`](../engineering/ci/gates.md#compose-hardening-rules)).
+What each one keeps, and why:
 
 | App | Keeps | Why |
 | :--- | :--- | :--- |

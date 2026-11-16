@@ -12,6 +12,8 @@ what each capability is for, and how to check the result.
 
 `cap_drop` has no daemon-wide default, so it is set per service.
 
+The `check-compose-hardening` pre-commit hook enforces the pair on every service of a production compose file or role template. A capability you add back, or any other widening (`privileged`, a host namespace, `devices`, the Docker socket), also needs a line with its reason in `EXCEPTIONS` in [`compose_hardening_rules.py`](../../../tools/ci/gates/compose_hardening_rules.py); see [`ci/gates.md`](../engineering/ci/gates.md#compose-hardening-rules).
+
 ## Choosing what to add back
 
 ```mermaid

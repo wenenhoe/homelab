@@ -1,6 +1,6 @@
 # CI Scheduled Jobs
 
-Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job), the release checksum check (which does too), the shell test pin check and the progress log. The PR pipeline is in [CI: PR Checks](pipeline.md). The [schedule overview](#schedule-overview) lists every scheduled workflow and when it fires. The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
+Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job), the release checksum check (which does too), the shell test pin check, the scratch gateway run on QEMU (which also runs as a PR job) and the progress log. The PR pipeline is in [CI: PR Checks](pipeline.md). The [schedule overview](#schedule-overview) lists every scheduled workflow and when it fires. The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
 
 ## Schedule overview
 
@@ -12,6 +12,7 @@ Every workflow with a `schedule` trigger, listed by the time of day of its first
 | `check-release-checksums.yml` | `41 3 * * 0` | Sunday 03:41 | Sunday 11:41 | Asks each publisher again whether the pinned release hashes are theirs, and Docker and Tailscale whether they still serve the apt keys the roles pin ([release checksum check](release-checksum-check.md)). |
 | `check-image-provenance.yml` | `13 4 * * 0` | Sunday 04:13 | Sunday 12:13 | Asks each publisher again whether the pinned image digests are theirs ([image provenance check](image-provenance-check.md)). |
 | `check-shell-test-pins.yml` | `47 4 * * 0` | Sunday 04:47 | Sunday 12:47 | Checks that each pinned Bats release tag still points at its pinned commit ([shell test pins](shell-test-pins.md#checking-the-pins)). |
+| `scratch-gateway-qemu.yml` | `29 5 * * 0,3` | Sunday and Wednesday 05:29 | Sunday and Wednesday 13:29 | Boots the pinned OPNsense image in QEMU and runs the `rehearsal` spec on it, which also keeps the cached image from being evicted for going 7 days unused ([scratch gateway runs](../../infra/scratch-gateway-runs.md#the-workflow)). |
 | `molecule-timings.yml` | `7 5 * * 3,6` | Wednesday and Saturday 05:07 | Wednesday and Saturday 13:07 | Times the Molecule scenarios of the roles whose files changed since they were measured and reports whether the shard table still balances them ([Molecule timings](molecule-timings.md)). |
 | `progress-log.yml` | `17 16 * * *` | Every day 16:17 | Every day 00:17 | Adds what was merged to `main` since the last run to the weekly and monthly progress log on the `progress-log` branch ([Progress log](#progress-log)). |
 | `renovate.yml` | `37 17 * * *` | Every day 17:37 | Every day 01:37 | Runs Renovate, then checks that the run started inside its window ([Renovate schedule window](#renovate-schedule-window), [Renovate](renovate.md)). |

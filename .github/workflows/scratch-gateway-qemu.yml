@@ -90,20 +90,37 @@ jobs:
           path: ${{ env.SCRATCH_RUN_IMAGE_CACHE }}
           key: opnsense-image-${{ hashFiles('tofu/scratch/opnsense/image-pin.yaml') }}
 
-      # QEMU opens /dev/kvm as this user: a hosted runner has the device
-      # but not always an open mode on it, and the rule makes the node
-      # static so it is set before the first open. The packages are the
-      # ones the backend calls: qemu, an overlay tool, the seed builder's
-      # (xmllint, mtools, fdisk), bunzip2 and curl for the image, and sshd
-      # for the namespace canaries.
-      - name: Install QEMU and open /dev/kvm
+      # The packages are the ones the backend calls: qemu, an overlay tool,
+      # the seed builder's (xmllint, mtools, fdisk), bunzip2 and curl for
+      # the image, and sshd for the namespace canaries.
+      - name: Install QEMU
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq qemu-system-x86 qemu-utils libxml2-utils mtools fdisk bzip2 curl openssh-server
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm -a -w /dev/kvm
+
+      # QEMU opens /dev/kvm as this user: a hosted runner has the device
+      # but not always an open mode on it, and the rule makes the node
+      # static so it is set before the first open. `udevadm trigger`
+      # returns before the rule has been applied, so the step waits for
+      # udev and then for the mode, and says what it found when the device
+      # is still not usable.
+      - name: Open /dev/kvm
+        run: |
+          if ! { [ -r /dev/kvm ] && [ -w /dev/kvm ]; }; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules > /dev/null
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+            sudo udevadm settle
+          fi
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then ls -l /dev/kvm; exit 0; fi
+            sleep 1
+          done
+          echo "::error::/dev/kvm is not usable by $(id -un)"
+          ls -l /dev/kvm || true
+          grep -c -E -w 'vmx|svm' /proc/cpuinfo || true
+          lsmod | grep -E '^kvm' || true
+          exit 1
 
       # The play and the API reads reach the gateway by this name; the
       # backend refuses to start unless it resolves to the gateway's LAN

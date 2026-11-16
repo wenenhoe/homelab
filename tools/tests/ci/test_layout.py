@@ -22,6 +22,7 @@ MODULE_RUNS = [(caller, module) for caller in CALLERS for module in MODULE_RUN.f
 DISTINCT_MODULE_RUNS = list(dict.fromkeys(MODULE_RUNS))
 TEST_FILES = [path for path in sorted((TOOLS / "tests").rglob("*.py")) if path.name != Path(__file__).name]
 PACKAGES = sorted(init.parent.name for init in TOOLS.glob("*/__init__.py"))
+TOOLS_DIRECTORIES = sorted(path.name for path in TOOLS.iterdir() if path.is_dir() and path.name != "__pycache__")
 
 
 def _relative(path: Path) -> str:
@@ -47,10 +48,10 @@ class TestLayout:
     def test_enough_module_runs_are_found_for_the_existence_check_to_mean_something(self):
         assert len(MODULE_RUNS) > 20
 
-    @pytest.mark.parametrize("package", PACKAGES)
-    def test_every_package_under_tools_triggers_the_unit_tests(self, package):
-        filters = yaml.safe_load((GITHUB / "detect-changes-filters.yml").read_text())["python_unit_tests"]
-        assert f"tools/{package}/**" in filters
+    @pytest.mark.parametrize("directory", TOOLS_DIRECTORIES)
+    def test_every_directory_under_tools_triggers_the_unit_tests(self, directory):
+        globs = yaml.safe_load((GITHUB / "detect-changes-filters.yml").read_text())["python_unit_tests"]
+        assert any(PurePosixPath(f"tools/{directory}/a_file.py").full_match(glob) for glob in globs)
 
     @pytest.mark.parametrize("path", ["ansible/module_utils/shared.py", "ansible/roles/secrets/library/a_module.py"])
     def test_ansible_module_code_triggers_the_unit_tests(self, path):

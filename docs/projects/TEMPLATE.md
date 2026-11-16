@@ -71,7 +71,7 @@ says `Unknown:` and what to check.
 
 ## Agent handoff
 
-Omit for work no agent will touch. Stop conditions are in
+Keep this section: all work here is agent work, so no building project is exempt. Stop conditions are in
 [`README.md#stop-conditions`](README.md#stop-conditions); they apply
 without being restated here.
 

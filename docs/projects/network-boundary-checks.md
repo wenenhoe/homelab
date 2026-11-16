@@ -61,7 +61,7 @@ The services canary is declared, the flow list holds the first flows, and namesp
 
 ## Agent handoff
 
-- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook, the CI path filter that runs the package's tests and the topic docs, which is what Stages 1 and 2 change, the canary VMs' Tofu file with its variable, test and docs, and the scratch gateway's block rule playbook, which Stage 4 changes. Stage 5 widens it, in a change of its own, once the scheduled run's files exist.
+- **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook, the CI path filter that runs the package's tests and the topic docs, which is what Stages 1 and 2 change, the canary VMs' Tofu file with its variable, test and docs, and the scratch gateway's block rule playbook, which Stage 3 changes. Stage 4 widens it, in a change of its own, once the scheduled run's files exist.
 - **Must not change:** the gateway play and its rules ([`opnsense-config.md`](opnsense-config.md)'s), the zones' decisions, and the existing heartbeat jobs.
 - **Relevant files and interfaces:** `tools/utils/app_catalog.py` and `tools/ci/gates/app_catalog_rules.py` (the loader-and-rules-hook pattern to follow), `docs/topics/engineering/ci/gates.md`, `docs/topics/monitoring/gatus.md` and `ansible/roles/gatus_push` (the heartbeat path).
 - **Required checks:** `pre-commit run --all-files`, and `uv run pytest` from `tools/`.

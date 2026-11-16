@@ -13,7 +13,7 @@ import subprocess
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from scratch_run.node import Runner, run_command
+from scratch_run.gateway_steps import Runner, run_command
 
 DEFAULT_SOCKET = Path("~/.cache/scratch-run/ssh.sock")
 PERSIST = "1h"

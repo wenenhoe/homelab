@@ -1,0 +1,137 @@
+name: Scratch gateway on QEMU
+
+# Boots the pinned OPNsense image in QEMU on the runner, applies the
+# gateway play and runs a scratch_run spec against it, so a change to what
+# the gateway depends on is tried on a gateway before it reaches the node.
+# See docs/topics/infra/scratch-gateway-runs.md.
+#
+# A pull request runs it only when a file the gateway depends on changed.
+# The weekly run on the default branch keeps the image cache from being
+# evicted (GitHub drops a cache unused for 7 days) and notices a pinned
+# image that has gone. Not a required check: a run needs a runner that
+# exposes /dev/kvm, and a hosted runner's nested KVM is GitHub's to change.
+#
+# Rehearsal specs only: this repo's logs and artifacts are public, and the
+# specs that read a real inventory or a Proxmox node are not run here.
+#
+# The minute is off the hour (see check-release-checksums.yml), and the two
+# days are the ones warm-caches.yml uses, so the image cache is read twice
+# in any 7 days.
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    paths:
+      - ".github/workflows/scratch-gateway-qemu.yml"
+      - "tools/scratch_run/**"
+      - "tools/network_checks/**"
+      - "tofu/scratch/opnsense/**"
+      - "tofu/modules/proxmox_opnsense_vm/**"
+      - "ansible/roles/opnsense_gateway/**"
+      - "ansible/playbooks/opnsense.yaml"
+      - "ansible/requirements.yml"
+  schedule:
+    - cron: "29 5 * * 0,3"
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: The run spec under tofu/scratch/opnsense/runs/ to run
+        type: choice
+        options:
+          - rehearsal
+          - vlan-70-seed
+        default: rehearsal
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scratch-gateway-qemu-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-26.04
+    # A boot takes a minute, the firmware update about two and the play
+    # about a minute and a half. The rest is the image download on a cold
+    # cache and the runner's own setup; a hung step must not hold the
+    # runner for the six-hour default.
+    timeout-minutes: 60
+    env:
+      SPEC: ${{ inputs.spec || 'rehearsal' }}
+    steps:
+      # Outside the workspace: the run refuses an output directory inside
+      # the repository. The runner context is not available to a job's own
+      # env, so the paths are set here for the steps after it.
+      - name: Choose the run's directories
+        run: |
+          echo "OUT_DIR=$RUNNER_TEMP/scratch-out" >> "$GITHUB_ENV"
+          echo "SCRATCH_RUN_IMAGE_CACHE=$RUNNER_TEMP/opnsense-image" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # ansible-core and httpx are runtime dependencies, so the synced
+      # environment is the one the play runs in. The collections come from
+      # the shared Galaxy cache; only the warm jobs write it.
+      - name: Setup uv and the Ansible collections
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          locked: "true"
+          install-galaxy-collections: "true"
+
+      # The cache key is the pin file's hash, so a new pinned image is a
+      # miss and the backend downloads and checks it. The image is saved
+      # even when the run fails below: the download is the slow part.
+      - name: Restore the OPNsense image
+        id: image
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.SCRATCH_RUN_IMAGE_CACHE }}
+          key: opnsense-image-${{ hashFiles('tofu/scratch/opnsense/image-pin.yaml') }}
+
+      # QEMU opens /dev/kvm as this user: a hosted runner has the device
+      # but not always an open mode on it, and the rule makes the node
+      # static so it is set before the first open. The packages are the
+      # ones the backend calls: qemu, an overlay tool, the seed builder's
+      # (xmllint, mtools, fdisk), bunzip2 and curl for the image, and sshd
+      # for the namespace canaries.
+      - name: Install QEMU and open /dev/kvm
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86 qemu-utils libxml2-utils mtools fdisk bzip2 curl openssh-server
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm -a -w /dev/kvm
+
+      # The play and the API reads reach the gateway by this name; the
+      # backend refuses to start unless it resolves to the gateway's LAN
+      # address.
+      - name: Name the gateway
+        run: echo "192.168.77.1 OPNsense.internal" | sudo tee -a /etc/hosts
+
+      - name: Check the run can start
+        run: uv run python -m scratch_run "$SPEC" "$OUT_DIR" --backend qemu --preflight
+
+      - name: Run the spec
+        run: uv run python -m scratch_run "$SPEC" "$OUT_DIR" --backend qemu
+
+      - name: Save the OPNsense image
+        if: ${{ !cancelled() && steps.image.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.SCRATCH_RUN_IMAGE_CACHE }}
+          key: ${{ steps.image.outputs.cache-primary-key }}
+
+      # The engine fails a run whose result files hold a credential, and
+      # the backend redacts every log it keeps, so the archive is what a
+      # reader of this public repo may see.
+      - name: Upload the results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scratch-gateway-results
+          path: ${{ env.OUT_DIR }}/results-*.tgz
+          retention-days: 7
+          if-no-files-found: warn

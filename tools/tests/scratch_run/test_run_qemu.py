@@ -185,13 +185,19 @@ def test_the_collection_is_checked(machine, rehearsal):
 
 def test_a_spec_that_sets_vlans_needs_a_seed_builder_that_takes_them(machine, rehearsal, tmp_path):
     spec = Spec(rehearsal.name, rehearsal.description, (20, 70), {}, None, rehearsal.steps[:1])
-    script = tmp_path / "build_seed.sh"
-    script.write_text("#!/bin/sh\n")
+    (tmp_path / "build_seed.sh").write_text("#!/bin/sh\n")
+    options = tmp_path / "patch_config.py"
+    options.write_text('ap.add_argument("--lan-ip")\n')
     made = backend(machine)
-    made.build_seed = script
+    made.build_seed = tmp_path / "build_seed.sh"
     assert any("does not take --vlans" in problem for problem in made.preflight(spec))
-    script.write_text("# --vlans\n")
+    options.write_text('ap.add_argument("--vlans")\n')
     assert not any("--vlans" in problem for problem in made.preflight(spec))
+
+
+def test_the_seed_builder_of_this_checkout_takes_the_vlans_a_spec_sets(machine, rehearsal):
+    spec = Spec(rehearsal.name, rehearsal.description, (20, 70), {}, None, rehearsal.steps[:1])
+    assert backend(machine).preflight(spec) == []
 
 
 # --- up

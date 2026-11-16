@@ -3,7 +3,7 @@ id: EXP-gateway-spike-runs
 title: "How should a run against a scratch gateway be set up, started and collected so that each one starts clean?"
 type: exploration
 status: open
-summary: "Now that one command runs a written spec on the Proxmox node, whether a GitHub-hosted runner or the operator host should host the scratch gateway in its place."
+summary: "Now that one command runs a written spec on the Proxmox node or on a QEMU gateway on a runner, whether the operator host should host the QEMU gateway as well, and what its VM needs."
 topic: repository-tooling
 related: [ADR-0089, ADR-0094]
 ---
@@ -29,6 +29,7 @@ How a run is set up today ([`scratch-gateway-runs.md`](../topics/infra/scratch-g
 - On the node, the rehearsal passed all 11 steps, the VLAN 70 seed run all 7, and the canary VM run all 6, with a tagged VM answering ssh and the zone's flows passing.
 - What it does not show: the VLAN tags, which the granted API cannot read, so a count of interfaces stands in; any traffic over VLAN 70, which waits for the zone; and the firmware status, which reports a major upgrade on offer that the collection does not yet support.
 - The namespace tests of `scratch_canaries.py` skip on the CI runners, which run as an ordinary user.
+- A second backend, `--backend qemu`, runs the same spec on a QEMU gateway on the machine that runs the command, and `scratch-gateway-qemu.yml` runs the rehearsal spec on it on a runner. Neither has booted a gateway yet: the tests see every command, and the first workflow run is the first boot of this backend's command line, which differs from the probe's in one virtio-scsi controller for each disk and a 32 GB disk where the probe used 8 GB.
 
 What a GitHub-hosted runner showed when probed on 2026-11-14, on `ubuntu-26.04` and `ubuntu-24.04`, with the pinned image:
 
@@ -43,7 +44,7 @@ What a GitHub-hosted runner showed when probed on 2026-11-14, on `ubuntu-26.04` 
 
 Still to find out:
 
-- Whether the operator host has KVM at its next incarnation (VM 302, Ubuntu 26.04 like the rest of the repo), which would give the same QEMU path without CI. The controller VM it replaces reports `/dev/kvm` and acceleration usable under `kvm-ok`, which is the nearest evidence; the node's own nested-virtualization check is in [ADR 0093](../decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md).
+- Whether the first run of `scratch-gateway-qemu.yml` boots, imports the seed, updates and passes the rehearsal as the probe's did, since the backend's command line has not been run, and whether the pinned checksum is the publisher's (it was supplied, and the publisher's checksum file could not be fetched from here).
 - What a run in public CI leaves public. Logs and artifacts of a public repository are readable by anyone, so a run that goes looking for a hole would publish it before it could be fixed, against [`docs/README.md#public-repo`](../README.md#public-repo).
 
 What no runner can show: the real `vmbr1` VLAN-aware bridge, the tailnet, the node's own firewall and the live gateway.
@@ -51,16 +52,16 @@ What no runner can show: the real `vmbr1` VLAN-aware bridge, the tailnet, the no
 ## Options
 
 1. **Keep the node and wrap it.** Built. One command takes a written spec (seed VLANs, the play's variables, the zones and canaries, the steps with the outcome each should have, what to keep) and does the setup, the steps and the teardown, then bundles the results into one file. A preflight reports each missing precondition at once. It needed no new backend and keeps what only the node can show. It still needs the node's bridge, token and ssh path, and the update's wait on the node.
-2. **The same spec on a QEMU gateway on a GitHub-hosted runner.** The command is the same, and the backend is a workflow that boots the pinned image as the probe did, reuses `import_seed.py` and `update_gateway.sh`, and runs the namespaces as root. Nothing is carried between runs, and no node, bridge or token is involved. It also runs the namespace tests now skipped, and could run on a pull request that changes the flow list or the play. Cost: a second statement of the VM's layout (NIC order, disk slots, `q35`), which `scratch_run.qemu_layout` now holds once and a test diffs against the module so the two cannot drift, a root `sudo` step on the runner, and the public-log limit above, which confines it to regression and rehearsal and leaves discovery runs elsewhere.
-3. **The same QEMU backend on the operator host.** No CI, so a run can look for a hole in private and can use the host's credentials. Cost: it depends on KVM on that VM, which is unchecked, and it ties the operator host to a 3 GB image and a 2 GB guest.
+2. **The same spec on a QEMU gateway on a GitHub-hosted runner.** Built, and not yet booted. The command is the same, and the backend boots the pinned image as the probe did, reuses `import_seed.py` and `update_gateway.sh`, and runs the namespaces as root, from a workflow. Nothing is carried between runs, and no node, bridge or token is involved. It also runs the namespace tests now skipped, and could run on a pull request that changes the flow list or the play. Cost: a second statement of the VM's layout (NIC order, disk slots, `q35`), which `scratch_run.qemu_layout` now holds once and a test diffs against the module so the two cannot drift, a root `sudo` step on the runner, and the public-log limit above, which confines it to regression and rehearsal and leaves discovery runs elsewhere.
+3. **The same QEMU backend on the operator host.** Buildable: the backend already runs on any host with the tools, `sudo -n` and KVM. No CI, so a run can look for a hole in private and can use the host's credentials. VM 302 is Ubuntu 26.04 on the node, and the controller it replaces passes `kvm-ok`. Cost: the controller's `kvm-ok` does not carry over by itself. `proxmox_ubuntu_vm` fixes the CPU type at `x86-64-v2-AES`, which exposes no `vmx`, so a VM 302 built from the module as it is has no `/dev/kvm` and the backend would fall to software emulation (about twenty times slower, `SCRATCH_RUN_QEMU_ACCEL=tcg`). It needs the module to take a CPU type, `host` or a model with `vmx`, for that VM, and the node to allow nested virtualization for it. It also ties the operator host to a 3 GB image and a 2 GB guest.
 4. **Leave the setup as it is.** A run stays as long as the person assembling it. Cost: every project in the first list pays it again, and the namespace tests stay skipped.
 
 ## Leaning
 
-The spec and the single command came first, whichever backend runs under them, and are built for the node. The QEMU backend on a runner is the first second backend to build, for the regression and rehearsal runs the projects above end on, with discovery runs on the node or the operator host. What would change it: a play or a canary run that behaves differently on the QEMU gateway from the node's, which has not happened in the flows and the block-rule round trip run so far.
+The spec and the single command came first, whichever backend runs under them. The QEMU backend and its workflow are built for the regression and rehearsal runs the projects above end on, with discovery runs on the node or, once its CPU type allows KVM, the operator host (option 3, next). What would change it: a play or a canary run that behaves differently on the QEMU gateway from the node's, which has not happened in the flows and the block-rule round trip run so far.
 
-Leanings on how the QEMU backend would run, if it is built:
+How the workflow runs:
 
-- A workflow that runs on pull requests touching what the gateway depends on (the flow list, `tools/network_checks/`, the gateway role, `tofu/scratch/opnsense/`, the seed importer), and on a weekly schedule on the default branch, which keeps the image cache from expiring and lets pull requests read it. It is not a required check at first: the run is several minutes and the runner image changes under it.
+- On pull requests touching what the gateway depends on, and twice a week on the default branch, which keeps the image cache from expiring and lets pull requests read it. It is not a required check at first: the run is several minutes and the runner image changes under it.
 - The runner label is pinned to `ubuntu-26.04`, not `ubuntu-latest`, so the label's migration does not change what the run measures.
 - It stays a regression and rehearsal run. A run that looks for a hole does not go through public CI.

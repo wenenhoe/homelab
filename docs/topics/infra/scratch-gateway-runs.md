@@ -9,6 +9,7 @@ python -m scratch_run --list              # the specs there are, and what each s
 python -m scratch_run rehearsal --check-spec   # read the spec and check it against the flow list, nothing else
 python -m scratch_run rehearsal --preflight    # also check everything the run needs, then stop
 python -m scratch_run rehearsal                # run it
+python -m scratch_run rehearsal --backend qemu # run it on a QEMU gateway on this machine, not on the node
 python -m scratch_run --ssh status             # is the ssh master to the node up? (also: up, down)
 ```
 
@@ -77,13 +78,34 @@ A run starts only when every precondition holds, and the message lists all that 
 
 ## Backends
 
-`scratch_run.engine` decides each step's outcome, writes the files and checks them for credentials; it does not know where the gateway runs. A backend builds the gateway, runs one step at a time and removes it (`engine.Backend`). The one that exists, `scratch_run.node.NodeBackend`, drives what a person drives today: `scratch_gateway.sh up` and `down`, the play and the block playbook from this machine through the ssh forward, and on the node `scratch_canaries.py` (its files go to `/root/scratch-run`, which `down` removes) with the runner reaching the canaries through a `ProxyCommand`. A run on a QEMU gateway would be a second backend and would not change the spec.
+`scratch_run.engine` decides each step's outcome, writes the files and checks them for credentials; it does not know where the gateway runs. A backend builds the gateway, runs one step at a time and removes it (`engine.Backend`). The one that exists, `scratch_run.node.NodeBackend`, drives what a person drives today: `scratch_gateway.sh up` and `down`, the play and the block playbook from this machine through the ssh forward, and on the node `scratch_canaries.py` (its files go to `/root/scratch-run`, which `down` removes) with the runner reaching the canaries through a `ProxyCommand`. The second, `scratch_run.qemu.QemuBackend`, runs the gateway under QEMU on the machine that runs the command, so it needs no node, no Proxmox token and no ssh master. Both share the steps that do not depend on where the gateway is (`scratch_run.gateway_steps`: the play, the block rule, the API reads, the log redaction), and neither changes the spec. Choose it with `--backend qemu`; the node backend stays the default.
 
 ### The QEMU layout
 
 A QEMU gateway has to be laid out as the Tofu module lays out the VM, or a run on it would measure another machine. `scratch_run.qemu_layout` states that layout once (`STATED`) and builds the `qemu-system-x86_64` command line from it: machine `q35`, 2 cores and 2048 MiB, one virtio-scsi controller for each disk (the module's `virtio-scsi-single`, with the system disk's iothread, discard and SSD flag), the system disk booting from `scsi0` and the seed as the second disk, a virtio NIC for the WAN on user-mode networking first and one for the LAN on a tap second, and the console on a serial socket.
 
 It also reads the same facts from `main.tf` and `variables.tf` of [`tofu/modules/proxmox_opnsense_vm`](../../../tofu/modules/proxmox_opnsense_vm/main.tf), taking each `var.` reference from its default, and `drift` names every part on which the two differ. `test_run_qemu_layout.py` fails on any difference, and CI runs it when either side changes, so neither can move alone. Three things are not the module's on purpose: the CPU model (`host` under KVM, since a runner's CPU is not the module's `x86-64-v2-AES`), the MAC addresses (the module's come from the VM id) and the disks' files (a qcow2 overlay on the cached image, and the seed file). The reader takes only what the layout states; a module attribute outside it can change without the check noticing, and that the command line boots a gateway is shown by a run, not by the test.
+
+### The QEMU backend
+
+Under `--backend qemu` a run does these in order, each through one recorded command so the tests see every argument list:
+
+1. **The image.** The pinned `.img.bz2` is downloaded, its SHA-256 compared with the pin and the file unpacked into the image cache (`SCRATCH_RUN_IMAGE_CACHE`, default `~/.cache/scratch-run/image`). A download that does not match the pin is removed and stops the run. The unpacked image is kept with the checksum it came from, so a cache for the same checksum is used as it is and one for another checksum is replaced.
+2. **The seed.** `build_seed.sh` builds it with the flags `scratch_gateway.sh` gives it (the LAN address, the credentials file, the WAN DHCP hostname and the spec's VLANs), so a gateway on either backend is seeded alike.
+3. **The network.** A bridge with this machine's address on it (`192.168.77.10`) and a tap on the bridge for the gateway's LAN, made with `sudo -n ip`. The gateway's LAN address is `192.168.77.1`, which `OPNsense.internal` has to resolve to here.
+4. **The gateway.** A qcow2 overlay of the cached image at the module's disk size, and `qemu-system-x86_64` started in the background with the command line of [the layout](#the-qemu-layout). A QEMU that exits within seconds stops the run with what it printed.
+5. **The import.** `import_seed.py` drives the serial console to import the seed; the root password reaches it on its standard input, never in its arguments.
+6. **The update.** `update_gateway.sh` takes the gateway to the pinned release through its firmware API, from a credentials file that exists only while it runs, after the backend waits for the gateway to answer on its API port.
+
+The canaries are namespaces joined to the same bridge, built as root with `sudo -n` by the first `flows` step, and the runner reaches them through the same `ProxyCommand` the node backend uses. A `canary_vm` is not built: this backend has namespaces only, and the preflight refuses a spec that has one.
+
+The accelerator is KVM, which needs `/dev/kvm` readable and writable, unless `SCRATCH_RUN_QEMU_ACCEL=tcg` asks for software emulation, which needs no device but is about twenty times slower and gets longer importer timeouts. The preflight names every precondition at once: the tools, KVM, passwordless `sudo`, the name resolving, the bridge and tap names free, the image pin well-formed and the collection release installed. The image comes from the pin file [`tofu/scratch/opnsense/image-pin.yaml`](../../../tofu/scratch/opnsense/image-pin.yaml) unless `--image-url` and `--image-checksum` or the settings name another, because a CI runner has no settings file. A change to the pinned release is a change to that file, and CI loads it on every run of the Python tests.
+
+Everything the backend keeps of a run is redacted of the credentials the seed carries, and the engine still fails a run whose result files hold one. On a GitHub Actions runner the backend also prints each credential in `::add-mask::` once it exists, so the log of the workflow below never shows it. `down` stops the canaries, terminates QEMU (killing it after 30 seconds), removes the tap and the bridge and removes the state directory only when all of that worked.
+
+### The workflow
+
+[`scratch-gateway-qemu.yml`](../../../.github/workflows/scratch-gateway-qemu.yml) runs the `rehearsal` spec on a hosted runner on `--backend qemu`. A pull request runs it when a file the gateway depends on changed (the scratch run code, the flow list and runner, `tofu/scratch/opnsense/`, the OPNsense module, the gateway role and its playbook); a weekly run on the default branch keeps the cached image from being evicted for going 7 days unused, and `workflow_dispatch` takes another committed spec that needs no node. It is not a required check: it needs a runner with `/dev/kvm`, and a hosted runner's nested virtualisation is GitHub's to change. The image is cached by the hash of the pin file, and saved even when the run fails. Its logs and its results archive are public, so it runs rehearsal specs only (see [`docs/README.md`](../../README.md#public-repo)).
 
 ## What it does not do
 
@@ -103,4 +125,4 @@ They wait for Stage 2 of [the coding agent's network](../../projects/coding-agen
 
 ## Tests
 
-The tests of `tools/tests/scratch_run/` cover the loader (every refusal, and that each committed spec loads against the committed flow list), the engine against a backend with behaviour of its own, and the node backend through a runner that records each command it is given, and the API read of the `vlans` step against a TLS server with a certificate of its own. None of them starts a gateway, so a change to the commands the node backend issues is shown to work only by a run on the node.
+The tests of `tools/tests/scratch_run/` cover the loader (every refusal, and that each committed spec loads against the committed flow list), the engine against a backend with behaviour of its own, and the node backend through a runner that records each command it is given, and the API read of the `vlans` step against a TLS server with a certificate of its own. The QEMU backend is tested the same way, through a runner whose commands leave the files the real ones would, a fake QEMU process and a fake TCP check, plus the real process, port and standard-input helpers; the pin is loaded and checked for shape. None of them starts a gateway, so a change to the commands either backend issues is shown to work only by a run: on the node for the node backend, and by the workflow above for the QEMU one.

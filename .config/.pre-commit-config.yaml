@@ -158,6 +158,20 @@ repos:
         files: "^(ansible/inventory/(inventory\\.yaml|group_vars/all/(app_catalog|main|secret_catalog)\\.yaml\
           |host_vars/[^/]+\\.yaml)|tools/(utils/(app_catalog|unique_key_yaml)|ci/gates/app_catalog_rules)\\.py)$"
         pass_filenames: false
+      - id: check-compose-hardening
+        name: check-compose-hardening
+        description: >-
+          Every service in a production compose file or role template sets
+          cap_drop: [ALL] and no-new-privileges:true, and anything wider
+          (cap_add, privileged, a host namespace, devices, the Docker
+          socket) is listed with its reason - see
+          tools/ci/gates/compose_hardening_rules.py. Needs only PyYAML.
+        entry: bash -c 'cd tools && python3 -m ci.gates.compose_hardening_rules' --
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        files: "^(docker/.+/compose[^/]*\\.ya?ml(\\.j2)?|ansible/roles/[^/]+/templates/(.+/)?compose[^/]*\\.j2\
+          |tools/(utils/unique_key_yaml|ci/gates/compose_hardening_rules)\\.py)$"
+        pass_filenames: false
       - id: check-flow-list
         name: check-flow-list
         description: >-

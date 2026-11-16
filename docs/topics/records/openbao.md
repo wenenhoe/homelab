@@ -31,10 +31,10 @@ Holds every secret the repository generates or caches, in its raft dataset on th
 
 ## Observability
 
-- A sealed or crashed instance fails its container health check, which Beszel reports as container state ([`beszel.md`](../monitoring/beszel.md)).
+- A sealed or crashed instance fails its container health check, which Beszel reports as container state ([`beszel.md`](../monitoring/beszel.md)). Alerts on the hub are set by hand in its database ([`beszel.md`](../monitoring/beszel.md#alert-notifications)); the repository declares none and none has fired, so nothing alerts from this.
 - Its certificate renewer pushes a daily heartbeat (`cert-renewer-openbao`) and Gatus alerts to Telegram when it stops ([`gatus.md`](../monitoring/gatus.md)).
-- The rotation read watcher pushes a heartbeat (`rotation-read-watcher`) every 10 minutes, and Gatus alerts when it stops. The heartbeat checks that the watcher service is active; what the watcher cannot do while down, and the check not yet built, are in [`openbao-rotation-read-watcher.md`](../secrets/openbao-rotation-read-watcher.md#known-gap).
-- Unknown: whether anything alerts on a seal that happens without a container restart. Check the Gatus endpoints and the Beszel alert rules.
+- The rotation read watcher pushes a heartbeat (`rotation-read-watcher`) every 10 minutes, and Gatus alerts when it stops. The heartbeat checks that the watcher service is active. A stopped container or a restart that leaves the store sealed ends the watcher's log follower, its next login fails and the unit restarts every ten seconds, so the heartbeat stops. What the watcher cannot do while down, and the check not yet built, are in [`openbao-rotation-read-watcher.md`](../secrets/openbao-rotation-read-watcher.md#known-gap).
+- A seal while the container keeps running leaves the watcher running, so its heartbeat does not catch it. Unknown: whether anything else alerts on it. Check the Gatus endpoints.
 
 ## Disaster recovery
 

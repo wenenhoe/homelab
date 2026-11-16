@@ -27,7 +27,7 @@ zones:
   experimental: {subnet: 192.168.60.0/24, canary: 192.168.60.8}
 
 flows:
-  # Every zone asks its own gateway address for DNS, time and an echo (row 1 of the gateway's policy).
+  # Every zone asks its own gateway address for DNS, time and an echo (the play's DNS, NTP and ping rules to the gateway).
   - id: services-gateway-dns
     from: services
     to: {address: 192.168.20.1, port: 53, protocol: udp}
@@ -368,7 +368,7 @@ flows:
     control: services-security-vault
     tags: [cross-zone]
 
-  # The desktops reach the Minecraft server and the KMS host, and no other zone does (rows 15 and 16 of the gateway's policy).
+  # The desktops reach the Minecraft server and the KMS host, and no other zone does (the play's flows from the desktops to `play` and `services`).
   # The control of each deny is the desktops' own allow flow. The services zone holds both hosts, so its own traffic is
   # switched on the bridge and never reaches the gateway. Each passes only while something listens on the host, so they carry
   # the `listener` tag, which a run that must not depend on the service being up leaves out.

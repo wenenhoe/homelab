@@ -101,6 +101,16 @@ The canaries are namespaces joined to the same bridge, built as root with `sudo 
 
 The accelerator is KVM, which needs `/dev/kvm` readable and writable, unless `SCRATCH_RUN_QEMU_ACCEL=tcg` asks for software emulation, which needs no device but is about twenty times slower and gets longer importer timeouts. The preflight names every precondition at once: the tools, KVM, passwordless `sudo`, the name resolving, the bridge and tap names free, the image pin well-formed and the collection release installed. The image comes from the pin file [`tofu/scratch/opnsense/image-pin.yaml`](../../../tofu/scratch/opnsense/image-pin.yaml) unless `--image-url` and `--image-checksum` or the settings name another, because a CI runner has no settings file. A change to the pinned release is a change to that file, and CI loads it on every run of the Python tests.
 
+#### Bumping the pinned image
+
+The pin file holds three values that have to agree: `version`, a `url` whose file name is `OPNsense-<version>-nano-amd64.img.bz2`, and `sha256` of that file. The weekly release-checksum check and the pull request job fetch the release's signed checksum file for `version`, verify its RSA signature against the key committed in [`tools/ci/checksums/keys/`](../../../tools/ci/checksums/keys/), and require `sha256` to equal its line for the file ([the check](../engineering/ci/release-checksum-check.md)); a `sha256` copied from anywhere else, or a wrong one, fails it. To bump within the series (26.1.x):
+
+1. Fetch `OPNsense-<version>-checksums-amd64.sha256` and its `.sig` from `https://pkg.opnsense.org/releases/26.1/`.
+2. Verify them yourself with the committed key: `openssl base64 -d -in OPNsense-<version>-checksums-amd64.sha256.sig -out sig.bin`, then `openssl dgst -sha256 -verify tools/ci/checksums/keys/opnsense-26.1.pem -signature sig.bin OPNsense-<version>-checksums-amd64.sha256`, which prints `Verified OK`.
+3. Copy the `nano-amd64.img.bz2` line's hash into `sha256`, and set `version` and `url` to the new release. Quote `version`, so that a release such as `26.7` stays text.
+
+The key belongs to a release series. A move to the next series (26.7, say) fails the check with a missing manifest until the series in the entry's two URLs, the key file and its fingerprint in [`registry.py`](../../../tools/ci/checksums/registry.py) are changed in the same pull request; take the new key from the release's documentation page and the changelog repository, compare the two, and check the fingerprint with `openssl pkey -pubin -in KEY.pem -outform DER | sha256sum`.
+
 Everything the backend keeps of a run is redacted of the credentials the seed carries, and the engine still fails a run whose result files hold one. On a GitHub Actions runner the backend also prints each credential in `::add-mask::` once it exists, so the log of the workflow below never shows it. `down` stops the canaries, terminates QEMU (killing it after 30 seconds), removes the tap and the bridge and removes the state directory only when all of that worked.
 
 ### The workflow

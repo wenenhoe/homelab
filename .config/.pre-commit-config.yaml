@@ -150,8 +150,8 @@ repos:
           cannot: unique names, backup.volumes within volumes, an
           upstream on every route, each backup setting in its shape, and
           cloud targets and backup-host credentials that exist in the
-          inventory - see tools/ci/gates/app_catalog_rules.py. Needs only
-          PyYAML.
+          inventory, and a reason on file for every auth: false route -
+          see tools/ci/gates/app_catalog_rules.py. Needs only PyYAML.
         entry: bash -c 'cd tools && python3 -m ci.gates.app_catalog_rules' --
         language: python
         additional_dependencies: [pyyaml==6.0.3]

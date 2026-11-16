@@ -60,6 +60,17 @@ BACKUP_SETTINGS = ("cron", "retention_days", "compression", "stop_during_backup"
 COMPRESSIONS = ("gz", "zst", "none")
 BACKUP_KEYS = ("volumes", *BACKUP_SETTINGS)
 
+# Each route that opts out of Tinyauth with `auth: false`, and why it is safe to leave open: app -> route
+# id -> reason. The route then relies on the app's own authentication, so a new entry is a security review
+# (docs/topics/records/caddy.md). An entry whose route is gone, or is gated again, fails as stale.
+OPEN_ROUTES: dict[str, dict[str, str]] = {
+    "beszel-hub": {"default": "agents connect with a TOKEN/KEY handshake, which Tinyauth would block; the dashboard has the hub's own login"},
+    "cobalt": {"default": "a public API endpoint: clients call it directly with no browser session, so Tinyauth cannot gate it"},
+    "gatus": {"default": "jobs push with a bearer token from cron and systemd, which a login redirect would break; the dashboard has Gatus's own basic auth"},
+    "lldap": {"default": "the identity provider cannot sit behind its own check; the web UI has its own login"},
+    "seaweedfs": {"s3": "S3 clients cannot complete forward auth; access is by SigV4 keypairs"},
+}
+
 
 @dataclass(frozen=True)
 class Violation:
@@ -295,10 +306,46 @@ def _check_restart_after(catalog: Catalog) -> list[Violation]:
     return found
 
 
-def validate(catalog: Catalog, inventory: BackupInventory | None = None) -> list[Violation]:
-    """Every rule violation in `catalog`, in app order, then those that need the inventory if it is given."""
+def _is_open(route: object) -> bool:
+    return isinstance(route, dict) and route.get("auth") is False
+
+
+def _check_open_routes(catalog: Catalog, open_routes: dict[str, dict[str, str]]) -> list[Violation]:
+    """Every `auth: false` route not listed in `open_routes`, then every listed route that is not open."""
+    found = []
+    for name, app in catalog.items():
+        routes = app.get(ROUTES_KEY)
+        for route_id, route in routes.items() if isinstance(routes, dict) else ():
+            if _is_open(route) and route_id not in open_routes.get(name, {}):
+                found.append(
+                    Violation(
+                        name,
+                        "open-route",
+                        f"route `{route_id}` sets `auth: false`, so Tinyauth does not gate it; list it in OPEN_ROUTES with the reason, or drop `auth: false`",
+                    )
+                )
+    for name, listed in open_routes.items():
+        app = catalog.get(name)
+        routes = app.get(ROUTES_KEY) if isinstance(app, dict) else None
+        for route_id in listed:
+            if not (isinstance(routes, dict) and _is_open(routes.get(route_id))):
+                found.append(
+                    Violation(
+                        name, "stale-open-route", f"OPEN_ROUTES lists route `{route_id}`, which is not an `auth: false` route of this app; remove the entry"
+                    )
+                )
+    return found
+
+
+def validate(catalog: Catalog, inventory: BackupInventory | None = None, open_routes: dict[str, dict[str, str]] | None = None) -> list[Violation]:
+    """Every rule violation in `catalog`, in app order, then those that need the inventory if it is given.
+
+    Which routes may be open is judged only when `open_routes` is given; `main` passes OPEN_ROUTES.
+    """
     found = [violation for name, app in catalog.items() for violation in _check_app(name, app)]
     found += _check_restart_after(catalog)
+    if open_routes is not None:
+        found += _check_open_routes(catalog, open_routes)
     if inventory is not None:
         found += _check_defaults(inventory) + _check_overrides(inventory) + _check_cloud_targets(catalog, inventory) + _check_backup_hosts(catalog, inventory)
     return found
@@ -306,7 +353,7 @@ def validate(catalog: Catalog, inventory: BackupInventory | None = None) -> list
 
 def main() -> int:
     try:
-        violations = validate(load_catalog(CATALOG_PATH), load_backup_inventory())
+        violations = validate(load_catalog(CATALOG_PATH), load_backup_inventory(), OPEN_ROUTES)
     except CatalogError as exc:
         print(f"::error::{exc}", file=sys.stderr)
         return 1

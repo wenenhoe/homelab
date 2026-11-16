@@ -440,12 +440,13 @@ class TestAgainstTheInventory:
 def run_main(tmp_path_factory, monkeypatch):
     path = tmp_path_factory.mktemp("catalog") / "catalog.yaml"
 
-    def run(text: str | None, inv: BackupInventory | Exception | None = None) -> tuple[int, str, str]:
+    def run(text: str | None, inv: BackupInventory | Exception | None = None, open_routes: dict | None = None) -> tuple[int, str, str]:
         if text is not None:
             path.write_text(text)
         out, err = io.StringIO(), io.StringIO()
         loader = {"side_effect": inv} if isinstance(inv, Exception) else {"return_value": inv or inventory()}
         monkeypatch.setattr(rules, "CATALOG_PATH", path)
+        monkeypatch.setattr(rules, "OPEN_ROUTES", open_routes or {})
         monkeypatch.setattr(rules, "load_backup_inventory", create_autospec(rules.load_backup_inventory, **loader))
         with redirect_stdout(out), redirect_stderr(err):
             code = rules.main()
@@ -467,7 +468,8 @@ class TestMain:
         assert "[backup-volume]" in err
         assert "::error::b:" in err
         assert "[route-upstream]" in err
-        assert "2 rule violation(s)" in err
+        assert "[open-route]" in err
+        assert "3 rule violation(s)" in err
 
     def test_fails_on_an_unreadable_catalog(self, run_main):
         code, _, err = run_main(None)
@@ -491,7 +493,56 @@ class TestMain:
         assert "duplicate key" in err
 
 
+OPEN = {"web": {"admin": "its own login"}}
+
+
+class TestOpenRoutes:
+    def test_a_listed_open_route_passes(self):
+        assert rules.validate(GOOD, open_routes=OPEN) == []
+
+    def test_an_open_route_that_is_not_listed_is_refused(self):
+        found = rules.validate(GOOD, open_routes={})
+        assert [(v.name, v.rule) for v in found] == [("web", "open-route")]
+        assert "`admin`" in found[0].message
+
+    def test_a_listing_for_another_route_of_the_app_does_not_cover_it(self):
+        assert [v.rule for v in rules.validate(GOOD, open_routes={"web": {"default": "x"}})] == ["open-route", "stale-open-route"]
+
+    def test_a_listing_for_another_app_does_not_cover_it(self):
+        assert [v.rule for v in rules.validate(GOOD, open_routes={"agent": {"admin": "x"}})] == ["open-route", "stale-open-route"]
+
+    @pytest.mark.parametrize("flag", [True, "false", None, 0])
+    def test_only_a_boolean_false_opens_a_route(self, flag):
+        catalog = {"web": {"routes": {"admin": {"upstream": "web:1", "auth": flag}}}}
+        assert "open-route" not in [v.rule for v in rules.validate(catalog, open_routes={})]
+
+    def test_a_listing_for_a_route_that_is_gated_is_stale(self):
+        catalog = {"web": {"routes": {"admin": {"upstream": "web:1", "auth": True}}}}
+        assert [(v.name, v.rule) for v in rules.validate(catalog, open_routes=OPEN)] == [("web", "stale-open-route")]
+
+    def test_a_listing_for_a_route_that_is_gone_is_stale(self):
+        assert [v.rule for v in rules.validate({"web": {}}, open_routes=OPEN)] == ["stale-open-route"]
+
+    def test_a_listing_for_an_app_that_is_gone_is_stale(self):
+        assert [(v.name, v.rule) for v in rules.validate({}, open_routes=OPEN)] == [("web", "stale-open-route")]
+
+    def test_a_catalog_is_not_judged_for_open_routes_unless_a_list_is_given(self):
+        assert rules.validate(GOOD) == []
+
+    def test_main_fails_on_an_open_route_that_is_not_listed(self, run_main):
+        code, _, err = run_main(f"{CATALOG_KEY}:\n  a:\n    routes:\n      default: {{ upstream: 'a:1', auth: false }}\n")
+        assert (code, "[open-route]" in err) == (1, True)
+
+    def test_main_passes_when_the_route_is_listed(self, run_main):
+        text = f"{CATALOG_KEY}:\n  a:\n    routes:\n      default: {{ upstream: 'a:1', auth: false }}\n"
+        assert run_main(text, open_routes={"a": {"default": "why"}})[0] == 0
+
+
 class TestRealCatalog:
+    def test_every_open_route_of_the_real_catalog_is_listed_with_a_reason_and_none_is_stale(self):
+        assert [v for v in rules.validate(load_catalog(), open_routes=rules.OPEN_ROUTES) if v.rule in ("open-route", "stale-open-route")] == []
+        assert all(reason.strip() for routes in rules.OPEN_ROUTES.values() for reason in routes.values())
+
     def test_the_real_catalog_follows_every_rule(self):
         assert rules.validate(load_catalog()) == []
 

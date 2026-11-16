@@ -79,6 +79,12 @@ A run starts only when every precondition holds, and the message lists all that 
 
 `scratch_run.engine` decides each step's outcome, writes the files and checks them for credentials; it does not know where the gateway runs. A backend builds the gateway, runs one step at a time and removes it (`engine.Backend`). The one that exists, `scratch_run.node.NodeBackend`, drives what a person drives today: `scratch_gateway.sh up` and `down`, the play and the block playbook from this machine through the ssh forward, and on the node `scratch_canaries.py` (its files go to `/root/scratch-run`, which `down` removes) with the runner reaching the canaries through a `ProxyCommand`. A run on a QEMU gateway would be a second backend and would not change the spec.
 
+### The QEMU layout
+
+A QEMU gateway has to be laid out as the Tofu module lays out the VM, or a run on it would measure another machine. `scratch_run.qemu_layout` states that layout once (`STATED`) and builds the `qemu-system-x86_64` command line from it: machine `q35`, 2 cores and 2048 MiB, one virtio-scsi controller for each disk (the module's `virtio-scsi-single`, with the system disk's iothread, discard and SSD flag), the system disk booting from `scsi0` and the seed as the second disk, a virtio NIC for the WAN on user-mode networking first and one for the LAN on a tap second, and the console on a serial socket.
+
+It also reads the same facts from `main.tf` and `variables.tf` of [`tofu/modules/proxmox_opnsense_vm`](../../../tofu/modules/proxmox_opnsense_vm/main.tf), taking each `var.` reference from its default, and `drift` names every part on which the two differ. `test_run_qemu_layout.py` fails on any difference, and CI runs it when either side changes, so neither can move alone. Three things are not the module's on purpose: the CPU model (`host` under KVM, since a runner's CPU is not the module's `x86-64-v2-AES`), the MAC addresses (the module's come from the VM id) and the disks' files (a qcow2 overlay on the cached image, and the seed file). The reader takes only what the layout states; a module attribute outside it can change without the check noticing, and that the command line boots a gateway is shown by a run, not by the test.
+
 ## What it does not do
 
 - The checks of [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope) stay in that script, and it still writes the play's variables itself.

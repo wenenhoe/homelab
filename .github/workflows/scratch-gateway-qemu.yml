@@ -128,11 +128,15 @@ jobs:
       - name: Name the gateway
         run: echo "192.168.77.1 OPNsense.internal" | sudo tee -a /etc/hosts
 
+      # From tools/, where the packages are importable, as the topic doc
+      # runs it. OUT_DIR is absolute, so it stays outside the repository.
       - name: Check the run can start
         run: uv run python -m scratch_run "$SPEC" "$OUT_DIR" --backend qemu --preflight
+        working-directory: tools
 
       - name: Run the spec
         run: uv run python -m scratch_run "$SPEC" "$OUT_DIR" --backend qemu
+        working-directory: tools
 
       - name: Save the OPNsense image
         if: ${{ !cancelled() && steps.image.outputs.cache-hit != 'true' }}

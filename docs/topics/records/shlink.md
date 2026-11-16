@@ -9,7 +9,7 @@ A URL shortener with its web client, on `services`. The catalog's facts are in t
 
 ## Data
 
-- The short links and their visit statistics. Unknown: where they are stored. The catalog declares no volume and the compose file sets no database, so Shlink's default embedded database would live in the container's filesystem and not survive a recreation. Check the container's configuration before relying on the links.
+- The short links and their visit statistics, in Shlink's default embedded SQLite database. The catalog declares no volume and the compose file sets no database, so the file lives in the container's writable layer and does not survive a recreation. That is deliberate: the links are disposable and are rebuilt by creating them again.
 - The API key is a secret; the web client holds it in its environment.
 
 ## Exposure
@@ -29,7 +29,7 @@ A URL shortener with its web client, on `services`. The catalog's facts are in t
 
 ## Disaster recovery
 
-Not backed up; recovery tier 3. Unknown: whether any links exist that would be lost; see the Data section. A deploy rebuilds the containers.
+Not backed up; recovery tier 3. The links are lost with the container and are created again; see the Data section. A deploy rebuilds the containers.
 
 ## Lifecycle
 

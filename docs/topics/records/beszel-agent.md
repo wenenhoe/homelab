@@ -16,14 +16,14 @@ The per-host agent that reports host and container metrics to the hub; it runs o
 ## Exposure
 
 - It runs on the host network but opens no listening port, since SSH mode is disabled; it connects outbound to the hub over a WebSocket ([`beszel.md`](../monitoring/beszel.md#connection-model)).
-- The sidecar publishes the proxied Docker API on a port. Unknown: which address the proxy binds to; check the compose file's `ports:` on each host.
+- The sidecar publishes the proxied Docker API on `127.0.0.1:2375`, and the agent runs on the host network, so any process on the host can reach it.
 - Both containers drop every capability.
 
 ## Threat model
 
 - A compromised agent can send false metrics for its own system only; it holds a token, not the hub's keys.
-- A reachable Docker API proxy exposes container metadata. The proxy is scoped to container reads and the socket is mounted read-only ([`beszel.md`](../monitoring/beszel.md#runtime-config)).
-- Unknown: whether the proxy's published port is reachable from other hosts. Check the host firewall rules.
+- The proxy allows `CONTAINERS=1`, which admits more than metadata: reading a container's inspect data, logs and archive, which reveal its environment, output and files ([ADR 0004](../../decisions/0004-container-access-to-the-docker-api/revision-001.md)). The socket is mounted read-only, which does not narrow those reads ([`beszel.md`](../monitoring/beszel.md#runtime-config)). A rules file naming only the calls the agent makes is planned ([`beszel-agent-docker-api-rules.md`](../../projects/beszel-agent-docker-api-rules.md)).
+- The port is bound to the loopback address, so another host reaches it only through something running on the host itself.
 
 ## Observability
 

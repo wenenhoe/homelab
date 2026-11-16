@@ -484,7 +484,18 @@ class TestMainRunsEveryCheck:
         "check_adr_link_names",
         "check_nist_alignment_currency",
     )
-    GRAPH_CHECKS = ("lineage_errors", "heading_errors", "open_assumption_errors", "project_errors", "record_errors", "reliance_warnings")
+    GRAPH_CHECKS = (
+        "lineage_errors",
+        "heading_errors",
+        "open_assumption_errors",
+        "weight_errors",
+        "superseded_structure_errors",
+        "project_errors",
+        "exploration_errors",
+        "record_errors",
+        "ledger_errors",
+        "reliance_warnings",
+    )
 
     @pytest.fixture
     def called(self, repo, monkeypatch):

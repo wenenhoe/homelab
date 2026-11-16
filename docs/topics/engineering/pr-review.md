@@ -18,7 +18,7 @@ So keep a pull request a draft until it is ready, and ask for the review once it
 
 ## When it is worth asking
 
-[`tools/review_criteria`](../../../tools/review_criteria/criteria.py) decides from the diff alone whether a change is worth a review, so the answer does not depend on anyone's judgment of the day. Run it from `tools/` with `python -m review_criteria BASE HEAD --repo ..`. It is advice and blocks nothing.
+[`tools/review_criteria`](../../../tools/review_criteria/criteria.py) decides from the diff alone whether a change is worth a review, so the answer does not depend on anyone's judgment of the day. [`land_series`](landing-a-series.md#advice-on-a-review) prints it for each pull request it replays, and again before it asks to merge one. Run it by hand from `tools/` with `python -m review_criteria BASE HEAD --repo ..`. It is advice and blocks nothing.
 
 Any one major criterion recommends a review. The two minor ones recommend it only together.
 

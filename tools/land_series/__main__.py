@@ -15,6 +15,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from land_series.advice import kept_advice, replay_advice
 from land_series.kept import KeptError, branch_of, keep, leftovers
 from land_series.land import Landed, LandError, fetch, land
 from land_series.live import LiveBlock
@@ -43,12 +44,14 @@ def ask(layer: Layer, paths: Sequence[str]) -> bool:
     return input("Read the patch, then type 'yes' to replay it: ").strip() == "yes"
 
 
-def ask_merge(pull: Pull, url: str) -> bool:
-    """Ask on the terminal before a merge; with no terminal to ask on, refuse."""
+def ask_merge(pull: Pull, url: str, advice: Sequence[str] = ()) -> bool:
+    """Ask on the terminal before a merge, after any advice on a review; with no terminal to ask on, refuse."""
     if not sys.stdin.isatty():
         return False
     commits = f", {len(pull.layers)} commits" if len(pull.layers) > 1 else ""
     print(f"Pull request {pull.number} ({pull.title}{commits}): its checks passed.\n  {url}")
+    for line in advice:
+        print(line)
     return input("Review it, then type 'yes' to merge: ").strip() == "yes"
 
 
@@ -78,7 +81,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not args.no_fetch:
             fetch(args.repo, args.base)
         if args.land:
-            landed = land(args.repo, layers, lambda pull, url: args.yes or ask_merge(pull, url), base=args.base, progress=say, display=display)
+            landed = land(
+                args.repo,
+                layers,
+                lambda pull, url: args.yes or ask_merge(pull, url, kept_advice(args.repo, pull, branch_of(pull))),
+                base=args.base,
+                progress=say,
+                display=display,
+            )
             return report(landed)
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks()
         results = replay(args.repo, layers, checks, ask, base=args.base, progress=say, display=display)
@@ -93,6 +103,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     for result in results:
         status = "already in " + args.base if not result.applied else "replayed" if args.dry_run else f"kept as {branch_of(result.layer)}"
         print(f"{result.layer.id}  {status}  {result.layer.subject}")
+    for line in replay_advice(args.repo, results):
+        print(line)
     if kept:
         print("Review the branches, then run again with --land to push them.")
         stale = leftovers(args.repo, [result.layer for result in results if result.applied])

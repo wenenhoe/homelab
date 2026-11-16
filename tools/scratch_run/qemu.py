@@ -188,8 +188,9 @@ class QemuBackend(GatewaySteps):
         for link in (BRIDGE, TAP):
             if self.run(["ip", "link", "show", link], timeout=60)[0] == 0:
                 problems.append(f"the link {link} exists: a run that did not finish left it; remove it with `sudo ip link del {link}`")
-        if spec.vlans and "--vlans" not in self.build_seed.read_text():
-            problems.append("the spec sets gateway.vlans, and this checkout's build_seed.sh does not take --vlans")
+        # build_seed.sh hands its options to patch_config.py, which is where `--vlans` is declared.
+        if spec.vlans and '"--vlans"' not in self.build_seed.with_name("patch_config.py").read_text():
+            problems.append("the spec sets gateway.vlans, and this checkout's seed builder does not take --vlans")
         return problems + self._collection_problems()
 
     def up(self, spec: Spec) -> tuple[int, str]:

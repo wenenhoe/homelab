@@ -1,6 +1,6 @@
 # CI Gates
 
-The regression checks and gates in `.github/workflows/pr-checks.yml` that look at one kind of change: deploy ordering, the secret and app catalogs, compose hardening, Molecule coverage, booting compose apps and Dockerfile builds. Image tags and pinned release checksums have their own pages, [`image-tag-check.md`](image-tag-check.md) and [`release-checksum-check.md`](release-checksum-check.md). How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
+The regression checks and gates in `.github/workflows/pr-checks.yml` that look at one kind of change: deploy ordering, the secret and app catalogs, compose and `docker_container` hardening, Molecule coverage, booting compose apps and Dockerfile builds. Image tags and pinned release checksums have their own pages, [`image-tag-check.md`](image-tag-check.md) and [`release-checksum-check.md`](release-checksum-check.md). How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Deploy-ordering-check
 
@@ -104,7 +104,23 @@ It reads the compose files under `docker/` and the compose templates of Ansible 
 
 It runs as the `check-compose-hardening` pre-commit hook, so `pre-commit-checks` runs it on every PR, and the hook needs only PyYAML. `tools/tests/ci/gates/test_compose_hardening_rules.py` has a case for each rule and runs the check over the real files, and checks that every entry in `EXCEPTIONS` carries a reason and names a file in scope.
 
-Not covered: containers that an Ansible task or a systemd unit starts for one job (the helper containers in [`adding-an-app.md`](../../deploy/adding-an-app.md#helper-containers)). They are not compose files, so their hardening is still reviewed by hand.
+Not covered: containers that a systemd unit starts for one job. They are not compose files, so their hardening is still reviewed by hand. The helper containers that an Ansible task starts are checked by the [docker_container rules](#docker_container-rules) below.
+
+## docker_container rules
+
+`ci.gates.docker_container_rules` holds a container that Ansible starts with `community.docker.docker_container` to the same baseline as a compose service. The task sets `cap_drop: [ALL]` (exactly that list) and `security_opts: [no-new-privileges:true]` (the `=true` spelling counts too). Anything wider needs an entry, with its reason, in `EXCEPTIONS` in the module, named as the compose gate names it: `cap_add:<CAPABILITY>` for each entry of `capabilities`, `privileged`, `network_mode:host`, `pid:host`, `ipc:host`, `uts:host` or `userns_mode:host`, `devices`, `docker-socket` for a `volumes` entry or a `mounts` source that names `docker.sock`, and `security_opt:<value>` for any other `security_opts` value. An entry is keyed by file, task name and setting, with the task name written as it is in the file, Jinja included. An entry that nothing uses any more fails the check.
+
+It reads the playbooks under `ansible/playbooks/` and the tasks and handlers of every role except `molecule_helpers`, whose containers are Molecule test targets; Molecule scenarios are left out too. The files are read as YAML, at any depth, so a task inside `block`, `rescue` or `always` is found. A task whose `state` is `absent` creates nothing and is skipped. `docker_container_exec` and `docker_container_info` create nothing either and are not read. A tag such as `!vault` is accepted and its value read as text, and a repeated key is refused.
+
+Some shapes are refused because the check cannot judge them:
+
+- `cap_drop`, `capabilities` or `security_opts` that is not a literal list of names, or a `privileged`, `devices`, `volumes`, `mounts`, host-namespace or `state` value that is only a Jinja expression. Write the literal value.
+- A task without a `name`, and a second checked task in a file with the same name, since they would share an entry.
+- A `command` or `shell` task that runs `docker run` (a comment does not count), which would start a container outside the check. Use the module.
+
+It runs as the `check-docker-container-hardening` pre-commit hook, so `pre-commit-checks` runs it on every PR, and the hook needs only PyYAML. `tools/tests/ci/gates/test_docker_container_rules.py` has a case for each rule, runs the check over the real files, and removes each entry of `EXCEPTIONS` in turn to show that the real tree then fails.
+
+Not covered: containers started through `command`, `shell` or `script` other than by `docker run`, and a `docker_compose_v2` task, whose containers come from a compose template the compose gate reads.
 
 ## Flow list rules
 

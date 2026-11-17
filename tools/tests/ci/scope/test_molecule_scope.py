@@ -768,7 +768,9 @@ class TestRealTree:
                 assert (ms.REPO_ROOT / path).exists()
 
     def test_the_real_base_config_resolves_to_what_every_scenario_is_pointed_at(self):
-        assert ms.base_config_paths(ms.REPO_ROOT) == [
+        # A local molecule run creates the gitignored coverage output directory, and the resolver lists a directory that exists.
+        paths = [p for p in ms.base_config_paths(ms.REPO_ROOT) if p != "ansible/molecule-coverage/.data/"]
+        assert paths == [
             "ansible/ansible.cfg",
             "ansible/molecule-coverage/callback_plugins/",
             "ansible/roles/molecule_helpers/requirements.yml",

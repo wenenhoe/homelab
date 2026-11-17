@@ -4,7 +4,7 @@ title: Operator Host
 type: project
 status: not-started
 blocked: false
-summary: A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller.
+summary: A headless VM in VLAN 25, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller.
 decision: ADR-0058/0
 plan: draft
 also_implements:
@@ -18,7 +18,7 @@ Builds the small host that will run the controller away from the workstation: th
 
 ## Scope
 
-VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, and an `operator_host` role. Not in scope: the egress allowlist and moving the toolchain and credentials onto the host ([`operator-host-takeover.md`](operator-host-takeover.md)), setting up the laptop as the workstation ([`workstation-management.md`](workstation-management.md)), retiring VM 401 ([`vm-401-retirement.md`](vm-401-retirement.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+VLAN 25 and its rules, the Tailscale route and ACL for it, the VM, and an `operator_host` role. Not in scope: the egress allowlist and moving the toolchain and credentials onto the host ([`operator-host-takeover.md`](operator-host-takeover.md)), setting up the laptop as the workstation ([`workstation-management.md`](workstation-management.md)), retiring VM 401 ([`vm-401-retirement.md`](vm-401-retirement.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -30,19 +30,19 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | VLAN 30 with default-deny rules built by hand, its tailnet grant, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token; the coding-agent VLAN and every other tailnet node cannot reach it |
-| 2 | VM 302 and the `operator_host` role, applied locally, including the hardening baseline's role | Not started | The role converges idempotently, SSH accepts only the dedicated hardware-backed keys, both tokens log in to the operator host, and a login with no token present fails |
+| 1 | VLAN 25 with default-deny rules built by hand, its tailnet grant, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token; the coding-agent VLAN and every other tailnet node cannot reach it |
+| 2 | VM 252 and the `operator_host` role, applied locally, including the hardening baseline's role | Not started | The role converges idempotently, SSH accepts only the dedicated hardware-backed keys, both tokens log in to the operator host, and a login with no token present fails |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 1 — tailnet policy
 
-The policy already holds explicit grants ([`tailnet-policy.md`](../topics/infra/tailnet-policy.md#adding-a-grant-for-a-route) says how a route's grant is added). Add one grant to it: the laptop reaches VLAN 30 on `tcp:22`, and no other source has a grant for that route. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is hand-edited in the console now and coded later — see
+The policy already holds explicit grants ([`tailnet-policy.md`](../topics/infra/tailnet-policy.md#adding-a-grant-for-a-route) says how a route's grant is added). Add one grant to it: the laptop reaches VLAN 25 on `tcp:22`, and no other source has a grant for that route. Add `tests` that assert the laptop can reach VLAN 25 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is hand-edited in the console now and coded later — see
 [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md).
 
 ### Stage 1 — required flows
 
-Read from the playbooks, `tools/`, `restore_all.py`, and the docs. All are outbound from VLAN 30; the only inbound flow is SSH from the laptop's route.
+Read from the playbooks, `tools/`, `restore_all.py`, and the docs. All are outbound from VLAN 25; the only inbound flow is SSH from the laptop's route.
 
 | Destination | Port | Used for |
 | :--- | :-: | :--- |
@@ -72,7 +72,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 
 ## Risks
 
-- OPNsense rules for VLAN 30 are hand-maintained until [`opnsense-config.md`](opnsense-config.md) lands.
+- OPNsense rules for VLAN 25 are hand-maintained until [`opnsense-config.md`](opnsense-config.md) lands.
 - The laptop is the workstation and holds the only key to this host. The key is hardware-backed, and losing both tokens means recovery through the Proxmox node.
 - The node has limited headroom for another VM.
 - A tailnet policy edit is tailnet-wide and can lock out access.
@@ -80,7 +80,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 ## Open items
 
 - Tofu's flows come from the docs, not code, since no Tofu exists yet. The Proxmox provider may need SSH to the node for some resources; check when the Tofu skeleton lands.
-- Whether VM 302 is built by hand or from the Tofu Ubuntu module ([`tofu/ubuntu-vms.md`](../topics/infra/tofu/ubuntu-vms.md#modules)); the VM is small enough to build by hand.
+- Whether VM 252 is built by hand or from the Tofu Ubuntu module ([`tofu/ubuntu-vms.md`](../topics/infra/tofu/ubuntu-vms.md#modules)); the VM is small enough to build by hand.
 
 ## Closing checklist
 

@@ -32,7 +32,7 @@ Not in: the AppRoles and their delivery ([`cd-agent.md`](cd-agent.md)); rotating
 
 ## Decision
 
-Implements [ADR 0074 (Job chaining)](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md), `approved`, which gates this project. It also carries out [ADR 0075 (Job SSH identity)](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md), `working` with one open assumption (`storage` sees the agent as `192.168.30.3`), named in `also_implements:`. Stages 3 and 4 do not start before that revision is `approved`, and Stage 3 is where its assumption is checked. Closing this project needs both revisions `accepted`.
+Implements [ADR 0074 (Job chaining)](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md), `approved`, which gates this project. It also carries out [ADR 0075 (Job SSH identity)](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md), `working` with one open assumption (`storage` sees the agent as `192.168.25.3`), named in `also_implements:`. Stages 3 and 4 do not start before that revision is `approved`, and Stage 3 is where its assumption is checked. Closing this project needs both revisions `accepted`.
 
 ## Execution plan
 

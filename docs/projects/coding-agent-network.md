@@ -30,12 +30,12 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | VLAN 70, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route's grant is added as [`tailnet-policy.md`](../topics/infra/tailnet-policy.md#adding-a-grant-for-a-route) describes | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
-| 2 | Carry the zone in the gateway's play: VLAN 70 in the seed's VLAN list and the role's zones, and rows 7 and 12 of [`opnsense-config.md`](opnsense-config.md)'s flow list. Starts once the zone is documented | Not started | `--check --diff` reports no change on a scratch gateway, the zone's flows in the flow list pass, and nothing else is denied that was allowed |
+| 1 | VLAN 30, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route's grant is added as [`tailnet-policy.md`](../topics/infra/tailnet-policy.md#adding-a-grant-for-a-route) describes | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
+| 2 | Carry the zone in the gateway's play: VLAN 30 in the seed's VLAN list and the role's zones, and rows 7 and 12 of [`opnsense-config.md`](opnsense-config.md)'s flow list. Starts once the zone is documented | Not started | `--check --diff` reports no change on a scratch gateway, the zone's flows in the flow list pass, and nothing else is denied that was allowed |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-Until Stage 2 lands, these are untested: a VM tagged 70 reaching the gateway, the zone's flows (rows 7 and 12) and default-deny inside VLAN 70. The scratch kit shows only that a scratch gateway seeded with VLAN 70 has its interface (the `vlan-70-seed` run); [`scratch-gateway-runs.md`](../topics/infra/scratch-gateway-runs.md#untested-until-vlan-70-has-a-zone) says what each remaining check needs. Stage 2's exit condition is the first run of a `canary-vm`-style spec for the new zone.
+Until Stage 2 lands, these are untested: a VM tagged 30 reaching the gateway, the zone's flows (rows 7 and 12) and default-deny inside VLAN 30. The scratch kit shows only that a scratch gateway seeded with VLAN 30 has its interface (the `vlan-30-seed` run); [`scratch-gateway-runs.md`](../topics/infra/scratch-gateway-runs.md#untested-until-vlan-30-has-a-zone) says what each remaining check needs. Stage 2's exit condition is the first run of a `canary-vm`-style spec for the new zone.
 
 ### Stage 1 — tailnet route
 

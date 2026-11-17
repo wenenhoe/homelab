@@ -1,6 +1,6 @@
 # CD Agent Host: The `cd_agent` Role
 
-`ansible/roles/cd_agent` builds the host side of [ADR 0044 revision 0-c (CD agent trigger)](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md): one sandboxed systemd unit and timer per job, each running as its own unprivileged user, and `sshd` accepting only the operator host. Each unit runs the poll, decide and run step in [`cd-agent-runner.md`](cd-agent-runner.md), and the role installs the `uv` that the runner's [toolchain step](cd-agent-runner.md#toolchain) uses. The role is the mechanism only. The jobs themselves (names, commands, schedules) are the `cd_agent_jobs` data a caller passes in. The `cd_agent` inventory group (VM 303, `192.168.30.3`) and `playbooks/cd-agent.yaml` apply it.
+`ansible/roles/cd_agent` builds the host side of [ADR 0044 revision 0-c (CD agent trigger)](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md): one sandboxed systemd unit and timer per job, each running as its own unprivileged user, and `sshd` accepting only the operator host. Each unit runs the poll, decide and run step in [`cd-agent-runner.md`](cd-agent-runner.md), and the role installs the `uv` that the runner's [toolchain step](cd-agent-runner.md#toolchain) uses. The role is the mechanism only. The jobs themselves (names, commands, schedules) are the `cd_agent_jobs` data a caller passes in. The `cd_agent` inventory group (VM 253, `192.168.25.3`) and `playbooks/cd-agent.yaml` apply it.
 
 ## Applying it
 
@@ -12,7 +12,7 @@ ansible-playbook playbooks/cd-agent.yaml
 
 The VM must already exist with the `cdadmin` user, the operator host's key, and sudo; the role creates none of that. `host_key_checking` is on, so the operator host needs the VM's host key in its `known_hosts`. The play targets only the `cd_agent` group, which is in none of `managed_hosts`, `app_hosts` or `patched_hosts`, and it needs no secrets: the host is addressed by IP. Run from the agent itself it stops, as described under [the guard](#the-cd-agent-never-provisions-itself).
 
-The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the operator address (`192.168.30.2`), the one admin user and these jobs:
+The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the operator address (`192.168.25.2`), the one admin user and these jobs:
 
 | Job | Runs | Command, from a checkout of `origin/main` |
 | :--- | :--- | :--- |
@@ -120,10 +120,10 @@ The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no f
 
 ```sh
 bao kv get -mount=secret -field=value hosts/security/gatus-token-cd-agent-credential-expiry \
-  | ssh cdadmin@192.168.30.3 'umask 077; cat > ~/.gatus-token'
+  | ssh cdadmin@192.168.25.3 'umask 077; cat > ~/.gatus-token'
 ```
 
-Then on the CD agent host (`ssh -t cdadmin@192.168.30.3`):
+Then on the CD agent host (`ssh -t cdadmin@192.168.25.3`):
 
 ```sh
 t=$(cat ~/.gatus-token)

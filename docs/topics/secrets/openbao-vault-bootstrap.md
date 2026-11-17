@@ -28,7 +28,7 @@ functionally, this repo's root-recovery mechanism now.
 ## Where it can log in from
 
 From the day the shell moves there, the role is bound to the operator host
-(VM 302, `192.168.30.2`, see
+(VM 252, `192.168.25.2`, see
 [ADR 0058 (Operator work host)](../../decisions/0058-where-operator-work-runs/revision-000.md)),
 the one machine `openbao_utils.shell` runs from. `secret_id_bound_cidrs`
 refuses a `secret_id` presented from any other address, and
@@ -45,8 +45,8 @@ are all it needs:
 
 ```sh
 bao write auth/approle/role/vault-bootstrap \
-  secret_id_bound_cidrs="192.168.30.2/32" \
-  token_bound_cidrs="192.168.30.2/32"
+  secret_id_bound_cidrs="192.168.25.2/32" \
+  token_bound_cidrs="192.168.25.2/32"
 bao read auth/approle/role/vault-bootstrap
 ```
 

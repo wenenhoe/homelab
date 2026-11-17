@@ -4,9 +4,9 @@ For any environment, whoever works in it, that has no Docker daemon or reaches G
 
 ## Pre-commit
 
-- Neither `pre-commit` nor `shellcheck` needs installing: `uvx pre-commit run --all-files`, and `uvx --from shellcheck-py shellcheck -x FILE`.
+- Neither `pre-commit` nor `shellcheck` needs installing: `uvx --python 3.14 pre-commit run --all-files`, and `uvx --from shellcheck-py shellcheck -x FILE`.
 - The hooks that run a container image (the `-docker` ones) or reach the network (`gitleaks`, `zizmor`) cannot run. Skip them with `SKIP=<id>,<id>` and say which were skipped.
-- The doc tools use Python 3.14 syntax, so the hooks fail under an older system `python3`. Run them with `uv run python -m doc_scripts.<tool>` from `tools/`, and run ruff and `uv run pytest` from there too.
+- The doc tools use Python 3.14 syntax, so the hooks fail when `pre-commit` runs on an older `python3`: pin it with `--python 3.14`, as above. Run a tool by itself with `uv run python -m doc_scripts.<tool>` from `tools/`, and run ruff and `uv run pytest` from there too.
 - Run pre-commit twice: `generate-doc-indexes` fails the first time it rewrites a view.
 - A failed run can leave regenerated files unstaged; reset them before committing anything else, apart from the views in [`.githooks/generated-views`](../../../.githooks/generated-views) when a change is delivered as patches ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)).
 
@@ -21,7 +21,7 @@ For any environment, whoever works in it, that has no Docker daemon or reaches G
 Replay a `.series` file the way the maintainer will ([`landing-a-series.md`](landing-a-series.md)), on a fresh clone of `main`, with `--dry-run`, which pushes nothing and keeps no branch:
 
 - `git clone --depth 50 https://github.com/wenenhoe/homelab.git`, then `pre-commit install` in it and link the two apply hooks ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)).
-- Put a `pre-commit` shim on `PATH`: `printf '#!/bin/bash\nexec uvx pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit`. Without it `pre-applypatch` cannot regenerate the views.
+- Put a `pre-commit` shim on `PATH`: `printf '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit`. Without it `pre-applypatch` cannot regenerate the views.
 - Set `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, and `SKIP` to the hooks that cannot run here (`gitleaks`, `zizmor` and the `-docker` ones, `ansible-lint`); say which were skipped.
 - From `tools/` in a checkout of the tool: `uv run python -m land_series FILE.series --repo CLONE --base origin/main --no-fetch --dry-run`. It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and stops for a layer on its stop list.
 

@@ -17,9 +17,9 @@ Builds the console [ADR 0114 (Remote series landing)](../decisions/0114-landing-
 
 - A seam in `tools/land_series`: progress events and confirm callbacks in place of the terminal, and the stop list and checks as configuration of the target repository. The CLI behaves as before.
 - The console: a sandboxed replay, a land worker that never runs patch code, a job model that survives a closed tab, Pocket ID sign-in, the GitHub App's device flow, and the pages for review, approval, landing and status. Python 3.14, Starlette with uvicorn, Jinja2, one vendored htmx file pinned by hash, dependencies from `uv.lock` only, no JavaScript build chain.
-- The host: the Tofu VM, the DMZ interface and its rules, the Proxmox node's firewall rules, the `gatehouse` role, the Pocket ID container, and the tailnet tag, grant and tests.
+- The host: the Tofu VM (VMID 802, in the 8XX range: VLAN 80, `192.168.80.0/24`, address `192.168.80.2`), the DMZ interface and its rules, the Proxmox node's firewall rules, the `gatehouse` role, the Pocket ID container, and the tailnet tag, grant and tests. The console's hostname, the one the passkeys bind to, is the node's MagicDNS name `gatehouse.<tailnet>.ts.net`; the tailnet's name stays out of this repository.
 - A heartbeat for the deploy job and a read-only grant to Gatus for the status panel.
-- Moving the console to its own repository, with this repository pinning a release by version and sha256.
+- Moving the console to its own repository, `wenenhoe/gatehouse`, with this repository pinning a release by version and sha256.
 
 Not in this project: running Tofu or Ansible from the console, changing the rulesets or who may bypass them, and the revisions of the decisions on landing a series, workstation credentials and network reach that the ADR leaves until its assumptions are resolved.
 
@@ -36,7 +36,7 @@ Update at the start and end of each PR that works a stage.
 | 1 | Console seam in `land_series` | Not started | `land_series` reports progress and asks for confirmation through interfaces the CLI implements, the stop list and checks are read from the target repository's configuration, and the existing tests pass unchanged in behaviour. |
 | 2 | Console core | Not started | A series replays in a transient sandbox with no network and no credentials, a separate worker verifies the output against the series hash and pushes with hooks off, and a job survives the caller disconnecting. Tests cover the approval binding, the pause conditions and token revocation. |
 | 3 | Sign-in and pages | Not started | A series can be uploaded, reviewed, approved and landed in a browser against a scratch repository, after a Pocket ID login and the GitHub device flow, and the token is revoked when the series ends. The pages carry a strict content-security policy and escape all patch and review text. |
-| 4 | Host | Not started | The VM is built by Tofu and configured by the role. The DMZ rules, the node's firewall rules and the tailnet tag, grant and tests are in place, and a probe from the VM to the Proxmox node's management ports fails. |
+| 4 | Host | Not started | The VM is built by Tofu, which accepts the 8XX range for it and whose scheme table lists it, and configured by the role. The DMZ rules, the node's firewall rules and the tailnet tag, grant and tests are in place, and a probe from the VM to the Proxmox node's management ports fails. |
 | 5 | Deploy status | Not started | The deploy job pushes a heartbeat, the console reads Gatus through one read-only grant, and the status page shows the merge commits, the checks and the heartbeat. |
 | 6 | Own repository | Not started | The console is its own public repository, the role installs a release pinned by version and sha256, and this repository keeps the stop list, checks and role. |
 
@@ -72,9 +72,6 @@ A change to `tools/land_series` is applied with `git am`, not landed by the tool
 
 ## Open items
 
-- The VLAN and VMID, chosen from the unassigned ranges in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#vmid--vlan--ip-scheme) when stage 4 starts.
-- The hostname the passkeys bind to, fixed before they are enrolled.
-- Whether a name collision exists for the public repository's name.
 - `allowed_paths`, derived from the stages when the project starts building.
 
 ## Closing checklist

@@ -113,7 +113,7 @@ run_rclone() {
     --cap-drop ALL --security-opt no-new-privileges:true \
     -v "$work_dir/rclone.conf:/config/rclone/rclone.conf:ro" \
     -v "$work_dir/in:/data" \
-    rclone/rclone:1.75 "$@"
+    rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466 "$@"
 }
 
 mkdir "$work_dir/in"

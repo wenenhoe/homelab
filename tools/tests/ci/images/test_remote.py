@@ -695,6 +695,17 @@ class TestRealTree:
         assert any(t.startswith("ghcr.io/renovatebot/renovate:") for t in found)
         assert any(t.startswith("openbao/openbao:") for t in found)
 
+    @pytest.mark.parametrize(
+        "script",
+        [
+            pytest.param("tools/openbao_utils/scripts/snapshot-push.sh", id="snapshot-push"),
+            pytest.param("tools/openbao_utils/scripts/snapshot-pull.sh", id="snapshot-pull"),
+        ],
+    )
+    def test_the_rclone_pin_in_a_snapshot_script_is_checked_too(self, collected, script):
+        sources = {source for text, found in collected.images.items() if text.startswith("rclone/rclone:") for source in found}
+        assert script in sources
+
     def test_every_self_built_image_the_registry_publishes_is_checked(self, collected, subtests):
         # By repository, not tag: a pin lags the Dockerfile until the build publishes the new tag, and `check-pins` is what stops a pin running ahead.
         pinned = {f"{parsed.registry}/{parsed.repository}" for parsed in map(rm.parse_image, collected.images)}

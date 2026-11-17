@@ -6,9 +6,9 @@
 # (confirmed live - see
 # docs/decisions/0106-operator-access-to-the-openbao-cli/revision-000.md's
 # Context), so nothing runs inside the OpenBao container or on `security`.
-# rclone runs as a throwaway container (`rclone/rclone:1.75`, same pin as
-# every other rclone caller in this repo), not a native binary -
-# nothing else here needed that dependency added.
+# rclone runs as a throwaway container (the same image pin as every other
+# rclone caller in this repo), not a native binary - nothing else here
+# needed that dependency added.
 #
 # Login takes the role_id as an argument. The secret_id comes from the
 # cached `openbao-controller-secret-id` file in the secrets directory when
@@ -145,7 +145,7 @@ for remote in r2 b2; do
   if ! docker run --rm \
     -v "${RCLONE_CONF}:/config/rclone/rclone.conf:ro" \
     -v "${STAGING}:/data:ro" \
-    rclone/rclone:1.75 \
+    rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466 \
     copy "/data/$(basename "$ENC")" "${remote}:openbao-snapshots/"; then
     echo "Push to ${remote} FAILED" >&2
     push_failed="${push_failed} ${remote}"

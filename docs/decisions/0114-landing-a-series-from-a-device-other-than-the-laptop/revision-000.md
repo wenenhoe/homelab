@@ -23,7 +23,7 @@ A series lands only from a terminal on the maintainer's laptop under the maintai
 - The CD agent fetches `main` anonymously and deploys what it finds. [ADR 0044 revision 0-c (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md) holds that it has no credential that can write to the GitHub remote, no listener that triggers or serves a job, and runs no unmerged code. [ADR 0056 (Workstation credentials)](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md) puts the push credential on the laptop, and [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) keeps the operator host free of untrusted content.
 - A console parses uploaded patches, shows text written by others and runs the repository's checks on unmerged patches. That is untrusted content with a power over production, so it belongs on none of the three hosts above.
 - The Proxmox node is not on a VLAN. Its management address is on the WAN side, which the gateway's outbound NAT reaches ([`opnsense-config.md`](../../projects/opnsense-config.md)). A guest on the WAN bridge would be adjacent to it, which the VLAN rules otherwise prevent. The node is also a tailnet device, and the policy holds explicit grants only ([`tailnet-policy.md`](../../topics/infra/tailnet-policy.md)).
-- A GitHub App's user-to-server token acts as the user. Pocket ID is a passkey-only OIDC provider that signs in with the maintainer's YubiKeys, on the phone over NFC. A passkey is bound to the hostname it was registered on.
+- A GitHub App's user-to-server token acts as the user. On a scratch repository with a ruleset shaped like `main-review`, such a token merged a pull request through the Admin role's bypass as a merge commit with two parents, and the merge call refused a head that did not match its `sha`. The same token was refused a squash, a direct update of the branch and an edit of a ruleset. Device flow worked with no callback and returned an expiring token with a refresh token. Revoking the token needed the App's client secret, and the user token alone could not. Pocket ID is a passkey-only OIDC provider that signs in with the maintainer's YubiKeys, on the phone over NFC. A passkey is bound to the hostname it was registered on.
 
 **Threat model.** The asset is `main`, which the CD agent deploys. The adversaries are a web attacker reaching the console's origin (cross-site requests, script injected through diff or review text), a patch whose checks run code, and a compromised console host. The attack paths are a merge made without the maintainer's intent, a token or credential read from the host, and a path from the host to the Proxmox node, the operator host or production. The first two are limited by short-lived, series-bound authority and by running patch code where no credential is present. The third is limited by where the host sits and by what the tailnet grants it. A compromised host holding a live token can still merge until the token is revoked or expires.
 
@@ -42,7 +42,8 @@ A web console, called Gatehouse, uploads a `.series` file, shows it for review, 
 
 **Merge credential.** A GitHub App installed on this repository alone, with the permissions merging needs, gives one user token per series through device flow.
 
-- The token is held in memory and no refresh token is kept. It is revoked when the series completes, is aborted or goes idle, and otherwise expires.
+- The token is held in memory. GitHub issues a refresh token with it, which is discarded on receipt. The token is revoked when the series completes, is aborted or goes idle, and otherwise expires.
+- Revoking needs the App's client secret, so that secret is the one secret on the host, readable only by the component that revokes. It cannot merge: a token comes from device flow with the maintainer's approval, and the secret only revokes one the holder already has.
 - Starting a series needs the fresh Pocket ID login and the GitHub approval. The approval binds to the hash of the series file and each layer's tree, since a layer's commit changes when it is moved onto a new base and its tree does not.
 - Each merge pins the head commit. A failed check, a tree that differs from the approved one, a layer on the stop list, or a timed-out wait pauses the series until the maintainer acts. A mode that confirms each layer with a tap, without a new login, is available.
 - No standing token and no App with a standing bypass exists.
@@ -71,7 +72,7 @@ This diagram shows the design as this revision decided it, not what runs now.
 - **The upstream-side bridge instead of a DMZ interface.** Isolation is structural and survives an OPNsense rebuild, but the VM is adjacent to the hypervisor's management plane, depends on the Proxmox firewall holding, and loses the proxy allowlist and OPNsense's view of its traffic.
 - **The CD agent host.** It breaks all three properties of ADR 0044 revision 0-c on the host that holds the production credentials.
 - **The operator host.** It would handle untrusted content next to the infrastructure credentials.
-- **The console does everything but the bypass merge, which the maintainer clicks in GitHub's web UI.** It keeps ADR 0056 intact, but the UI merge cannot pin the head the maintainer reviewed. It is the fallback if an App token cannot use the bypass.
+- **The console does everything but the bypass merge, which the maintainer clicks in GitHub's web UI.** It keeps ADR 0056 intact, but the UI merge cannot pin the head the maintainer reviewed.
 - **GitHub's native stacked pull requests and merge queue.** A trial against a ruleset shaped like `main-review` could not merge a whole stack into `main`. A stack that did merge would land as one merge commit, not one per layer, which ADR 0112 keeps so that each layer reverts alone. Neither takes a `.series` file, and neither limits what holds the merge credential.
 - **A standing token, or an App with a standing bypass.** A permanent path to production from an exposed host.
 - **Pocket ID on an internal VLAN.** It needs a path from the DMZ into that VLAN and stops landing when it is down, and gains little, since a compromised console host with a live token can merge whoever hosts the sign-in.
@@ -82,14 +83,6 @@ This diagram shows the design as this revision decided it, not what runs now.
 - **Each host exposing its deployed commit, or a statement signed by the CD agent.** The first needs a read path the console's zone lacks. The second proves nothing about the hosts, and the agent has no listener or credential to deliver it.
 
 ## Assumptions
-
-- **Claim:** a ruleset's Admin bypass applies to a GitHub App's user token, and the merge call's `sha` parameter pins the head.
-  **Breaks if wrong:** the console cannot merge, or cannot guarantee it merges the head that was reviewed. The merge falls back to the maintainer's own click in GitHub's web UI.
-  **Checked by:** a spike on a scratch repository with the same ruleset shape as `main`.
-
-- **Claim:** device flow works for the App with no callback, a token can be revoked, and a refresh token can be left unrequested.
-  **Breaks if wrong:** a standing secret (the App's client secret) must sit on the host to revoke, or a token outlives its series until it expires.
-  **Checked by:** the same spike, reading the App's settings and the revocation call.
 
 - **Claim:** Pocket ID honours a request for a fresh login, keeps sign-up closed, and signs in with an NFC key from the phone's browser.
   **Breaks if wrong:** the login cannot be tied to a series, and the console implements WebAuthn itself.
@@ -115,7 +108,7 @@ A new VM, interface and tailnet tag, and a second holder of merge power that exi
 
 ## Invariants
 
-- No credential that can merge to `main` is stored on the console host. A merge token exists from a series' approval until its completion, abort, idle timeout or expiry.
+- No credential that can merge to `main` is stored on the console host. The App's client secret is stored to revoke tokens and cannot merge. A merge token exists from a series' approval until its completion, abort, idle timeout or expiry.
 - A series is approved against the hash of its file and each layer's tree, and a layer merges only with that tree and a pinned head.
 - A layer on the stop list always asks the maintainer.
 - Patch code never runs where a credential is present.

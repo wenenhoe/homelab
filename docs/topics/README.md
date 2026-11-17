@@ -139,6 +139,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style, shell test style. |
 | [`pre-commit.md`](engineering/pre-commit.md) | The pre-commit hooks and what each checks, which stage runs when, and where each tool's config lives. |
 | [`checks-without-docker.md`](engineering/checks-without-docker.md) | Running the checks in an environment with no Docker or no registry access, such as a hosted sandbox or a restricted host: the hooks to skip, linters run by hand, and testing against a private daemon with an imported rootfs. |
+| [`workstation.md`](engineering/workstation.md) | The maintainer's laptop: the WSL2 setup the repo's checks run in, how to run them there, and the credentials it must not hold. |
 | [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |
 | [`ci/change-scoping.md`](engineering/ci/change-scoping.md) | How a change decides which jobs run: the scoped outputs `detect-changes` produces, Molecule watch sets, and the comment-only and formatting-only changes that queue nothing. |
 | [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing and Dockerfile builds. |

@@ -4,12 +4,12 @@ variable "node_name" {
 }
 
 variable "vm_id" {
-  description = "VMID, which fixes the VLAN, IP address and MAC address. Ranges 2XX to 7XX, host part 02 to 49: 00 is reserved, 01 is the gateway and 50 and up is the DHCP pool."
+  description = "VMID, which fixes the VLAN, IP address and MAC address. Ranges 2XX to 5XX in blocks of 50, host part 02 to 49: 00 is reserved and 01 is the gateway."
   type        = number
 
   validation {
-    condition     = var.vm_id >= 202 && var.vm_id < 800 && var.vm_id % 100 >= 2 && var.vm_id % 100 <= 49
-    error_message = "vm_id must be 2XX to 7XX with the last two digits 02 to 49."
+    condition     = var.vm_id >= 202 && var.vm_id < 600 && var.vm_id % 50 >= 2
+    error_message = "vm_id must be 2XX to 5XX and not the reserved or gateway VMID of a block of 50 (X00, X01, X50, X51)."
   }
 }
 

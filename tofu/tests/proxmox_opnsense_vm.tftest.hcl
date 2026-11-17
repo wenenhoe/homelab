@@ -290,6 +290,20 @@ run "rejects_a_vmid_that_is_not_a_gateway_vmid" {
   expect_failures = [var.vm_id]
 }
 
+run "rejects_the_reserved_vmid_of_a_second_half" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    vm_id = 250
+  }
+
+  expect_failures = [var.vm_id]
+}
+
 run "rejects_an_image_that_is_not_a_bzip2_img" {
   command = plan
 

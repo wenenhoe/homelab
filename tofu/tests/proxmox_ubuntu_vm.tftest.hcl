@@ -162,7 +162,7 @@ run "carries_a_vmid_above_255_into_the_first_mac_byte" {
   }
 }
 
-run "places_a_vmid_of_the_coding_agent_range_in_vlan_70" {
+run "puts_the_second_half_of_a_hundred_in_the_next_vlan_of_five" {
   command = plan
 
   module {
@@ -170,26 +170,26 @@ run "places_a_vmid_of_the_coding_agent_range_in_vlan_70" {
   }
 
   variables {
-    vm_id = 702
+    vm_id = 252
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.network_device[0].vlan_id == 70
-    error_message = "VMID 702 must be tagged with VLAN 70"
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].vlan_id == 25
+    error_message = "VMID 252 must be tagged with VLAN 25"
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.network_device[0].mac_address == "BC:24:11:02:BE:00"
-    error_message = "VMID 702 must get the MAC BC:24:11:02:BE:00"
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].mac_address == "BC:24:11:00:FC:00"
+    error_message = "VMID 252 must get the MAC BC:24:11:00:FC:00"
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.initialization[0].ip_config[0].ipv4[0].address == "192.168.70.2/24"
-    error_message = "VMID 702 must get 192.168.70.2/24"
+    condition     = proxmox_virtual_environment_vm.this.initialization[0].ip_config[0].ipv4[0].address == "192.168.25.2/24"
+    error_message = "VMID 252 must get 192.168.25.2/24"
   }
 }
 
-run "places_a_vmid_of_the_vlan_60_range_in_vlan_60" {
+run "places_a_vmid_of_the_coding_agent_zone_in_vlan_30" {
   command = plan
 
   module {
@@ -197,22 +197,76 @@ run "places_a_vmid_of_the_vlan_60_range_in_vlan_60" {
   }
 
   variables {
-    vm_id = 602
+    vm_id = 302
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.network_device[0].vlan_id == 60
-    error_message = "VMID 602 must be tagged with VLAN 60"
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].vlan_id == 30
+    error_message = "VMID 302 must be tagged with VLAN 30"
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.network_device[0].mac_address == "BC:24:11:02:5A:00"
-    error_message = "VMID 602 must get the MAC BC:24:11:02:5A:00"
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].mac_address == "BC:24:11:01:2E:00"
+    error_message = "VMID 302 must get the MAC BC:24:11:01:2E:00"
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.initialization[0].ip_config[0].ipv4[0].address == "192.168.60.2/24"
-    error_message = "VMID 602 must get 192.168.60.2/24"
+    condition     = proxmox_virtual_environment_vm.this.initialization[0].ip_config[0].ipv4[0].address == "192.168.30.2/24"
+    error_message = "VMID 302 must get 192.168.30.2/24"
+  }
+}
+
+run "places_a_vmid_of_the_dmz_zone_in_vlan_35" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id = 352
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].vlan_id == 35
+    error_message = "VMID 352 must be tagged with VLAN 35"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].mac_address == "BC:24:11:01:60:00"
+    error_message = "VMID 352 must get the MAC BC:24:11:01:60:00"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.initialization[0].ip_config[0].ipv4[0].address == "192.168.35.2/24"
+    error_message = "VMID 352 must get 192.168.35.2/24"
+  }
+}
+
+run "places_a_vmid_of_the_experimental_zone_with_internet_in_vlan_55" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id = 552
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].vlan_id == 55
+    error_message = "VMID 552 must be tagged with VLAN 55"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].mac_address == "BC:24:11:02:28:00"
+    error_message = "VMID 552 must get the MAC BC:24:11:02:28:00"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.initialization[0].ip_config[0].ipv4[0].address == "192.168.55.2/24"
+    error_message = "VMID 552 must get 192.168.55.2/24"
   }
 }
 
@@ -343,7 +397,7 @@ run "rejects_the_gateway_vmid_of_a_later_range" {
   expect_failures = [var.vm_id]
 }
 
-run "rejects_a_vmid_in_the_dhcp_pool" {
+run "rejects_the_reserved_vmid_of_a_second_half" {
   command = plan
 
   module {
@@ -357,6 +411,20 @@ run "rejects_a_vmid_in_the_dhcp_pool" {
   expect_failures = [var.vm_id]
 }
 
+run "rejects_the_gateway_vmid_of_a_second_half" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id = 251
+  }
+
+  expect_failures = [var.vm_id]
+}
+
 run "rejects_a_vmid_past_the_last_vlan" {
   command = plan
 
@@ -365,7 +433,7 @@ run "rejects_a_vmid_past_the_last_vlan" {
   }
 
   variables {
-    vm_id = 802
+    vm_id = 602
   }
 
   expect_failures = [var.vm_id]

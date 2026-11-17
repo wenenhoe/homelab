@@ -1,6 +1,6 @@
 locals {
-  vlan_id       = floor(var.vm_id / 100) * 10
-  host_octet    = var.vm_id % 100
+  vlan_id       = floor(var.vm_id / 50) * 5
+  host_octet    = var.vm_id % 50
   subnet_prefix = "192.168.${local.vlan_id}"
   ip_address    = "${local.subnet_prefix}.${local.host_octet}"
   gateway       = "${local.subnet_prefix}.1"

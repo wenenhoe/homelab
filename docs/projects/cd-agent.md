@@ -13,7 +13,7 @@ also_implements:
 super_project: pull-based-cd
 depends_on:
   - project: PROJ-operator-host
-    reason: Nothing can apply the role until VM 302 exists, because `sshd` accepts the operator host's address alone
+    reason: Nothing can apply the role until VM 252 exists, because `sshd` accepts the operator host's address alone
 allowed_paths:
   - ansible/roles/cd_agent/**
   - ansible/filter_plugins/cd_agent_chain.py
@@ -86,7 +86,7 @@ Update at the start and end of each PR that works a stage.
 | 2 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-credential-expiry` / `cd-agent-snapshot` AppRoles, CIDR-bound | In progress | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
 | 3 | Jobs read their credential where it is delivered | In progress | a job's unit names its credentials directory, and `tools/` and the `secrets` role log in to OpenBao and resolve `main-domain` from it |
 | 4 | Jobs verify OpenBao against a delivered root cert | In progress | `tools/` uses a `step-ca-root.crt` delivered to the credentials directory, and the `secrets` role fails when a delivered copy differs from the root it just fetched |
-| 5 | The host: VM 303 in VLAN 30 with the role applied, and the `credential-expiry` heartbeat endpoint declared | Not started | VM 303 runs the role with only `sshd` listening, and its effective apt configuration passes the checks in `host-hardening.md` |
+| 5 | The host: VM 253 in VLAN 25 with the role applied, and the `credential-expiry` heartbeat endpoint declared | Not started | VM 253 runs the role with only `sshd` listening, and its effective apt configuration passes the checks in `host-hardening.md` |
 | 6 | Deliver and rotate a job's credentials | Not started | one command writes a job's `openbao-controller-secret-id`, `openbao-controller-role-id`, `main-domain` and `step-ca-root.crt` into its credentials directory with the owner and modes the job expects; the deploy, maintenance and credential-expiry jobs each log in and run as their own user from a clean checkout of `origin/main`; and the same command adds a new `secret_id`, confirms a login with it and destroys the old one by its accessor, with no failed job run in between |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -121,7 +121,7 @@ leaf.
 The four policies and the role-creation runbook are in
 [`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
 What remains needs the running host: creating the roles with `cd_agent`'s fixed
-address (`192.168.30.3`) as both CIDR binds. Delivering each job's files, and
+address (`192.168.25.3`) as both CIDR binds. Delivering each job's files, and
 the `secret_id` rotation cadence, are Stage 6.
 
 ### Stage 3 — Credential location
@@ -149,7 +149,7 @@ is set `accepted` in the PR that closes the project.
 
 ### Stage 5 — The host
 
-VM 303 in VLAN 30, `192.168.30.3`, with the role applied and `sshd` accepted from the operator host alone. The `credential-expiry` heartbeat endpoint is declared with the host (see Open items). The role cannot be applied until [`operator-host.md`](operator-host.md) builds VM 302.
+VM 253 in VLAN 25, `192.168.25.3`, with the role applied and `sshd` accepted from the operator host alone. The `credential-expiry` heartbeat endpoint is declared with the host (see Open items). The role cannot be applied until [`operator-host.md`](operator-host.md) builds VM 252.
 
 ### Stage 6 — Delivery and rotation
 
@@ -202,12 +202,12 @@ credentials change, on any suspected exposure, and every 90 days. The
 ## Open items
 
 - Token lifetime is a project decision ([ADR 0044 (CD agent trigger)](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
-- The agent VM goes in VLAN 30, the 3XX range, next to the operator host, with 2 to 4 GB of RAM, built after VM 401's retirement frees memory. It is VM 303, `192.168.30.3`. The coding-agent host keeps no path to it ([ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)). Traffic between two hosts in one VLAN is switched without reaching OPNsense, so the `sshd` source restriction to the operator host is enforced on the agent itself, not at the firewall.
+- The agent VM goes in VLAN 25, VMIDs 250 to 299, next to the operator host, with 2 to 4 GB of RAM, built after VM 401's retirement frees memory. It is VM 253, `192.168.25.3`. The coding-agent host keeps no path to it ([ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)). Traffic between two hosts in one VLAN is switched without reaching OPNsense, so the `sshd` source restriction to the operator host is enforced on the agent itself, not at the firewall.
 - The `cd_agent` role does not remove a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 - The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists (Stage 2); it needs a native `rclone`, not Docker, which the role installs ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)).
 - Each job's heartbeat uses ADR 0072's mechanism, which is built ([ADR 0072 (Job heartbeats)](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)). The `credential-expiry` job's endpoint is not declared, because one nothing pushes to alerts once its interval passes; add it with the host, as [`cd-agent-host.md`](../topics/deploy/cd-agent-host.md#heartbeats) lists. That edit touches `main.yaml`, the secret catalog and `cd_agent.yaml`, which this project's `allowed_paths` must then name.
 - The deploy, maintenance and credential-expiry jobs cannot log in to OpenBao yet; what is missing is delivering each job's credentials, which Stage 6 does. Applying the role before that is settled starts jobs that fail on every run.
-- The role cannot be applied until [`operator-host.md`](operator-host.md) builds VM 302, because `sshd` accepts `192.168.30.2` alone.
+- The role cannot be applied until [`operator-host.md`](operator-host.md) builds VM 252, because `sshd` accepts `192.168.25.2` alone.
 - Whether `deploy.yaml`'s `localhost` plays run under the unit's sandbox, which makes the filesystem read-only outside the job's state directory, is not confirmed.
 - The OpenBao snapshot write keys are rotated by hand with `create_snapshot_write_keys.py --rotate`: the `rotation` job runs `rotate_leaf_keys.py`, which does not include them, and the expiry check only warns. Adding them is a small change to that script and `rotation.md`. The `cd-agent-rotation` policy already grants write on the whole leaf tier, and `snapshot-push.sh` reads the keys from OpenBao on every run, so a rotation needs no redeploy. Do it when the `rotation` job goes live, so its first run exercises it; this project's `allowed_paths`, if it gains any, must then name both files.
 - The shared SSH private key across every managed host (and possibly

@@ -148,11 +148,13 @@ rotates. The new secret is cached immediately once returned, before
 any verification round-trip — the old one is already gone regardless
 of whether that verification succeeds, so withholding the cache write
 on a verification failure would only discard the one copy of a value
-OCI shows exactly once, for no benefit. If verification does fail,
+OCI shows exactly once, for no benefit. A cache write that fails is
+retried up to three times, five seconds apart; if every attempt fails
+the run says so and the new secret is lost. If verification does fail,
 the new secret is still cached (check it by hand), and the old one
 cannot be recovered — Console's own "Regenerate" button on the app's
 Configuration tab is the fallback if the cached value turns out
-unusable. `--rotate` still re-verifies the leaf identities' classic-IAM
+unusable, or was never cached. `--rotate` still re-verifies the leaf identities' classic-IAM
 policies first, same as before — that part is unrelated and unaffected
 by any of this.
 

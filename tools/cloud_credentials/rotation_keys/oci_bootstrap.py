@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import getpass
 import sys
+import time
 
+import hvac
 import requests
 
 from cloud_credentials.expiry import utcnow_iso
@@ -206,6 +208,34 @@ def create_oci_rotation_key(admin_email: str) -> None:
     _oci_ensure_scim_app_credentials()
 
 
+# Regenerating the client secret invalidates the old one and shows the new
+# one exactly once, so a Vault that is briefly unreachable at that moment
+# must not cost the only copy.
+_CACHE_WRITE_ATTEMPTS = 3
+_CACHE_WRITE_RETRY_SECONDS = 5
+
+
+def _cache_regenerated_secret(new_secret: str) -> bool:
+    """Write the new client secret to Vault, retrying a failed write; False once every attempt failed."""
+    for attempt in range(1, _CACHE_WRITE_ATTEMPTS + 1):
+        try:
+            write_secret("_rotation-key-oci-client-secret", new_secret)
+        except (hvac.exceptions.VaultError, requests.RequestException) as exc:
+            print(f"oci: caching the new client secret failed, attempt {attempt} of {_CACHE_WRITE_ATTEMPTS} ({type(exc).__name__})", file=sys.stderr)
+            if attempt < _CACHE_WRITE_ATTEMPTS:
+                time.sleep(_CACHE_WRITE_RETRY_SECONDS)
+        else:
+            return True
+    print(
+        "oci: the new client secret could not be cached and the OLD secret is already "
+        "invalidated. Regenerate it again with Console's Regenerate button (the app's "
+        "Configuration tab) and cache the value it shows as "
+        "_rotation-key-oci-client-secret under cloud_credentials/rotation.",
+        file=sys.stderr,
+    )
+    return False
+
+
 def rotate_oci_rotation_key(admin_email: str) -> bool:
     """Re-verifies leaf policies (cheap, idempotent, worth confirming at
     rotation time - same rationale as before), then regenerates the
@@ -278,7 +308,8 @@ def rotate_oci_rotation_key(admin_email: str) -> bool:
         )
         return False
 
-    write_secret("_rotation-key-oci-client-secret", new_secret)
+    if not _cache_regenerated_secret(new_secret):
+        return False
     write_secret("_rotation-key-oci-created-at", utcnow_iso())
 
     try:

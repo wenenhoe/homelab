@@ -34,7 +34,7 @@ skipping regeneration.
 
 | Secret(s) | `--limit` group |
 | --- | --- |
-| `lldap-jwt-secret`, `lldap-key-seed`, `lldap-ldap-user-pass`, `tinyauth-ldap-observer-password`, `step-ca-password`, `step-ca-provisioner-password` | `security` |
+| `lldap-jwt-secret`, `lldap-key-seed`, `lldap-ldap-user-pass`, `tinyauth-ldap-observer-password` | `security` |
 | `shlink-api-key` | `services` |
 | `seaweedfs-s3-*-services` | `services,storage` |
 | `seaweedfs-s3-*-security` | `security,storage` |
@@ -55,6 +55,19 @@ a config re-render: `deploy.yaml`'s later "Ensure lldap's observer
 account exists" play (`lldap_bootstrap`) also updates the real lldap
 account to match, in the same `security` run — so a single redeploy
 after rotating it is enough, no separate manual sync step.
+
+`step-ca-password` and `step-ca-provisioner-password` are generated like the
+rest but are not rotated this way. `docker/step-ca/scripts/entrypoint.sh`
+uses them to encrypt the CA's keys and the JWK provisioner's key once, at
+the first `step ca init`; every later start decrypts the intermediate key
+with the value in `.env`, and `step_ca_cert` unlocks the provisioner key
+with the other. After a rotation and a redeploy the new value is in `.env`
+but the keys are still encrypted with the old one, so step-ca cannot
+start and nothing can be issued — and OpenBao's certificate renewal and
+the secrets role's root-certificate fetch both depend on it. Changing
+either means re-encrypting the keys first, which nothing here does yet;
+until then leave both as generated. The previous value stays in the
+secret's KV version history.
 
 ## Manual secrets (`source: manual`)
 

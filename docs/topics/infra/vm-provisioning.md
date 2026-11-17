@@ -28,7 +28,7 @@ differ in what the gateway lets them reach:
 | :--- | :--- | :--- | :--- | :--- |
 | 1XX | Templates | — (not networked) | — | Tofu's own cloud-init Ubuntu template lands here |
 | 200–249 | Production — Services | 20 | `192.168.20.0/24` | Primary target: the Ubuntu hosts and the gateway |
-| 250–299 | Production — Management (the `others` zone) | 25 | `192.168.25.0/24` | Reserved for the operator host (VMID 252) and the CD agent (253) |
+| 250–299 | Production — Management (the `management` zone) | 25 | `192.168.25.0/24` | Reserved for the operator host (VMID 252) and the CD agent (253) |
 | 300–349 | Coding agent | 30 | `192.168.30.0/24` | Reserved for the coding-agent host: default-deny in both directions, one way out through the egress proxy |
 | 350–399 | DMZ | 35 | `192.168.35.0/24` | Reserved for hosts that parse untrusted content and are reached over the tailnet, starting with the Gatehouse console |
 | 400–449 | Production — Desktops | 40 | `192.168.40.0/24` | **Out of scope**: GPU passthrough and manual OS installs, not cloud-init-able the same way |
@@ -54,7 +54,7 @@ Kea's pool, so the two never overlap:
 
 | Zone | Static addresses | Kea's pool |
 | :--- | :--- | :--- |
-| No DHCP (services, others, and the coding-agent and DMZ zones) | `.1` for the gateway, `.2`–`.49` for Tofu-provisioned VMs (VMID-derived) | None |
+| No DHCP (services, management, and the coding-agent and DMZ zones) | `.1` for the gateway, `.2`–`.49` for Tofu-provisioned VMs (VMID-derived) | None |
 | DHCP (desktops, isolated, experimental) | `.1` and `.2`–`.9`: a VM here takes a VMID whose remainder after dividing by 50 is 02 to 09 | `.10`–`.245` (`opnsense_gateway_dhcp_pool`), for anything Tofu does not manage (laptops, phones). A client here has no DNS name |
 
 VM 401 ("Development") is the controller today

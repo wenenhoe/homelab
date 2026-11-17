@@ -49,7 +49,7 @@ Stage status is `Not started`, `In progress`, or `Done`. Stages 1 and 2 need no 
 
 ### Stage 3 — what remains
 
-The services canary is declared, the flow list holds the first flows, and namespaces on the node stand in for canary VMs on a scratch gateway ([`network-boundary-checks.md`](../topics/infra/network-boundary-checks.md#running-the-checks-against-a-scratch-gateway)); their tests pass against a stand-in router. Left: the runner against a real scratch gateway, passing every flow of the zones it reaches, and failing the one a block rule breaks; and a row in the gateway's policy for each other zone that admits the runner's host to the canary's address on 22 (others, desktops and isolated, and experimental after the Ubuntu module's VMID range is widened past 5XX).
+The services canary is declared, the flow list holds the first flows, and namespaces on the node stand in for canary VMs on a scratch gateway ([`network-boundary-checks.md`](../topics/infra/network-boundary-checks.md#running-the-checks-against-a-scratch-gateway)); their tests pass against a stand-in router. Left: the runner against a real scratch gateway, passing every flow of the zones it reaches, and failing the one a block rule breaks; and a row in the gateway's policy for each other zone that admits the runner's host to the canary's address on 22 (management, desktops, isolated and experimental).
 
 ## Acceptance criteria
 

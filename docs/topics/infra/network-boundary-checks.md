@@ -56,7 +56,7 @@ The exit status is zero only if every flow in the run passed. A selection that h
 
 ## The flows in the list
 
-The list declares the five zones of the gateway's play, each with a canary at host part 08 of its subnet (`192.168.20.8` for services, `.25.8` for others, and so on). The Tofu canary VMs sit at those addresses ([`ubuntu-vms.md`](tofu/ubuntu-vms.md#canary-vms)), and tests fail when the zones differ from the play's or a canary's VMID from the list. It holds these flows:
+The list declares the five zones of the gateway's play, each with a canary at host part 08 of its subnet (`192.168.20.8` for services, `.25.8` for management, and so on). The Tofu canary VMs sit at those addresses ([`ubuntu-vms.md`](tofu/ubuntu-vms.md#canary-vms)), and tests fail when the zones differ from the play's or a canary's VMID from the list. It holds these flows:
 
 | Flows | From | What they show |
 | :--- | :--- | :--- |

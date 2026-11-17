@@ -42,7 +42,7 @@ What the flows of the existing zones need ([`opnsense-config.md`](../../projects
 
 How the runner reaches a canary and what the canary can reach:
 
-- The operator host's SSH reaches VLAN 20 (row 4), VM 253 (row 7) and VLAN 30 (row 8, with ADR 0053's provisioning source). A session from the operator host's address starts to a canary in the services zone and to the CD agent's address in the others zone, and does not start to another address in the others zone or to the isolated and experimental zones, which no flow admits. No row admits the operator host to VLANs 50 and 55, and VLAN 25 is admitted only at the CD agent's address until the operator host is itself in that zone. A canary in one of the zones without a row needs one, or a revision of the zone's decision (VLAN 50 admits no inbound flow today).
+- The operator host's SSH reaches VLAN 20 (row 4), VM 253 (row 7) and VLAN 30 (row 8, with ADR 0053's provisioning source). A session from the operator host's address starts to a canary in the services zone and to the CD agent's address in the management zone, and does not start to another address in the management zone or to the isolated and experimental zones, which no flow admits. No row admits the operator host to VLANs 50 and 55, and VLAN 25 is admitted only at the CD agent's address until the operator host is itself in that zone. A canary in one of the zones without a row needs one, or a revision of the zone's decision (VLAN 50 admits no inbound flow today).
 - The probe module needs nothing on the canary beyond Python and SSH: the runner sends it on the session's standard input. Over that session a canary connects to its gateway on 53, which row 1 admits, and not on 443, which no flow admits a canary.
 
 ## Decision

@@ -28,7 +28,7 @@ opnsense_gateway_credentials_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/
 # list and the seed's differ.
 opnsense_gateway_zones:
   - { name: services, vlan: 20, interface: opt1, internet: true, dhcp: false }
-  - { name: others, vlan: 25, interface: opt2, internet: true, dhcp: false }
+  - { name: management, vlan: 25, interface: opt2, internet: true, dhcp: false }
   - { name: desktops, vlan: 40, interface: opt3, internet: true, dhcp: true }
   - { name: isolated, vlan: 50, interface: opt4, internet: false, dhcp: true }
   - { name: experimental, vlan: 55, interface: opt5, internet: true, dhcp: true }
@@ -48,7 +48,7 @@ opnsense_gateway_operator_not_listed_ok: false
 opnsense_gateway_cd_agent_management: false
 opnsense_gateway_cd_agent_hosts:
   - 192.168.25.3
-opnsense_gateway_cd_agent_zone: others
+opnsense_gateway_cd_agent_zone: management
 
 # What every zone may ask of the gateway itself.
 opnsense_gateway_zone_services:
@@ -74,52 +74,52 @@ opnsense_gateway_hosts:
 # docs/projects/opnsense-config.md.
 opnsense_gateway_flows:
   - name: operator hosts to the services zone over SSH
-    zones: [desktops, others]
+    zones: [desktops, management]
     source: operator_hosts
     destination: net_services
     protocol: TCP
     port: "22"
   - name: operator hosts to security for the secrets store
-    zones: [desktops, others]
+    zones: [desktops, management]
     source: operator_hosts
     destination: host_security
     protocol: TCP
     port: "8200"
   - name: operator hosts to storage for state and restores
-    zones: [desktops, others]
+    zones: [desktops, management]
     source: operator_hosts
     destination: host_storage
     protocol: TCP
     port: "443"
     enabled: false
   - name: operator hosts to the CD agent over SSH
-    zones: [desktops, others]
+    zones: [desktops, management]
     source: operator_hosts
     destination: cd_agent_hosts
     protocol: TCP
     port: "22"
   - name: operator hosts to the Proxmox node
-    zones: [desktops, others]
+    zones: [desktops, management]
     source: operator_hosts
     destination: host_proxmox_node
     protocol: TCP
     port: proxmox_node_ports
   - name: CD agent to the services zone over SSH
-    zones: [others]
+    zones: [management]
     source: cd_agent_hosts
     destination: net_services
     protocol: TCP
     port: "22"
     enabled: false
   - name: CD agent to security for the secrets store
-    zones: [others]
+    zones: [management]
     source: cd_agent_hosts
     destination: host_security
     protocol: TCP
     port: "8200"
     enabled: false
   - name: CD agent to storage for the write key
-    zones: [others]
+    zones: [management]
     source: cd_agent_hosts
     destination: host_storage
     protocol: TCP

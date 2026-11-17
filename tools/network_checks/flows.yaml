@@ -21,7 +21,7 @@
 # needs both canaries.
 zones:
   services: {subnet: 192.168.20.0/24, canary: 192.168.20.8}
-  others: {subnet: 192.168.25.0/24, canary: 192.168.25.8}
+  management: {subnet: 192.168.25.0/24, canary: 192.168.25.8}
   desktops: {subnet: 192.168.40.0/24, canary: 192.168.40.8}
   isolated: {subnet: 192.168.50.0/24, canary: 192.168.50.8}
   experimental: {subnet: 192.168.55.0/24, canary: 192.168.55.8}
@@ -47,25 +47,25 @@ flows:
     kind: ping
     expect: allow
     tags: [smoke, services]
-  - id: others-gateway-dns
-    from: others
+  - id: management-gateway-dns
+    from: management
     to: {address: 192.168.25.1, port: 53, protocol: udp}
     kind: dns
     query: example.com
     expect: allow
-    tags: [smoke, others]
-  - id: others-gateway-ntp
-    from: others
+    tags: [smoke, management]
+  - id: management-gateway-ntp
+    from: management
     to: {address: 192.168.25.1, port: 123}
     kind: ntp
     expect: allow
-    tags: [smoke, others]
-  - id: others-gateway-ping
-    from: others
+    tags: [smoke, management]
+  - id: management-gateway-ping
+    from: management
     to: {address: 192.168.25.1}
     kind: ping
     expect: allow
-    tags: [smoke, others]
+    tags: [smoke, management]
   - id: desktops-gateway-dns
     from: desktops
     to: {address: 192.168.40.1, port: 53, protocol: udp}
@@ -132,12 +132,12 @@ flows:
     kind: connect
     expect: allow
     tags: [services]
-  - id: others-canary-ssh
-    from: others
+  - id: management-canary-ssh
+    from: management
     to: {address: 192.168.25.8, port: 22}
     kind: connect
     expect: allow
-    tags: [others]
+    tags: [management]
   - id: desktops-canary-ssh
     from: desktops
     to: {address: 192.168.40.8, port: 22}
@@ -164,12 +164,12 @@ flows:
     kind: connect
     expect: allow
     tags: [smoke, services]
-  - id: others-internet-https
-    from: others
+  - id: management-internet-https
+    from: management
     to: {address: 1.1.1.1, port: 443}
     kind: connect
     expect: allow
-    tags: [others]
+    tags: [management]
   - id: desktops-internet-https
     from: desktops
     to: {address: 1.1.1.1, port: 443}
@@ -191,12 +191,12 @@ flows:
     tags: [experimental]
 
   # Default-deny between zones: no zone's canary reaches another zone's canary. The control is that canary reaching itself.
-  - id: services-to-others-canary-denied
+  - id: services-to-management-canary-denied
     from: services
     to: {address: 192.168.25.8, port: 22}
     kind: connect
     expect: deny
-    control: others-canary-ssh
+    control: management-canary-ssh
     tags: [cross-zone]
   - id: services-to-desktops-canary-denied
     from: services
@@ -219,29 +219,29 @@ flows:
     expect: deny
     control: experimental-canary-ssh
     tags: [cross-zone]
-  - id: others-to-services-canary-denied
-    from: others
+  - id: management-to-services-canary-denied
+    from: management
     to: {address: 192.168.20.8, port: 22}
     kind: connect
     expect: deny
     control: services-canary-ssh
     tags: [cross-zone]
-  - id: others-to-desktops-canary-denied
-    from: others
+  - id: management-to-desktops-canary-denied
+    from: management
     to: {address: 192.168.40.8, port: 22}
     kind: connect
     expect: deny
     control: desktops-canary-ssh
     tags: [cross-zone]
-  - id: others-to-isolated-canary-denied
-    from: others
+  - id: management-to-isolated-canary-denied
+    from: management
     to: {address: 192.168.50.8, port: 22}
     kind: connect
     expect: deny
     control: isolated-canary-ssh
     tags: [cross-zone]
-  - id: others-to-experimental-canary-denied
-    from: others
+  - id: management-to-experimental-canary-denied
+    from: management
     to: {address: 192.168.55.8, port: 22}
     kind: connect
     expect: deny
@@ -254,12 +254,12 @@ flows:
     expect: deny
     control: services-canary-ssh
     tags: [cross-zone]
-  - id: desktops-to-others-canary-denied
+  - id: desktops-to-management-canary-denied
     from: desktops
     to: {address: 192.168.25.8, port: 22}
     kind: connect
     expect: deny
-    control: others-canary-ssh
+    control: management-canary-ssh
     tags: [cross-zone]
   - id: desktops-to-isolated-canary-denied
     from: desktops
@@ -282,12 +282,12 @@ flows:
     expect: deny
     control: services-canary-ssh
     tags: [cross-zone]
-  - id: isolated-to-others-canary-denied
+  - id: isolated-to-management-canary-denied
     from: isolated
     to: {address: 192.168.25.8, port: 22}
     kind: connect
     expect: deny
-    control: others-canary-ssh
+    control: management-canary-ssh
     tags: [cross-zone]
   - id: isolated-to-desktops-canary-denied
     from: isolated
@@ -310,12 +310,12 @@ flows:
     expect: deny
     control: services-canary-ssh
     tags: [cross-zone]
-  - id: experimental-to-others-canary-denied
+  - id: experimental-to-management-canary-denied
     from: experimental
     to: {address: 192.168.25.8, port: 22}
     kind: connect
     expect: deny
-    control: others-canary-ssh
+    control: management-canary-ssh
     tags: [cross-zone]
   - id: experimental-to-desktops-canary-denied
     from: experimental
@@ -339,8 +339,8 @@ flows:
     kind: connect
     expect: allow
     tags: [services]
-  - id: others-to-security-vault-denied
-    from: others
+  - id: management-to-security-vault-denied
+    from: management
     to: {address: 192.168.20.5, port: 8200}
     kind: connect
     expect: deny
@@ -378,8 +378,8 @@ flows:
     kind: connect
     expect: allow
     tags: [desktops, listener]
-  - id: others-to-play-minecraft-denied
-    from: others
+  - id: management-to-play-minecraft-denied
+    from: management
     to: {address: 192.168.20.4, port: 25565}
     kind: connect
     expect: deny
@@ -405,8 +405,8 @@ flows:
     kind: connect
     expect: allow
     tags: [desktops, listener]
-  - id: others-to-services-kms-denied
-    from: others
+  - id: management-to-services-kms-denied
+    from: management
     to: {address: 192.168.20.3, port: 1688}
     kind: connect
     expect: deny

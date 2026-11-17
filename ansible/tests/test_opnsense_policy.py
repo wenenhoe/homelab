@@ -214,7 +214,7 @@ def test_a_flow_that_rests_on_an_unconfirmed_decision_is_written_but_not_in_forc
 def test_kea_serves_the_zones_whose_clients_tofu_does_not_place(defaults):
     dhcp = {zone["name"]: zone["dhcp"] for zone in defaults["opnsense_gateway_zones"]}
 
-    assert dhcp == {"services": False, "others": False, "desktops": True, "isolated": True, "experimental": True}
+    assert dhcp == {"services": False, "management": False, "desktops": True, "isolated": True, "experimental": True}
 
 
 def test_the_pool_leaves_the_low_and_high_addresses_to_reservations_and_the_gateway(defaults):

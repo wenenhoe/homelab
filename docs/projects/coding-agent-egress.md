@@ -4,7 +4,7 @@ title: Coding-Agent Egress Proxy and Canary Probes
 type: project
 status: not-started
 blocked: false
-summary: A filtering egress proxy for the coding-agent zone and VLAN 30, and canary probes that check the whole boundary from outside the host.
+summary: A filtering egress proxy for the coding-agent zone and VLAN 25, and canary probes that check the whole boundary from outside the host.
 decision: ADR-0053/0
 plan: draft
 super_project: coding-agent-host
@@ -15,11 +15,11 @@ depends_on:
 
 # Coding-Agent Egress Proxy and Canary Probes
 
-Builds the only way out of the coding-agent zone, and the independent check that the boundary holds. The zone itself (VLAN, default-deny rules, laptop-only route) is [`coding-agent-network.md`](coding-agent-network.md); this project starts once it exists. It is separate because the host needs the zone before it needs a way out, and because [`operator-host-takeover.md`](operator-host-takeover.md) needs the proxy for VLAN 30 without needing anything else from the zone.
+Builds the only way out of the coding-agent zone, and the independent check that the boundary holds. The zone itself (VLAN, default-deny rules, laptop-only route) is [`coding-agent-network.md`](coding-agent-network.md); this project starts once it exists. It is separate because the host needs the zone before it needs a way out, and because [`operator-host-takeover.md`](operator-host-takeover.md) needs the proxy for VLAN 25 without needing anything else from the zone.
 
 ## Scope
 
-The egress proxy and its allowlists (one proxy, separate allowlists for the coding-agent VLAN and VLAN 30), and canary probes run from a VM in the zone, outside the host. Not in scope: the VLAN, rules and route ([`coding-agent-network.md`](coding-agent-network.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)), and the gateway's play and rebuild themselves ([`opnsense-config.md`](opnsense-config.md)). The proxy's configuration in the play is in scope, as Stage 3.
+The egress proxy and its allowlists (one proxy, separate allowlists for the coding-agent VLAN and VLAN 25), and canary probes run from a VM in the zone, outside the host. Not in scope: the VLAN, rules and route ([`coding-agent-network.md`](coding-agent-network.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)), and the gateway's play and rebuild themselves ([`opnsense-config.md`](opnsense-config.md)). The proxy's configuration in the play is in scope, as Stage 3.
 
 ## Decision
 
@@ -31,7 +31,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Egress proxy with an allowlist derived from what Claude Code and the repo's tooling fetch, ready to take VLAN 30's allowlist | Not started | A canary VM in the VLAN reaches every allowlisted destination and no other |
+| 1 | Egress proxy with an allowlist derived from what Claude Code and the repo's tooling fetch, ready to take VLAN 25's allowlist | Not started | A canary VM in the VLAN reaches every allowlisted destination and no other |
 | 2 | Canary probes from outside the future host | Not started | Probes to the secrets store, CD agent, operator host, managed hosts, workstation, and Proxmox management address all fail |
 | 3 | Carry the proxy's configuration in the play: its allowlist generated from one source in the repo and applied from the gateway's play or its own role. Starts once the proxy exists | Not started | The allowlist is generated from one source, `--check --diff` reports no change on a scratch gateway, and the canary probes still pass |
 

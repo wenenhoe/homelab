@@ -11,7 +11,7 @@ import pytest
 from scratch_run.gateway_api import INTERFACE_LIST_PATH, NO_ANSWER, get, interface_names, judge_vlans
 
 KEY, SECRET = "key-value-1", "secret-value-1"
-TAGS = (20, 30, 40, 50, 60, 70)
+TAGS = (20, 25, 40, 50, 55, 30)
 
 
 def listing(*names: str) -> str:
@@ -156,4 +156,4 @@ def test_the_gateway_has_the_vlan_interfaces_the_seed_was_given_or_the_check_say
     assert ok is passed
     assert says in sentence
     if status == 200 and interface_names(body) is not None:
-        assert "the spec seeds 6 VLANs (20, 30, 40, 50, 60, 70)" in sentence
+        assert "the spec seeds 6 VLANs (20, 25, 40, 50, 55, 30)" in sentence

@@ -4,7 +4,7 @@ revision: 0
 type: adr
 title: Where operator work runs
 short: Operator work host
-solution: A small headless VM in VLAN 30, reachable over SSH only from the maintainer's laptop with a hardware-backed key, that becomes the controller
+solution: A small headless VM in VLAN 25, reachable over SSH only from the maintainer's laptop with a hardware-backed key, that becomes the controller
 summary: Where Ansible, Tofu, the tools utilities, and break-glass access run, on a host that holds the infrastructure credentials and handles no untrusted content.
 topic: deployment-platform
 status: working
@@ -30,13 +30,13 @@ The controller reaches managed hosts over SSH, OpenBao's API, Proxmox and OPNsen
 
 The CD agent absorbs deploy, maintenance, rotation, and freshness ([`cd-agent.md`](../../projects/cd-agent.md)) but not Tofu or break-glass access, and it accepts SSH only from the operator host ([ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 
-The 3XX range, VLAN 30, is reserved and unused ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)). The Tailscale subnet router advertises only VLAN 20 today ([`network-infra.md`](../../topics/infra/network-infra.md)), and routes for VLANs 30 and 40 are expected to be added under Tailscale ACLs. The tailnet's policy is the default allow-all grant, so every node reaches every advertised route. Tailscale denies by default once a policy lists specific grants, accepts a subnet CIDR as a destination, and rejects a policy save when a `tests` assertion fails. The controller AppRole is unbound by CIDR because the controller has had no fixed address ([`openbao-auth.md`](../../topics/secrets/openbao-auth.md)).
+VMIDs 250 to 299, VLAN 25, are reserved and unused ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)). The Tailscale subnet router advertises only VLAN 20 today ([`network-infra.md`](../../topics/infra/network-infra.md)), and routes for VLANs 25 and 40 are expected to be added under Tailscale ACLs. The tailnet's policy is the default allow-all grant, so every node reaches every advertised route. Tailscale denies by default once a policy lists specific grants, accepts a subnet CIDR as a destination, and rejects a policy save when a `tests` assertion fails. The controller AppRole is unbound by CIDR because the controller has had no fixed address ([`openbao-auth.md`](../../topics/secrets/openbao-auth.md)).
 
 **Threat model.** The adversary is a compromised session on the maintainer's laptop, which is the workstation ([ADR 0056 (Workstation credentials)](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md)), or a compromised agent host. The asset is the infrastructure credentials. The attack path is any network path to this host, or content merged into `main` that it later runs. The second path is the review gate in [ADR 0050 (Agent changes to production)](../0050-agent-authored-changes-reaching-production/revision-000.md). A third is a compromised dependency or tool on the host itself sending credentials out; the outbound allowlist below limits where, and cannot stop exfiltration through an allowed destination. A fourth is the laptop's own key to this host: a hardware-backed key cannot be copied or used silently by a compromised session, and cannot protect a session the maintainer opens from a compromised client.
 
 ## Decision
 
-A small dedicated headless VM in VLAN 30 (VMID 302, `192.168.30.2`, sized like the default Ubuntu VM in [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) becomes the `controller`.
+A small dedicated headless VM in VLAN 25 (VMID 252, `192.168.25.2`, sized like the default Ubuntu VM in [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) becomes the `controller`.
 
 This diagram shows how the operator host is reached and what it reaches, as this revision decided it, not what runs now.
 
@@ -44,15 +44,15 @@ This diagram shows how the operator host is reached and what it reaches, as this
 flowchart LR
     LAP["Maintainer laptop<br/>FIDO2 key, PIN and touch, private half never leaves the token"] -->|"SSH only, over a Tailscale route; the laptop alone is granted port 22"| OP
     CA["Coding-agent host<br/>no path to the operator host"]
-    subgraph V30["VLAN 30, default-deny outbound at OPNsense"]
-        OP["Operator host, the controller<br/>VMID 302, 192.168.30.2"]
+    subgraph V25["VLAN 25, default-deny outbound at OPNsense"]
+        OP["Operator host, the controller<br/>VMID 252, 192.168.25.2"]
     end
     OP -->|"internal destinations, by address and port"| INT["Internal hosts"]
     OP -->|"Internet only through the domain-filtering proxy, under this VLAN's own allowlist"| PX["Forward proxy"]
     GH["Reviewed commits on main"] -->|"pulled after the maintainer pushes them, by anonymous clone"| OP
 ```
 
-- **Access.** SSH only, from the maintainer's laptop, over a Tailscale route to VLAN 30. The laptop authenticates with a dedicated hardware-backed FIDO2 key (PIN and touch required) whose private half never leaves the token. The tailnet policy replaces its allow-all grant with explicit grants: the laptop reaches VLAN 30 on port 22, no other source has a grant for that route, existing access the maintainer needs is re-granted explicitly, and `tests` assert both. The coding-agent host has no path to it.
+- **Access.** SSH only, from the maintainer's laptop, over a Tailscale route to VLAN 25. The laptop authenticates with a dedicated hardware-backed FIDO2 key (PIN and touch required) whose private half never leaves the token. The tailnet policy replaces its allow-all grant with explicit grants: the laptop reaches VLAN 25 on port 22, no other source has a grant for that route, existing access the maintainer needs is re-granted explicitly, and `tests` assert both. The coding-agent host has no path to it.
 - **Tokens.** Both of the maintainer's tokens have a key registered on the host, and one is kept offline as the spare. Losing both leaves recovery through the Proxmox node: the VM's console, or re-provisioning with a new key.
 - **Outbound.** Default-deny at OPNsense. Internal destinations are allowed by address and port; Internet destinations only through the domain-filtering proxy of [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md), under an allowlist for this VLAN that is separate from the coding-agent VLAN's.
 - **Contents.** The toolchain (`uv`, Ansible, OpenTofu, `bao`, git) and the credentials above. No desktop, browser, editor beyond a terminal one, or software that handles untrusted content. It clones the public repo anonymously and holds no push credential.

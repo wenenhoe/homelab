@@ -15,10 +15,10 @@ KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItestkey runner@scratch"
     ("zone", "expected"),
     [
         pytest.param("services", 208, id="services"),
-        pytest.param("others", 308, id="others"),
+        pytest.param("others", 258, id="others"),
         pytest.param("desktops", 408, id="desktops"),
         pytest.param("isolated", 508, id="isolated"),
-        pytest.param("experimental", 608, id="experimental"),
+        pytest.param("experimental", 558, id="experimental"),
     ],
 )
 def test_the_vmid_of_a_zones_canary_is_the_one_whose_scheme_address_is_its_canary(zone, expected):
@@ -30,7 +30,7 @@ def test_a_vmid_agrees_with_the_modules_own_scheme_for_every_zone(subtests):
     for name, zone in flow_list.zones.items():
         with subtests.test(zone=name):
             found = vm_id(name, flow_list, vlans)
-            assert (found // 100 * 10, f"192.168.{found // 100 * 10}.{found % 100}") == (vlans[name], str(zone.canary))
+            assert (found // 50 * 5, f"192.168.{found // 50 * 5}.{found % 50}") == (vlans[name], str(zone.canary))
 
 
 @pytest.mark.parametrize(
@@ -38,7 +38,7 @@ def test_a_vmid_agrees_with_the_modules_own_scheme_for_every_zone(subtests):
     [
         pytest.param("nowhere", {"services": 20}, "the zone `nowhere` is not in the flow list", id="not-in-the-flow-list"),
         pytest.param("services", {}, "the gateway's play has no zone `services`", id="not-in-the-play"),
-        pytest.param("services", {"services": 25}, "not an address a VMID of the lab's scheme gives on VLAN 25", id="vlan-not-a-multiple-of-ten"),
+        pytest.param("services", {"services": 27}, "not an address a VMID of the lab's scheme gives on VLAN 27", id="vlan-not-a-multiple-of-five"),
         pytest.param("services", {"services": 30}, "not an address a VMID of the lab's scheme gives on VLAN 30", id="canary-not-on-that-vlan"),
     ],
 )

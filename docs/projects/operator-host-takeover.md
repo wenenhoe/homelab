@@ -4,7 +4,7 @@ title: Operator Host Takeover
 type: project
 status: not-started
 blocked: false
-summary: The egress allowlist for VLAN 30, then the controller's toolchain and credentials moved onto the operator host.
+summary: The egress allowlist for VLAN 25, then the controller's toolchain and credentials moved onto the operator host.
 decision: ADR-0058/0
 plan: draft
 super_project: controller-separation
@@ -21,7 +21,7 @@ Moves the controller off the workstation onto the host [`operator-host.md`](oper
 
 ## Scope
 
-The VLAN 30 allowlist on the egress proxy, and moving the toolchain and credentials onto the host: `main-domain`, a freshly issued AppRole secret, the Tofu credentials file and the state backend's two env files ([ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md), [`state-and-credentials.md`](../topics/infra/tofu/state-and-credentials.md)) and the shared SSH key. Not in scope: building the host ([`operator-host.md`](operator-host.md)), the proxy itself ([`coding-agent-egress.md`](coding-agent-egress.md)), stripping and retiring VM 401 ([`vm-401-retirement.md`](vm-401-retirement.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The VLAN 25 allowlist on the egress proxy, and moving the toolchain and credentials onto the host: `main-domain`, a freshly issued AppRole secret, the Tofu credentials file and the state backend's two env files ([ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md), [`state-and-credentials.md`](../topics/infra/tofu/state-and-credentials.md)) and the shared SSH key. Not in scope: building the host ([`operator-host.md`](operator-host.md)), the proxy itself ([`coding-agent-egress.md`](coding-agent-egress.md)), stripping and retiring VM 401 ([`vm-401-retirement.md`](vm-401-retirement.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -33,7 +33,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Egress allowlist through the proxy | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
+| 1 | Egress allowlist through the proxy | Not started | A canary in VLAN 25 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
 | 2 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, the Tofu credentials file, the shared SSH key. No credential moves before Stage 1 | Not started | A deploy in check mode, a `tofu plan`, and an `openbao_utils.shell` login all succeed from the operator host, and then `vault-bootstrap` is bound to the host's address and the lldap web route is limited to it |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -41,7 +41,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Acceptance criteria
 
 - [ ] Every operation the controller performs today succeeds from the operator host.
-- [ ] Outbound from VLAN 30 reaches only the allowlisted destinations.
+- [ ] Outbound from VLAN 25 reaches only the allowlisted destinations.
 - [ ] `vault-bootstrap` accepts a login only from this host's address, set after the first login from it succeeds ([`openbao-vault-bootstrap.md`](../topics/secrets/openbao-vault-bootstrap.md)), and a login from the workstation is refused.
 - [ ] The lldap web route accepts requests only from this host's address, through a Caddy `remote_ip` matcher on that route. The address is one variable, shared with the `vault-bootstrap` bind, so the migration changes it once. A request from the workstation is refused.
 - [ ] The resulting behavior, including the restore procedure, is described in `docs/topics/infra/operator-host.md`.

@@ -93,10 +93,10 @@ def test_the_cd_agent_has_the_address_the_inventory_gives_it(defaults):
     assert defaults["opnsense_gateway_cd_agent_hosts"] == [inventory["cd-agent"]["ansible_host"]]
 
 
-def test_the_operator_host_302_is_the_address_the_cd_agent_trusts(defaults):
+def test_the_operator_host_252_is_the_address_the_cd_agent_trusts(defaults):
     group = yaml.safe_load((INVENTORY / "group_vars/cd_agent.yaml").read_text())
 
-    assert defaults["opnsense_gateway_hosts"]["host_operator_302"] == group["cd_agent_operator_address"]
+    assert defaults["opnsense_gateway_hosts"]["host_operator_252"] == group["cd_agent_operator_address"]
 
 
 def test_the_proxmox_node_has_the_address_the_dns_records_give_it(defaults):

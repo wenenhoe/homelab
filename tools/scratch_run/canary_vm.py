@@ -1,7 +1,7 @@
 """The scratch VM that stands in for one zone's canary, and what it takes to make it.
 
-A zone's canary sits at its `.8` (the flow list), and the lab's VMID scheme (`proxmox_ubuntu_vm`) puts a VM's VLAN in the hundreds
-of its VMID (`vlan = vmid // 100 * 10`) and its host address in the last two digits. So the canary of the zone on VLAN 20 is VM 208,
+A zone's canary sits at its `.8` (the flow list), and the lab's VMID scheme (`proxmox_ubuntu_vm`) puts a VM's VLAN in the block of 50
+of its VMID (`vlan = vmid // 50 * 5`) and its host address in the remainder. So the canary of the zone on VLAN 20 is VM 208,
 and a scratch VM built with that VMID on the scratch gateway's bridge takes the canary's address, carries the zone's tag and is
 reached by the runner as a canary VM is. Standard library, `network_checks` and nothing else.
 """
@@ -18,7 +18,7 @@ from network_checks.flow_list import FlowList
 ADMIN_USER = "scratch"  # `tofu/scratch/ubuntu`'s admin_username; the runner logs in to the VM as this account
 DNS_DOMAIN = "scratch.lab"  # the search domain the module requires; nothing on a scratch gateway resolves it
 VM_NAME_PREFIX = "canary-"
-HOST_OCTET_LIMIT = 100  # the scheme keeps a host's address in the last two digits of its VMID
+HOST_OCTET_LIMIT = 50  # the scheme keeps a host's address in the VMID's remainder after dividing by 50
 
 
 def vm_id(zone: str, flow_list: FlowList, vlans: Mapping[str, int]) -> int:
@@ -30,9 +30,9 @@ def vm_id(zone: str, flow_list: FlowList, vlans: Mapping[str, int]) -> int:
         raise ValueError(f"the gateway's play has no zone `{zone}`, so its VLAN is not known")
     canary = flow_list.zones[zone].canary
     host = int(canary) & 0xFF
-    if vlan % 10 or canary not in ipaddress.ip_network(f"192.168.{vlan}.0/24") or host >= HOST_OCTET_LIMIT:
+    if vlan % 5 or canary not in ipaddress.ip_network(f"192.168.{vlan}.0/24") or host >= HOST_OCTET_LIMIT:
         raise ValueError(f"the canary {canary} of `{zone}` is not an address a VMID of the lab's scheme gives on VLAN {vlan}")
-    return vlan // 10 * 100 + host
+    return vlan * 10 + host
 
 
 def tfvars(vm: int, zone: str, bridge: str, public_key: str, node_name: str, template_vm_id: str = "") -> dict[str, object]:

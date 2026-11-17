@@ -124,18 +124,18 @@ The backend needs only the tools, `sudo -n` and a usable `/dev/kvm`, so any host
 ## What it does not do
 
 - The checks of [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope) stay in that script, and it still writes the play's variables itself.
-- It builds one VM at most, the canary VM, and only for a zone the play and the flow list have. VLAN 70 has neither until [the coding agent's network](../../projects/coding-agent-network.md) reaches its Stage 2, so nothing here shows traffic over VLAN 70 (see below).
+- It builds one VM at most, the canary VM, and only for a zone the play and the flow list have. VLAN 30 has neither until [the coding agent's network](../../projects/coding-agent-network.md) reaches its Stage 2, so nothing here shows traffic over VLAN 30 (see below).
 - It never touches the live gateway, and it shows nothing that the scratch gateway cannot: the real `vmbr1` bridge, the tailnet and the node's own firewall.
 
-## Untested until VLAN 70 has a zone
+## Untested until VLAN 30 has a zone
 
-The VLAN 70 scratch kit (the seed's VLAN list, the VMID range up to 7XX and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 70 interface: the `vlan-70-seed` run. What no run shows yet, because the play has no zone for VLAN 70 and the flow list no row for it:
+The VLAN 30 scratch kit (the seed's VLAN list and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 30 interface: the `vlan-30-seed` run. What no run shows yet, because the play has no zone for VLAN 30 and the flow list no row for it:
 
-- a VM tagged 70 reaching the gateway, which needs the zone's interface address and a pass rule;
-- the zone's flows (rows 8 and 13 of [`opnsense-config.md`](../../projects/opnsense-config.md)), and that default-deny holds in VLAN 70;
+- a VM tagged 30 reaching the gateway, which needs the zone's interface address and a pass rule;
+- the zone's flows (rows 8 and 13 of [`opnsense-config.md`](../../projects/opnsense-config.md)), and that default-deny holds in VLAN 30;
 - the canary VM for that zone, which is this step with `zone` naming it.
 
-They wait for Stage 2 of [the coding agent's network](../../projects/coding-agent-network.md). Its exit condition (the zone's flows pass on a scratch gateway) is the first run of a spec like `canary-vm` for the new zone. Until then a VM at VMID 708 on the scratch gateway would sit on an interface with no rules and could show only that it is blocked.
+They wait for Stage 2 of [the coding agent's network](../../projects/coding-agent-network.md). Its exit condition (the zone's flows pass on a scratch gateway) is the first run of a spec like `canary-vm` for the new zone. Until then a VM at VMID 308 on the scratch gateway would sit on an interface with no rules and could show only that it is blocked.
 
 ## Tests
 

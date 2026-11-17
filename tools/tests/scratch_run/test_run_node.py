@@ -324,7 +324,7 @@ class FakeApi:
         return self.status, self.body
 
 
-def vlan_backend(out, runner, api, tags=(20, 30, 40, 50, 60, 70)):
+def vlan_backend(out, runner, api, tags=(20, 25, 40, 50, 55, 30)):
     made = NodeBackend(out, URL, SUM, ENV, runner=runner, resolver=lambda name: "127.0.0.1", api_get=api)
     (out / "credentials.tfvars").write_text('opnsense_api_key = "key-value-1"\nopnsense_api_secret = "secret-value-1"\n')
     spec = Spec("vlans", "d", tuple(tags), {}, None, ())
@@ -341,7 +341,7 @@ def test_the_vlans_step_asks_the_gateway_through_the_forward_with_its_own_key_an
     ]
     assert runner.calls == []
     assert output.splitlines()[0] == "GET /api/firewall/filter/get_interface_list -> HTTP 200"
-    assert output.splitlines()[-1] == "the gateway has 6 VLAN interfaces (opt1, opt2, opt3, opt4, opt5, opt6); the spec seeds 6 VLANs (20, 30, 40, 50, 60, 70)"
+    assert output.splitlines()[-1] == "the gateway has 6 VLAN interfaces (opt1, opt2, opt3, opt4, opt5, opt6); the spec seeds 6 VLANs (20, 25, 40, 50, 55, 30)"
 
 
 def test_the_vlans_step_fails_and_keeps_the_raw_answer_when_the_gateway_has_fewer_interfaces(out, runner):

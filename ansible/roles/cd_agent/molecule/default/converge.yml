@@ -5,7 +5,7 @@
   vars:
     # Five levels up from this scenario directory is the repository root.
     cd_agent_runner_source_dir: "{{ (playbook_dir ~ '/../../../../../tools/cd_agent') | realpath }}"
-    cd_agent_operator_address: 192.168.30.2
+    cd_agent_operator_address: 192.168.25.2
     cd_agent_admin_users:
       - cdadmin
     # Three jobs covering both timer shapes. The commands write into the job's

@@ -407,8 +407,8 @@
     # --- sshd: the operator host only ------------------------------------------
     # -T -C evaluates the Match blocks for a connection from the given address.
     - name: Evaluate sshd's effective configuration for the operator host, another host and loopback
-      ansible.builtin.command: "/usr/sbin/sshd -T -C user=cdadmin,addr={{ item }},host=probe,laddr=192.168.30.3,lport=22"
-      loop: [192.168.30.2, 192.168.30.9, 127.0.0.1]
+      ansible.builtin.command: "/usr/sbin/sshd -T -C user=cdadmin,addr={{ item }},host=probe,laddr=192.168.25.3,lport=22"
+      loop: [192.168.25.2, 192.168.25.9, 127.0.0.1]
       register: cd_agent_verify_sshd
       changed_when: false
 

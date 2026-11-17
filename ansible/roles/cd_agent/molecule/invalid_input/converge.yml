@@ -8,7 +8,7 @@
   vars:
     cd_agent_valid:
       cd_agent_runner_source_dir: "{{ (playbook_dir ~ '/../../../../../tools/cd_agent') | realpath }}"
-      cd_agent_operator_address: 192.168.30.2
+      cd_agent_operator_address: 192.168.25.2
       cd_agent_admin_users: [cdadmin]
       cd_agent_jobs:
         - name: deploy
@@ -19,10 +19,10 @@
         override: {cd_agent_operator_address: "*"}
         expect: must be one literal IPv4 address
       - name: an operator address with an octet over 255
-        override: {cd_agent_operator_address: 192.168.30.256}
+        override: {cd_agent_operator_address: 192.168.25.256}
         expect: must be one literal IPv4 address
       - name: a CIDR range as the operator address
-        override: {cd_agent_operator_address: 192.168.30.0/24}
+        override: {cd_agent_operator_address: 192.168.25.0/24}
         expect: must be one literal IPv4 address
       - name: an admin user name carrying a space
         override: {cd_agent_admin_users: ["cdadmin root"]}

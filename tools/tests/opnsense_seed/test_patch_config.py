@@ -210,12 +210,18 @@ class TestVlans:
         interfaces = seed().find("interfaces")
 
         assert [(i.findtext("if"), i.findtext("ipaddr"), i.findtext("subnet")) for i in (interfaces.find(f"opt{n}") for n in range(1, 6))] == [
-            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (20, 30, 40, 50, 60)
+            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (20, 25, 40, 50, 55)
         ]
         assert interfaces.find("opt6") is None
 
     def test_describes_each_zone_by_its_vmid_range(self):
-        assert [v.findtext("descr") for v in seed().findall("vlans/vlan")] == [f"VM ID {n}XX" for n in (2, 3, 4, 5, 6)]
+        assert [v.findtext("descr") for v in seed().findall("vlans/vlan")] == [
+            "VM ID 200-249",
+            "VM ID 250-299",
+            "VM ID 400-449",
+            "VM ID 500-549",
+            "VM ID 550-599",
+        ]
 
     def test_each_device_has_a_uuid_that_does_not_change_between_builds(self):
         first = [v.get("uuid") for v in seed().findall("vlans/vlan")]
@@ -226,10 +232,10 @@ class TestVlans:
         assert all(first)
 
     def test_the_vlan_list_is_the_one_given(self):
-        root = seed(vlans=[20, 70])
+        root = seed(vlans=[20, 30])
 
-        assert [v.findtext("tag") for v in root.findall("vlans/vlan")] == ["20", "70"]
-        assert root.find("interfaces/opt2/ipaddr").text == "192.168.70.1"
+        assert [v.findtext("tag") for v in root.findall("vlans/vlan")] == ["20", "30"]
+        assert root.find("interfaces/opt2/ipaddr").text == "192.168.30.1"
 
     def test_none_given_adds_neither_devices_nor_interfaces(self):
         root = seed(vlans=[])
@@ -350,10 +356,10 @@ class TestMain:
         write_credentials(credentials_path, assignments())
         out = tmp_path_factory.mktemp("out") / "config.xml"
 
-        assert patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,70"]) == 0
+        assert patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,30"]) == 0
 
         written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
-        assert [v.findtext("tag") for v in written.findall("vlans/vlan")] == ["20", "70"]
+        assert [v.findtext("tag") for v in written.findall("vlans/vlan")] == ["20", "30"]
 
     def test_a_vlan_list_that_is_not_numbers_is_refused(self, credentials_path, tmp_path_factory, capsys):
         out = tmp_path_factory.mktemp("out") / "config.xml"

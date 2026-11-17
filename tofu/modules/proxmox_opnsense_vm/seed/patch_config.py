@@ -44,9 +44,9 @@ API_PRIVILEGES = (
 )
 DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
 BASE = Path(__file__).with_name("config.xml.sample")
-# One VLAN per VMID hundred (vlan_id = vmid // 100 * 10), each a /24 whose
+# One VLAN per block of 50 VMIDs (vlan_id = vmid // 50 * 5), each a /24 whose
 # third octet is the tag and whose gateway address is .1.
-DEFAULT_VLANS = (20, 30, 40, 50, 60)
+DEFAULT_VLANS = (20, 25, 40, 50, 55)
 VLAN_NAMESPACE = uuid.UUID("5d0c7a52-3c1e-4a53-9a0f-6a4a3f0f6a11")
 ASSIGNMENT = re.compile(r'^\s*(\w+)\s*=\s*"([^"\\]*)"\s*(?:#.*)?$')
 
@@ -145,7 +145,7 @@ def add_vlans(root: ET.Element, lan_if: str, lan_ip: str, lan_prefix: str, tags:
         set_text(vlan, "tag", str(tag))
         set_text(vlan, "pcp", "0")
         set_text(vlan, "proto", "")
-        set_text(vlan, "descr", f"VM ID {tag // 10}XX")
+        set_text(vlan, "descr", f"VM ID {tag * 10}-{tag * 10 + 49}")
         set_text(vlan, "vlanif", f"vlan0.{tag}")
         opt = ET.SubElement(interfaces, f"opt{number}")
         set_text(opt, "if", f"vlan0.{tag}")

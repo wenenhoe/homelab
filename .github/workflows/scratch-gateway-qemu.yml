@@ -37,7 +37,7 @@ on:  # yamllint disable-line rule:truthy
         type: choice
         options:
           - rehearsal
-          - vlan-70-seed
+          - vlan-30-seed
         default: rehearsal
 
 permissions:

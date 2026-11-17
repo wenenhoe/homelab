@@ -43,8 +43,8 @@ def test_the_tofu_canaries_sit_at_the_addresses_the_flow_list_declares(flow_list
 
     assert vm_ids
     for name, vm_id in vm_ids.items():
-        vlan, host = divmod(vm_id, 100)
-        assert flow_list.zones[name].canary == ipaddress.IPv4Address(f"192.168.{vlan * 10}.{host}")
+        block, host = divmod(vm_id, 50)
+        assert flow_list.zones[name].canary == ipaddress.IPv4Address(f"192.168.{block * 5}.{host}")
 
 
 def test_a_flow_tagged_with_a_zone_is_tried_from_that_zone(flow_list):

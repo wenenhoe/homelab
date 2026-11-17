@@ -7,7 +7,7 @@ every problem at once, so a mistake costs no gateway build. Standard library and
     name: rehearsal
     description: what the run shows
     gateway:
-      vlans: [20, 30, 40, 50, 60, 70]   # optional: the seed's VLAN list
+      vlans: [20, 25, 40, 50, 55, 30]   # optional: the seed's VLAN list
       play_vars: {opnsense_gateway_...: ...}  # optional: the play's -e variables
     block_rule: {source: ..., destination: ..., protocol: UDP, port: 53}
     canary_vm: {zone: services}   # optional: a scratch VM takes that zone's canary address
@@ -253,8 +253,8 @@ def _check_canary_vm(vm: CanaryVm, vlans: tuple[int, ...], steps: list[Step], fl
     except ValueError as error:
         problems.append(f"`canary_vm.zone`: {error}")
     else:
-        if vlans and found // 100 * 10 not in vlans:
-            problems.append(f"`canary_vm.zone` `{vm.zone}` is on VLAN {found // 100 * 10}, which `gateway.vlans` does not carry")
+        if vlans and found // 50 * 5 not in vlans:
+            problems.append(f"`canary_vm.zone` `{vm.zone}` is on VLAN {found // 50 * 5}, which `gateway.vlans` does not carry")
 
 
 def parse_spec(data: object, flows_path: Path = FLOWS_PATH) -> Spec:

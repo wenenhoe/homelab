@@ -1,14 +1,14 @@
 ---
-# The rehearsal on a scratch gateway whose seed also carries VLAN 70 (SEED_VLANS). The play has no zone for VLAN 70 yet, so this shows
+# The rehearsal on a scratch gateway whose seed also carries VLAN 30 (SEED_VLANS). The play has no zone for VLAN 30 yet, so this shows
 # that the gateway has the sixth VLAN interface, and that adding it leaves what the play applies, and the flows of the zones it reaches,
-# as they are. It says nothing about VLAN 70's own traffic: no canary sits in it and no flow names it. The `vlans` step counts the
+# as they are. It says nothing about VLAN 30's own traffic: no canary sits in it and no flow names it. The `vlans` step counts the
 # gateway's VLAN interfaces; the API user cannot read the tags themselves.
-name: vlan-70-seed
+name: vlan-30-seed
 description: >-
-  A scratch gateway whose seed carries VLAN 70 as well as 20 to 60: the gateway has six VLAN interfaces, the play applies and a second
+  A scratch gateway whose seed carries VLAN 30 as well as 20, 25, 40, 50 and 55: the gateway has six VLAN interfaces, the play applies and a second
   run with --check reports no change, and every flow of the services and desktops zones passes.
 gateway:
-  vlans: [20, 30, 40, 50, 60, 70]
+  vlans: [20, 25, 40, 50, 55, 30]
   play_vars:
     opnsense_gateway_operator_hosts: [192.168.40.250]
     opnsense_gateway_operator_not_listed_ok: true

@@ -182,9 +182,9 @@ line_of() {
   run calls_to build_seed
   refute_output --partial "--vlans"
   : > "$CALLS"
-  SEED_VLANS=20,30,40,50,60,70 run -0 "$SCRIPT" up "$BATS_TEST_TMPDIR/out-70" "$URL" "$SUM"
+  SEED_VLANS=20,25,40,50,55,30 run -0 "$SCRIPT" up "$BATS_TEST_TMPDIR/out-30" "$URL" "$SUM"
   run calls_to build_seed
-  assert_output --partial "--vlans 20,30,40,50,60,70"
+  assert_output --partial "--vlans 20,25,40,50,55,30"
 }
 
 @test "up refuses a SEED_VLANS that is not a list of tags, before it builds anything" {

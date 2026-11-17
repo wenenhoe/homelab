@@ -150,6 +150,7 @@ class TestDiscover:
             pytest.param("ansible/roles/a/files/notes.md", id="markdown-file"),
             pytest.param("ansible/.git/config.yaml", id="skipped-directory"),
             pytest.param("ansible/node_modules/p/x.yaml", id="node-modules"),
+            pytest.param("ansible/.ansible/collections/ansible_collections/c/d/tests/vars/main.yml", id="installed-galaxy-collections"),
         ],
     )
     def test_files_outside_what_a_download_is_pinned_in_are_ignored(self, root, rel):

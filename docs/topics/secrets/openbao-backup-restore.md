@@ -94,10 +94,11 @@ environment — never written to a file, never passed as a command-line
 argument to anything it calls. `bao operator raft snapshot save`
 inherits it the same way any other native `bao` invocation does.
 
-**Version note:** the behavior described below was confirmed live
-on `openbao/openbao:2.7.1`, the image `docker/openbao/compose.yaml.j2`
-pins, by running the drill end to end. The `snapshot_restore` Molecule
-scenario ([`molecule-testing.md`](../engineering/molecule-testing.md))
+**Version note:** the behavior described below was last confirmed live,
+by running the drill end to end, on `openbao/openbao:2.7.1`.
+`docker/openbao/compose.yaml.j2` pins the release the server runs now,
+which can be newer. The `snapshot_restore` Molecule scenario
+([`molecule-testing.md`](../engineering/molecule-testing.md))
 runs it again on whatever image the Molecule helper pins, on every bump
 of that pin. Newer releases can change behavior: `generate-root`'s
 authenticated-endpoint behavior changed (see

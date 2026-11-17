@@ -7,7 +7,10 @@ Docs are grouped by artifact type, one directory each:
   groups are chosen. One topic, one doc, cross-referenced rather than
   duplicated — if you're about to explain the same gotcha in a second
   place, link to the first instead. A topic doc describes what is true
-  on `main` at every commit, not what a project is still building.
+  on `main` at every commit, not what a project is still building. A new
+  topic doc and its row in the index are one commit: every commit is
+  checked, and [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)
+  fails on either one without the other.
 - **[`explorations/`](explorations/README.md)** — a question with no chosen
   solution yet: the facts, the options and what each costs. Deleted when it
   becomes a decision, becomes a project or is dropped; nothing durable links

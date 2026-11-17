@@ -22,6 +22,16 @@ pointed to instead.
   assertions) and the form of a commit (identity, subject, dates,
   trailer). Read it before writing or changing a test, and before
   writing a commit.
+- [`docs/topics/engineering/landing-a-series.md`](docs/topics/engineering/landing-a-series.md)
+  — how a change reaches `main` as a series of patches: the format, the
+  replay and the stop list. Read it before delivering a change. Patches
+  leave out the generated views; see
+  [`pre-commit.md`](docs/topics/engineering/pre-commit.md#applying-patches-with-git-am).
+- [`docs/topics/engineering/security-findings.md`](docs/topics/engineering/security-findings.md#referring-to-findings-from-this-repo)
+  and [`docs/topics/engineering/mutation-testing.md`](docs/topics/engineering/mutation-testing.md#keeping-results-private)
+  — what from the private tracker and the private mutation tooling may be
+  mentioned in this repo, and where their output goes. Read them before
+  a change that touches either.
 
 ## Which kind of doc
 

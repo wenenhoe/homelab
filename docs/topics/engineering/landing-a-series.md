@@ -15,11 +15,11 @@ uv run python -m land_series SERIES.series --repo .. --land     # push, open, wa
 One plain-text `.series` file, or several: the tool takes more than one and reads them as one series.
 
 - A **manifest**: one line per patch, `<id> <slug>`, then a blank line. The id is four digits and a letter (`0007a`).
-- Then the patches, a single mbox of `git format-patch` messages in the manifest's order.
+- Then the patches, a single mbox of `git format-patch` messages in the manifest's order. Write them as plain `git format-patch` output: ordinary `diff --git` headers, readable paths, and no encoded or binary bodies, so each patch can be read in full before it is replayed, which the stop list below relies on.
 
-A number is a pull request and each letter is a commit in it. Commits that share a number share a slug, and a slug belongs to one number; the tool refuses anything else. Pull requests land in number order. A slug is lowercase kebab-case, and `main`, `maintenance` and `develop` are refused. Keep a pull request to a few commits that each stand alone: a squash would lose each change's blame, and a long list is noise.
+A number is a pull request and each letter is a commit in it. Commits that share a number share a slug, and a slug belongs to one number; the tool refuses anything else. Pull requests land in number order. A slug is lowercase kebab-case, and `main`, `maintenance` and `develop` are refused. A slug is not reused from an earlier series: it is the name of the pull request's branch. Keep a pull request to a few commits that each stand alone: a squash would lose each change's blame, and a long list is noise. The first commit's subject is the pull request's title.
 
-A fix to a layer that has landed is a new commit with the next letter, or a new number. A file that repeats earlier layers unchanged is fine, since a commit already in the base is skipped.
+A fix to a layer that has landed is a new commit with the next letter, or a new number. A file that repeats earlier layers unchanged is fine, since a commit already in the base is skipped, so a follow-up file can hold only the new commits.
 
 ## Replay
 

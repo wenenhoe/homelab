@@ -41,6 +41,8 @@ writes back an index without those views, leaving them unstaged for the next
 patch of the series; the first staging is what keeps `pre-commit` from
 stashing them and rolling the regenerated views back over its own rewrite.
 
+When writing a patch, run `uvx pre-commit run generate-doc-indexes`, stage everything except the views, and check with `git show --stat` that none of them is in the commit. The hand-written text of a view, such as the introduction of [`project-planning.md`](../../project-planning.md), is not generated and does travel in a patch: commit it as its own hunks, made on the file as it is on `main`, so that no generated section is in the diff. The replay resets the views between layers, so a series that edits one replays; a plain `git am` of the same series stops at the first patch after one the hooks left dirty, so verify such a series with the `land_series` dry-run only.
+
 A failing hook stops `git am` with the patch staged. Hooks that fix
 files (`ruff`, `dclint`, `end-of-file-fixer`) leave the fix unstaged and
 also fail: review it, `git add -u && git am --continue` to keep it in the

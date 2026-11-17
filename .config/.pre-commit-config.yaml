@@ -172,6 +172,22 @@ repos:
         files: "^(docker/.+/compose[^/]*\\.ya?ml(\\.j2)?|ansible/roles/[^/]+/templates/(.+/)?compose[^/]*\\.j2\
           |tools/(utils/unique_key_yaml|ci/gates/compose_hardening_rules)\\.py)$"
         pass_filenames: false
+      - id: check-docker-container-hardening
+        name: check-docker-container-hardening
+        description: >-
+          Every Ansible docker_container task that creates a container sets
+          cap_drop: [ALL] and no-new-privileges:true, anything wider
+          (capabilities, privileged, a host namespace, devices, the Docker
+          socket) is listed with its reason, and no command or shell task
+          runs docker run - see tools/ci/gates/docker_container_rules.py.
+          Needs only PyYAML.
+        entry: bash -c 'cd tools && python3 -m ci.gates.docker_container_rules' --
+        language: python
+        additional_dependencies: [pyyaml==6.0.3]
+        files: "^(ansible/playbooks/.+\\.ya?ml\
+          |ansible/roles/(?!molecule_helpers/)[^/]+/(tasks|handlers)/.+\\.ya?ml\
+          |tools/(utils/unique_key_yaml|ci/gates/docker_container_rules)\\.py)$"
+        pass_filenames: false
       - id: check-flow-list
         name: check-flow-list
         description: >-

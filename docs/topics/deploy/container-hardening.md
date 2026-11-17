@@ -14,6 +14,8 @@ what each capability is for, and how to check the result.
 
 The `check-compose-hardening` pre-commit hook enforces the pair on every service of a production compose file or role template. A capability you add back, or any other widening (`privileged`, a host namespace, `devices`, the Docker socket), also needs a line with its reason in `EXCEPTIONS` in [`compose_hardening_rules.py`](../../../tools/ci/gates/compose_hardening_rules.py); see [`ci/gates.md`](../engineering/ci/gates.md#compose-hardening-rules).
 
+A `community.docker.docker_container` task that starts a container is held to the same pair, with its own `EXCEPTIONS` in [`docker_container_rules.py`](../../../tools/ci/gates/docker_container_rules.py), through the `check-docker-container-hardening` hook; see [`ci/gates.md`](../engineering/ci/gates.md#docker_container-rules).
+
 ## Choosing what to add back
 
 ```mermaid

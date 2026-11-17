@@ -25,7 +25,7 @@ Not in this project: running Tofu or Ansible from the console, changing the rule
 
 ## Decision
 
-[ADR 0114 revision 0 (Remote series landing)](../decisions/0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md). Its open assumptions are settled there before any stage starts.
+[ADR 0114 revision 0 (Remote series landing)](../decisions/0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md). Its open assumptions are settled there before any stage starts, except the one about Gatus and the deploy job's heartbeat, which gates stage 5 only.
 
 ## Execution plan
 
@@ -37,7 +37,7 @@ Update at the start and end of each PR that works a stage.
 | 2 | Console core | Not started | A series replays in a transient sandbox with no network and no credentials, a separate worker verifies the output against the series hash and pushes with hooks off, and a job survives the caller disconnecting. Tests cover the approval binding, the pause conditions and token revocation. |
 | 3 | Sign-in and pages | Not started | A series can be uploaded, reviewed, approved and landed in a browser against a scratch repository, after a Pocket ID login and the GitHub device flow, and the token is revoked when the series ends. The pages carry a strict content-security policy and escape all patch and review text. |
 | 4 | Host | Not started | The VM is built by Tofu, which accepts the 8XX range for it and whose scheme table lists it, and configured by the role. The DMZ rules, the node's firewall rules and the tailnet tag, grant and tests are in place, and a probe from the VM to the Proxmox node's management ports fails. |
-| 5 | Deploy status | Not started | The deploy job pushes a heartbeat, the console reads Gatus through one read-only grant, and the status page shows the merge commits, the checks and the heartbeat. |
+| 5 | Deploy status | Not started | Starts once the CD agent's deploy job is deployed and Beszel and Gatus run on their own host ([`monitoring-host-isolation.md`](monitoring-host-isolation.md), stage 2). The deploy job pushes a heartbeat, the console reads Gatus through one read-only grant, and the status page shows the merge commits, the checks and the heartbeat. |
 | 6 | Own repository | Not started | The console is its own public repository, the role installs a release pinned by version and sha256, and this repository keeps the stop list, checks and role. |
 
 ## Acceptance criteria

@@ -72,6 +72,7 @@ This diagram shows the design as this revision decided it, not what runs now.
 - **The CD agent host.** It breaks all three properties of ADR 0044 revision 0-c on the host that holds the production credentials.
 - **The operator host.** It would handle untrusted content next to the infrastructure credentials.
 - **The console does everything but the bypass merge, which the maintainer clicks in GitHub's web UI.** It keeps ADR 0056 intact, but the UI merge cannot pin the head the maintainer reviewed. It is the fallback if an App token cannot use the bypass.
+- **GitHub's native stacked pull requests and merge queue.** A trial against a ruleset shaped like `main-review` could not merge a whole stack into `main`. A stack that did merge would land as one merge commit, not one per layer, which ADR 0112 keeps so that each layer reverts alone. Neither takes a `.series` file, and neither limits what holds the merge credential.
 - **A standing token, or an App with a standing bypass.** A permanent path to production from an exposed host.
 - **Pocket ID on an internal VLAN.** It needs a path from the DMZ into that VLAN and stops landing when it is down, and gains little, since a compromised console host with a live token can merge whoever hosts the sign-in.
 - **WebAuthn in the console itself.** It can refuse synced credentials and bind an assertion to a transaction, at the cost of more security code to own.
@@ -105,6 +106,8 @@ This diagram shows the design as this revision decided it, not what runs now.
 - **Claim:** Gatus can be read through one read-only grant, and the deploy job can push a heartbeat.
   **Breaks if wrong:** the status panel shows the merge and the checks only.
   **Checked by:** reading [`gatus.md`](../../topics/monitoring/gatus.md) and the heartbeat configuration of the deploy job.
+  **Gates:** the status panel's stage only. The landing path does not wait on it, and it is checked once the deploy job is deployed and Gatus runs on its own host.
+  **Known so far:** a push needs a `heartbeat_jobs` entry, a token and `heartbeat:` on the job. Gatus has one dashboard user, and a tailnet grant reaches a host and port, so a grant to Gatus today reaches every app behind Caddy on its host, and the console would hold that user's password. The grant is narrowed by moving Gatus to its own host, or avoided by having the deploy job push its state to the console.
 
 ## Consequences
 

@@ -20,33 +20,42 @@ Build status across the initiative is in the `tofu-vm-provisioning` entry of
 
 ## VMID / VLAN / IP scheme
 
-VMID-hundred ranges follow the existing numbering convention; each networked range
-maps to its own VLAN and subnet:
+Each block of 50 VMIDs maps to its own VLAN and subnet, so a zone is a policy
+and not a hundred. A hundred holds two blocks, which share a trust level and
+differ in what the gateway lets them reach:
 
-| VMID range | Purpose | VLAN | Subnet | This repo's scope |
+| VMID block | Purpose | VLAN | Subnet | This repo's scope |
 | :--- | :--- | :--- | :--- | :--- |
 | 1XX | Templates | — (not networked) | — | Tofu's own cloud-init Ubuntu template lands here |
-| 2XX | Production — Services | 20 | `192.168.20.0/24` | Primary target: the Ubuntu hosts and the gateway |
-| 3XX | Production — Others | 30 | `192.168.30.0/24` | Reserved, unused today |
-| 4XX | Production — Desktops | 40 | `192.168.40.0/24` | **Out of scope**: GPU passthrough and manual OS installs, not cloud-init-able the same way |
-| 5XX | Experimental | 50 | `192.168.50.0/24` | Isolated experiments: the [scratch gateway](tofu/opnsense-scratch-gateway.md) is VMID 501, and a [scratch VM](tofu/ubuntu-vms.md#scratch-ubuntu-vm)'s VMID picks its zone |
+| 200–249 | Production — Services | 20 | `192.168.20.0/24` | Primary target: the Ubuntu hosts and the gateway |
+| 250–299 | Production — Management (the `others` zone) | 25 | `192.168.25.0/24` | Reserved for the operator host (VMID 252) and the CD agent (253) |
+| 300–349 | Coding agent | 30 | `192.168.30.0/24` | Reserved for the coding-agent host: default-deny in both directions, one way out through the egress proxy |
+| 350–399 | DMZ | 35 | `192.168.35.0/24` | Reserved for hosts that parse untrusted content and are reached over the tailnet, starting with the Gatehouse console |
+| 400–449 | Production — Desktops | 40 | `192.168.40.0/24` | **Out of scope**: GPU passthrough and manual OS installs, not cloud-init-able the same way |
+| 450–499 | Spare | 45 | `192.168.45.0/24` | Unassigned |
+| 500–549 | Experimental, no Internet (the `isolated` zone) | 50 | `192.168.50.0/24` | The [scratch gateway](tofu/opnsense-scratch-gateway.md) is VMID 501, and a [scratch VM](tofu/ubuntu-vms.md#scratch-ubuntu-vm)'s VMID picks its zone |
+| 550–599 | Experimental, with Internet | 55 | `192.168.55.0/24` | The same, for a VM that needs the Internet |
 | 6XX–8XX | Unassigned | — | — | Reserved for future ranges as needed |
 | 9XX | Archived | — (not running) | — | No networking required |
 
-Within a range, `vlan_id = (vmid // 100) * 10` and `host_octet = vmid % 100`:
+Within a block, `vlan_id = (vmid // 50) * 5` and `host_octet = vmid % 50`:
 
-- `X00` and `1000+` are never assigned to a real VM, so the derivation never produces
-  a `.0` host address.
+- `X00` and `X50` are never assigned to a real VM, so the derivation never
+  produces a `.0` host address. `1000+` is never assigned either.
 - `.1` in every networked VLAN is the OPNsense sub-interface (the gateway), whether or
-  not a VM holds the `X01` VMID. A VM other than OPNsense never takes `X01`; every
-  other VMID in a range starts at `X02`.
+  not a VM holds the `X01` or `X51` VMID. A VM other than OPNsense never takes
+  either; every other VMID in a block starts at `X02` or `X52`.
+- A block of 50 holds one zone. Splitting one later into blocks of 10 changes the
+  VLAN of the VMIDs past the first ten, so the scheme leaves each block whole
+  until a second zone needs the room.
 
-Each VLAN's `/24` is split so Tofu's static addresses and Kea's pool never collide:
+Each VLAN's `/24` is shared by Tofu's static addresses and, in a zone with DHCP,
+Kea's pool, so the two never overlap:
 
-| Addresses | Used for |
-| :--- | :--- |
-| `.1`–`.49` | The gateway and Tofu-provisioned VMs (static, VMID-derived) |
-| `.50`–`.254` | Kea's DHCP pool, for anything Tofu does not manage (laptops, phones). A client here has no DNS name |
+| Zone | Static addresses | Kea's pool |
+| :--- | :--- | :--- |
+| No DHCP (services, others, and the coding-agent and DMZ zones) | `.1` for the gateway, `.2`–`.49` for Tofu-provisioned VMs (VMID-derived) | None |
+| DHCP (desktops, isolated, experimental) | `.1` and `.2`–`.9`: a VM here takes a VMID whose remainder after dividing by 50 is 02 to 09 | `.10`–`.245` (`opnsense_gateway_dhcp_pool`), for anything Tofu does not manage (laptops, phones). A client here has no DNS name |
 
 VM 401 ("Development") is the controller today
 ([ADR 0058](../../decisions/0058-where-operator-work-runs/revision-000.md)), so it is

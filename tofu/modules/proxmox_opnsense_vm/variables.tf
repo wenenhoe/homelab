@@ -4,13 +4,13 @@ variable "node_name" {
 }
 
 variable "vm_id" {
-  description = "VMID, which fixes the NIC MAC addresses. OPNsense takes the gateway VMID of its range, host part 01."
+  description = "VMID, which fixes the NIC MAC addresses. OPNsense takes the gateway VMID of its block of 50, host part 01."
   type        = number
   default     = 201
 
   validation {
-    condition     = var.vm_id >= 201 && var.vm_id < 600 && var.vm_id % 100 == 1
-    error_message = "vm_id must be the 01 VMID of a 2XX to 5XX range."
+    condition     = var.vm_id >= 201 && var.vm_id < 600 && var.vm_id % 50 == 1
+    error_message = "vm_id must be the 01 or 51 VMID of a 2XX to 5XX block."
   }
 }
 

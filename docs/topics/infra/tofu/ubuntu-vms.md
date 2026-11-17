@@ -44,7 +44,7 @@ SHA-256 in `ubuntu_image_url` and `ubuntu_image_checksum`
 
 | Aspect | Behaviour |
 | :--- | :--- |
-| Accepts | A `vm_id` in 2XX to 7XX whose last two digits are 02 to 49 (not the reserved, gateway or DHCP-pool host parts) |
+| Accepts | A `vm_id` in 2XX to 5XX whose remainder after dividing by 50 is 02 to 49 (not the reserved `X00`, `X50` or the gateway `X01`, `X51`) |
 | Nameservers | The VLAN's gateway by default; `dns_servers` replaces them |
 | Search domain | `dns_domain`, the lab's internal zone, with no default: a VM with no search domain gets a copy of the node's own |
 | Sizing | `cores`, `memory_mb`, `disk_gb` default in [`variables.tf`](../../../../tofu/modules/proxmox_ubuntu_vm/variables.tf); a larger host overrides them |
@@ -225,11 +225,11 @@ another zone is another volume and the template is replaced.
 | Aspect | Behaviour |
 | :--- | :--- |
 | Which zones | The `canary_vm_ids` map, one entry per zone that has a canary. A zone is added once the gateway admits the runner's host to the canary's address on 22 |
-| VMID and address | The host part is 08, clear of the DHCP pool, so the services canary is VMID 208 at `192.168.20.8`. The address is the zone's `canary` in the flow list |
+| VMID and address | The host part is 08, clear of the gateway and the DHCP pool, so the services canary is VMID 208 at `192.168.20.8`. The address is the zone's `canary` in the flow list |
 | Login | The admin user `canary`, with `canary_ssh_public_keys`. The key is the runner's own, not the one Ansible uses. With no key set, no canary is built |
 | Size | 1 core, 1 GiB, 8 GiB disk |
 
-Zones without a canary yet: others, desktops and isolated need a row in the gateway's policy that admits the runner's host to the canary's address, and experimental also needs the module's VMID range widened past 5XX.
+Zones without a canary yet: others, desktops, isolated and experimental need a row in the gateway's policy that admits the runner's host to the canary's address.
 
 ## Scratch Ubuntu VM
 
@@ -243,7 +243,7 @@ one as a zone's canary and tear it down again.
 
 | Input | Notes |
 | :--- | :--- |
-| `vm_id` | No default. Picks the zone, because the module derives the VLAN from its hundred. The VM reaches only what that zone's gateway rules allow: the gateway play gives VLAN 50 no access to the internet (`internet: false` in [`opnsense_gateway_zones`](../../../../ansible/roles/opnsense_gateway/defaults/main.yaml)). In a zone the play serves with Kea (host numbers 10 to 245, `opnsense_gateway_dhcp_pool`), a host part of 02 to 09 stays clear of the pool |
+| `vm_id` | No default. Picks the zone, because the module derives the VLAN from its block of 50. The VM reaches only what that zone's gateway rules allow: the gateway play gives VLAN 50 no access to the internet (`internet: false` in [`opnsense_gateway_zones`](../../../../ansible/roles/opnsense_gateway/defaults/main.yaml)). In a zone the play serves with Kea (host numbers 10 to 245, `opnsense_gateway_dhcp_pool`), a host part of 02 to 09 stays clear of the pool |
 | `lan_bridge` | `vmbr1`, the lab's VLAN-aware bridge. The scratch gateway's isolated bridge (`vmbr9`) puts the VM behind a scratch gateway built with the VM's VLAN in `SEED_VLANS` ([`opnsense-scratch-gateway.md`](opnsense-scratch-gateway.md#building-it)) |
 | `ssh_public_keys`, `dns_domain` | No default |
 | `cores`, `memory_mb`, `disk_gb` | 2, 2048 and 16 |

@@ -46,7 +46,10 @@ since it never leaves the `openbao` container's own network namespace.
 ## Runbook
 
 ```sh
+# [1/2] controller: paste alone; it opens a shell on security and waits
 ssh security
+
+# [2/2] inside that shell: paste once its prompt is back
 export BAO_TOKEN=<current root token, from the break-glass password-manager entry>
 export BAO_ADDR=https://127.0.0.1:8200
 export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}

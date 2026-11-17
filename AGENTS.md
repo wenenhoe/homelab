@@ -19,7 +19,9 @@ pointed to instead.
 - [`docs/topics/engineering/conventions.md`](docs/topics/engineering/conventions.md)
   — naming and structural rules that span components, including the
   Python unit test conventions (style, fixtures, test doubles,
-  assertions). Read it before writing or changing a test.
+  assertions) and the form of a commit (identity, subject, dates,
+  trailer). Read it before writing or changing a test, and before
+  writing a commit.
 
 ## Which kind of doc
 

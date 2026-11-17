@@ -29,7 +29,7 @@ recorded in ADR 0058's Context). No revision of it has ever been
 reviewed as code. ADR 0058's Stage 2
 ([`operator-host.md`](../../projects/operator-host.md)) is about to
 hand-edit it for the first time, replacing allow-all with explicit
-grants for VLAN 30.
+grants for VLAN 25.
 
 Managing the policy as OpenTofu is a candidate for the same or a later
 stage. Tailscale publishes its own provider (`tailscale/tailscale`),

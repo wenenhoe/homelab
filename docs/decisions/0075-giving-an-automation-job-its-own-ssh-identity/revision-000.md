@@ -61,7 +61,7 @@ flowchart LR
 
 ## Assumptions
 
-- **Claim:** `storage` sees a connection from the agent as coming from `192.168.30.3`.
+- **Claim:** `storage` sees a connection from the agent as coming from `192.168.25.3`.
   **Breaks if wrong:** `from=` rejects the job's own connection, or is written with a wider range than the agent alone.
   **Checked by:** one connection from the agent to `storage`, reading `SSH_CONNECTION` on `storage`.
 

@@ -19,7 +19,7 @@ A compromised agent session on the coding-agent host has no network path to the 
 
 ## Context
 
-[`vm-provisioning.md`](../../topics/infra/vm-provisioning.md) maps each VMID-hundred range to a VLAN by `vlan_id = (vmid // 100) * 10`, with `.1` reserved for OPNsense's sub-interface. The 6XX–8XX ranges are unassigned. Every VM attaches to one VLAN-aware bridge on the node.
+[`vm-provisioning.md`](../../topics/infra/vm-provisioning.md) maps each block of 50 VMIDs to a VLAN by `vlan_id = (vmid // 50) * 5`, with `.1` reserved for OPNsense's sub-interface. The 6XX–8XX ranges are unassigned. Every VM attaches to one VLAN-aware bridge on the node.
 
 [ADR 0020 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md) binds AppRoles by source CIDR, so subnet boundaries are also an authentication factor. OPNsense rules are hand-maintained today; the project that will carry them in code ([`opnsense-config.md`](../../projects/opnsense-config.md), by the method of [ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)) builds on Tofu's root module ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#tofu-project)) and does not wait for the migration.
 
@@ -39,16 +39,16 @@ flowchart LR
     LAP -->|"SSH away from home, over the tailnet: the policy grants the route to the laptop alone on tcp:22"| SR["Subnet router, VM 202"]
     SR -->|"OPNsense admits port 22 only"| H
     CD["CD agent, or the operator host until it exists"] -->|"SSH, for provisioning"| H
-    subgraph Z["Dedicated VLAN in the 7XX range, default-deny both ways at OPNsense"]
+    subgraph Z["Dedicated VLAN in the 300 to 349 block, default-deny both ways at OPNsense"]
         H["Coding-agent host, not on the tailnet"]
     end
     H -->|"the only egress"| PX["Domain-filtering forward proxy"]
     H -->|"resolves through"| DNS["Resolver with no internal zones"]
 ```
 
-- **Zone.** A dedicated VLAN in the 7XX range (VMID 701 gives VLAN 70, `192.168.70.0/24`), default-deny in both directions at OPNsense.
+- **Zone.** A dedicated VLAN in the 300 to 349 block (VMID 302 gives VLAN 30, `192.168.30.0/24`), default-deny in both directions at OPNsense.
 - **Inbound.** SSH only, from two sources: the maintainer client ([ADR 0055 (Coding-agent client access)](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)) and, for provisioning, the CD agent or, until it exists, the operator host ([ADR 0054 (Untrusted host management)](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)). Each is source-restricted, with sshd enforcing the pairing per account. The maintainer client arrives from the laptop's own address at home and from the subnet router's address over the tailnet, so sshd's pairing cannot tell the laptop from another tailnet node; the tailnet policy carries that restriction.
-- **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied. The same proxy serves VLAN 30 under its own allowlist ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)).
+- **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied. The same proxy serves VLAN 25 under its own allowlist ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)).
 - **DNS.** The host resolves through a resolver that serves no internal zones.
 - **Tailnet.** The host does not join Tailscale. The subnet router (VM 202) advertises the VLAN's route so the maintainer can reach the host away from home, the tailnet policy grants that route to the laptop alone on `tcp:22`, and `tests` assert that no other node has it. OPNsense admits the subnet router to the VLAN on port 22 only.
 - **Rules.** Hand-built and documented in a topic doc first; written again in the gateway's Ansible configuration by the network project's last stage, not imported.
@@ -68,7 +68,7 @@ flowchart LR
 - **Claim:** a guest on the shared VLAN-aware bridge cannot send tagged frames into another VLAN and cannot reach the Proxmox management address.
   **Breaks if wrong:** the VLAN is not a boundary and a per-VM Proxmox firewall becomes mandatory.
   **Checked by:** probes from a scratch VM in the new VLAN.
-- **Claim:** VLAN 70 clients can use a resolver that serves no internal zones while the maintainer and CD agent still reach the host by address.
+- **Claim:** VLAN 30 clients can use a resolver that serves no internal zones while the maintainer and CD agent still reach the host by address.
   **Breaks if wrong:** the resolver design interacts with [ADR 0040 (Tofu VM DNS)](../0040-dns-for-tofu-provisioned-vms/revision-000.md) and needs its own decision.
   **Checked by:** reading how 0040's second BIND9 is planned, then a scratch-VLAN test.
 

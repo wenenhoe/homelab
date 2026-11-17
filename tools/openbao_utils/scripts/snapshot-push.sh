@@ -142,7 +142,8 @@ EOF
 push_failed=""
 for remote in r2 b2; do
   echo "Pushing to ${remote}:openbao-snapshots/..."
-  if ! docker run --rm \
+  if ! docker run --rm --user "$(id -u):$(id -g)" \
+    --cap-drop ALL --security-opt no-new-privileges:true \
     -v "${RCLONE_CONF}:/config/rclone/rclone.conf:ro" \
     -v "${STAGING}:/data:ro" \
     rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466 \

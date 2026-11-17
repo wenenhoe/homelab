@@ -15,7 +15,7 @@ KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItestkey runner@scratch"
     ("zone", "expected"),
     [
         pytest.param("services", 208, id="services"),
-        pytest.param("others", 258, id="others"),
+        pytest.param("management", 258, id="management"),
         pytest.param("desktops", 408, id="desktops"),
         pytest.param("isolated", 508, id="isolated"),
         pytest.param("experimental", 558, id="experimental"),

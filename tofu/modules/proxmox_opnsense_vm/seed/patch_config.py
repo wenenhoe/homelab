@@ -46,7 +46,7 @@ DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
 BASE = Path(__file__).with_name("config.xml.sample")
 # One VLAN per block of 50 VMIDs (vlan_id = vmid // 50 * 5), each a /24 whose
 # third octet is the tag and whose gateway address is .1.
-DEFAULT_VLANS = (20, 25, 40, 50, 55)
+DEFAULT_VLANS = (20, 25, 40, 50, 55, 35)
 VLAN_NAMESPACE = uuid.UUID("5d0c7a52-3c1e-4a53-9a0f-6a4a3f0f6a11")
 ASSIGNMENT = re.compile(r'^\s*(\w+)\s*=\s*"([^"\\]*)"\s*(?:#.*)?$')
 

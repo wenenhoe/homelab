@@ -224,6 +224,15 @@ and how to run them and what the harness does is in
 - **Lint.** The `shellcheck` hook reads the `.bats` files and the harness
   as it reads the scripts; no other hook is involved.
 
+## Commits
+
+Every patch the maintainer applies has one form, whichever repository it is for. A change to this repository is delivered as a series ([`landing-a-series.md`](landing-a-series.md)); the form below is what each of its commits carries.
+
+- **Identity.** Author and committer are the maintainer, as the history of `main` shows: the author of the newest commit that is not a bot's, from `git log --no-merges --format='%an|%ae' | grep -v '\[bot\]' | head -1`. Set it for the one command (`git -c user.name=... -c user.email=... commit`), so no repository's configuration changes. The history is needed, so clone with `--depth 50` at least.
+- **Subject.** Conventional Commits, in the imperative, with no id, number or slug in it. The first commit of a pull request supplies the pull request's title.
+- **Dates.** `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` come from `TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800`. A bare `date` prints UTC.
+- **Trailer.** The message ends with one `Co-Authored-By: <model name> <noreply@anthropic.com>` line, naming the model that wrote the work, and no other trailer. A session link does not go in a commit message or a pull request's text.
+
 ## Not yet a convention
 
 AppRole naming has only two real instances so far (`controller`,

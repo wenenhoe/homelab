@@ -2,11 +2,13 @@
 id: PROJ-workstation-management
 title: Maintainer Workstation
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a credential audit, and no desktop assistant with local tool access.
 decision: ADR-0056/0
 super_project: controller-separation
+allowed_paths:
+  - docs/topics/engineering/workstation.md
 ---
 
 # Maintainer Workstation
@@ -27,7 +29,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | WSL2 under a memory cap, and the push credential on the laptop | Not started | A change is checked with `pre-commit`, `pytest`, and a Molecule scenario in WSL2, reviewed, and pushed from the laptop |
+| 1 | WSL2 under a memory cap, and the push credential on the laptop | In progress | A change is checked with `pre-commit`, `pytest`, and a Molecule scenario in WSL2, reviewed, and pushed from the laptop |
 | 2 | Audit as a repeatable script run on the laptop | Not started | A script over the Windows profile and the WSL2 home lists credential-shaped paths and fails on any beyond the push credential, the coding-agent host key, and the operator-host key's handle file |
 | 3 | Keep desktop assistants with local tool access off the laptop | Not started | None is installed in Windows or in WSL2 |
 

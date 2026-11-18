@@ -8,10 +8,10 @@ solution: A small headless VM in VLAN 25, reachable over SSH only from the maint
 summary: Where Ansible, Tofu, the tools utilities, and break-glass access run, on a host that holds the infrastructure credentials and handles no untrusted content.
 topic: deployment-platform
 status: working
-related: [ADR-0013, ADR-0020, ADR-0044, ADR-0047, ADR-0048, ADR-0053, ADR-0056]
+related: [ADR-0013, ADR-0020, ADR-0044, ADR-0047, ADR-0048, ADR-0053, ADR-0056, ADR-0116]
 relies_on:
-  - adr: ADR-0053
-    reason: "Its outbound rule sends the host's Internet traffic through the domain-filtering proxy that ADR 0053 sets, under an allowlist of its own for this VLAN."
+  - adr: ADR-0116
+    reason: "Its outbound rule sends the host's Internet traffic through the trusted-tier proxy that ADR 0116 sets, under an allowlist of its own for this VLAN."
 ---
 
 # 0058. Where operator work runs
@@ -26,7 +26,7 @@ The controller is VM 401 today, a desktop ([`vm-provisioning.md`](../../topics/i
 
 The credentials to place: the file cache (`main-domain` and the AppRole pair), the shared SSH key, Tofu's Proxmox, OPNsense, and state credentials, on-demand OpenBao admin access through the native `bao` binary ([ADR 0106 (Operator bao CLI access)](../0106-operator-access-to-the-openbao-cli/revision-000.md)), and the backup GPG private key. That key is offline and is imported on the controller only for a restore ([`backup.md`](../../topics/disaster-recovery/backup.md)).
 
-The controller reaches managed hosts over SSH, OpenBao's API, Proxmox and OPNsense APIs, and the Tofu state bucket on `storage`. Its Internet destinations are package and release hosts, the cloud providers' APIs, and Telegram. Every one of these flows is outbound: Ansible pushes over SSH, and no host or service filters by the controller's address or calls back to it. The repo is public, so it pulls `main` without a credential. [`operator-host.md`](../../projects/operator-host.md) lists the flows.
+The controller reaches managed hosts over SSH, OpenBao's API, Proxmox and OPNsense APIs, and the Tofu state bucket on `storage`. Its Internet destinations are package and release hosts, the cloud providers' APIs, and Telegram, every one a named host and none an IP literal, so a filter on the requested host name covers them. Every one of these flows is outbound: Ansible pushes over SSH, and no host or service filters by the controller's address or calls back to it. The repo is public, so it pulls `main` without a credential. [`operator-host.md`](../../projects/operator-host.md) lists the flows.
 
 The CD agent absorbs deploy, maintenance, rotation, and freshness ([`cd-agent.md`](../../projects/cd-agent.md)) but not Tofu or break-glass access, and it accepts SSH only from the operator host ([ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 
@@ -48,13 +48,13 @@ flowchart LR
         OP["Operator host, the controller<br/>VMID 252, 192.168.25.2"]
     end
     OP -->|"internal destinations, by address and port"| INT["Internal hosts"]
-    OP -->|"Internet only through the domain-filtering proxy, under this VLAN's own allowlist"| PX["Forward proxy"]
+    OP -->|"Internet only through the trusted-tier proxy, under this VLAN's own allowlist"| PX["Trusted-tier forward proxy"]
     GH["Reviewed commits on main"] -->|"pulled after the maintainer pushes them, by anonymous clone"| OP
 ```
 
 - **Access.** SSH only, from the maintainer's laptop, over a Tailscale route to VLAN 25. The laptop authenticates with a dedicated hardware-backed FIDO2 key (PIN and touch required) whose private half never leaves the token. The tailnet policy replaces its allow-all grant with explicit grants: the laptop reaches VLAN 25 on port 22, no other source has a grant for that route, existing access the maintainer needs is re-granted explicitly, and `tests` assert both. The coding-agent host has no path to it.
 - **Tokens.** Both of the maintainer's tokens have a key registered on the host, and one is kept offline as the spare. Losing both leaves recovery through the Proxmox node: the VM's console, or re-provisioning with a new key.
-- **Outbound.** Default-deny at OPNsense. Internal destinations are allowed by address and port; Internet destinations only through the domain-filtering proxy of [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md), under an allowlist for this VLAN that is separate from the coding-agent VLAN's.
+- **Outbound.** Default-deny at OPNsense. Internal destinations are allowed by address and port; Internet destinations only through the trusted-tier proxy of [ADR 0116 (Egress for default-deny zones)](../0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), under an allowlist for this VLAN that is separate from the coding-agent VLAN's.
 - **Contents.** The toolchain (`uv`, Ansible, OpenTofu, `bao`, git) and the credentials above. No desktop, browser, editor beyond a terminal one, or software that handles untrusted content. It clones the public repo anonymously and holds no push credential.
 - **Flow.** Changes reach it only as reviewed commits on `main`, pulled after the maintainer pushes them.
 - **Own configuration.** Applied to itself over a local connection, like the `controller` group today. It patches itself with unattended security updates.
@@ -70,9 +70,6 @@ flowchart LR
 
 ## Assumptions
 
-- **Claim:** the proxy of [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md) can serve this VLAN's Internet destinations under its own allowlist, including the cloud providers' regional endpoints and GitHub release assets.
-  **Breaks if wrong:** the allowlist falls back to domain-named aliases with the drift ADR 0053 describes, or the host is granted broader egress.
-  **Checked by:** the same spike as ADR 0053's proxy assumption, run with this VLAN's destinations.
 - **Claim:** Windows 11's OpenSSH client on the laptop authenticates to this host with a FIDO2 `ed25519-sk` key that requires PIN and touch, with a key on each of the two tokens.
   **Breaks if wrong:** the key falls back to a PIV or smartcard key, or SSH runs from WSL2 with USB passthrough, and the laptop-side setup changes.
   **Checked by:** a throwaway spike: generate a key on each token and log in to a scratch VM from the laptop, using the client Windows ships and, if that fails, the current Win32-OpenSSH release.

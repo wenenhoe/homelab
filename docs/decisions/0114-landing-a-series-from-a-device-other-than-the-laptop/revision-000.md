@@ -8,7 +8,10 @@ solution: A web console on its own VM behind a DMZ interface, reached over the t
 summary: Where a series is reviewed and landed when the laptop is out of reach, and how the host that does it holds no standing power over main.
 topic: repository-tooling
 status: working
-related: [ADR-0112, ADR-0044, ADR-0056, ADR-0058, ADR-0053, ADR-0059]
+related: [ADR-0112, ADR-0044, ADR-0056, ADR-0058, ADR-0053, ADR-0059, ADR-0116]
+relies_on:
+  - adr: ADR-0116
+    reason: "Its outbound path is the untrusted-tier proxy that ADR 0116 sets, since the interface denies every private range and a proxy in the DMZ or an internal zone would break that rule."
 ---
 
 # 0114. Landing a series from a device other than the laptop
@@ -36,7 +39,7 @@ A web console, called Gatehouse, uploads a `.series` file, shows it for review, 
 **Host and network.**
 
 - The console runs on its own VM, built by Tofu and configured by a role the operator host applies. The VM is in no group `deploy.yaml` targets, and its code reaches it only by that role: copied from the controller's checkout while it lives in this repository, and as a release pinned by version and sha256 once it is its own repository. `main` cannot replace it.
-- The VM sits on a new OPNsense interface for the DMZ block of the VMID scheme (VMIDs 350 to 399, VLAN 35). The interface allows the Internet through the proxy allowlist and denies every private range, which includes the Proxmox node's WAN-side address. Nothing inside the lab initiates to it.
+- The VM sits on a new OPNsense interface for the DMZ block of the VMID scheme (VMIDs 350 to 399, VLAN 35). The interface allows the Internet only through the untrusted-tier proxy of [ADR 0116 (Egress for default-deny zones)](../0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), and denies every private range except that proxy's address and port, which includes the Proxmox node's WAN-side address. Nothing inside the lab initiates to it.
 - It joins the tailnet under its own tag. The policy grants the maintainer's devices its HTTPS port, grants the tag at most one read-only path to Gatus for the status panel, and tests that it reaches no other node.
 - It holds no infrastructure credential: no OpenBao identity, no SSH key to a managed host, no Tofu or Proxmox credential.
 

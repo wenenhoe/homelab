@@ -170,6 +170,15 @@
     },
     {
       customType: "regex",
+      description: "The OpenBao snapshot push and pull scripts' pinned rclone image, embedded in a shell script's docker run line rather than a compose file",
+      managerFilePatterns: ["/^tools/openbao_utils/scripts/snapshot-(push|pull)\\.sh$/"],
+      matchStrings: ["rclone/rclone:(?<currentValue>[0-9.]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"],
+      autoReplaceStringTemplate: "rclone/rclone:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}",
+      datasourceTemplate: "docker",
+      depNameTemplate: "rclone/rclone",
+    },
+    {
+      customType: "regex",
       description: "step_ca_cert's step-cli image, a plain Ansible variable default rather than a recognized image: key under a docker module",
       managerFilePatterns: ["/^ansible/roles/step_ca_cert/defaults/main\\.ya?ml$/"],
       matchStrings: ["step_ca_cert_step_cli_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
@@ -553,17 +562,17 @@
       ],
     },
 
-    // rclone/rclone is pinned independently in cloud_sync's ExecStart=
-    // and backup_agent's freshness-check script (both need the custom
-    // regex managers above, neither is a real compose/dockerfile image:
-    // line) — aligned to the same version (1.72) as of this rule being
-    // added; group them so they can't drift apart again the way they
-    // already had before this was noticed. cd_agent's native rclone joins
-    // them: leaf-key verification has to follow the request sequence
-    // cloud_sync's rclone makes.
+    // rclone/rclone is pinned independently in cloud_sync's ExecStart=,
+    // backup_agent's freshness-check script and the OpenBao snapshot push
+    // and pull scripts (all need the custom regex managers above, none is
+    // a real compose/dockerfile image: line) — aligned to the same version
+    // as of this rule being added; group them so they can't drift apart
+    // again the way they already had before this was noticed. cd_agent's
+    // native rclone joins them: leaf-key verification has to follow the
+    // request sequence cloud_sync's rclone makes.
     {
       matchDepNames: ["rclone/rclone"],
-      groupName: "rclone (cloud_sync + backup_agent + cd_agent — must move together)",
+      groupName: "rclone (cloud_sync + backup_agent + snapshot scripts + cd_agent — must move together)",
       groupSlug: "rclone",
     },
 

@@ -118,6 +118,14 @@ events() {
   assert_equal "$(cat "$CONFS/r2.mode" "$CONFS/b2.mode" | tr '\n' ' ')" "600 600 "
 }
 
+@test "each push container runs as the caller with no capabilities and no privilege gain" {
+  run sh "$SCRIPT" role-1
+  assert_success
+  assert_equal "$(calls_to docker | wc -l)" 2
+  run grep -c -F -- "--user $(id -u):$(id -g) --cap-drop ALL --security-opt no-new-privileges:true " <(calls_to docker)
+  assert_output 2
+}
+
 @test "each remote's section carries that provider's own credentials" {
   run sh "$SCRIPT" role-1
   assert_success

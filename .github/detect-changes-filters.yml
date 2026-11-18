@@ -111,6 +111,8 @@ image_provenance:
   - 'tools/doc_scripts/check_mermaid.py'
   - '.github/scripts/seed-lldap-ci-cert.sh'
   - '.github/workflows/renovate.yml'
+  - 'tools/openbao_utils/scripts/snapshot-push.sh'
+  - 'tools/openbao_utils/scripts/snapshot-pull.sh'
 # Gates mermaid-check: any markdown file, and the check itself, whose file
 # holds the pinned image, so a bump of it is tried against every diagram — see
 # docs/topics/engineering/ci/doc-checks.md#mermaid-render-check. Not narrowed by

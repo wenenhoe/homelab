@@ -9,6 +9,9 @@ summary: What the coding-agent host can reach and be reached from, enforced at t
 topic: security-hardening
 status: working
 related: [ADR-0020, ADR-0040, ADR-0058, ADR-0089]
+relies_on:
+  - adr: ADR-0058
+    reason: "The shared proxy serves VLAN 25 under the operator host's allowlist, so the proxy this decision builds holds only while that allowlist's boundary does"
 ---
 
 # 0053. Network reach of the coding-agent host

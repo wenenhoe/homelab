@@ -7,7 +7,7 @@ short: Coding-agent network reach
 solution: Its own VLAN, default-deny both ways at OPNsense, egress through a domain-filtering proxy, and a resolver with no internal zones, on the proxy VM
 summary: What the coding-agent host can reach and be reached from, enforced at the firewall rather than on the host.
 topic: security-hardening
-status: working
+status: approved
 related: [ADR-0020, ADR-0040, ADR-0058, ADR-0089]
 relies_on:
   - adr: ADR-0058

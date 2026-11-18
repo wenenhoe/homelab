@@ -140,3 +140,4 @@ first, so one that has stood still is the first row.
 | [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-11 |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? | 2026-11-12 |
 | [`snapshot-push-on-change.md`](explorations/snapshot-push-on-change.md) | When should the lab push an OpenBao snapshot, if not only when someone remembers to run it? | 2026-11-16 |
+| [`services-host-split.md`](explorations/services-host-split.md) | Which of the `services` host's apps should share a host and a network? | 2026-11-18 |

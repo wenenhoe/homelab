@@ -14,12 +14,20 @@ the audit device writes the same shape for every KV read.
 
 from __future__ import annotations
 
+import datetime
+import http.server
+import ssl
+import threading
 from unittest.mock import create_autospec, patch
 
 import hvac
 import pytest
 import requests
 import rotation_read_watcher as watcher
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 
 REAL_R2_REQUEST_LINE = (
     '{"time":"2026-09-09T06:12:11.937092952Z","type":"request","auth":{"client_token":"hmac-sha256:x",'
@@ -359,7 +367,7 @@ class TestMain:
     @patch("rotation_read_watcher._fetch_telegram_secrets", autospec=True)
     @patch("rotation_read_watcher._vault_login", autospec=True)
     @patch("rotation_read_watcher.hvac.Client", autospec=True)
-    @patch("rotation_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"], autospec=True)
+    @patch("rotation_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id", "openbao.example.test"], autospec=True)
     def test_builds_one_client_and_threads_it_through_login_and_fetch(
         self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch
     ):
@@ -370,7 +378,7 @@ class TestMain:
         mock_fetch.assert_called_once_with(client_arg)
         _, kwargs = mock_client_cls.call_args
         assert kwargs["url"] == watcher.OPENBAO_BASE_URL
-        assert kwargs["verify"] is False
+        assert kwargs["verify"] == watcher.ROOT_CA_PATH
         assert kwargs["timeout"] == watcher._TIMEOUT_SECONDS
 
     @patch("rotation_read_watcher.watch", return_value=0, autospec=True)
@@ -378,10 +386,133 @@ class TestMain:
     @patch("rotation_read_watcher._fetch_telegram_secrets", return_value={"token": "t", "chat_id": "c", "topic_id": ""}, autospec=True)
     @patch("rotation_read_watcher._vault_login", autospec=True)
     @patch("rotation_read_watcher.hvac.Client", autospec=True)
-    @patch("rotation_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"], autospec=True)
+    @patch("rotation_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id", "openbao.example.test"], autospec=True)
     def test_passes_fetched_telegram_secrets_and_prior_state_to_watch(
         self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch
     ):
         watcher.main()
 
         mock_watch.assert_called_once_with({"token": "t", "chat_id": "c", "topic_id": ""}, None)
+
+
+SERVER_NAME = "openbao.example.test"
+
+
+def _key() -> ec.EllipticCurvePrivateKey:
+    return ec.generate_private_key(ec.SECP256R1())
+
+
+def _name(common_name: str) -> x509.Name:
+    return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
+
+
+def _make_ca(common_name: str) -> tuple[ec.EllipticCurvePrivateKey, x509.Certificate]:
+    key, now = _key(), datetime.datetime.now(datetime.UTC)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(_name(common_name))
+        .issuer_name(_name(common_name))
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(minutes=1))
+        .not_valid_after(now + datetime.timedelta(hours=1))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=False,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=True,
+                crl_sign=True,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+        .sign(key, hashes.SHA256())
+    )
+    return key, cert
+
+
+def _write_pem(path, cert: x509.Certificate) -> str:
+    path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    return str(path)
+
+
+class _Health(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = b'{"initialized": true}'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+@pytest.fixture
+def tls_server(tmp_path):
+    """A loopback HTTPS server whose certificate is for SERVER_NAME only, signed by a throwaway CA."""
+    ca_key, ca_cert = _make_ca("test root")
+    key, now = _key(), datetime.datetime.now(datetime.UTC)
+    leaf = (
+        x509.CertificateBuilder()
+        .subject_name(_name(SERVER_NAME))
+        .issuer_name(ca_cert.subject)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(minutes=1))
+        .not_valid_after(now + datetime.timedelta(hours=1))
+        .add_extension(x509.SubjectAlternativeName([x509.DNSName(SERVER_NAME)]), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()), critical=False)
+        .sign(ca_key, hashes.SHA256())
+    )
+    cert_path = tmp_path / "server.pem"
+    cert_path.write_bytes(
+        leaf.public_bytes(serialization.Encoding.PEM)
+        + key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    )
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(cert_path)
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Health)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield f"https://127.0.0.1:{server.server_port}", _write_pem(tmp_path / "root.pem", ca_cert)
+    server.shutdown()
+    server.server_close()
+
+
+class TestVerifiedClient:
+    """Real TLS against a local server: the connection is to 127.0.0.1, the certificate is for a DNS name."""
+
+    @pytest.fixture
+    def trusting(self, monkeypatch, tls_server):
+        url, root = tls_server
+        monkeypatch.setattr(watcher, "OPENBAO_BASE_URL", url)
+        monkeypatch.setattr(watcher, "ROOT_CA_PATH", root)
+
+    @pytest.mark.usefixtures("trusting")
+    def test_connects_when_the_root_and_name_match(self):
+        client = watcher._verified_client(SERVER_NAME)
+        assert client.adapter.get("/v1/sys/health") == {"initialized": True}
+
+    @pytest.mark.usefixtures("trusting")
+    def test_refuses_a_certificate_for_another_name(self):
+        client = watcher._verified_client("other.example.test")
+        with pytest.raises(requests.exceptions.SSLError, match=r"(?i)hostname|doesn.t match"):
+            client.adapter.get("/v1/sys/health")
+
+    def test_refuses_a_certificate_the_root_did_not_sign(self, monkeypatch, tls_server, tmp_path):
+        url, _ = tls_server
+        _, other_root = _make_ca("another root")
+        monkeypatch.setattr(watcher, "OPENBAO_BASE_URL", url)
+        monkeypatch.setattr(watcher, "ROOT_CA_PATH", _write_pem(tmp_path / "other.pem", other_root))
+        client = watcher._verified_client(SERVER_NAME)
+        with pytest.raises(requests.exceptions.SSLError, match="CERTIFICATE_VERIFY_FAILED"):
+            client.adapter.get("/v1/sys/health")

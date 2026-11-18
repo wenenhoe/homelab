@@ -37,8 +37,9 @@ Uses hvac for the OpenBao client - see
 docs/decisions/0104-which-client-library-each-external-service-uses/revision-000.md. No
 paramiko/SSH involved here, unlike secret_store.py/openbao_utils/bootstrap.py:
 this runs directly on `security` itself (see OPENBAO_BASE_URL below),
-so there's no remote root-cert fetch to make - `verify=False` is the
-loopback TLS trust, not a paramiko host-key one. Also no reconnect/
+so there's no remote root-cert fetch to make: the certificate is
+checked against step-ca's root on this host, under the DNS name read
+from SERVER_NAME_PATH. Also no reconnect/
 token-renewal concern: the Vault login happens once at startup to
 fetch Telegram's secrets, and `watch()` below never receives or reuses
 that token - a stale/expired token past that point is irrelevant since
@@ -55,9 +56,7 @@ from typing import Any
 
 import hvac
 import requests
-import urllib3
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # hvac.Client(verify=False) below is deliberate (loopback), silence its warning
+from requests.adapters import HTTPAdapter
 
 _ROTATION_PATH_PREFIX = "secret/data/cloud_credentials/rotation/"
 # Secret-bearing paths only: the identifier-only siblings (key ids, client id,
@@ -72,6 +71,10 @@ WATCHED_PATHS = frozenset(
     )
 )
 OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/topics/secrets/openbao-rotation-read-watcher.md
+# The certificate is for OpenBao's DNS name, not 127.0.0.1, so the name to check it against is
+# read from a file beside the AppRole credentials (docs/topics/secrets/openbao-rotation-read-watcher.md).
+SERVER_NAME_PATH = "/etc/rotation-read-watcher/server_name"
+ROOT_CA_PATH = "/etc/step-ca/root_ca.crt"
 ROLE_ID_PATH = "/etc/rotation-read-watcher/role_id"
 SECRET_ID_PATH = "/etc/rotation-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
 TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021
@@ -138,6 +141,26 @@ def _save_state(path: str, match: dict[str, Any]) -> None:
     with open(tmp_path, "w") as f:
         json.dump({"time": match["time"], "request_id": match["request_id"]}, f)
     os.replace(tmp_path, path)
+
+
+class _ServerNameAdapter(HTTPAdapter):
+    """Connects to the loopback address but presents `server_name` as the TLS name and checks the
+    certificate against it, as `bao status -tls-server-name` does."""
+
+    def __init__(self, server_name: str) -> None:
+        self._server_name = server_name
+        super().__init__()
+
+    def init_poolmanager(self, *args: Any, **kwargs: Any) -> None:
+        super().init_poolmanager(*args, server_hostname=self._server_name, assert_hostname=self._server_name, **kwargs)
+
+
+def _verified_client(server_name: str) -> hvac.Client:
+    session = requests.Session()
+    # hvac applies its `verify` only to a session it creates itself, so a given one carries its own.
+    session.verify = ROOT_CA_PATH
+    session.mount("https://", _ServerNameAdapter(server_name))
+    return hvac.Client(url=OPENBAO_BASE_URL, verify=ROOT_CA_PATH, session=session, timeout=_TIMEOUT_SECONDS)
 
 
 def _vault_login(client: hvac.Client, role_id: str, secret_id: str) -> None:
@@ -251,7 +274,7 @@ def watch(telegram: dict[str, str] | None, prior_state: dict[str, str] | None) -
 def main() -> int:
     role_id = _read_file(ROLE_ID_PATH)
     secret_id = _read_file(SECRET_ID_PATH)
-    client = hvac.Client(url=OPENBAO_BASE_URL, verify=False, timeout=_TIMEOUT_SECONDS)
+    client = _verified_client(_read_file(SERVER_NAME_PATH))
     _vault_login(client, role_id, secret_id)
     telegram = _fetch_telegram_secrets(client)
     prior_state = _load_state(STATE_PATH)

@@ -2,18 +2,7 @@
 - name: Verify
   hosts: all
   become: true
-  vars:
-    step_ca_cert_step_ca_url: https://step-ca-test:9000
   tasks:
-    # Single source of truth for the argv-embedded image reference below
-    # — loaded into a namespaced var (not shadowing the vars: block
-    # above) so this can't drift from ansible/roles/step_ca_cert/
-    # defaults/main.yaml the way a hardcoded literal here already had
-    - name: Load step_ca_cert's own role defaults
-      ansible.builtin.include_vars:
-        file: ../../defaults/main.yaml
-        name: step_ca_cert_role_defaults
-
     - name: Discover the lldap certs volume's real host path
       community.docker.docker_volume_info:
         name: lldap_certs
@@ -75,31 +64,21 @@
       register: step_ca_cert_verify_serial_before
       changed_when: false
 
-    - name: Run the exact renewal command ExecStart would run
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - --user
-          - root
-          - --network
-          - caddy-proxy
-          - -v
-          - lldap_certs:/certs
-          - -v
-          - /etc/step-ca/root_ca.crt:/root_ca.crt:ro
-          - "{{ step_ca_cert_role_defaults.step_ca_cert_step_cli_image }}"
-          - step
-          - ca
-          - renew
-          - --force
-          - --ca-url
-          - "{{ step_ca_cert_step_ca_url }}"
-          - --root
-          - /root_ca.crt
-          - /certs/fullchain.pem
-          - /certs/privkey.pem
+    # The unit's own ExecStart= line, read out of the rendered unit and run
+    # with lldap's own /etc/cert-renewer/lldap.env sourced the way systemd's
+    # EnvironmentFile= would, so a change to the unit's flags, mounts or
+    # argument order is what this scenario runs.
+    - name: Run the unit's own ExecStart= line
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -a
+        . /etc/cert-renewer/lldap.env
+        set +a
+        line=$(systemctl cat cert-renewer@lldap.service | sed -n 's/^ExecStart=//p' | sed 's/%i/lldap/g')
+        [ -n "$line" ] || exit 99
+        bash -c "$line"
+      args:
+        executable: /bin/bash
       changed_when: true
 
     - name: Record the cert's serial number after
@@ -108,11 +87,10 @@
       changed_when: false
       failed_when: step_ca_cert_verify_serial_after.stdout == step_ca_cert_verify_serial_before.stdout
 
-    # Runs the literal ExecStartPost= line from the rendered unit,
+    # Runs the chown ExecStartPost= line read out of the rendered unit,
     # sourcing lldap's actual /etc/cert-renewer/lldap.env the way
-    # systemd's own EnvironmentFile= would — not a hand-typed
-    # approximation of it. This exercises the CHOWN_IMAGE-guard's own
-    # shell syntax for real (the opposite branch from signal_chown's
+    # systemd's own EnvironmentFile= would. This exercises the
+    # CHOWN_IMAGE-guard's own shell syntax for real (the opposite branch from signal_chown's
     # own equivalent task) without asserting on the resulting file
     # owner afterward: what uid a `docker run --user root`-created file
     # ends up as on the host is Docker daemon configuration this repo
@@ -124,10 +102,13 @@
     # ran, not this no-op branch).
     - name: Run the real chown-guard ExecStartPost= line for this instance
       ansible.builtin.shell: |
+        set -o pipefail
         set -a
         . /etc/cert-renewer/lldap.env
         set +a
-        [ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --user root -v lldap_certs:/certs "${CHOWN_IMAGE}" chown -R "${CHOWN_USER}:${CHOWN_USER}" /certs
+        line=$(systemctl cat cert-renewer@lldap.service | sed -n 's/^ExecStartPost=//p' | grep -F 'CHOWN_IMAGE' | sed 's/%i/lldap/g')
+        [ -n "$line" ] || exit 99
+        bash -c "$line"
       args:
         executable: /bin/bash
       changed_when: true

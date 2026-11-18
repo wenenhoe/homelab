@@ -286,7 +286,7 @@ lists only the ones no project names.
 | [0089](decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md) | original | OPNsense configuration | Approved | [`opnsense-config.md`](projects/opnsense-config.md) |
 | [0094](decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md) | original | Network boundary checks | Approved | [`network-boundary-checks.md`](projects/network-boundary-checks.md) |
 | [0101](decisions/0101-exercising-disaster-recovery/revision-000.md) | original | DR exercise cadence | Approved | [`dr-exercises.md`](projects/dr-exercises.md) |
-| [0116](decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md) | original | Egress for default-deny zones | Approved | [`coding-agent-egress.md`](projects/coding-agent-egress.md) |
+| [0116](decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md) | original | Egress for default-deny zones | Approved | [`coding-agent-egress.md`](projects/coding-agent-egress.md), [`operator-host-takeover.md`](projects/operator-host-takeover.md) |
 | [0003](decisions/0003-certificate-issuance-for-proxied-apps/revision-001.md) | revision 1 | Proxied-app certificates | Working | — |
 | [0008](decisions/0008-internal-certificate-lifetime/revision-001.md) | revision 1 | Internal certificate lifetime | Working | — |
 | [0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-001.md) | revision 1 | Secrets store unsealing | Working | [`openbao-auto-unseal.md`](projects/openbao-auto-unseal.md) |

@@ -18,7 +18,7 @@ The egress proxy and the canary probes that check the whole boundary are [`codin
 
 ## Scope
 
-The VLAN and subnet, OPNsense interface and rules, the resolver for the zone, and the Tailscale route (advertised by VM 202 and granted to the laptop alone). Not in scope: the egress proxy, its allowlists and the canary probes ([`coding-agent-egress.md`](coding-agent-egress.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)) and the gateway's play and rebuild themselves ([`opnsense-config.md`](opnsense-config.md)). The zone's interface and rules in the play are in scope, as Stage 2.
+The VLAN and subnet, OPNsense interface and rules, and the Tailscale route (advertised by VM 202 and granted to the laptop alone). Not in scope: the egress proxy, its allowlists, the zone's resolver and the canary probes ([`coding-agent-egress.md`](coding-agent-egress.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)) and the gateway's play and rebuild themselves ([`opnsense-config.md`](opnsense-config.md)). The zone's interface and rules in the play are in scope, as Stage 2.
 
 ## Decision
 
@@ -55,7 +55,7 @@ VM 202 advertises the VLAN's route, and the tailnet policy grants it to the lapt
 
 ## Open items
 
-- Whether the proxy runs on OPNsense or a small dedicated VM (decided under ADR 0053); [`coding-agent-egress.md`](coding-agent-egress.md) builds whichever it is.
+None.
 
 ## Closing checklist
 

@@ -176,15 +176,45 @@ class TestSendAlert:
         _, kwargs = mock_post.call_args
         assert "Secret: _rotation-key-oci-client-secret" in kwargs["data"]["text"]
 
-    @patch("rotation_read_watcher.requests.post", side_effect=watcher.requests.RequestException("boom"), autospec=True)
-    def test_a_failed_send_is_reported_on_stderr_not_raised(self, mock_post, capsys):
-        telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
+    @pytest.mark.parametrize(
+        ("failure", "reported"),
+        [
+            pytest.param(
+                requests.ConnectionError("Max retries exceeded with url: /bot123:abc/sendMessage"),
+                "telegram: alert send failed: ConnectionError\n",
+                id="transport-failure",
+            ),
+            pytest.param(
+                requests.Timeout("Read timed out for url: https://api.telegram.org/bot123:abc/sendMessage"),
+                "telegram: alert send failed: Timeout\n",
+                id="timeout",
+            ),
+        ],
+    )
+    @patch("rotation_read_watcher.requests.post", autospec=True)
+    def test_a_failed_send_is_reported_on_stderr_without_the_bot_token(self, mock_post, failure, reported, capsys):
+        mock_post.side_effect = failure
+        telegram = {"token": "123:abc", "chat_id": "c", "topic_id": ""}
         match = {"time": "now", "secret": "s", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
 
         sent = watcher.send_alert(telegram, match)
 
         assert sent is False
-        assert "telegram: alert send failed: boom" in capsys.readouterr().err
+        assert capsys.readouterr().err == reported
+
+    @patch("rotation_read_watcher.requests.post", autospec=True)
+    def test_a_rejected_send_reports_the_http_status_without_the_bot_token(self, mock_post, capsys):
+        rejected = requests.Response()
+        rejected.status_code = 401
+        rejected.url = "https://api.telegram.org/bot123:abc/sendMessage"
+        mock_post.return_value = rejected
+        telegram = {"token": "123:abc", "chat_id": "c", "topic_id": ""}
+        match = {"time": "now", "secret": "s", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
+
+        sent = watcher.send_alert(telegram, match)
+
+        assert sent is False
+        assert capsys.readouterr().err == "telegram: alert send failed: HTTPError (HTTP 401)\n"
 
 
 class TestWatch:

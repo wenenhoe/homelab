@@ -455,6 +455,39 @@ class TestTelegramAlert:
         check_credential_expiry.main()
         assert "message_thread_id" not in mock_post.call_args.kwargs["data"]
 
+    @pytest.mark.parametrize(
+        ("failure", "reported"),
+        [
+            pytest.param(
+                requests.ConnectionError("Max retries exceeded with url: /bot123:abc/sendMessage"),
+                "telegram: alert send failed: ConnectionError\n",
+                id="transport-failure",
+            ),
+            pytest.param(
+                requests.Timeout("Read timed out for url: https://api.telegram.org/bot123:abc/sendMessage"),
+                "telegram: alert send failed: Timeout\n",
+                id="timeout",
+            ),
+        ],
+    )
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
+    def test_a_failed_send_is_reported_without_the_bot_token(self, mock_post, failure, reported, capsys):
+        mock_post.side_effect = failure
+
+        check_credential_expiry._send_telegram_alert(["<b>oci write</b>: past its window"])
+
+        assert capsys.readouterr().err == reported
+
+    @patch.object(check_credential_expiry.requests, "post", autospec=True)
+    def test_a_rejected_send_reports_the_http_status_without_the_bot_token(self, mock_post, capsys):
+        rejected = response(401)
+        rejected.url = "https://api.telegram.org/bot123:abc/sendMessage"
+        mock_post.return_value = rejected
+
+        check_credential_expiry._send_telegram_alert(["<b>oci write</b>: past its window"])
+
+        assert capsys.readouterr().err == "telegram: alert send failed: HTTPError (HTTP 401)\n"
+
     @patch.object(check_credential_expiry, "check_r2", return_value=[("r2 write", check_credential_expiry.FRESH, "")], autospec=True)
     @patch.object(check_credential_expiry, "check_oci", return_value=[("oci write", check_credential_expiry.STALE, "old")], autospec=True)
     @patch.object(check_credential_expiry, "check_b2", return_value=[("b2 write", check_credential_expiry.FRESH, "")], autospec=True)

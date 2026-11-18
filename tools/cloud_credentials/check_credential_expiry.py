@@ -289,7 +289,14 @@ def _send_telegram_alert(lines: list[str]) -> None:
         resp = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", data=data, timeout=10)
         resp.raise_for_status()
     except requests.RequestException as exc:
-        print(f"telegram: alert send failed: {exc}", file=sys.stderr)
+        print(f"telegram: alert send failed: {_describe_send_failure(exc)}", file=sys.stderr)
+
+
+def _describe_send_failure(exc: requests.RequestException) -> str:
+    """The exception's own text names the request URL, and the bot token is part of that URL, so only its type and HTTP status reach the journal."""
+    if exc.response is not None:
+        return f"{type(exc).__name__} (HTTP {exc.response.status_code})"
+    return type(exc).__name__
 
 
 def main() -> int:

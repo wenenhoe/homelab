@@ -5,7 +5,7 @@ type: project
 status: not-started
 blocked: false
 summary: A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host.
-decision: ADR-0053/0
+decision: ADR-0053/1
 plan: draft
 super_project: coding-agent-host
 ---
@@ -22,7 +22,7 @@ The VLAN and subnet, OPNsense interface and rules, and the Tailscale route (adve
 
 ## Decision
 
-Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), and builds only while that revision is `approved`. [`coding-agent-egress.md`](coding-agent-egress.md) names the same revision; it closes last and accepts it.
+Implements [ADR 0053 revision 1 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-001.md), and builds only while that revision is `approved`. The proxy the zone reaches the Internet through is [ADR 0116 (Egress for default-deny zones)](../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), built by [`coding-agent-egress.md`](coding-agent-egress.md), which names this revision in `also_implements:`; it closes last and accepts it.
 
 ## Execution plan
 
@@ -31,7 +31,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | VLAN 30, OPNsense default-deny rules, and the laptop-only Tailscale route, built by hand and documented in a topic doc. The route's grant is added as [`tailnet-policy.md`](../topics/infra/tailnet-policy.md#adding-a-grant-for-a-route) describes | Not started | The interface, rules, and route exist and match the topic doc, and the laptop reaches SSH on a scratch VM in the VLAN away from home while another tailnet node cannot |
-| 2 | Carry the zone in the gateway's play: VLAN 30 in the seed's VLAN list and the role's zones, and rows 7 and 12 of [`opnsense-config.md`](opnsense-config.md)'s flow list. Starts once the zone is documented | Not started | `--check --diff` reports no change on a scratch gateway, the zone's flows in the flow list pass, and nothing else is denied that was allowed |
+| 2 | Carry the zone in the gateway's play: VLAN 30 in the seed's VLAN list and the role's zones, and rows 7 and 12 of [`opnsense-config.md`](opnsense-config.md)'s flow list. The zone's outbound rule to the proxy and resolver in VLAN 45 is added with that zone by [`coding-agent-egress.md`](coding-agent-egress.md). Starts once the zone is documented | Not started | `--check --diff` reports no change on a scratch gateway, the zone's flows in the flow list pass, and nothing else is denied that was allowed |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

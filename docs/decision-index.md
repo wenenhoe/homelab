@@ -276,8 +276,8 @@ lists only the ones no project names.
 | [0044](decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) | original (c) | CD agent trigger | Approved | [`cd-agent.md`](projects/cd-agent.md) |
 | [0047](decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md) | original | First-credential bootstrap | Approved | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) |
 | [0050](decisions/0050-agent-authored-changes-reaching-production/revision-000.md) | original | Agent changes to production | Approved | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) |
-| [0053](decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md) | original | Coding-agent network reach | Approved | [`coding-agent-egress.md`](projects/coding-agent-egress.md), [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| [0053](decisions/0053-network-reach-of-the-coding-agent-host/revision-001.md) | revision 1 | Coding-agent network reach | Approved | — |
+| [0053](decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md) | original | Coding-agent network reach | Approved | [`coding-agent-egress.md`](projects/coding-agent-egress.md) |
+| [0053](decisions/0053-network-reach-of-the-coding-agent-host/revision-001.md) | revision 1 | Coding-agent network reach | Approved | [`coding-agent-network.md`](projects/coding-agent-network.md) |
 | [0054](decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) | original | Untrusted host management | Approved | [`coding-agent-management.md`](projects/coding-agent-management.md) |
 | [0055](decisions/0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md) | original | Coding-agent client access | Approved | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) |
 | [0056](decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md) | original | Workstation credentials | Approved | [`vm-401-retirement.md`](projects/vm-401-retirement.md), [`workstation-management.md`](projects/workstation-management.md) |

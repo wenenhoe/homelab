@@ -46,13 +46,18 @@ can't fix.
    nothing else can create it yet:
 
    ```sh
+   # [1/3] controller: paste alone
+   scp docker/openbao/policies/vault-bootstrap.hcl security:/tmp/
+
+   # [2/3] controller: paste alone; it opens a shell on security and waits
    ssh security
+
+   # [3/3] inside that shell: paste once its prompt is back
    export BAO_TOKEN=<fresh root token from step 2>
    export BAO_ADDR=https://127.0.0.1:8200
    export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
    export BAO_CACERT=/etc/step-ca/root_ca.crt
 
-   # from controller, first: scp docker/openbao/policies/vault-bootstrap.hcl security:/tmp/
    bao policy write vault-bootstrap - < /tmp/vault-bootstrap.hcl
 
    bao write auth/approle/role/vault-bootstrap \

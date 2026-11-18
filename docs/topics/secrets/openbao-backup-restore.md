@@ -263,7 +263,10 @@ refuses the connection.
    [drill](#restore-drill) explains:
 
    ```sh
+   # [1/2] controller: paste alone; it opens a shell on security and waits
    ssh -t security
+
+   # [2/2] inside that shell: paste once its prompt is back
    read -rs BAO_TOKEN && export BAO_TOKEN
    docker exec -e BAO_TOKEN -e BAO_ADDR=https://127.0.0.1:8200 -e BAO_SKIP_VERIFY=true      openbao bao operator raft snapshot restore -force /tmp/restore.snap
    docker exec openbao rm /tmp/restore.snap
@@ -315,10 +318,15 @@ recovered, and with them the node cannot be unsealed or restored into. Before
 the snapshot is restored it holds nothing, so wipe it and start again:
 
 ```sh
+# [1/3] controller: paste alone; it opens a shell on security and waits
 ssh security
+
+# [2/3] inside that shell: paste once its prompt is back
 cd /opt/stacks/openbao && docker compose down
 docker volume rm openbao_data
 exit
+
+# [3/3] controller again: paste after the shell has exited
 cd ansible && ansible-playbook playbooks/bootstrap-security.yaml --tags stage1
 cd ../tools && python3 -m openbao_utils.init
 ```

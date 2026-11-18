@@ -68,11 +68,18 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    scp docker/openbao/watcher/* security:/tmp/
    ```
 
-2. On `security`, place them and lock down the credential directory:
+2. On `security`, install them owned by root, since the unit runs the script
+   as root and a file the operator account owns is one it could rewrite, and
+   lock down the credential directory. `install` sets the owner and mode
+   itself, where `mv` would keep the operator's:
 
    ```sh
-   sudo mv /tmp/rotation_read_watcher.py /opt/rotation-read-watcher/
-   sudo mv /tmp/*.service /tmp/*.timer /etc/systemd/system/
+   cd /tmp
+   sudo install -o root -g root -m 0644 rotation_read_watcher.py /opt/rotation-read-watcher/
+   sudo install -o root -g root -m 0644 rotation-read-watcher.service rotation-read-watcher-heartbeat.service \
+     rotation-read-watcher-heartbeat.timer gatus-push-rotation-read-watcher.service /etc/systemd/system/
+   rm rotation_read_watcher.py rotation-read-watcher.service rotation-read-watcher-heartbeat.service \
+     rotation-read-watcher-heartbeat.timer gatus-push-rotation-read-watcher.service
    sudo chmod 700 /etc/rotation-read-watcher /etc/gatus-push
    ```
 

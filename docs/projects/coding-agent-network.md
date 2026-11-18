@@ -22,7 +22,7 @@ The VLAN and subnet, OPNsense interface and rules, and the Tailscale route (adve
 
 ## Decision
 
-Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), `working`, so this project is `not-started` or `de-risking` until the revision is `approved`. [`coding-agent-egress.md`](coding-agent-egress.md) names the same revision; it closes last and accepts it.
+Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), and builds only while that revision is `approved`. [`coding-agent-egress.md`](coding-agent-egress.md) names the same revision; it closes last and accepts it.
 
 ## Execution plan
 

@@ -23,7 +23,7 @@ The egress proxy and its allowlists (one proxy, separate allowlists for the codi
 
 ## Decision
 
-Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), `working`, so this project is `not-started` until the revision is `approved`, which resolves its assumptions. This is the last project to name the revision, so it accepts it when it closes.
+Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), and builds only while that revision is `approved`, once [`coding-agent-network.md`](coding-agent-network.md) has built the zone. This is the last project to name the revision, so it accepts it when it closes.
 
 ## Execution plan
 

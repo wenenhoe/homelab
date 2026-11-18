@@ -7,7 +7,7 @@ short: Egress for default-deny zones
 solution: Two filtering forward proxies of one role, one for the management zone and one for the coding-agent and DMZ zones, in their own VLAN, each admitting a consumer only to its own allowlist
 summary: How a host whose zone denies direct Internet access reaches the destinations it needs, where the forward proxies sit, who each serves, how an allowlist is keyed, and what happens when one is down.
 topic: security-hardening
-status: working
+status: approved
 narrows: ADR-0053
 related: [ADR-0053, ADR-0058, ADR-0094, ADR-0100, ADR-0101, ADR-0103, ADR-0114]
 relies_on:

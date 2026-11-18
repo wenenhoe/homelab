@@ -227,7 +227,7 @@ def _fetch_telegram_secrets(client: hvac.Client) -> dict[str, str] | None:
     tg_token = _read_vault_secret(client, "telegram-token")
     chat_id = _read_vault_secret(client, "telegram-chat-id")
     if not tg_token or not chat_id:
-        print("telegram-token/telegram-chat-id not cached - the next watched read is reported and the watcher restarts", file=sys.stderr)
+        print("telegram-token/telegram-chat-id not cached", file=sys.stderr)
         return None
     return {
         "token": tg_token,
@@ -277,6 +277,12 @@ def main() -> int:
     client = _verified_client(_read_file(SERVER_NAME_PATH))
     _vault_login(client, role_id, secret_id)
     telegram = _fetch_telegram_secrets(client)
+    if telegram is None:
+        # Exit now, not at the first read: the unit then restarts and stops reporting active, so the
+        # heartbeat goes missing and Gatus alerts, instead of a watcher that is up with no way to alert.
+        # Nothing is lost meanwhile: the last alerted read is only saved after its alert is sent.
+        print("telegram secrets not available - exiting so the restart tries again", file=sys.stderr)
+        return 1
     prior_state = _load_state(STATE_PATH)
     return watch(telegram, prior_state)
 

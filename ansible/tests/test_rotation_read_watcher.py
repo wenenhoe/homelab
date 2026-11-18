@@ -381,6 +381,20 @@ class TestMain:
         assert kwargs["verify"] == watcher.ROOT_CA_PATH
         assert kwargs["timeout"] == watcher._TIMEOUT_SECONDS
 
+    @patch("rotation_read_watcher.watch", autospec=True)
+    @patch("rotation_read_watcher._load_state", return_value=None, autospec=True)
+    @patch("rotation_read_watcher._fetch_telegram_secrets", return_value=None, autospec=True)
+    @patch("rotation_read_watcher._vault_login", autospec=True)
+    @patch("rotation_read_watcher._verified_client", autospec=True)
+    @patch("rotation_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id", "openbao.example.test"], autospec=True)
+    def test_exits_without_following_the_log_when_telegram_secrets_are_unavailable(
+        self, mock_read_file, mock_client, mock_login, mock_fetch, mock_load_state, mock_watch, capsys
+    ):
+        assert watcher.main() == 1
+
+        mock_watch.assert_not_called()
+        assert "exiting so the restart tries again" in capsys.readouterr().err
+
     @patch("rotation_read_watcher.watch", return_value=0, autospec=True)
     @patch("rotation_read_watcher._load_state", return_value=None, autospec=True)
     @patch("rotation_read_watcher._fetch_telegram_secrets", return_value={"token": "t", "chat_id": "c", "topic_id": ""}, autospec=True)

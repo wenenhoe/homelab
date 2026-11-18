@@ -635,6 +635,323 @@
    "bot": false,
    "group": "tools/",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dbd3da9813440ead164aa871861f33fca33debfc",
+   "date": "2026-11-18T10:52:21+08:00",
+   "kind": "pr",
+   "pr": 914,
+   "title": "keep the bot token out of a failed Telegram send's log line",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0d396655a4006dd3222c2685e6f188309ee0ca2a",
+   "date": "2026-11-18T10:58:33+08:00",
+   "kind": "pr",
+   "pr": 915,
+   "title": "pin the snapshot scripts' rclone image by digest",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "74eb1b76cfaa7746e09a26149fb6ba4816ae40f5",
+   "date": "2026-11-18T11:36:24+08:00",
+   "kind": "pr",
+   "pr": 916,
+   "title": "retry caching a regenerated OCI client secret",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "cafecda14ec102d02ef404da410b669de1a3db7d",
+   "date": "2026-11-18T11:38:28+08:00",
+   "kind": "pr",
+   "pr": 917,
+   "title": "split runbook blocks that open an interactive session",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "2117bbf416f8f1f914f861faca6b6e3b4b432106",
+   "date": "2026-11-18T11:40:54+08:00",
+   "kind": "pr",
+   "pr": 918,
+   "title": "stop listing the step-ca passwords as rotatable by redeploy",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2713698c7f9996bc46c2dee4e929d4612a4ab3b7",
+   "date": "2026-11-18T11:42:58+08:00",
+   "kind": "pr",
+   "pr": 919,
+   "title": "drop the comment that says renewal is not automated yet",
+   "type": "docs",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "042f13292391a518ae58526855189efaf801b56c",
+   "date": "2026-11-18T13:25:17+08:00",
+   "kind": "pr",
+   "pr": 920,
+   "title": "skip rclone's bucket pre-flight check on the upload targets",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "bcddaeedaaa07344c1790d3e0dbe515786f1f268",
+   "date": "2026-11-18T13:33:46+08:00",
+   "kind": "pr",
+   "pr": 921,
+   "title": "run the unit's own lines in the default scenario",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dac73ecd87d6c76d227e6e00690a0d1da12d7f2b",
+   "date": "2026-11-18T13:52:34+08:00",
+   "kind": "pr",
+   "pr": 922,
+   "title": "verify OpenBao's certificate in the rotation read watcher",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4114098165ff4256158236ade961219b1f009a40",
+   "date": "2026-11-18T14:30:11+08:00",
+   "kind": "pr",
+   "pr": 923,
+   "title": "exit at start when the watcher cannot read Telegram's secrets",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "6565f9df4734646476f52a4cb6c422f277fc39b7",
+   "date": "2026-11-18T17:41:12+08:00",
+   "kind": "pr",
+   "pr": 924,
+   "title": "record the proxy fit and bridge isolation for the coding-agent network",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coding-agent-network",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "7281fb3facd5e8e692c8a54716efb7cb8b0c738e",
+   "date": "2026-11-18T17:43:39+08:00",
+   "kind": "pr",
+   "pr": 925,
+   "title": "approve the coding-agent network reach",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0053 r000 \u00b7 network reach of the coding agent host",
+     "working \u2192 approved"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "ca53d489278a71047fc68405d8802ce847ce34b7",
+   "date": "2026-11-18T18:05:03+08:00",
+   "kind": "pr",
+   "pr": 926,
+   "title": "drop the coding-agent network reach's reliance on the operator host decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "da2467de269e876ea1cac172d4e9e578dbc8f5b6",
+   "date": "2026-11-18T18:07:09+08:00",
+   "kind": "pr",
+   "pr": 927,
+   "title": "state the coding-agent network projects' decision without its status",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coding-agent-network",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "9e9d20d565287935b8abbae0520bebd2aa300b9f",
+   "date": "2026-11-18T20:51:11+08:00",
+   "kind": "pr",
+   "pr": 928,
+   "title": "add the egress decision for default-deny zones",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0053 r001 \u00b7 network reach of the coding agent host",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0116 r000 \u00b7 internet egress for hosts in default deny zones",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "8119a7cba191342ab32097680f7f4aeb62e9b366",
+   "date": "2026-11-18T20:53:59+08:00",
+   "kind": "pr",
+   "pr": 929,
+   "title": "open the question of splitting the services host",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "b9814a27e9d4a2d0d9b026d8d3cea05cfda611f9",
+   "date": "2026-11-18T20:56:25+08:00",
+   "kind": "pr",
+   "pr": 930,
+   "title": "open the question of planning a new system",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "c4751e255b9b084221e2a109dfe05957c86f282d",
+   "date": "2026-11-18T21:15:15+08:00",
+   "kind": "pr",
+   "pr": 931,
+   "title": "state how the temporary egress rule shows as drift",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "ebe7cf229566cc603be631d30b5d581955e61b0b",
+   "date": "2026-11-19T01:20:40+08:00",
+   "kind": "pr",
+   "pr": 932,
+   "title": "record the destinations the egress proxies serve",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "08c4f78ebaa7503861d826245f536ed187ec2ae9",
+   "date": "2026-11-19T01:23:08+08:00",
+   "kind": "pr",
+   "pr": 933,
+   "title": "approve the egress proxy decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0116 r000 \u00b7 internet egress for hosts in default deny zones",
+     "working \u2192 approved"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "20143f444a2cbbc51e591b877b41955559d1db39",
+   "date": "2026-11-19T01:44:28+08:00",
+   "kind": "pr",
+   "pr": 934,
+   "title": "approve the coding-agent network reach revision",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0053 r001 \u00b7 network reach of the coding agent host",
+     "working \u2192 approved"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "af42a00584c9551fff2fcc574c35b5801af4a94b",
+   "date": "2026-11-19T01:47:16+08:00",
+   "kind": "pr",
+   "pr": 935,
+   "title": "build the coding-agent zone against the revised network reach record",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coding-agent-network",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "19914313d9e4f3a709e2db008d33b42968e942d2",
+   "date": "2026-11-19T01:56:27+08:00",
+   "kind": "pr",
+   "pr": 936,
+   "title": "ask whether the node has room for the planned hosts",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "b69a833fec9c39190a308b3bad2d21cdf60606e3",
+   "date": "2026-11-19T01:58:33+08:00",
+   "kind": "pr",
+   "pr": 937,
+   "title": "point the operator host takeover at the trusted-tier proxy",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: operator-host-takeover",
+   "events": []
   }
  ]
 }

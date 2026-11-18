@@ -61,7 +61,9 @@ Stage status is `Not started`, `In progress`, or `Done`.
 The coding-agent zone and the egress proxy are not stages here, so they do not hold the production rebuild back. Each project puts its part in the play, using this project's role and its scratch gateway, and the rebuild carries whatever has landed by then:
 
 - [`coding-agent-network.md`](coding-agent-network.md) adds VLAN 30 to the seed's VLAN list and the role's zones, and rows 7 and 12 of the flow list below, and its exit condition is a clean `--check --diff` and passing flow probes on a scratch gateway.
-- [`coding-agent-egress.md`](coding-agent-egress.md) generates the proxy's allowlist from one source in the repo and applies it from the play or its own role, with the same exit condition.
+- [`coding-agent-egress.md`](coding-agent-egress.md) adds VLAN 45, the egress zone, to the seed's VLAN list and the role's zones, generates the two proxies' allowlists from one source in the repo and applies them from the play or its own role, with the same exit condition.
+- [`gatehouse.md`](gatehouse.md) adds VLAN 35, the DMZ, to the seed's VLAN list and the role's zones with its rules.
+- The seed assigns VLAN interfaces at the gateway's first boot only, so VLANs 30, 35 and 45 reach the production gateway only if they are in the seed before Stage 3's rebuild. A zone whose project has not landed by then waits for a second rebuild or is added by hand and moved into the play afterwards, which the last bullet already requires.
 - A zone built by hand on the live gateway before the rebuild must be in the play by then, or the rebuild would lose it.
 
 ## Acceptance criteria

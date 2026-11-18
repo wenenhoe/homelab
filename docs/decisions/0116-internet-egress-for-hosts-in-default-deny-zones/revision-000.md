@@ -70,7 +70,7 @@ flowchart LR
 - **Keying.** An allowlist belongs to one consumer host and is keyed by its source address. The operator host and the CD agent, which share VLAN 25, have two allowlists. A host with no allowlist reaches nothing. The allowlists have one source in the repository and are rendered into each instance's configuration; a proxy filters on the requested host name only. The node refuses a consumer's frames that carry another address (see Assumptions).
 - **Placement.** Neither proxy runs on a consumer's VLAN, on the `services` host or in the DMZ.
 - **The coding-agent zone's resolver.** It stays as ADR 0053 sets it and runs on the untrusted-tier VM. The other zones keep resolving through the gateway.
-- **Failure policy.** There is no standby. The VM holds no state, so rebuilding it is a `tofu apply` and a deploy. For the case where the trusted-tier proxy is what is down, the gateway's play has a temporary rule, switched by a variable, that admits the operator host directly to the state backend's and the providers' endpoints. The operator host applies it through the gateway's own address, which it reaches without the proxy, and leaving it in place shows as drift in the play's next `--check --diff`. The rehearsal of this path belongs to the exercise cadence of [ADR 0101 (DR exercise cadence)](../0101-exercising-disaster-recovery/revision-000.md), and its results are kept as that record says.
+- **Failure policy.** There is no standby. The VM holds no state, so rebuilding it is a `tofu apply` and a deploy. For the case where the trusted-tier proxy is what is down, the gateway's play has a temporary rule, switched by a variable, that admits the operator host directly to the state backend's and the providers' endpoints. The operator host applies it through the gateway's own address, which it reaches without the proxy, The play owns the rule: present when the variable is set and declared absent otherwise, so a rule left in place is reported by the next `--check --diff` as a removal, with no need for the gateway project's later stage that removes rules the play does not write. The rehearsal of this path belongs to the exercise cadence of [ADR 0101 (DR exercise cadence)](../0101-exercising-disaster-recovery/revision-000.md), and its results are kept as that record says.
 - **Probe.** The boundary checks gain a probe that opens an HTTP `CONNECT` tunnel through a proxy ([ADR 0094 (Network boundary checks)](../0094-showing-the-network-boundary-behaves-as-declared/revision-000.md)). A canary is a consumer with the allowlist of the host it stands for; a listed name must open a tunnel and any other must be refused with a `403`.
 - **The record of the system.** Each proxy has a service record under [ADR 0100 (Recording a system's integration)](../0100-recording-how-a-system-is-integrated/revision-001.md). The coding-agent project builds the proxies, and the project of each other consumer adds its allowlist.
 
@@ -97,9 +97,9 @@ flowchart LR
 - **Claim:** the node's per-VM firewall stops a VM from sending frames with another host's address in its VLAN.
   **Breaks if wrong:** per-host keying inside VLAN 25 holds only against hosts of other VLANs, and the two management hosts share one allowlist or sit in separate VLANs.
   **Checked by:** a probe on a scratch bridge from one VM that claims a neighbour's address, with the filter on and off.
-- **Claim:** the play can add and remove the temporary rule from the operator host while the trusted-tier proxy is down.
-  **Breaks if wrong:** the failure policy has no way out of a lost proxy that does not go through the node's console.
-  **Checked by:** a run against the scratch gateway with the proxy stopped, as [`opnsense-scratch-gateway.md`](../../topics/infra/tofu/opnsense-scratch-gateway.md) describes.
+- **Claim:** the play can add and remove the temporary rule from the operator host while the trusted-tier proxy is down, and `--check --diff` reports the rule as a change when it is left in place with the variable unset.
+  **Breaks if wrong:** the failure policy has no way out of a lost proxy that does not go through the node's console, or a rule left behind goes unseen until the gateway project removes rules the play does not write.
+  **Checked by:** a run against the scratch gateway with the proxy stopped, as [`opnsense-scratch-gateway.md`](../../topics/infra/tofu/opnsense-scratch-gateway.md) describes, adding the rule, removing it, and checking with it left in place.
 
 ## Consequences
 
@@ -128,7 +128,7 @@ flowchart LR
 
 ## Validation
 
-A canary in each consumer zone runs the tunnel probe against a listed name and a refused one, with the listed name as the deny's control, and the flow list gains the egress zone and the flows to it. A test that renders every allowlist from its source fails on a consumer without one and on a name listed for the wrong tier. The exported gateway rules are compared with the topic doc, and the temporary rule is checked to show as drift while it is applied.
+A canary in each consumer zone runs the tunnel probe against a listed name and a refused one, with the listed name as the deny's control, and the flow list gains the egress zone and the flows to it. A test that renders every allowlist from its source fails on a consumer without one and on a name listed for the wrong tier. The exported gateway rules are compared with the topic doc, and a test that a temporary rule left in place with its variable unset is reported by `--check --diff`.
 
 ## Reconsideration triggers
 

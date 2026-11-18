@@ -183,6 +183,27 @@ class TestRotateOciRotationKey:
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint", autospec=True)
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity", autospec=True)
     @patch.object(oci_bootstrap, "oci_scim_access_token", autospec=True)
+    def test_a_timestamp_write_that_never_succeeds_warns_and_still_verifies_the_secret(
+        self, mock_token, mock_ensure_leaf, mock_auth, mock_write, mock_sleep, session_class, capsys
+    ):
+        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
+        mock_token.side_effect = ["old-tok", "new-tok"]
+        mock_write.side_effect = [None] + [hvac.exceptions.VaultDown("sealed")] * oci_bootstrap._CACHE_WRITE_ATTEMPTS
+        session_class.return_value.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
+
+        ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
+
+        assert ok
+        assert mock_token.call_count == 2
+        err = capsys.readouterr().err
+        assert "rotation timestamp could not be cached" in err
+        assert "NEW_SECRET" not in err
+
+    @patch.object(oci_bootstrap.time, "sleep", autospec=True)
+    @patch.object(oci_bootstrap, "write_secret", autospec=True)
+    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint", autospec=True)
+    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity", autospec=True)
+    @patch.object(oci_bootstrap, "oci_scim_access_token", autospec=True)
     def test_a_cache_write_that_never_succeeds_fails_the_rotation_with_recovery_steps(
         self, mock_token, mock_ensure_leaf, mock_auth, mock_write, mock_sleep, session_class, capsys
     ):

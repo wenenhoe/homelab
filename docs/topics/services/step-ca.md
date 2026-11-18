@@ -128,3 +128,6 @@ The names compared are the cert's DNS and IP SANs, as reported by
 (`secret_catalog.yaml`, both `hex`/32) are Ansible-generated and
 cached like any other secret — see [`secrets.md`](../secrets/secrets.md). Neither
 is externally issued, so neither needs `source: manual`.
+Neither is rotated with `rotate-secret.yaml`: they encrypt the CA's keys at
+`step ca init` and a changed value locks step-ca out of them, as
+[`secrets-rotation.md`](../secrets/secrets-rotation.md) explains.

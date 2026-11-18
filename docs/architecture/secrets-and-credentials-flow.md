@@ -1,13 +1,13 @@
 # Secrets & Credentials Flow
 
 How `controller` reaches OpenBao day-to-day, and how cloud credential
-rotation plus the R2 per-read watcher fit together — spans
+rotation plus the rotation read-watcher fit together — spans
 [`openbao-auth.md`](../topics/secrets/openbao-auth.md) (`controller`'s AppRole),
 [`cloud-credentials/creation.md`](../topics/secrets/cloud-credentials/creation.md) and
 [`cloud-credentials/rotation.md`](../topics/secrets/cloud-credentials/rotation.md)
 (minting and rotating R2/B2/OCI credentials), and
 [`openbao-rotation-read-watcher.md`](../topics/secrets/openbao-rotation-read-watcher.md) (the
-per-read alert on the R2 admin token), none of which shows the whole
+per-read alert on the R2, B2 and OCI rotation credentials), none of which shows the whole
 picture on one page.
 
 ## Day-to-day secrets fetch
@@ -50,7 +50,7 @@ flowchart LR
 
     controller -- "1 . mint/rotate<br/>leaf & rotation keys" --> r2 & b2 & oci
     controller -- "2 . cache result" --> openbao
-    openbao -. "3 . any read of the<br/>R2 rotation token path" .-> watcher
+    openbao -. "3 . any read of an R2, B2 or<br/>OCI rotation credential" .-> watcher
     watcher -- "4 . alert" --> telegram
     watcher -- "heartbeat" --> gatus
 ```
@@ -59,11 +59,12 @@ The R2 admin token is the one rotation credential accepted as
 master-equivalent rather than narrowly scoped — Cloudflare's API can't
 mint a scoped delegate for it
 ([ADR 0110 (R2 admin token custody)](../decisions/0110-the-r2-admin-token-as-the-rotation-credential/revision-000.md)).
-The read-watcher's per-read alert on that one path is the compensating
-control, running its own least-privilege AppRole
-([ADR 0026 (High-value secret read alerts)](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md))
+The read-watcher's per-read alert is the compensating control. It covers
+the R2 token's path and the B2 application key's and OCI client secret's
+beside it, and runs its own least-privilege AppRole
+([ADR 0026 (High-value secret read alerts)](../decisions/0026-detecting-reads-of-high-value-secrets/revision-001.md))
 rather than reusing `controller`'s broader one — a compromised
-`controller` AppRole still can't read that path silently.
+`controller` AppRole still can't read any of those paths silently.
 
 ## CD agent AppRoles
 

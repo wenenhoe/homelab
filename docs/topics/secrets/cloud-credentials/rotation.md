@@ -87,12 +87,12 @@ against a real failure, not assumed:**
   rclone's pre-flight bucket-existence check the way an account-wide
   key can, so rclone falls back to `CreateBucket`, which a correctly
   least-privileged key has no rights to (independently documented
-  against AWS S3 in rclone/rclone#4703 and #5119). **Open question,
-  not yet resolved:** production's `cloud_sync`/`restore_discovery`
-  `rclone.conf.j2` templates render the same kind of bucket-restricted
-  key and don't set this — check Gatus's `cloud-sync` endpoint and
-  the buckets' actual recent object timestamps before assuming
-  production isn't affected.
+  against AWS S3 in rclone/rclone#4703 and #5119). Production's
+  `cloud_sync` `rclone.conf.j2` sets it on every upload target, for the
+  same reason, since its keys are bucket-restricted too. The buckets are
+  created by hand ([`cloud-sync.md`](../../disaster-recovery/cloud-sync.md)),
+  so the setting changes nothing but the pre-flight check.
+  `restore_discovery`'s template only reads, and doesn't need it.
 - `region` set explicitly — OCI's S3-compatible API 403s with
   `SignatureDoesNotMatch` if the bucket's region isn't stated and
   differs from the tenancy's home region. Resolved in both

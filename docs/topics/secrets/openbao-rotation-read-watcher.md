@@ -124,6 +124,20 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    with an empty value. Minting again issues another `secret_id` and leaves
    the earlier one valid, so re-run this step only to replace a lost file.
 
+   The watcher also checks OpenBao's certificate against step-ca's root
+   (`/etc/step-ca/root_ca.crt`, already on `security`). It connects to
+   `127.0.0.1` and the leaf has no IP SAN, so the DNS name the certificate
+   carries goes in a file beside the credentials, the same name
+   [`openbao-auth.md`](openbao-auth.md) gives `bao` as `-tls-server-name`.
+   Write it from `security`, with the name's domain filled in; it is not a secret:
+
+   ```sh
+   ssh security 'printf "%s" "openbao.<caddy_domain>" | sudo tee /etc/rotation-read-watcher/server_name > /dev/null'
+   ```
+
+   Without the file, or with a name the certificate does not carry, the watcher
+   exits at start and the unit restarts it until the file is right.
+
 5. Cache the heartbeat's Gatus credentials. The `rotation-read-watcher` job in
    `heartbeat_jobs` already has its token (`gatus-token-rotation-read-watcher`); the unit
    reads the endpoint URL and the bearer header from a curl config, so the

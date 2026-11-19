@@ -138,6 +138,15 @@ copy` per (app, cloud target) pair, with `--max-age` for a target that sets
 `max_age` and `--max-transfer` for one that sets `max_transfer`; one job failing
 doesn't block the rest of that run.
 
+Every copy also carries bounds on a provider that accepts connections and then
+stalls: `--contimeout 20s`, `--timeout 2m` and `--low-level-retries 4`, against
+rclone's defaults of 60 seconds, 5 minutes and 10. With the defaults one stalled
+job can hold a run for hours, and each job after it waits behind it. `--timeout`
+is an idle limit, so an upload that keeps moving is not cut off, and it also
+bounds the wait for each response, which is why it stays at 2 minutes. The bounds
+shorten a bad night; they do not remove the three attempts rclone makes at each
+job, so a stalled job still takes several minutes to fail.
+
 The container runs with every capability dropped except `DAC_OVERRIDE`,
 `no-new-privileges` and a read-only root filesystem. `rclone.conf` is `0600`
 and owned by the deploy user, which root in the container can only open with

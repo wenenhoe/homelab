@@ -202,7 +202,7 @@ wheels = [
 
 [[package]]
 name = "b2sdk"
-version = "2.13.4"
+version = "2.13.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-types" },
@@ -210,9 +210,9 @@ dependencies = [
     { name = "logfury" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/10/d485324ed34fe3e3e52826daccd40621ffac381454c0c5439ab934b1bb02/b2sdk-2.13.4.tar.gz", hash = "sha256:1236a0644b3689b46aa7e7f72d9a2fb46a36d3a84982d0999ddb8f3e19bc90e1", size = 210995, upload-time = "2026-11-13T19:50:05.36Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d4/fc/2a7b07726d88b488e41de6b8a7b983976aeb78d8913a018a2c6928b92082/b2sdk-2.13.5.tar.gz", hash = "sha256:584a5746be087476fd6106cc7635c2da032d484b73634f7e6afc5758f25c2b5b", size = 210994, upload-time = "2026-11-17T21:51:03.46Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/36/5bb4de13c799779c32ac10b8a84186146684aec7488ed069ddd379203d68/b2sdk-2.13.4-py3-none-any.whl", hash = "sha256:5f541df9744c67367105ddcf4950bc3c8ce511f572c5878d038893a9c7750b7c", size = 302051, upload-time = "2026-11-13T19:50:03.685Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/00/8f825646f6866dd7f7777f7241c753dbabfea767655ca3a11bdad370991c/b2sdk-2.13.5-py3-none-any.whl", hash = "sha256:589124c52eea92ff69930d1539d5a2fe041c62a1146cf0dd7a1d1d8cb0d70868", size = 302048, upload-time = "2026-11-17T21:51:02.238Z" },
 ]
 
 [[package]]
@@ -1103,7 +1103,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.191.0"
+version = "2.192.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -1118,9 +1118,9 @@ dependencies = [
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/7b/39c474784e0535b42929ac4ab04f540beb8988542d67d7f7f5410c8d2b95/oci-2.191.0.tar.gz", hash = "sha256:9831e669a9d07768f96bc5a71f57477ad8c7129bcd757ecf9c9c70fa9dfb61b1", size = 17467564, upload-time = "2026-11-10T09:30:39.57Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/bc/ee36b0bdc9e6d0da5ac35392d1138a594ae8ac431bde39a9354270b962e1/oci-2.192.0.tar.gz", hash = "sha256:f7bd3df4022ce4485c6b8d5a8e1cc3c9e06b1a12d679b4d1523d1784308abb73", size = 17475073, upload-time = "2026-11-17T06:58:16.342Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/17/51eaab7194d2521dd3997da7fab4f4026ff403fd4488081513de21332eba/oci-2.191.0-py3-none-any.whl", hash = "sha256:f149bc6e49d5e11a781d1085b222079eb3eefe59732bb1db9409d6b45a873194", size = 37789177, upload-time = "2026-11-10T09:30:33.62Z" },
+    { url = "https://files.pythonhosted.org/packages/89/8d/17d8a87b0ceb9c4701abae3d841cc79721b331b43507d8c6d427594b36eb/oci-2.192.0-py3-none-any.whl", hash = "sha256:0a2598eb1dce3ee4cf3474a240cdfe5e061a5e2fbc834cd035f30f2cad65c9ef", size = 37806717, upload-time = "2026-11-17T06:58:09.517Z" },
 ]
 
 [[package]]

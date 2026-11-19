@@ -35,6 +35,8 @@ related: [ADR-0112, ADR-0114]
   - The attestation is a trust boundary on a branch that deploys. It has to be code under `tools/ci` with unit tests, fail closed, require a run of the real workflow, and never apply to a diff that touches a workflow, an action or `tools/ci`.
   - A stacked proof needs no new permission, runs the full `pr-checks` unchanged and leaves N unmerged pull requests behind. A dispatched proof runs `main`'s copy of the workflow, so a layer cannot change what tests it, but it needs the heavy jobs extracted from `pr-checks.yml`, a token with `actions: write` (wider than the remote console's), and a run name to find the run by, since a dispatch returns no handle.
   - Every layer below a fix has to keep its tree. That needs the reuse above, or a key that leaves the generated views out of the tree, which no heavy job reads.
+- **Gate the proofs above a layer only CI can test.** The scoping that already decides which jobs a diff queues (`ci.scope` and `detect-changes-filters.yml`) can mark a layer CI-only: it would run Molecule, the compose boot test or a Dockerfile build, or it changes a workflow, an action or `tools/ci`. Such a layer holds back the proofs above it until its own proof is green, so a failure there wastes none of them. A layer that queues no heavy job needs no proof. With every layer gated the series lands as it does now, and with none it is fully parallel, so the rule trades wall-clock time against runner time without changing what lands. It needs a way to opt a series out.
+- **Queue several series as one chain.** A console that queues series ([ADR 0114 (Remote series landing)](../decisions/0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md)) could replay the series behind on the expected tip of the one ahead, so its proofs run while the first still waits and lands, and treat the two as one longer series. A failure in the one ahead discards the replay of the one behind. It costs a replay on a tip that may not exist, and it touches the approval: ADR 0114 binds an approval and a token to one series, so a queued series either holds its approval while it waits, with the token's lifetime that implies, or asks for it when it reaches the head.
 
 ## What a failure voids under the last option
 
@@ -50,7 +52,7 @@ A flaky job is rerun in place: the commit and trees are unchanged, so no replay 
 
 ## Leaning
 
-The unit-test check at each tip and the reuse of unchanged layers are worth doing on their own. The proof option keeps the serial, clean landing the series has now and moves only the waiting, so it is the one to try, with stacked proofs first because they change no workflow. Cumulative heads are the fallback if it does not hold.
+The unit-test check at each tip and the reuse of unchanged layers are worth doing on their own. The proof option keeps the serial, clean landing the series has now and moves only the waiting, so it is the one to try, with stacked proofs first because they change no workflow. Gating the proofs above a CI-only layer and queuing series as one chain are refinements of it, to be added once the plain version holds. Cumulative heads are the fallback if it does not hold.
 
 ## What has to be checked first
 

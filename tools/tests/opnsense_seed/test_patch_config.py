@@ -209,19 +209,21 @@ class TestVlans:
     def test_gives_each_device_an_interface_whose_address_is_dot_one_of_its_subnet(self):
         interfaces = seed().find("interfaces")
 
-        assert [(i.findtext("if"), i.findtext("ipaddr"), i.findtext("subnet")) for i in (interfaces.find(f"opt{n}") for n in range(1, 7))] == [
-            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (20, 25, 40, 50, 55, 35)
+        assert [(i.findtext("if"), i.findtext("ipaddr"), i.findtext("subnet")) for i in (interfaces.find(f"opt{n}") for n in range(1, 9))] == [
+            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (20, 25, 30, 35, 40, 45, 50, 55)
         ]
-        assert interfaces.find("opt7") is None
+        assert interfaces.find("opt9") is None
 
     def test_describes_each_zone_by_its_vmid_range(self):
         assert [v.findtext("descr") for v in seed().findall("vlans/vlan")] == [
             "VM ID 200-249",
             "VM ID 250-299",
+            "VM ID 300-349",
+            "VM ID 350-399",
             "VM ID 400-449",
+            "VM ID 450-499",
             "VM ID 500-549",
             "VM ID 550-599",
-            "VM ID 350-399",
         ]
 
     def test_each_device_has_a_uuid_that_does_not_change_between_builds(self):

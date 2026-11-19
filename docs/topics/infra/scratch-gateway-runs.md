@@ -46,7 +46,7 @@ A step has an `id` and exactly one of these:
 | `vm: up` | Builds the canary VM and waits until it answers over ssh through the gateway; at most one, before every `flows` step (see [the canary VM](#the-canary-vm)). The VM is removed at teardown | None |
 | `vlans: check` | Asks the gateway's API for its interfaces and passes when it has exactly the VLAN interfaces `gateway.vlans` seeds (below); the spec must set `gateway.vlans` | None |
 
-The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, so a gateway seeded with six VLANs has `opt1` to `opt6`. The step shows that the seed took the spec's list (six interfaces and not five); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
+The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, which the seed keeps ascending, so a gateway seeded with eight VLANs has `opt1` to `opt8`. The step shows that the seed took the spec's list (eight interfaces and not seven); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
 
 A failed step does not stop the run: the later steps still run, so one archive shows everything, and the gateway is removed on every path unless `--keep` is given. The terminal shows each step as it starts, the log of each command as it prints (indented, and kept in the step's file), and for each step its time; the run ends with a table of the times and their total. Most of a run is the `up` step, which builds the gateway and updates its firmware, so its log is the one to watch.
 
@@ -123,7 +123,7 @@ The backend needs only the tools, `sudo -n` and a usable `/dev/kvm`, so any host
 
 ## The DMZ probe
 
-[`dmz-probe`](../../../tofu/scratch/opnsense/runs/dmz-probe.yaml) seeds the gateway with the DMZ's VLAN 35, the sixth of the seed's VLANs and the play's `dmz` zone, and shows two things from a canary in it. The canary's own flows pass: the gateway's DNS, time and echo, its own SSH port and Internet over 443. And the zone's rules deny what they should: the services and desktops canaries are refused from it, the services canary cannot reach it, and the Proxmox node's management address (`host_proxmox_node` in the play) is refused on 22 and 8006.
+[`dmz-probe`](../../../tofu/scratch/opnsense/runs/dmz-probe.yaml) seeds the gateway with the DMZ's VLAN 35, the fourth of the seed's VLANs and the play's `dmz` zone, and shows two things from a canary in it. The canary's own flows pass: the gateway's DNS, time and echo, its own SSH port and Internet over 443. And the zone's rules deny what they should: the services and desktops canaries are refused from it, the services canary cannot reach it, and the Proxmox node's management address (`host_proxmox_node` in the play) is refused on 22 and 8006.
 
 The node's refusals count only beside their controls, which are the desktops canary reaching the same two ports (`node` in the [flow list](network-boundary-checks.md#the-flows-in-the-list)). The spec admits that canary as an operator host for it, and the run needs what the controls need:
 
@@ -140,7 +140,7 @@ The runner reaches the DMZ canary only through a row that admits the operator ho
 
 ## Untested until VLAN 30 has a zone
 
-The VLAN 30 scratch kit (the seed's VLAN list and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 30 interface: the `vlan-30-seed` run. What no run shows yet, because the play has no zone for VLAN 30 and the flow list no row for it:
+The VLAN 30 scratch kit (the seed's VLAN list and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 30 interface: the `vlan-30-seed` run, which builds the gateway with the seed's own eight VLANs, 45 among them. What no run shows yet, because the play has no zone for VLAN 30 and the flow list no row for it:
 
 - a VM tagged 30 reaching the gateway, which needs the zone's interface address and a pass rule;
 - the zone's flows (rows 8 and 13 of [`opnsense-config.md`](../../projects/opnsense-config.md)), and that default-deny holds in VLAN 30;

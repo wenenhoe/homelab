@@ -1,4 +1,6 @@
-"""The gateway role's zone list and the seed that creates the zones' interfaces must agree."""
+"""The gateway role's zone list and the seed that creates the zones' interfaces must agree.
+
+The seed may carry VLANs that have no zone; the play does not touch their interfaces."""
 
 from __future__ import annotations
 
@@ -21,12 +23,17 @@ def defaults() -> dict:
     return yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/defaults/main.yaml").read_text())
 
 
-def test_the_zones_are_the_vlans_the_seed_creates_in_the_order_it_creates_them(defaults):
-    assert [zone["vlan"] for zone in defaults["opnsense_gateway_zones"]] == list(patch_config.DEFAULT_VLANS)
+def test_every_zone_is_a_vlan_the_seed_creates_and_none_is_listed_twice(defaults):
+    vlans = [zone["vlan"] for zone in defaults["opnsense_gateway_zones"]]
+
+    assert set(vlans) <= set(patch_config.DEFAULT_VLANS)
+    assert len(set(vlans)) == len(vlans)
 
 
 def test_each_zone_names_the_interface_the_seed_gives_its_vlan(defaults):
-    assert [zone["interface"] for zone in defaults["opnsense_gateway_zones"]] == [f"opt{n}" for n in range(1, len(patch_config.DEFAULT_VLANS) + 1)]
+    zones = defaults["opnsense_gateway_zones"]
+
+    assert [zone["interface"] for zone in zones] == [f"opt{patch_config.DEFAULT_VLANS.index(zone['vlan']) + 1}" for zone in zones]
 
 
 def test_each_zone_name_can_be_part_of_an_alias_name(defaults):

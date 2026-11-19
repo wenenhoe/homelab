@@ -18,7 +18,7 @@
 #   VM_ID (default 501), LAN_BRIDGE (an isolated bridge with no ports, default vmbr9),
 #   WAN_BRIDGE (default vmbr1), WAN_VLAN_ID (tag of the WAN NIC when the route out is on a
 #   VLAN), SEED_VLANS (comma-separated VLAN tags the seed adds on the LAN device, for a zone
-#   the seed does not carry yet, such as 20,25,40,50,55,30; unset keeps the seed's own list),
+#   the seed does not carry yet, such as 20,25,30,35,40,45,50,55,60; unset keeps the seed's own list),
 #   TOFU (default tofu), SSH_CONTROL_PATH (socket of an ssh master connection opened
 #   by hand, for a node that takes a password), WANT_VERSION (default 26.1.11),
 #   ALLOW_LATEST=1, LOCAL_PORT (default 8443), UPLOAD_IMAGE=1, PURGE_IMAGE=1, MIN_FREE_KB (free
@@ -81,7 +81,7 @@ preflight() {
   [[ "$image_url" =~ ^https://[A-Za-z0-9._~:/%+-]+\.img\.bz2$ && "${image_url##*/}" == *-nano-* ]] || die "IMAGE_URL must be an https:// URL of an OPNsense nano .img.bz2 file"
   [[ "$image_checksum" =~ ^[0-9a-f]{64}$ ]] || die "IMAGE_CHECKSUM must be 64 lowercase hexadecimal characters"
   : "${PROXMOX_ENDPOINT:?}" "${PROXMOX_API_TOKEN:?}"
-  [ -z "$seed_vlans" ] || [[ "$seed_vlans" =~ ^[0-9]+(,[0-9]+)*$ ]] || die "SEED_VLANS must be comma-separated VLAN tags, such as 20,25,40,50,55,30"
+  [ -z "$seed_vlans" ] || [[ "$seed_vlans" =~ ^[0-9]+(,[0-9]+)*$ ]] || die "SEED_VLANS must be comma-separated VLAN tags, such as 20,25,30,35,40,45,50,55,60"
   local t tools=(openssl xmllint sfdisk mformat python3 "$tofu") node_tools="python3 curl openssl pvesh bunzip2"
   [ "$upload_image" != 1 ] || tools+=(curl bunzip2)
   for t in "${tools[@]}"; do

@@ -1,0 +1,71 @@
+This PR contains the following updates:
+
+| Package | Type | Update | Change |
+|---|---|---|---|
+| [alpine](https://hub.docker.com/_/alpine) ([source](https://redirect.github.com/alpinelinux/docker-alpine)) |  | pinDigest |  → `294b683` |
+| [alpine](https://hub.docker.com/_/alpine) ([source](https://redirect.github.com/alpinelinux/docker-alpine)) | final | pinDigest |  → `294b683` |
+| [amazon/aws-cli](https://redirect.github.com/aws/aws-cli) |  | pinDigest |  → `733d5be` |
+| [busybox](https://hub.docker.com/_/busybox) ([source](https://redirect.github.com/docker-library/busybox)) | final | pinDigest |  → `ea2b991` |
+| [busybox](https://hub.docker.com/_/busybox) ([source](https://redirect.github.com/docker-library/busybox)) | stage | pinDigest |  → `ea2b991` |
+| [caddy](https://hub.docker.com/_/caddy) ([source](https://redirect.github.com/caddyserver/caddy)) | final | pinDigest |  → `685ae3d` |
+| [caddy](https://hub.docker.com/_/caddy) ([source](https://redirect.github.com/caddyserver/caddy)) | stage | pinDigest |  → `d842fac` |
+| [crazymax/diun](https://redirect.github.com/crazy-max/diun) |  | pinDigest |  → `e324b79` |
+| [curlimages/curl](https://redirect.github.com/curl/curl-container) |  | pinDigest |  → `a134550` |
+| geerlingguy/docker-ubuntu2604-ansible | final | pinDigest |  → `93834d9` |
+| ghcr.io/11notes/kms |  | pinDigest |  → `0eb71ba` |
+| ghcr.io/11notes/kms-gui |  | pinDigest |  → `f3d9365` |
+| [ghcr.io/alam00000/bentopdf-simple](https://redirect.github.com/alam00000/bentopdf) |  | pinDigest |  → `3d62b8f` |
+| [ghcr.io/bluemap-minecraft/bluemap](https://redirect.github.com/BlueMap-Minecraft/BlueMap) |  | pinDigest |  → `bb49bfd` |
+| [ghcr.io/chrislusf/seaweedfs](https://redirect.github.com/seaweedfs/seaweedfs) |  | pinDigest |  → `4e61d15` |
+| [ghcr.io/henrygd/beszel/beszel](https://redirect.github.com/henrygd/beszel) |  | pinDigest |  → `020d80f` |
+| [ghcr.io/henrygd/beszel/beszel-agent](https://redirect.github.com/henrygd/beszel) |  | pinDigest |  → `00612f3` |
+| [ghcr.io/imputnet/cobalt](https://redirect.github.com/imputnet/cobalt) |  | pinDigest |  → `63186dd` |
+| [ghcr.io/itzg/mc-backup](https://redirect.github.com/itzg/docker-mc-backup) |  | pinDigest |  → `1943652` |
+| ghcr.io/itzg/minecraft-server |  | pinDigest |  → `ed3fac8` |
+| [ghcr.io/librespeed/speedtest](https://redirect.github.com/librespeed/speedtest) |  | pinDigest |  → `af011d4` |
+| [ghcr.io/lissy93/dashy](https://dashy.to) ([source](https://redirect.github.com/lissy93/dashy)) |  | pinDigest |  → `a877dd3` |
+| [ghcr.io/lldap/lldap](https://redirect.github.com/lldap/lldap) |  | pinDigest |  → `d75762d` |
+| ghcr.io/mermaid-js/mermaid-cli/mermaid-cli |  | pinDigest |  → `2c5d273` |
+| [ghcr.io/offen/docker-volume-backup](https://offen.github.io/docker-volume-backup/) ([source](https://redirect.github.com/offen/docker-volume-backup)) |  | pinDigest |  → `e1da571` |
+| [ghcr.io/renovatebot/renovate](https://renovatebot.com) ([source](https://redirect.github.com/renovatebot/renovate)) |  | pinDigest |  → `b78172f` |
+| [ghcr.io/shlinkio/shlink](https://redirect.github.com/shlinkio/shlink) |  | pinDigest |  → `844e1f2` |
+| [ghcr.io/shlinkio/shlink-web-client](https://redirect.github.com/shlinkio/shlink-web-client) |  | pinDigest |  → `dc8bf35` |
+| [ghcr.io/tecnativa/docker-socket-proxy](https://redirect.github.com/Tecnativa/docker-socket-proxy) |  | pinDigest |  → `1f5038b` |
+| [ghcr.io/tinyauthapp/tinyauth](https://redirect.github.com/tinyauthapp/tinyauth) |  | pinDigest |  → `220aa23` |
+| [ghcr.io/wenenhoe/caddy-digitalocean](https://caddyserver.com) ([source](https://redirect.github.com/caddyserver/caddy-docker)) |  | pinDigest |  → `07b04ae` |
+| ghcr.io/wenenhoe/wastebin |  | pinDigest |  → `3207520` |
+| louislam/uptime-kuma |  | pinDigest |  → `5db97db` |
+| [openbao/openbao](https://openbao.org) ([source](https://redirect.github.com/openbao/openbao)) |  | pinDigest |  → `6d2b938` |
+| [quxfoo/wastebin](https://redirect.github.com/matze/wastebin) | stage | pinDigest |  → `842f695` |
+| [rclone/rclone](https://redirect.github.com/rclone/rclone) |  | pinDigest |  → `2687085` |
+| smallstep/step-ca |  | pinDigest |  → `a2b1787` |
+| smallstep/step-cli |  | pinDigest |  → `107e849` |
+| [ubuntu](https://hub.docker.com/_/ubuntu) ([source](https://git.launchpad.net/cloud-images/+oci/ubuntu-base)) | final | pinDigest |  → `c098726` |
+| [ubuntu](https://hub.docker.com/_/ubuntu) ([source](https://git.launchpad.net/cloud-images/+oci/ubuntu-base)) | stage | pinDigest |  → `c098726` |
+| [ubuntu/bind9](https://redirect.github.com/canonical/bind9-rock) |  | pinDigest |  → `839de83` |
+
+---
+
+### Configuration
+
+📅 **Schedule**: (in timezone Asia/Singapore)
+
+- Branch creation
+  - Between 12:00 AM and 05:59 AM, only on Monday and Thursday (`* 0-5 * * 1,4`)
+- Automerge
+  - At any time (no schedule defined)
+
+🚦 **Automerge**: Disabled by config. Please merge this manually once you are satisfied.
+
+♻ **Rebasing**: Whenever PR becomes conflicted, or you tick the rebase/retry checkbox.
+
+👻 **Immortal**: This PR will be recreated if closed unmerged. Get [config help](https://redirect.github.com/renovatebot/renovate/discussions) if that's undesired.
+
+---
+
+ - [ ] <!-- rebase-check -->If you want to rebase/retry this PR, check this box
+
+---
+
+This PR has been generated by [Mend Renovate CLI](https://redirect.github.com/renovatebot/renovate).
+<!--renovate-debug:eyJjcmVhdGVkSW5WZXIiOiI0NC4xNjAuMCIsInVwZGF0ZWRJblZlciI6IjQ0LjE2MC4wIiwidGFyZ2V0QnJhbmNoIjoibWFpbiIsImxhYmVscyI6W119-->

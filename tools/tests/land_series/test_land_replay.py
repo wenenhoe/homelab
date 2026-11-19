@@ -12,7 +12,7 @@ import pytest
 from _series_repo import Author, Repo, git, series_file
 from land_series import __main__ as cli
 from land_series.manifest import Layer, order_layers, parse_series
-from land_series.replay import PULL_BASE, Check, ReplayError, replay, stopped_by
+from land_series.replay import PULL_BASE, Check, ReplayError, TipCheck, replay, stopped_by
 
 # Appends one line per run to the log: each named file's contents, with newlines shown as "/", so a test reads back the tree a check saw.
 RECORD = (
@@ -458,3 +458,101 @@ def test_a_commit_that_widens_a_scope_and_one_that_uses_it_in_the_same_pull_requ
     replay(repo.path, layers, [recording_check(PULL_BASE, script=CHANGED_SINCE_BASE)], Confirmations(False), base="main")
 
     assert log.read_text().splitlines() == ["scope.txt", "b.txt,scope.txt"]
+
+
+# A gate and a run command that stand in for the filter and the unit tests: the gate reads `gate.txt` from the tree, the run appends a line to the log.
+RECORD_RANGE = (
+    "import os, subprocess, sys\n"
+    "names = subprocess.run(['git', 'diff', '--name-only', sys.argv[1], 'HEAD'], capture_output=True, text=True, check=True).stdout.split()\n"
+    "open(os.environ['LAND_LOG'], 'a').write(','.join(names) + chr(10))\n"
+    "print('python_unit_tests=false')\n"
+)
+GATE = "import pathlib\nprint('python_unit_tests=' + pathlib.Path('gate.txt').read_text().strip())\n"
+RUN = "import os, pathlib\nopen(os.environ['LAND_LOG'], 'a').write(pathlib.Path('a.txt').read_text().strip() + chr(10))\n"
+
+
+def tip_check(run_script: str = RUN, gate_script: str = GATE) -> TipCheck:
+    return TipCheck(Check((sys.executable, "-c", gate_script)), Check((sys.executable, "-c", run_script)))
+
+
+def test_a_tip_check_runs_once_per_pull_request_on_its_last_commit(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(
+        ("0001a", author.patch("docs: write a", {"a.txt": "one\n", "gate.txt": "true\n"})),
+        ("0001b", author.patch("docs: write b", {"a.txt": "two\n"})),
+        ("0002a", author.patch("docs: write c", {"a.txt": "three\n"})),
+    )
+
+    replay(repo.path, layers, [], Confirmations(False), base="main", tip_checks=[tip_check()])
+
+    assert log.read_text().splitlines() == ["two", "three"]
+
+
+def test_a_tip_check_whose_gate_is_false_is_skipped_and_says_so(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(("0001a", author.patch("docs: write a", {"a.txt": "one\n", "gate.txt": "false\n"})))
+    said: list[str] = []
+
+    replay(repo.path, layers, [], Confirmations(False), base="main", progress=said.append, tip_checks=[tip_check()])
+
+    assert not log.exists()
+    assert any("skipped, CI would not run it" in line for line in said)
+
+
+def test_a_failing_tip_check_stops_the_replay_on_the_commit_and_quotes_its_output(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(
+        ("0001a", author.patch("docs: write a", {"a.txt": "one\n", "gate.txt": "true\n"})),
+        ("0002a", author.patch("docs: write b", {"a.txt": "two\n"})),
+    )
+    failing = tip_check("import sys\nprint('3 failed', file=sys.stderr)\nsys.exit(1)\n")
+
+    with pytest.raises(ReplayError, match=r"(?s)commit 0001a fails `.*`:\n3 failed"):
+        replay(repo.path, layers, [], Confirmations(False), base="main", tip_checks=[failing])
+
+    assert len(repo.worktrees()) == 1
+
+
+@pytest.mark.parametrize("gate_script", ["import sys\nsys.exit(1)\n", "print('unrelated')\n"], ids=["exits non-zero", "prints no verdict"])
+def test_a_gate_that_cannot_decide_stops_the_replay_instead_of_skipping_the_tests(repo: Repo, author: Author, log: Path, gate_script: str) -> None:
+    layers = layers_of(("0001a", author.patch("docs: write a", {"a.txt": "one\n"})))
+
+    with pytest.raises(ReplayError, match="cannot tell whether"):
+        replay(repo.path, layers, [], Confirmations(False), base="main", tip_checks=[tip_check(gate_script=gate_script)])
+
+    assert not log.exists()
+
+
+def test_the_gate_sees_the_range_from_the_pull_requests_base_to_its_last_commit(repo: Repo, author: Author, log: Path) -> None:
+    layers = layers_of(
+        ("0001a", author.patch("docs: write a", {"a.txt": "a\n"})),
+        ("0002a", author.patch("docs: write b", {"b.txt": "b\n"})),
+        ("0002b", author.patch("docs: write c", {"c.txt": "c\n"})),
+    )
+    gate = TipCheck(
+        Check((sys.executable, "-c", RECORD_RANGE, PULL_BASE)),
+        Check((sys.executable, "-c", "pass")),
+    )
+
+    replay(repo.path, layers, [], Confirmations(False), base="main", tip_checks=[gate])
+
+    assert log.read_text().splitlines() == ["a.txt", "b.txt,c.txt"]
+
+
+def test_the_default_tip_check_runs_the_unit_tests_as_ci_does_when_the_filter_is_true() -> None:
+    (tip,) = cli.default_tip_checks()
+
+    assert tip.gate.argv[-3:] == ("--base", PULL_BASE, "python_unit_tests")
+    assert tip.gate.cwd == "tools"
+    assert tip.run.argv[:4] == ("uv", "run", "pytest", "ansible/tests/")
+    assert "tools/tests/" in tip.run.argv
+
+
+def test_a_command_line_check_replaces_the_default_tip_checks(repo: Repo, author: Author, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    series = tmp_path / "series.txt"
+    series.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+    seen: list[object] = []
+    monkeypatch.setattr(cli, "replay", lambda *args, **kwargs: seen.append(kwargs["tip_checks"]) or [])
+
+    cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--dry-run", "--check", f"{sys.executable} -c pass"])
+    cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--dry-run"])
+
+    assert seen[0] == []
+    assert len(seen[1]) == 1

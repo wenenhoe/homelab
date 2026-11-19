@@ -4,7 +4,8 @@ Replay the series in FILE... (several files make one series) on a scratch worktr
 checks after every commit, then keep a local branch per pull request for review (`--dry-run` keeps none). `--land` pushes the
 kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
 confirms every merge). Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
-(the base for the first), and `pre-commit run --all-files`; hooks to skip are named in SKIP in the environment, which the apply hooks read too.
+(the base for the first), and `pre-commit run --all-files`; at each pull request's last commit the Python unit tests run as well, when CI's
+`python_unit_tests` filter is true for the pull request. Hooks to skip are named in SKIP in the environment, which the apply hooks read too.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from land_series.kept import KeptError, branch_of, keep, leftovers
 from land_series.land import Landed, LandError, fetch, land
 from land_series.live import LiveBlock
 from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_series
-from land_series.replay import PULL_BASE, Check, ReplayError, replay
+from land_series.replay import PULL_BASE, Check, ReplayError, TipCheck, replay
 from land_series.run import CommandError
 
 DEFAULT_BASE = "origin/main"
@@ -32,6 +33,12 @@ def default_checks() -> list[Check]:
         Check(("uv", "run", "python", "-m", "doc_scripts.check_project_scope", "--base", PULL_BASE), cwd="tools"),
         Check(("pre-commit", "run", "--all-files")),
     ]
+
+
+def default_tip_checks() -> list[TipCheck]:
+    """The Python unit tests, as CI's `python-unit-tests` job runs them, once at each pull request's last commit and only when its filter is true."""
+    gate = Check(("uv", "run", "python", "-m", "ci.scope.filter_scope", "--base", PULL_BASE, "python_unit_tests"), cwd="tools")
+    return [TipCheck(gate, Check(("uv", "run", "pytest", "ansible/tests/", "tools/tests/", "-n", "auto", "--dist", "worksteal")))]
 
 
 def ask(layer: Layer, paths: Sequence[str]) -> bool:
@@ -91,7 +98,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return report(landed)
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks()
-        results = replay(args.repo, layers, checks, ask, base=args.base, progress=say, display=display)
+        tip_checks = [] if args.check else default_tip_checks()
+        results = replay(args.repo, layers, checks, ask, base=args.base, progress=say, display=display, tip_checks=tip_checks)
         kept = [] if args.dry_run else keep(args.repo, results)
     except LandError as error:
         report(error.landed)

@@ -65,9 +65,10 @@ The list declares the six zones of the gateway's play, each with a canary at hos
 | `<zone>-internet-https`, `isolated-internet-denied` | Every zone | Port 443 on an outside address connects from every zone that has Internet, and not from the isolated zone |
 | `<from>-to-<to>-canary-denied` | Every ordered pair of zones | No canary reaches another zone's canary on 22: the default-deny between zones, stated for each pair |
 | `services-security-vault`, `<zone>-to-security-vault-denied` | Services, then the other four | The secrets store's port connects from inside its own zone and from no other zone's canary |
+| `desktops-proxmox-node-ssh`, `desktops-proxmox-node-api`, `dmz-to-proxmox-node-ssh-denied`, `dmz-to-proxmox-node-api-denied` | Desktops, then the DMZ | The node's SSH and API ports connect from the desktops canary and from no DMZ host: the DMZ's rules deny every private range, and the node's management address is inside one. The allow flows are the denies' controls, so the denies pass only where the play admits the desktops canary as an operator host and the node answers the gateway's WAN address ([the DMZ probe](scratch-gateway-runs.md#the-dmz-probe)) |
 | `desktops-play-minecraft`, `desktops-services-kms`, and a `<zone>-to-…-denied` for each other zone without the host | Desktops, then the zones without the host | The Minecraft port on `play` and the KMS port on `services` connect from the desktops zone and from no other. They carry the `listener` tag, because they pass only while something listens on the host |
 
-A flow carries its source zone as a tag, so `--tag services` runs the flows of the services canary alone. A deny whose control is tried from another zone's canary is tagged `cross-zone` and runs only once both canaries exist.
+A flow carries its source zone as a tag, so `--tag services` runs the flows of the services canary alone. A deny whose control is tried from another zone's canary is tagged `cross-zone` and runs only once both canaries exist. A flow to the Proxmox node carries the `node` tag and no zone's, since it passes only on a gateway whose play admits the canary to the node.
 
 What the list does not hold yet:
 

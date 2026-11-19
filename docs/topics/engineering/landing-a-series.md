@@ -15,6 +15,7 @@ uv run python -m land_series SERIES.series --repo .. --land     # push, open, wa
 One plain-text `.series` file, or several: the tool takes more than one and reads them as one series.
 
 - A **manifest**: one line per patch, `<id> <slug>`, then a blank line. The id is four digits and a letter (`0007a`).
+- Optionally, in the manifest, a `# base: <branch>` comment line (`# base: develop`) naming the branch the series lands on, so the choice travels with the file. `--base` overrides it, files that name different bases are refused, and a series with neither lands on `main`. [`branching.md`](branching.md#choosing-the-branch-for-a-change) says which branch a change belongs on; the maintainer runs the command, so the choice stays theirs.
 - Then the patches, a single mbox of `git format-patch` messages in the manifest's order. Write them as plain `git format-patch` output: ordinary `diff --git` headers, readable paths, and no encoded or binary bodies, so each patch can be read in full before it is replayed, which the stop list below relies on.
 
 A number is a pull request and each letter is a commit in it. Commits that share a number share a slug, and a slug belongs to one number; the tool refuses anything else. Pull requests land in number order. A slug is lowercase kebab-case, and `main`, `maintenance` and `develop` are refused. A slug is not reused from an earlier series: it is the name of the pull request's branch. Keep a pull request to a few commits that each stand alone: a squash would lose each change's blame, and a long list is noise. The first commit's subject is the pull request's title.
@@ -46,7 +47,7 @@ A branch kept by an earlier run is replaced when its record still matches; one t
 
 Each pull request becomes a merge commit, so one reverts alone. A merge to `main` is a deploy ([`branching.md`](branching.md)).
 
-`--base develop` lands on `origin/develop` instead of `origin/main`; the replay, the kept branches and the merges all use that base.
+`--base develop`, or `# base: develop` in the series file, lands on `origin/develop` instead of `origin/main`; the replay, the kept branches and the merges all use that base.
 
 ## Failures and the network
 

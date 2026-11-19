@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from _series_repo import Author, series_file
-from land_series.manifest import Layer, SeriesError, group_pulls, order_layers, parse_series
+from land_series.manifest import Layer, SeriesError, group_pulls, order_layers, parse_base, parse_series
 
 
 def layer(layer_id: str, slug: str | None = None, source: str = "series") -> Layer:
@@ -88,3 +88,39 @@ def test_layers_from_several_files_land_in_id_order() -> None:
 def test_layers_that_cannot_be_ordered_are_refused(layers: list[Layer], message: str) -> None:
     with pytest.raises(SeriesError, match=message):
         order_layers(layers)
+
+
+def with_manifest_lines(author: Author, *lines: str) -> bytes:
+    return "".join(f"{line}\n" for line in lines).encode() + series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))])
+
+
+def test_a_base_line_in_the_manifest_names_the_branch(author: Author) -> None:
+    data = with_manifest_lines(author, "# a note", "#   base:   develop  ")
+
+    assert parse_base(data) == "develop"
+    assert [item.id for item in parse_series(data)] == ["0001a"]
+
+
+def test_a_manifest_without_a_base_line_names_none(author: Author) -> None:
+    assert parse_base(with_manifest_lines(author, "# base is not named here")) is None
+
+
+def test_the_same_base_named_twice_is_one_base(author: Author) -> None:
+    assert parse_base(with_manifest_lines(author, "# base: develop", "# base: develop")) == "develop"
+
+
+def test_two_different_bases_in_one_manifest_are_refused(author: Author) -> None:
+    with pytest.raises(SeriesError, match="more than one base"):
+        parse_base(with_manifest_lines(author, "# base: develop", "# base: main"))
+
+
+@pytest.mark.parametrize("line", ["# base:", "# base: two words", "# base: -x", "# base: a;b"])
+def test_a_base_line_that_is_not_a_branch_name_is_refused(author: Author, line: str) -> None:
+    with pytest.raises(SeriesError, match="is not a branch name"):
+        parse_base(with_manifest_lines(author, line))
+
+
+def test_a_base_line_inside_a_patch_is_not_read(author: Author) -> None:
+    patch = author.patch("docs: note", {"a.txt": "# base: develop\n"})
+
+    assert parse_base(series_file([("0001a write-one", patch)])) is None

@@ -169,6 +169,8 @@ change are real changes. Everything not named above keeps its path-based trigger
 comment-only change (a comment can be a `# noqa`, `# yamllint disable`
 or `#trivy:ignore`).
 
+`tools/ci/scope/filter_scope.py` runs the same two steps (match, then keep the filter true only for a real change) on a local range of commits: `python -m ci.scope.filter_scope --base REV python_unit_tests` prints `<filter>=true|false`. [`land_series`](../landing-a-series.md#replay) uses it to run the unit tests only for a pull request CI would run them for. It matches globs with `pathlib`'s `full_match`, not paths-filter, so a glob that needs more than `*` and `**` has to be checked there.
+
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own — so a change there queues only the
 roles whose watch set contains that file. Three fail-safes always queue

@@ -33,7 +33,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Retire VM 401's copies: revoke its AppRole secret and its push credential, and delete the file cache, shared SSH key, Tofu and Proxmox credentials, and any OpenBao token | Not started | Each is revoked or deleted, and the PR lists what was checked |
-| 2 | Decommission VM 401. Tofu's state is already held by a remote backend ([`state-and-credentials.md`](../topics/infra/tofu/state-and-credentials.md)), so destroying the VM loses none of it | Not started | The VM is destroyed and `vm-provisioning.md` no longer lists a workstation in the 4XX range |
+| 2 | Decommission VM 401. Tofu's state is already held by a remote backend ([`state-and-credentials.md`](../topics/infra/tofu/state-and-credentials.md)), so destroying the VM loses none of it | Not started | The VM is destroyed and `vm-provisioning.md` no longer lists a workstation in the 4XX range, and the pass rule on the gateway's untagged LAN that admits VM 401 to its GUI port is removed in the GUI |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

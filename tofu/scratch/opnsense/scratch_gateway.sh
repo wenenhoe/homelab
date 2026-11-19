@@ -39,7 +39,9 @@ wan_bridge=${WAN_BRIDGE:-vmbr1}
 want_version=${WANT_VERSION:-26.1.11}
 local_port=${LOCAL_PORT:-8443}
 tofu=${TOFU:-tofu}
-# The seed gives the gateway this LAN address, and the node takes another on the same bridge.
+# The seed gives the gateway this LAN address, and the node takes another on the same bridge. The seed admits the
+# node's address, and no other host on the LAN, to the gateway's GUI port: the update, the tunnel and the play's
+# first apply all arrive from it.
 lan_ip=192.168.77.1
 node_ip=192.168.77.10
 state=$out/scratch.env
@@ -171,7 +173,7 @@ up() {
     stage_image
     export TF_VAR_image_volume_id=$store:import/$image_name
   fi
-  "$mod/seed/build_seed.sh" "$out/seed" --lan-ip "$lan_ip" --credentials "$creds" --wan-dhcp-hostname opn-scratch ${seed_vlans:+--vlans "$seed_vlans"} > "$out/build-seed.txt"
+  "$mod/seed/build_seed.sh" "$out/seed" --lan-ip "$lan_ip" --credentials "$creds" --operator-host "$node_ip" --wan-dhcp-hostname opn-scratch ${seed_vlans:+--vlans "$seed_vlans"} > "$out/build-seed.txt"
   local rd attempt
   rd=$(node "mktemp -d /tmp/opn-scratch.XXXXXX")
   printf 'vmid=%q\nlan_bridge=%q\nnode_dir=%q\nlocal_port=%q\nimage_volume=%q\nimage_file=%q\nimage_url=%q\nimage_checksum=%q\n' \

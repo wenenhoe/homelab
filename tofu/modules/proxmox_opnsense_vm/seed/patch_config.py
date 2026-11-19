@@ -2,7 +2,9 @@
 """Turn OPNsense's sample config.xml into the gateway's seed configuration.
 
 Assigns the WAN and LAN devices and the LAN address, turns IPv6 off, puts a one-time password in front of the GUI login, adds one VLAN device and
-interface per VLAN on the LAN device, sets the hostname and domain, keeps the serial port as the console, gives root a password and adds one
+interface per VLAN on the LAN device, sets the hostname, domain and time zone, keeps the serial port as the console, turns anti-lockout off and
+limits the GUI's listeners to the LAN and the VLAN interfaces, replaces the sample's allow-all LAN rules with one rule admitting the operator
+hosts to the GUI port, gives root a password and adds one
 API user whose key and secret are stored the way OPNsense stores them (the
 secret as a SHA-512 crypt hash, see ApiKeyField::add in opnsense/core).
 
@@ -43,6 +45,12 @@ API_PRIVILEGES = (
     "page-services-unbound",  # api/unbound/*: the forwards
 )
 DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
+# The inventory's server_timezone, which a test pins this to.
+DEFAULT_TIMEZONE = "Asia/Singapore"
+# The only way onto the gateway before its first apply has written the guard rule: a legacy rule, which the API
+# neither lists nor removes, so it stays until someone removes it in the GUI.
+BOOTSTRAP_RULE_DESCRIPTION = "bootstrap: operator hosts to the GUI port on the untagged LAN"
+MANAGEMENT_PORT = "443"
 BASE = Path(__file__).with_name("config.xml.sample")
 # One VLAN per block of 50 VMIDs (vlan_id = vmid // 50 * 5), each a /24 whose
 # third octet is the tag and whose gateway address is .1. They are in ascending
@@ -159,6 +167,39 @@ def add_vlans(root: ET.Element, lan_if: str, lan_ip: str, lan_prefix: str, tags:
     root.insert(list(root).index(interfaces) + 1, vlans)
 
 
+def add_bootstrap_rules(root: ET.Element, lan_ip: str, lan_prefix: str, operator_hosts: Sequence[str]) -> None:
+    """Replace the sample's allow-all LAN rules with a pass rule per operator host, to the gateway's GUI port.
+
+    Anti-lockout is off and the sample's rules are gone, so no other host on the untagged LAN reaches the
+    management ports. The rule is on the LAN only: the zone interfaces are reached through the guard rule.
+    """
+    if not operator_hosts:
+        raise SystemExit("name at least one operator host: a seed that admits nobody leaves only the console")
+    lan_net = ipaddress.ip_network(f"{lan_ip}/{lan_prefix}", strict=False)
+    for host in operator_hosts:
+        try:
+            address = ipaddress.IPv4Address(host)
+        except ValueError:
+            raise SystemExit(f"an operator host is an IPv4 address, got {host!r}") from None
+        if address not in lan_net or address in (ipaddress.IPv4Address(lan_ip), lan_net.network_address, lan_net.broadcast_address):
+            raise SystemExit(f"operator host {host} is not a host address on the LAN network {lan_net}")
+    if len(set(operator_hosts)) != len(operator_hosts):
+        raise SystemExit(f"an operator host is named twice: {list(operator_hosts)}")
+    filter_el = root.find("filter")
+    remove(filter_el, "rule")
+    for host in operator_hosts:
+        rule = ET.SubElement(filter_el, "rule")
+        set_text(rule, "type", "pass")
+        set_text(rule, "ipprotocol", "inet")
+        set_text(rule, "descr", f"{BOOTSTRAP_RULE_DESCRIPTION} ({host})")
+        set_text(rule, "interface", "lan")
+        set_text(rule, "protocol", "tcp")
+        set_text(ET.SubElement(rule, "source"), "address", host)
+        destination = ET.SubElement(rule, "destination")
+        set_text(destination, "network", "(self)")
+        set_text(destination, "port", MANAGEMENT_PORT)
+
+
 def build_seed(
     base: Path,
     creds: dict[str, str],
@@ -171,6 +212,8 @@ def build_seed(
     domain: str,
     api_user: str,
     wan_dhcp_hostname: str | None,
+    operator_hosts: Sequence[str],
+    timezone: str = DEFAULT_TIMEZONE,
     vlans: Sequence[int] = DEFAULT_VLANS,
 ) -> ET.ElementTree:
     tree = ET.parse(base)  # noqa: S314 - the sample configuration shipped beside this script
@@ -179,6 +222,7 @@ def build_seed(
 
     set_text(system, "hostname", hostname)
     set_text(system, "domain", domain)
+    set_text(system, "timezone", timezone)
 
     # Root keeps its group and uid; only the password changes.
     for user in system.findall("user"):
@@ -236,6 +280,13 @@ def build_seed(
     remove(lan, "ipaddrv6", "subnetv6", "track6-interface", "track6-prefix-id")
     add_vlans(root, lan_if, lan_ip, lan_prefix, vlans)
 
+    # Management reach: the GUI and API listen on the LAN and the VLAN interfaces only (never the WAN), the gateway
+    # admits no host to them by default, and the guard rule and the bootstrap rule below are the only admissions.
+    webgui = system.find("webgui")
+    set_text(webgui, "noantilockout", "1")
+    set_text(webgui, "interfaces", ",".join(["lan", *(f"opt{n}" for n in range(1, len(vlans) + 1))]))
+    add_bootstrap_rules(root, lan_ip, lan_prefix, operator_hosts)
+
     ET.indent(tree, space="  ")
     return tree
 
@@ -253,6 +304,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--hostname", default="OPNsense")
     ap.add_argument("--domain", default="internal", help="with the hostname, the management name the play verifies the GUI certificate for")
     ap.add_argument("--api-user", default="ansible")
+    ap.add_argument("--timezone", default=DEFAULT_TIMEZONE, help="the gateway's time zone")
+    ap.add_argument(
+        "--operator-host",
+        action="append",
+        required=True,
+        dest="operator_hosts",
+        help="an address on the LAN network that may reach the GUI port before the play's first apply; repeat for each",
+    )
     ap.add_argument("--wan-dhcp-hostname", help="the name the WAN's DHCP lease is registered under; the sample's empty value when omitted")
     a = ap.parse_args(argv)
 
@@ -272,6 +331,8 @@ def main(argv: list[str] | None = None) -> int:
         domain=a.domain,
         api_user=a.api_user,
         wan_dhcp_hostname=a.wan_dhcp_hostname,
+        operator_hosts=a.operator_hosts,
+        timezone=a.timezone,
         vlans=vlans,
     )
     tree.write(a.out, encoding="UTF-8", xml_declaration=True)

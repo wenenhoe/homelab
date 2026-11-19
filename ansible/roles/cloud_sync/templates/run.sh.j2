@@ -39,7 +39,15 @@ while read -r src_bucket path target_remote target_bucket max_age max_transfer; 
   # --immutable makes a source object that differs from the one already in
   # the cloud fail the job instead of replacing it. Archive names are never
   # reused (BACKUP_FILENAME in backup_agent), so an ordinary run never trips it.
-  if ! rclone copy --immutable "$@" "seaweedfs:${src_bucket}/${path}" "${target_remote}:${target_bucket}/${path}"; then
+  #
+  # The three bounds below keep a provider that accepts connections and then
+  # stalls from holding the run: rclone's defaults (60s to connect, 5m idle,
+  # 10 low-level retries, 3 attempts) let one job wait for hours while every
+  # job after it waits behind it. --timeout is an idle limit, so a long upload
+  # that keeps moving is not cut off, and it also bounds the wait for each
+  # response, so it stays at 2m rather than tighter. The retries that remain
+  # still absorb a brief fault.
+  if ! rclone copy --immutable --contimeout 20s --timeout 2m --low-level-retries 4 "$@" "seaweedfs:${src_bucket}/${path}" "${target_remote}:${target_bucket}/${path}"; then
     echo "FAILED: seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}" >&2
     overall_status=1
   fi

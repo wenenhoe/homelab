@@ -51,7 +51,7 @@ Exactly one of the two ways must be given, and the plan fails otherwise.
 
 ## Seed disk
 
-`seed/build_seed.sh OUTPUT_DIR --lan-ip ADDRESS` writes `OUTPUT_DIR/seed.img`, the
+`seed/build_seed.sh OUTPUT_DIR --lan-ip ADDRESS --operator-host ADDRESS` writes `OUTPUT_DIR/seed.img`, the
 file the module's `seed_image_path` takes. It needs `python3`, `openssl`, `sfdisk`,
 mtools and `xmllint`. It starts from OPNsense's own sample `config.xml`
 (`seed/SAMPLE_SOURCE.txt` names its release) and sets:
@@ -62,11 +62,16 @@ mtools and `xmllint`. It starts from OPNsense's own sample `config.xml`
 | LAN address | `--lan-ip` |
 | VLANs | A device `vlan0.<tag>` on the LAN device for each tag of `--vlans` (20, 30, 40, 50 and 60 unless overridden), with an interface at `192.168.<tag>.1/24` |
 | Hostname and domain | Domain `OPNsense.internal` unless overridden: the name the play verifies the GUI certificate for |
+| Time zone | `--timezone`, `Asia/Singapore` by default, the inventory's `server_timezone` |
+| Management reach | Anti-lockout off, so the gateway admits no host to the GUI, API and SSH ports unless a rule does. The GUI and API listen on the LAN and the VLAN interfaces, never the WAN |
+| LAN rules | The sample's two allow-all rules are removed. One pass rule per `--operator-host` (an address in the LAN network, one or more, required) admits that host to the gateway's port 443 on the LAN, and nothing else is admitted there |
 | Console | The serial port |
 | IPv6 | Off: no system-wide allowance and no IPv6 address method on the WAN or LAN |
 | Root password | Set from the credentials file |
 | GUI login | A one-time password in front of it: a `TOTP` authentication server which the GUI uses, and a seed on root |
 | API user | One, holding only the privileges that cover the play's calls, the scratch update and the diagnostics (system information, firmware, aliases, filter rules, Kea DHCPv4, dnsmasq and Unbound), not `page-all` |
+
+The operator-host rule is how the play's first apply reaches the gateway, before the play has written its guard rule, which names only the zone interfaces. It is a legacy rule, so the API neither lists nor removes it: remove it in the GUI's LAN rules once no host needs the untagged LAN to reach the gateway, at the latest when VM 401 is retired.
 
 OPNsense has no option left to keep console logins off the one-time-password rule,
 so the console menu is not password-protected: whoever can open the VM's console in

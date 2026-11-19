@@ -69,12 +69,13 @@ about 4.5 GB free in the datastore.
 | A forward the play does not write, added behind its back, is reported by `--check`, removed by a run, and gone from the next `--check` | `acceptance.sh`, `stale_forward.yaml` |
 | The GUI login refuses the password alone, a wrong code and the code after the password, and accepts the code in front of it | `gui_login.py` |
 | The API key is answered on the calls the play and the update make and refused with 403 on user management, source NAT and the service list | `api_scope.py` |
+| From the node's admitted LAN address the gateway's port 443 answers and its port 22 does not; from a second address on the LAN bridge neither does | `acceptance.sh`, `management_reach.py` |
 | No credential value is in the results | `acceptance.sh` |
 
 It does not probe the flows between zones. It needs the environment of
 `scratch_gateway.sh` plus `OPERATOR` (an address in the desktops zone, default
 `192.168.40.250`, used as the play's operator host and one reservation), `ansible-playbook`,
-the pinned collection and `httpx` on the operator host, ssh to the node without a
+the pinned collection and `httpx` on the operator host, a free `192.168.77.11` on `LAN_BRIDGE` for the probe, ssh to the node without a
 prompt, and no VM with the scratch gateway's VMID. The play reaches the gateway through the ssh forward, so the run sets `opnsense_gateway_operator_not_listed_ok` and the play's check of its own source address does not apply.
 
 `OUT_DIR` must be outside the repository because it holds the credentials file. The

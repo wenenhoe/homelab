@@ -29,6 +29,7 @@ OPTIONS = {
     "domain": "internal",
     "api_user": "ansible",
     "wan_dhcp_hostname": None,
+    "operator_hosts": ["192.168.77.10"],
 }
 
 
@@ -66,7 +67,7 @@ def api_user(root: ET.Element, name: str = "ansible") -> ET.Element:
 
 class TestBuildSeed:
     def test_assigns_the_devices_and_the_lan_address(self):
-        interfaces = seed(wan_if="vtnet2", lan_if="vtnet3", lan_ip="10.9.8.1", lan_prefix="16").find("interfaces")
+        interfaces = seed(wan_if="vtnet2", lan_if="vtnet3", lan_ip="10.9.8.1", lan_prefix="16", operator_hosts=["10.9.8.10"]).find("interfaces")
 
         assert [interfaces.findtext("wan/if"), interfaces.findtext("lan/if")] == ["vtnet2", "vtnet3"]
         assert [interfaces.findtext("lan/ipaddr"), interfaces.findtext("lan/subnet")] == ["10.9.8.1", "16"]
@@ -350,7 +351,9 @@ class TestMain:
         write_credentials(credentials_path, assignments())
         out = tmp_path_factory.mktemp("out") / "config.xml"
 
-        assert patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1"]) == 0
+        assert (
+            patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--operator-host", "192.168.77.10"]) == 0
+        )
 
         written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
         assert api_user(written).findtext("apikeys/item/key") == CREDS["opnsense_api_key"]
@@ -359,7 +362,12 @@ class TestMain:
         write_credentials(credentials_path, assignments())
         out = tmp_path_factory.mktemp("out") / "config.xml"
 
-        assert patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,30"]) == 0
+        assert (
+            patch_config.main(
+                ["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--operator-host", "192.168.77.10", "--vlans", "20,30"]
+            )
+            == 0
+        )
 
         written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
         assert [v.findtext("tag") for v in written.findall("vlans/vlan")] == ["20", "30"]
@@ -368,7 +376,9 @@ class TestMain:
         out = tmp_path_factory.mktemp("out") / "config.xml"
 
         with pytest.raises(SystemExit) as stopped:
-            patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--vlans", "20,x"])
+            patch_config.main(
+                ["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--operator-host", "192.168.77.10", "--vlans", "20,x"]
+            )
 
         assert stopped.value.code == 2
         assert "--vlans" in capsys.readouterr().err
@@ -377,8 +387,96 @@ class TestMain:
         out = tmp_path_factory.mktemp("out") / "config.xml"
 
         with pytest.raises(SystemExit) as stopped:
-            patch_config.main(["--out", str(out), "--credentials", str(credentials_path)])
+            patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--operator-host", "192.168.77.10"])
 
         assert stopped.value.code == 2
         assert "--lan-ip" in capsys.readouterr().err
         assert not out.exists()
+
+    def test_an_operator_host_is_required(self, credentials_path, tmp_path_factory, capsys):
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+
+        with pytest.raises(SystemExit) as stopped:
+            patch_config.main(["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1"])
+
+        assert stopped.value.code == 2
+        assert "--operator-host" in capsys.readouterr().err
+        assert not out.exists()
+
+    def test_takes_each_operator_host_and_the_time_zone_from_the_command_line(self, credentials_path, tmp_path_factory):
+        write_credentials(credentials_path, assignments())
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+        args = ["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--timezone", "Etc/UTC"]
+
+        assert patch_config.main([*args, "--operator-host", "192.168.77.10", "--operator-host", "192.168.77.20"]) == 0
+
+        written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
+        assert written.findtext("system/timezone") == "Etc/UTC"
+        assert [r.findtext("source/address") for r in written.findall("filter/rule")] == ["192.168.77.10", "192.168.77.20"]
+
+
+class TestManagementReach:
+    def test_anti_lockout_is_off(self):
+        assert seed().findtext("system/webgui/noantilockout") == "1"
+
+    def test_the_sample_it_starts_from_keeps_anti_lockout_on_so_the_test_above_changes_something(self):
+        sample = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
+
+        assert sample.find("system/webgui/noantilockout") is None
+
+    def test_the_gui_listens_on_the_lan_and_every_vlan_interface_and_never_the_wan(self):
+        interfaces = seed().findtext("system/webgui/interfaces").split(",")
+
+        assert interfaces == ["lan", *(f"opt{n}" for n in range(1, len(patch_config.DEFAULT_VLANS) + 1))]
+        assert "wan" not in interfaces
+
+    def test_the_listeners_follow_the_vlans_given(self):
+        assert seed(vlans=[20, 30]).findtext("system/webgui/interfaces") == "lan,opt1,opt2"
+        assert seed(vlans=[]).findtext("system/webgui/interfaces") == "lan"
+
+    def test_the_samples_allow_all_lan_rules_are_gone(self):
+        sample = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
+        assert {r.findtext("destination/any") is not None for r in sample.findall("filter/rule")} == {True}
+
+        for rule in seed().findall("filter/rule"):
+            assert rule.find("destination/any") is None
+            assert rule.find("source/network") is None
+
+    def test_each_operator_host_is_admitted_to_the_gui_port_of_the_gateway_on_the_lan_and_nowhere_else(self):
+        rules = seed(operator_hosts=["192.168.77.10", "192.168.77.20"]).findall("filter/rule")
+
+        assert [r.findtext("source/address") for r in rules] == ["192.168.77.10", "192.168.77.20"]
+        for rule in rules:
+            assert (rule.findtext("type"), rule.findtext("interface"), rule.findtext("protocol")) == ("pass", "lan", "tcp")
+            assert (rule.findtext("destination/network"), rule.findtext("destination/port")) == ("(self)", "443")
+            assert rule.findtext("descr").startswith(patch_config.BOOTSTRAP_RULE_DESCRIPTION)
+
+    def test_a_seed_without_an_operator_host_is_refused(self):
+        with pytest.raises(SystemExit, match="at least one operator host"):
+            seed(operator_hosts=[])
+
+    @pytest.mark.parametrize(
+        "host",
+        ["192.168.78.10", "192.168.77.1", "192.168.77.0", "192.168.77.255", "not-an-address", "fe80::1", "192.168.77.10/32"],
+        ids=["another network", "the gateway itself", "the network address", "the broadcast address", "a name", "an IPv6 address", "a prefix"],
+    )
+    def test_an_operator_host_that_is_not_a_host_address_on_the_lan_is_refused(self, host):
+        with pytest.raises(SystemExit, match="operator host"):
+            seed(operator_hosts=[host])
+
+    def test_an_operator_host_named_twice_is_refused(self):
+        with pytest.raises(SystemExit, match="twice"):
+            seed(operator_hosts=["192.168.77.10", "192.168.77.10"])
+
+
+class TestTimeZone:
+    def test_defaults_to_the_labs_server_time_zone(self):
+        assert seed().findtext("system/timezone") == "Asia/Singapore"
+
+    def test_the_one_given_is_used(self):
+        assert seed(timezone="Etc/UTC").findtext("system/timezone") == "Etc/UTC"
+
+    def test_the_sample_it_starts_from_is_in_utc_so_the_default_changes_something(self):
+        sample = ET.parse(patch_config.BASE).getroot()  # noqa: S314 - the sample shipped beside the builder
+
+        assert sample.findtext("system/timezone") == "Etc/UTC"

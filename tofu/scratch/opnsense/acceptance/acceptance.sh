@@ -2,7 +2,8 @@
 # Builds a scratch OPNsense gateway with scratch_gateway.sh, applies the gateway's play to it and
 # checks what the play must leave behind: a second run with --check reports no change, a forward
 # the play does not write is reported by --check and removed by a run, the GUI login needs the
-# one-time code in front of the password, and the API key may make only the calls the play needs.
+# one-time code in front of the password, the API key may make only the calls the play needs, and a host
+# on the LAN that the seed does not admit reaches neither the GUI, the API nor SSH.
 # The gateway is removed on every exit path unless KEEP=1.
 # Usage: acceptance.sh OUT_DIR IMAGE_URL IMAGE_CHECKSUM
 #   OUT_DIR  a directory outside the repository; scratch_gateway.sh keeps its state and
@@ -40,6 +41,13 @@ local_port=${LOCAL_PORT:-8443}
 operator=${OPERATOR:-192.168.40.250}
 ansible=${ANSIBLE_PLAYBOOK:-ansible-playbook}
 mgmt_name=OPNsense.internal
+# As in scratch_gateway.sh: the gateway's LAN address and the node's, which the seed admits. The probe address is
+# one the seed does not name.
+lan_ip=192.168.77.1
+node_ip=192.168.77.10
+probe_ip=192.168.77.11
+lan_bridge=${LAN_BRIDGE:-vmbr9}
+probe_added=0
 forward_domains=(host.scratch.lab lan.scratch.lab)
 log=$out/run-$(date +%H%M%S)
 mkdir -p "$log"
@@ -71,6 +79,10 @@ changed() { # changed NAME: the recap line of a run says something changed
 get() { sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\".*\$/\\1/p" "$creds"; }
 # Runs once: before the summary on a full run, so a failed removal counts, and from the EXIT trap on an early exit.
 cleanup() {
+  if [ "$probe_added" = 1 ]; then
+    probe_added=0
+    node "ip addr del $probe_ip/24 dev $lan_bridge" > /dev/null 2>&1
+  fi
   if [ "$up" = 1 ] && [ "${KEEP:-0}" != 1 ]; then
     up=0
     "$scratch" down "$out" > "$log/down.txt" 2>&1
@@ -162,6 +174,13 @@ python3 -I "$here/gui_login.py" --credentials "$creds" --ca "$cert" --port "$loc
 check "the GUI login needs the one-time code in front of the password and refuses everything else" "${PIPESTATUS[0]}"
 python3 -I "$here/api_scope.py" --credentials "$creds" --ca "$cert" --port "$local_port" | tee "$log/api-scope.txt"
 check "the API key may make the calls the play needs and is refused the others" "${PIPESTATUS[0]}"
+
+# --- who may reach the management ports from the untagged LAN
+node "ip addr add $probe_ip/24 dev $lan_bridge" > "$log/probe-address.txt" 2>&1
+check "the node takes a second address on the LAN bridge for the probe" $?
+probe_added=1
+node "python3 - $lan_ip $node_ip $probe_ip" < "$here/management_reach.py" | tee "$log/management-reach.txt"
+check "only the admitted address reaches the GUI and API port, and no address reaches SSH" "${PIPESTATUS[0]}"
 
 # --- nothing in the results may hold a credential value
 leaks=$(for v in "$(get opnsense_root_password)" "$(get opnsense_root_otp_seed)" "$(get opnsense_api_key)" "$(get opnsense_api_secret)" "${PROXMOX_API_TOKEN#*=}"; do

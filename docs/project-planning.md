@@ -142,3 +142,4 @@ first, so one that has stood still is the first row.
 | [`new-system-planning.md`](explorations/new-system-planning.md) | What must be settled before a new system is added, and where is it kept? | 2026-11-18 |
 | [`services-host-split.md`](explorations/services-host-split.md) | Which of the `services` host's apps should share a host and a network? | 2026-11-18 |
 | [`node-capacity.md`](explorations/node-capacity.md) | Does the node have room for the hosts planned for it, and how is its headroom judged? | 2026-11-19 |
+| [`series-landing-throughput.md`](explorations/series-landing-throughput.md) | Can a series land faster without giving up an exact check on every layer? | 2026-11-19 |

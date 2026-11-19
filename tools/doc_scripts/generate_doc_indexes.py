@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 from doc_scripts.doc_coverage import COVERAGE_RELATIVE, render_coverage_table
-from doc_scripts.doc_explorations import last_commit_date, load_explorations
+from doc_scripts.doc_explorations import load_explorations
 from doc_scripts.doc_frontmatter import DECISION_INDEX, ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
 from doc_scripts.doc_reliance import unmet_reliances
@@ -572,17 +572,14 @@ def render_history(root: Path = ROOT, prefix: str = "decisions/") -> str:
 
 
 def render_explorations_table(root: Path = ROOT) -> str:
-    """Every open exploration with the date of its newest commit, oldest change first so a
-    stale one leads. The one place that links an exploration: nothing else may (see
-    doc_explorations.py). Renders into docs/project-planning.md, so links need the prefix."""
-    entries = []
-    for path, fm in load_explorations(root):
-        changed = last_commit_date(root, path)
-        entries.append((changed.isoformat() if changed else "", path.name, fm))
-    if not entries:
+    """Every open exploration, by file name. The one place that links an exploration: nothing else
+    may (see doc_explorations.py). Renders into docs/project-planning.md, so links need the prefix.
+    The table reads only the tree, so a rebuilt view is the same whatever the history."""
+    explorations = load_explorations(root)
+    if not explorations:
         return "No exploration is open."
-    rows = [f"| [`{name}`](explorations/{name}) | {_cell(fm['title'])} | {changed or '—'} |" for changed, name, fm in sorted(entries)]
-    header = "| Exploration | Question | Last changed |\n| :--- | :--- | :--- |"
+    rows = [f"| [`{path.name}`](explorations/{path.name}) | {_cell(fm['title'])} |" for path, fm in explorations]
+    header = "| Exploration | Question |\n| :--- | :--- |"
     return "\n".join([header, *rows])
 
 

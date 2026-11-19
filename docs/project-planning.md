@@ -55,8 +55,8 @@ revisions are listed first: one that no project names is the gap that
 calls for a project, while a working one still has to be settled.
 
 **Open explorations** lists every question in
-[`explorations/`](explorations/README.md) with the date it last changed, oldest
-first, so one that has stood still is the first row.
+[`explorations/`](explorations/README.md) by file name, with its question; it
+shows no dates, so the view depends on the tree alone.
 
 ## Roadmap
 
@@ -127,20 +127,20 @@ first, so one that has stood still is the first row.
 
 ## Open explorations
 
-| Exploration | Question | Last changed |
-| :--- | :--- | :--- |
-| [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? | 2026-11-07 |
-| [`molecule-runtime-without-host-privilege.md`](explorations/molecule-runtime-without-host-privilege.md) | Which container runtime can run the Molecule scenarios on the coding-agent host without giving the agent root there? | 2026-11-07 |
-| [`host-alert-declaration.md`](explorations/host-alert-declaration.md) | Where should a host-resource alert be declared so that a rebuilt monitor brings it back? | 2026-11-09 |
-| [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? | 2026-11-09 |
-| [`offsite-lock-settings-check.md`](explorations/offsite-lock-settings-check.md) | How could the lab notice that an off-site bucket's lock or lifecycle setting is gone or shorter than it should be? | 2026-11-10 |
-| [`cloud-credential-custody.md`](explorations/cloud-credential-custody.md) | How could the credentials that mint and revoke the cloud keys be kept away from the host that runs the secrets store? | 2026-11-11 |
-| [`post-compromise-archive-relay.md`](explorations/post-compromise-archive-relay.md) | How could the lab notice that an archive a compromised host made has been relayed offsite as if it were genuine? | 2026-11-11 |
-| [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? | 2026-11-11 |
-| [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? | 2026-11-12 |
-| [`snapshot-push-on-change.md`](explorations/snapshot-push-on-change.md) | When should the lab push an OpenBao snapshot, if not only when someone remembers to run it? | 2026-11-16 |
-| [`new-system-planning.md`](explorations/new-system-planning.md) | What must be settled before a new system is added, and where is it kept? | 2026-11-18 |
-| [`services-host-split.md`](explorations/services-host-split.md) | Which of the `services` host's apps should share a host and a network? | 2026-11-18 |
-| [`generated-views-in-commits.md`](explorations/generated-views-in-commits.md) | Do the generated doc views need to be committed with every change? | 2026-11-19 |
-| [`node-capacity.md`](explorations/node-capacity.md) | Does the node have room for the hosts planned for it, and how is its headroom judged? | 2026-11-19 |
-| [`series-landing-throughput.md`](explorations/series-landing-throughput.md) | Can a series land faster without giving up an exact check on every layer? | 2026-11-19 |
+| Exploration | Question |
+| :--- | :--- |
+| [`cloud-credential-custody.md`](explorations/cloud-credential-custody.md) | How could the credentials that mint and revoke the cloud keys be kept away from the host that runs the secrets store? |
+| [`generated-views-in-commits.md`](explorations/generated-views-in-commits.md) | Do the generated doc views need to be committed with every change? |
+| [`host-alert-declaration.md`](explorations/host-alert-declaration.md) | Where should a host-resource alert be declared so that a rebuilt monitor brings it back? |
+| [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? |
+| [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? |
+| [`molecule-runtime-without-host-privilege.md`](explorations/molecule-runtime-without-host-privilege.md) | Which container runtime can run the Molecule scenarios on the coding-agent host without giving the agent root there? |
+| [`new-system-planning.md`](explorations/new-system-planning.md) | What must be settled before a new system is added, and where is it kept? |
+| [`node-capacity.md`](explorations/node-capacity.md) | Does the node have room for the hosts planned for it, and how is its headroom judged? |
+| [`offsite-lock-settings-check.md`](explorations/offsite-lock-settings-check.md) | How could the lab notice that an off-site bucket's lock or lifecycle setting is gone or shorter than it should be? |
+| [`post-compromise-archive-relay.md`](explorations/post-compromise-archive-relay.md) | How could the lab notice that an archive a compromised host made has been relayed offsite as if it were genuine? |
+| [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? |
+| [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? |
+| [`series-landing-throughput.md`](explorations/series-landing-throughput.md) | Can a series land faster without giving up an exact check on every layer? |
+| [`services-host-split.md`](explorations/services-host-split.md) | Which of the `services` host's apps should share a host and a network? |
+| [`snapshot-push-on-change.md`](explorations/snapshot-push-on-change.md) | When should the lab push an OpenBao snapshot, if not only when someone remembers to run it? |

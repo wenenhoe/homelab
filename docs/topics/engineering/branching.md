@@ -25,6 +25,15 @@ Two facts shape the table. An approving review is not used on `main`: an approva
 
 To retire or rebuild one of the branches, turn `keep-branches` off first and back on afterwards.
 
+## Choosing the branch for a change
+
+A merge to `main` is a deploy once the CD agent is live, so the branch follows from whether the change can be deployed at that moment:
+
+- A change that is safe to deploy the moment it merges goes to `main`.
+- A change that is not goes to `develop`: one that needs a manual step first, depends on something not yet in place, or leaves production half-changed until a later change lands. It is promoted when the whole is ready.
+
+A series file records the choice with `# base: develop` in its manifest ([`landing-a-series.md`](landing-a-series.md#the-input)); with no line it lands on `main`. A series lands on one branch, so a change that has parts of both kinds is written as two series.
+
 ## Dependency updates
 
 The Renovate workflow runs daily ([`renovate.md`](ci/renovate.md)). Its first step makes `maintenance` contain `main` (a fast-forward, or a merge commit when the two have diverged), and Renovate then opens its pull requests into `maintenance`. Merge those you want; they do not deploy. When a batch is ready, promote `maintenance`.

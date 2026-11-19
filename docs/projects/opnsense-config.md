@@ -27,6 +27,7 @@ allowed_paths:
   - tools/tests/scratch_run/**
   - tools/tests/shell/build_seed.bats
   - tools/tests/shell/scratch_gateway.bats
+  - tools/tests/shell/acceptance.bats
 ---
 
 # OPNsense Gateway Configuration

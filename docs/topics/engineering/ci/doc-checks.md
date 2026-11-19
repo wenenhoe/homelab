@@ -342,7 +342,9 @@ needed no change. The trailers are read from the commits between the merge-base
 and the head, as the `Editorial-Fix:` trailer is, so a pull request merged with
 a merge commit is judged by its own commits. The scope must
 also be complete: the named-file and `sweep_terms` passes of the scope
-suggestions find nothing the scope lacks and `Not in` doesn't decline. A project
+suggestions find nothing the scope lacks and `Not in` doesn't decline. On a pull
+request those passes read a checkout of the head, so a push from another branch
+judges the same files CI does. A project
 already `building` is not re-gated, but its scope can't narrow (it narrows only
 when the project closes), and the `check-doc-change` hook on the index does not judge
 the trailer, which is written with the commit message after the hook runs.

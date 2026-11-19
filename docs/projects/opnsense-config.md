@@ -22,6 +22,11 @@ allowed_paths:
   - docs/topics/infra/tofu/opnsense-scratch-gateway.md
   - docs/topics/infra/vm-provisioning.md
   - docs/topics/services/bind9.md
+  - docs/topics/infra/scratch-gateway-runs.md
+  - tools/scratch_run/**
+  - tools/tests/scratch_run/**
+  - tools/tests/shell/build_seed.bats
+  - tools/tests/shell/scratch_gateway.bats
 ---
 
 # OPNsense Gateway Configuration

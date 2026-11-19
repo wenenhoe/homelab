@@ -20,7 +20,7 @@ from land_series.advice import kept_advice, replay_advice
 from land_series.kept import KeptError, branch_of, keep, leftovers
 from land_series.land import Landed, LandError, fetch, land
 from land_series.live import LiveBlock
-from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_series
+from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_base, parse_series
 from land_series.replay import PULL_BASE, Check, ReplayError, TipCheck, replay
 from land_series.run import CommandError
 
@@ -39,6 +39,19 @@ def default_tip_checks() -> list[TipCheck]:
     """The Python unit tests, as CI's `python-unit-tests` job runs them, once at each pull request's last commit and only when its filter is true."""
     gate = Check(("uv", "run", "python", "-m", "ci.scope.filter_scope", "--base", PULL_BASE, "python_unit_tests"), cwd="tools")
     return [TipCheck(gate, Check(("uv", "run", "pytest", "ansible/tests/", "tools/tests/", "-n", "auto", "--dist", "worksteal")))]
+
+
+def remote_branch(name: str) -> str:
+    """`develop` is `origin/develop`; a name with a slash is taken as the remote branch already."""
+    return name if "/" in name else f"{REMOTE}/{name}"
+
+
+def base_of(files: Sequence[Path]) -> str | None:
+    """The base the series files' `# base:` lines name; files that name different ones are refused."""
+    named = {path.name: base for path in files if (base := parse_base(path.read_bytes(), path.name))}
+    if len({remote_branch(base) for base in named.values()}) > 1:
+        raise SeriesError("the series files name different bases: " + ", ".join(f"{name} says {base}" for name, base in sorted(named.items())))
+    return next(iter(named.values()), None)
 
 
 def ask(layer: Layer, paths: Sequence[str]) -> bool:
@@ -71,7 +84,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="land_series", description=__doc__)
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument("--repo", type=Path, default=Path())
-    parser.add_argument("--base", default=DEFAULT_BASE, help="the branch to land on: origin/main (the default), or a name like develop for origin/develop")
+    parser.add_argument(
+        "--base",
+        help="the branch to land on, overriding the series file's `# base:` line: a name like develop for origin/develop; origin/main when neither says",
+    )
     parser.add_argument("--no-fetch", action="store_true")
     parser.add_argument("--check", action="append", default=[], metavar="COMMAND")
     parser.add_argument("--dry-run", action="store_true", help="replay and check only; leave no branches")
@@ -79,11 +95,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--yes", action="store_true", help="with --land, merge without asking after each pull request's checks pass")
     args = parser.parse_args(argv)
     display = LiveBlock(sys.stderr).show
-    if "/" not in args.base:
-        args.base = f"{REMOTE}/{args.base}"
     if args.land and args.dry_run:
         parser.error("--land lands the branches a replay kept, so it cannot be combined with --dry-run")
     try:
+        args.base = remote_branch(args.base or base_of(args.files) or DEFAULT_BASE)
         layers = order_layers([layer for path in args.files for layer in parse_series(path.read_bytes(), path.name)])
         if not args.no_fetch:
             fetch(args.repo, args.base)

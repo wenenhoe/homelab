@@ -9,7 +9,8 @@
 
 A manifest line is a patch id (four digits and a letter, the patch naming scheme) and a branch slug. The number is a pull
 request and the letter a commit in it, so the commits that share a number share one slug, and a slug belongs to one number.
-Blank lines and `#` comments are skipped. Commits land in id order, which the naming scheme keeps in step with the order they
+Blank lines and `#` comments are skipped, except a `# base: <branch>` line, which names the branch the series lands on (`develop`, say) and
+which `--base` overrides. Commits land in id order, which the naming scheme keeps in step with the order they
 were written in; a pull request's commits are its branch, in that order.
 
 Standard library only: the maintainer runs this with whatever python3 is at hand.
@@ -24,6 +25,8 @@ import re
 from dataclasses import dataclass
 
 LAYER_ID = re.compile(r"\d{4}[a-z]")
+BASE_LINE = re.compile(r"#\s*base:(.*)")
+BASE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ENVELOPE = re.compile(rb"^From [0-9a-f]{40,64} ", re.MULTILINE)
 _SUBJECT_TAG = re.compile(r"^\[[^\]]*\]\s*")
@@ -75,6 +78,22 @@ def parse_series(data: bytes, source: str = "series") -> list[Layer]:
     if len(entries) != len(chunks):
         raise SeriesError(f"{source}: the manifest lists {len(entries)} layers but the mbox holds {len(chunks)} patches")
     return [_layer(entry, chunk, source) for entry, chunk in zip(entries, chunks, strict=True)]
+
+
+def parse_base(data: bytes, source: str = "series") -> str | None:
+    """The branch a `# base: <branch>` line in the manifest names, or None when it has none; two different ones are refused."""
+    starts = [match.start() for match in _ENVELOPE.finditer(data)]
+    text = data[: starts[0] if starts else len(data)].decode("utf-8", errors="replace")
+    bases = set()
+    for number, raw in enumerate(text.splitlines(), start=1):
+        if found := BASE_LINE.fullmatch(raw.strip()):
+            name = found.group(1).strip()
+            if not BASE_NAME.fullmatch(name):
+                raise SeriesError(f"{source}:{number}: {name!r} is not a branch name; write `# base: develop`")
+            bases.add(name)
+    if len(bases) > 1:
+        raise SeriesError(f"{source}: the manifest names more than one base ({', '.join(sorted(bases))})")
+    return bases.pop() if bases else None
 
 
 def _manifest_entries(text: str, source: str) -> list[tuple[str, str]]:

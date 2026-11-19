@@ -680,6 +680,41 @@ def test_a_series_lands_on_develop_when_that_is_the_base(github: FakeGitHub, rep
     assert git(github.remote, "show", "develop:a.txt") == "one"
 
 
+def test_a_base_line_in_the_series_file_lands_it_on_that_branch(github: FakeGitHub, repo: Repo, author: Author, tmp_path) -> None:
+    git(repo.path, "push", "-q", "origin", "main:develop")
+    series = tmp_path / "series.txt"
+    series.write_bytes(b"# base: develop\n" + series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+
+    assert run(series, repo) == 0
+    assert run(series, repo, "--land", "--yes") == 0
+
+    assert github.merges_on("develop") == ["Merge pull request #1"]
+    assert github.merges_on_main() == []
+
+
+def test_the_base_flag_overrides_the_series_files_base_line(github: FakeGitHub, repo: Repo, author: Author, tmp_path) -> None:
+    git(repo.path, "push", "-q", "origin", "main:develop")
+    series = tmp_path / "series.txt"
+    series.write_bytes(b"# base: develop\n" + series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+
+    assert run(series, repo, "--base", "main") == 0
+    assert run(series, repo, "--base", "main", "--land", "--yes") == 0
+
+    assert github.merges_on("develop") == []
+    assert github.merges_on_main() == ["Merge pull request #1"]
+
+
+def test_series_files_that_name_different_bases_are_refused(repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str]) -> None:
+    first, second = tmp_path / "first.series", tmp_path / "second.series"
+    first.write_bytes(b"# base: develop\n" + series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+    second.write_bytes(b"# base: main\n" + series_file([("0002a write-two", author.patch("docs: write two", {"b.txt": "two\n"}))]))
+
+    status = cli.main([str(first), str(second), "--repo", str(repo.path), "--no-fetch", "--check", f"{sys.executable} -c pass"])
+
+    assert status == 1
+    assert "the series files name different bases: first.series says develop, second.series says main" in capsys.readouterr().err
+
+
 def test_a_pull_request_from_a_fork_with_the_same_branch_name_is_never_the_one_landed(github: FakeGitHub, repo: Repo, author: Author) -> None:
     foreign = {"number": 1, "url": "https://example.test/pull/1", "head": "write-one", "base": "main", "open": True, "fork": True, "title": "t", "body": "b"}
     github.state_file.write_text(json.dumps({"prs": [foreign], "calls": [], "merges": [], "checks_calls": 0}))

@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from _bodies import BREAKING_NOTES, body
+from _promote_repo import make_remote
 from conftest import FakeGitHub
 from renovate_merge import __main__ as cli
 
@@ -112,3 +113,49 @@ def test_merge_reports_a_missing_file(tmp_path: Path, capsys: pytest.CaptureFixt
     assert cli.main(["merge", str(tmp_path / "absent.json"), "--repo", str(tmp_path), "--yes"]) == 1
 
     assert "absent.json" in capsys.readouterr().err
+
+
+@pytest.fixture
+def promotable(github: FakeGitHub, tmp_path: Path) -> Path:
+    remote = make_remote(tmp_path)
+    remote.merge_pull(1, "renovate/a")
+    remote.push()
+    github.add_pull(state_name="MERGED", branch="renovate/a")
+    return remote.clone
+
+
+def test_promote_opens_the_pull_request_and_says_the_merge_is_left_to_the_maintainer(
+    github: FakeGitHub, promotable: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert cli.main(["promote", "--repo", str(promotable), "--yes"]) == 0
+
+    out = capsys.readouterr().out
+    assert "Opened https://example.test/pull/2" in out
+    assert "never merges into main" in out
+    assert [created["baseRefName"] for created in github.created()] == ["main"]
+    assert github.merged() == []
+
+
+def test_promote_dry_run_prints_the_title_and_description_and_opens_nothing(github: FakeGitHub, promotable: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["promote", "--repo", str(promotable), "--dry-run"]) == 0
+
+    out = capsys.readouterr().out
+    assert out.startswith("chore(deps): promote 1 update from maintenance")
+    assert "| #1 |" in out
+    assert github.created() == []
+
+
+def test_promote_reports_a_pull_request_that_is_open_already(github: FakeGitHub, promotable: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    github.add_pull(branch="maintenance", base="main", login="someone")
+
+    assert cli.main(["promote", "--repo", str(promotable), "--yes"]) == 0
+
+    assert "Already open: https://example.test/pull/2\nIts description was not changed." in capsys.readouterr().out
+    assert github.created() == []
+
+
+def test_promote_without_a_terminal_or_yes_opens_nothing(github: FakeGitHub, promotable: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["promote", "--repo", str(promotable)]) == 1
+
+    assert "not confirmed" in capsys.readouterr().err
+    assert github.created() == []

@@ -31,6 +31,7 @@ class FakeGitHub:
         base: str = "maintenance",
         login: str = "app/example-renovate",
         fork: bool = False,
+        state_name: str = "OPEN",
         checks: list[list[list[str]]] | None = None,
     ) -> int:
         """Open a pull request in the fake and return its number. Its checks default to every required check passing."""
@@ -48,12 +49,15 @@ class FakeGitHub:
             "author": {"login": login, "is_bot": True},
         }
         passing = [[name, "pass"] for name in state["required"]]
-        state["prs"].append({"state": "OPEN", "listed": listed, "checks": checks or [passing]})
+        state["prs"].append({"state": state_name, "listed": listed, "checks": checks or [passing]})
         self.save(state)
         return number
 
     def merged(self) -> list[int]:
         return self.state()["merges"]
+
+    def created(self) -> list[dict]:
+        return self.state().get("created", [])
 
     def calls(self) -> list[list[str]]:
         return self.state()["calls"]

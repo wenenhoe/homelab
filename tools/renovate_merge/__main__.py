@@ -1,11 +1,13 @@
 """python3 -m renovate_merge summary [--repo DIR] [--base BRANCH] [--out DIR] [--notes-characters N]
 python3 -m renovate_merge merge SUMMARY.json [PR ...] [--repo DIR] [--yes] [--dry-run]
+python3 -m renovate_merge promote [--repo DIR] [--yes] [--dry-run]
 
 `summary` reads Renovate's open pull requests into BRANCH (default `maintenance`), prints their updates and release notes with
 the lines that look like breaking changes marked, and writes `summary.md` and `summary.json` to OUT (default: `renovate-merge/` in the
 git directory). `merge` merges the pull requests of a summary.json: those named, or with none named every one at level `none`, each only
 while its head is the commit the summary read and once the required checks have passed. It uses the maintainer's own `gh` login and
-never merges into `main`.
+never merges into `main`. `promote` opens the pull request that promotes `maintenance` into `main`, with a table of what the batch
+holds, and stops there: the merge deploys, so it is made by hand.
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from pathlib import Path
 
 from land_series.run import CommandError, checked
 
-from renovate_merge import report
+from renovate_merge import promote, report
 from renovate_merge.collect import collect
 from renovate_merge.gh import GhError
 from renovate_merge.merge import MergeError, Outcome, Reviewed, load_summary, merge, select
@@ -77,6 +79,24 @@ def merging(args: argparse.Namespace) -> int:
     return 0 if args.dry_run else status
 
 
+def promoting(args: argparse.Namespace) -> int:
+    def ask_promote(found: promote.Batch) -> bool:
+        if not sys.stdin.isatty():
+            return False
+        print("\n".join(promote.describe(found)))
+        return input(f"Type 'yes' to open the pull request into {promote.TARGET}: ").strip() == "yes"
+
+    found, opened = promote.promote(args.repo, (lambda _: True) if args.yes else ask_promote, dry_run=args.dry_run)
+    if opened is None:
+        print(f"{found.title}\n\n{promote.body(found)}")
+        return 0
+    if opened.created:
+        print(f"Opened {opened.url}\nMerge it by hand with a merge commit, using the bypass; this tool never merges into {promote.TARGET}.")
+    else:
+        print(f"Already open: {opened.url}\nIts description was not changed.")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="renovate_merge", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -93,10 +113,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     merging_parser.add_argument("--repo", type=Path, default=Path())
     merging_parser.add_argument("--yes", action="store_true", help="merge without asking")
     merging_parser.add_argument("--dry-run", action="store_true", help="report what each pull request would do and merge nothing")
+    promoting_parser = commands.add_parser("promote", help="open the pull request that promotes maintenance into main")
+    promoting_parser.add_argument("--repo", type=Path, default=Path())
+    promoting_parser.add_argument("--yes", action="store_true", help="open it without asking")
+    promoting_parser.add_argument("--dry-run", action="store_true", help="print the title and description and open nothing")
     args = parser.parse_args(argv)
+    commands_run = {"summary": summarise, "merge": merging, "promote": promoting}
     try:
-        return summarise(args) if args.command == "summary" else merging(args)
-    except (MergeError, GhError, CommandError, subprocess.SubprocessError, OSError, ValueError) as error:
+        return commands_run[args.command](args)
+    except (promote.PromoteError, MergeError, GhError, CommandError, subprocess.SubprocessError, OSError, ValueError) as error:
         print(f"renovate_merge: {error}", file=sys.stderr)
         return 1
 

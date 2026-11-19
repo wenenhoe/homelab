@@ -2,8 +2,9 @@
 
 It keeps its state in the JSON file named by FAKE_GH_STATE: `prs` (each with the fields `pr list` returns, plus `state`, and `checks`, a list of
 polls, each a list of `[name, bucket]`, of which `pr checks` returns the first and drops it while more remain), `required` (the check names the
-rules call returns), `logged_out`, `merge_error` and `calls`, every call made. `pr merge` refuses, as GitHub does, when `--match-head-commit` is not
-the pull request's head, and otherwise records the merge. `pr checks` prints JSON and exits 8 while anything is pending, as `gh` does.
+rules call returns), `logged_out`, `merge_error`, `created` (what `pr create` was given) and `calls`, every call made.
+`pr merge` refuses, as GitHub does, when `--match-head-commit` is not the pull request's head, and otherwise records the merge.
+`pr checks` prints JSON and exits 8 while anything is pending, as `gh` does.
 """
 
 import json
@@ -38,9 +39,18 @@ def run(state: dict, args: list[str]) -> int:
         rules = [{"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": name} for name in state["required"]]}}]
         print(json.dumps(rules))
     elif verb == ["pr", "list"]:
-        base = option(args, "--base")
-        assert option(args, "--state") == "open", args
-        print(json.dumps([pr["listed"] for pr in state["prs"] if pr["state"] == "OPEN" and pr["listed"]["baseRefName"] == base]))
+        base, wanted = option(args, "--base"), option(args, "--state").upper()
+        head = option(args, "--head") if "--head" in args else None
+        listed = [pr["listed"] for pr in state["prs"] if pr["state"] == wanted and pr["listed"]["baseRefName"] == base]
+        print(json.dumps([pr for pr in listed if head in (None, pr["headRefName"])]))
+    elif verb == ["pr", "create"]:
+        number = len(state["prs"]) + 1
+        url = f"https://example.test/pull/{number}"
+        created = {"number": number, "title": option(args, "--title"), "url": url, "body": option(args, "--body"), "headRefName": option(args, "--head")}
+        created |= {"headRefOid": "c" * 40, "baseRefName": option(args, "--base"), "isCrossRepository": False, "author": {"login": "someone"}}
+        state["prs"].append({"state": "OPEN", "listed": created, "checks": []})
+        state.setdefault("created", []).append(created)
+        print(url)
     elif verb == ["pr", "view"]:
         pr = state["prs"][int(args[2]) - 1]
         print(json.dumps({"state": pr["state"], "baseRefName": pr["listed"]["baseRefName"], "headRefOid": pr["listed"]["headRefOid"]}))

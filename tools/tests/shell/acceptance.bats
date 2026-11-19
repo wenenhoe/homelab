@@ -4,7 +4,7 @@ setup() {
   load test_helper/harness
   harness_setup
   SCRIPT=$(install_script tofu/scratch/opnsense/acceptance/acceptance.sh)
-  cp "$REPO_ROOT/tofu/scratch/opnsense/acceptance/stale_forward.yaml" "$(dirname "$SCRIPT")/"
+  cp "$REPO_ROOT/tofu/scratch/opnsense/acceptance/stale_forward.yaml" "$REPO_ROOT/tofu/scratch/opnsense/acceptance/management_reach.py" "$(dirname "$SCRIPT")/"
   OUT="$BATS_TEST_TMPDIR/out"
   URL=https://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2
   SUM=$(printf '0%.0s' $(seq 64))
@@ -35,6 +35,13 @@ BODY
 cmd=${*: -1}
 case "$cmd" in
   "qm status "*) [ -n "${VM_EXISTS:-}" ] && echo "status: stopped" || exit 2 ;;
+  "python3 - "*)
+    if [ -n "${REACH_FAIL:-}" ]; then
+      echo "REACH another address on the LAN does not reach the GUI and API port: FAIL"
+      exit 1
+    fi
+    echo "REACH another address on the LAN does not reach the GUI and API port: PASS"
+    ;;
 esac
 BODY
   # A stand-in for the play: --check reports a change while a forward the play does not write is held,
@@ -149,4 +156,24 @@ teardown() {
   LEAK=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
   assert_output --partial "A CREDENTIAL VALUE IS IN"
   assert_output --partial "api-scope.txt"
+}
+
+@test "the probe address is added to the node's LAN bridge and removed again when every check passes" {
+  run -0 "$SCRIPT" "$OUT" "$URL" "$SUM"
+  run calls_to ssh
+  assert_output --partial "ip\\ addr\\ add\\ 192.168.77.11/24\\ dev\\ vmbr9"
+  assert_output --partial "ip\\ addr\\ del\\ 192.168.77.11/24\\ dev\\ vmbr9"
+}
+
+@test "a management port that another LAN address reaches fails the run, and the probe address is still removed" {
+  REACH_FAIL=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
+  assert_output --partial "CHECK only the admitted address reaches the GUI and API port, and no address reaches SSH: FAIL"
+  run calls_to ssh
+  assert_output --partial "ip\\ addr\\ del\\ 192.168.77.11/24\\ dev\\ vmbr9"
+}
+
+@test "KEEP=1 still removes the probe address from the node's bridge" {
+  KEEP=1 run -0 "$SCRIPT" "$OUT" "$URL" "$SUM"
+  run calls_to ssh
+  assert_output --partial "ip\\ addr\\ del\\ 192.168.77.11/24\\ dev\\ vmbr9"
 }

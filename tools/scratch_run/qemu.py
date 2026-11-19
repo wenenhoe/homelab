@@ -235,7 +235,18 @@ class QemuBackend(GatewaySteps):
 
     def _seed(self, spec: Spec) -> tuple[int, str]:
         """The seed, with credentials made for this run, built as the Tofu module's own script builds it for a node run."""
-        argv = [str(self.build_seed), str(self.seed_dir), "--lan-ip", LAN_IP, "--credentials", str(self.creds), "--wan-dhcp-hostname", WAN_HOSTNAME]
+        argv = [
+            str(self.build_seed),
+            str(self.seed_dir),
+            "--lan-ip",
+            LAN_IP,
+            "--credentials",
+            str(self.creds),
+            "--operator-host",
+            HOST_IP,
+            "--wan-dhcp-hostname",
+            WAN_HOSTNAME,
+        ]
         if spec.vlans:
             argv += ["--vlans", ",".join(str(vlan) for vlan in spec.vlans)]
         status, output = self.run(argv, timeout=600)

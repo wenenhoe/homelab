@@ -2,7 +2,7 @@
 # Build seed.img for the module's seed_image_path: an MBR disk with one FAT
 # partition holding conf/config.xml, the layout opnsense-importer mounts as
 # /dev/<disk>s1 (msdos).
-# Usage: build_seed.sh OUTPUT_DIR --lan-ip ADDRESS [patch_config.py options]
+# Usage: build_seed.sh OUTPUT_DIR --lan-ip ADDRESS --operator-host ADDRESS [patch_config.py options]
 # Needs: python3, openssl, sfdisk, mtools (mformat, mmd, mcopy, mdir), xmllint, truncate.
 set -euo pipefail
 

@@ -151,6 +151,7 @@ line_of() {
   run calls_to build_seed
   assert_output --partial "--credentials $OUT/credentials.tfvars"
   assert_output --partial "--lan-ip 192.168.77.1"
+  assert_output --partial "--operator-host 192.168.77.10"
   run calls_to first_boot
   assert_output "first_boot 501 $OUT/first-boot CREDENTIALS=$OUT/credentials.tfvars"
 }

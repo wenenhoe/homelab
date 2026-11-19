@@ -52,6 +52,18 @@ class Check:
 
 
 @dataclass(frozen=True)
+class TipCheck:
+    """A check that runs once, at the last commit of a pull request, and only when CI would run the job behind it.
+
+    `gate` prints `<filter>=true|false` as detect-changes does, for the range from `PULL_BASE` to the pull request's last commit;
+    `run` is the job's own command and runs only when the gate says true.
+    """
+
+    gate: Check
+    run: Check
+
+
+@dataclass(frozen=True)
 class LayerResult:
     layer: Layer
     applied: bool
@@ -136,6 +148,18 @@ def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
 LIVE_OUTPUT_LINES = 6
 
 
+def _gate_is_true(tree: Path, gate: Check, layer: Layer) -> bool:
+    """Whether the gate's last output line ends in `=true`; a gate that fails or prints nothing readable stops the replay."""
+    try:
+        done = subprocess.run(gate.argv, cwd=tree / gate.cwd, capture_output=True, text=True, errors="replace", stdin=subprocess.DEVNULL, check=False)
+    except OSError as error:
+        raise ReplayError(f"commit {layer.id}: cannot run `{gate}`: {error}") from error
+    lines = done.stdout.strip().splitlines()
+    if done.returncode != 0 or not lines or not lines[-1].endswith(("=true", "=false")):
+        raise ReplayError(f"commit {layer.id}: cannot tell whether `{gate}` applies:\n{(done.stdout + done.stderr).strip()}")
+    return lines[-1].endswith("=true")
+
+
 def _run_check(tree: Path, check: Check, display: Display, label: str) -> str | None:
     """The tail of the output when the check fails, else None. The last lines it prints are shown on the display while it runs and erased when it ends."""
     try:
@@ -187,6 +211,19 @@ def preflight(repo: Path, base: str) -> list[str]:
     return problems
 
 
+def _run_tip_check(tree: Path, tip: TipCheck, layer: Layer, pull_base: str, progress: Progress, display: Display) -> None:
+    gate, check = tip.gate.at(pull_base), tip.run.at(pull_base)
+    if not _gate_is_true(tree, gate, layer):
+        _reset(tree)
+        progress(f"commit {layer.id}: `{check}` skipped, CI would not run it for this pull request")
+        return
+    progress(f"commit {layer.id}: running `{check}` on the pull request's last commit")
+    failure = _run_check(tree, check, display, f"commit {layer.id}: `{check}`")
+    _reset(tree)
+    if failure is not None:
+        raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")
+
+
 def replay(
     repo: Path,
     layers: Sequence[Layer],
@@ -195,11 +232,14 @@ def replay(
     base: str = "origin/main",
     progress: Progress = silent,
     display: Display = hidden,
+    tip_checks: Sequence[TipCheck] = (),
 ) -> list[LayerResult]:
     """Apply each layer, in the order given, on a scratch worktree of `base`; run every check after each.
 
     A check that names `PULL_BASE` sees, for a layer in pull request N, the state pull request N-1 leaves, so it judges
     that pull request's own commits as CI will once the earlier pull requests have merged.
+
+    A tip check runs once per pull request, after the checks of the pull request's last commit, when its gate says CI would run the job.
 
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
     """
@@ -214,6 +254,7 @@ def replay(
             )
     results: list[LayerResult] = []
     pull_base, current = "", ""
+    tips = {layer.number: layer.id for layer in layers}
     with scratch_worktree(repo, base) as tree:
         for layer in layers:
             if (layer.authored, layer.subject) in landed:
@@ -233,5 +274,8 @@ def replay(
                 _reset(tree)
                 if failure is not None:
                     raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")
+            if tips[layer.number] == layer.id:
+                for tip in tip_checks:
+                    _run_tip_check(tree, tip, layer, pull_base, progress, display)
             results.append(LayerResult(layer, applied=True, commit=git_text(git_run(tree, "rev-parse", "HEAD"))))
     return results

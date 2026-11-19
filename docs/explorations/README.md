@@ -47,9 +47,6 @@ exploration; it ends in a new revision of that lineage or is dropped.
   which lists the open ones. An exploration may link to anything.
 - **It stays small.** A question that grows a design is a decision that has
   not been written yet.
-- **Age is shown, not judged.** The planning view shows when each last changed (a
-  change not yet committed counts as today, since the commit being made is
-  its newest). Nothing warns about age: a solo repository takes as long as an
-  idea takes.
+- **No dates.** The planning view lists each open exploration by name, with its question, and shows no date or age: for a single maintainer building in public a date is of no use, and git holds when a file changed. Nothing warns about age.
 - **No incident detail.** The rule in
   [`docs/README.md#public-repo`](../README.md#public-repo) applies.

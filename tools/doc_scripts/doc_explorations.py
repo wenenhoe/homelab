@@ -12,8 +12,6 @@ the one place that lists them.
 from __future__ import annotations
 
 import re
-import subprocess
-from datetime import date
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT, docs_in, load_lineages, read_frontmatter
@@ -63,22 +61,3 @@ def _mention_errors(root: Path) -> list[str]:
                 "since it is deleted when it ends; state the question in words or link the decision it became"
             )
     return errors
-
-
-def last_commit_date(root: Path, path: Path, today: date | None = None) -> date | None:
-    """The date of the newest commit that touched `path`, or None when git does not know it.
-
-    A file with a change that is not committed yet (new, or edited, staged or not) is dated
-    `today` (default: the local date): the commit about to be made is its newest. The hooks that
-    regenerate the planning view run before that commit exists, and a view that said nothing for
-    the file would differ from the one CI regenerates after the merge.
-    """
-    rel = str(path.relative_to(root))
-    try:
-        pending = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", rel], check=True, capture_output=True, text=True).stdout.strip()
-        if pending:
-            return today or date.today()
-        out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs", "--", rel], check=True, capture_output=True, text=True).stdout.strip()
-        return date.fromisoformat(out) if out else None
-    except subprocess.CalledProcessError, FileNotFoundError, ValueError:
-        return None

@@ -155,9 +155,7 @@ these narrow, structural things:
   the file name; `related` entries name real lineages. No file outside
   `docs/explorations/` names an exploration's path, apart from the generated
   `project-planning.md`, since an exploration is deleted when it ends. See
-  [`docs/explorations/README.md`](../../../explorations/README.md). The
-  generator also warns about an open exploration whose newest commit is older
-  than `EXPLORATION_STALE_DAYS` in `doc_explorations.py`; a warning never fails.
+  [`docs/explorations/README.md`](../../../explorations/README.md).
 - Relative links (`./`, `../`) from a `.md` file to a config, script, or
   data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
   way `.md` links do.

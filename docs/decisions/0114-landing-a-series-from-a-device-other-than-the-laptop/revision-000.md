@@ -93,9 +93,9 @@ This diagram shows the design as this revision decided it, not what runs now.
   **Breaks if wrong:** the phone cannot land a series, and a series is landed from the laptop.
   **Checked by:** a login from the phone with the maintainer's NFC key on a throwaway instance.
 
-- **Claim:** DMZ rules that deny every private range stop the VM reaching the Proxmox node's management address, the node's own firewall can limit 8006 and 22 to the gateway's WAN address and the maintainer's tailnet devices, and the tailnet tests assert that the VM's tag reaches nothing.
+- **Claim:** The node's own firewall can limit 8006 and 22 to the gateway's WAN address and the maintainer's tailnet devices, and the tailnet tests assert that the VM's tag reaches nothing.
   **Breaks if wrong:** a compromised console host has a path to the hypervisor.
-  **Checked by:** a probe from the VM to the node's management ports, and the policy's `tests`.
+  **Checked by:** the node's firewall rules and the policy's `tests`.
 
 - **Claim:** Gatus can be read through one read-only grant, and the deploy job can push a heartbeat.
   **Breaks if wrong:** the status panel shows the merge and the checks only.
@@ -127,7 +127,7 @@ A new VM, interface and tailnet tag, and a second holder of merge power that exi
 
 ## Validation
 
-The tailnet policy's `tests` assert that the console's tag reaches no other node. The role's Molecule verify checks the sandbox unit's directives and that no credential file exists on the host. Unit tests of the console cover the approval binding, the pause conditions and the token's revocation. A probe from the VM to the Proxmox node's management ports must fail.
+The tailnet policy's `tests` assert that the console's tag reaches no other node. The role's Molecule verify checks the sandbox unit's directives and that no credential file exists on the host. Unit tests of the console cover the approval binding, the pause conditions and the token's revocation. A probe from the VM to the Proxmox node's management ports must fail. On a scratch gateway, [`dmz-probe`](../../topics/infra/scratch-gateway-runs.md#the-dmz-probe) shows the DMZ zone's rules refusing those ports to a canary in the zone, beside a control that reaches them from another zone.
 
 ## Reconsideration triggers
 

@@ -111,7 +111,7 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 - A rebuild and the yearly certificate renewal each need a console read of the certificate, through the serial socket on the Proxmox node, before the play can connect.
 - Moving to a newer OPNsense series waits for a collection release for it.
 - The settings only the seed sets are not reported by `--check --diff`. A change to one reaches an existing gateway only by hand in the GUI, and nothing detects the drift.
-- The hand-built rules for the zones of ADR 0053 and ADR 0058 are written again in code on the new gateway, not imported.
+- The hand-built rules for the zones of ADR 0058 are written again in code on the new gateway, not imported. The zones of ADR 0053 and ADR 0116 are written in the play first and never built by hand.
 - A topic doc will describe the resulting behaviour once it exists.
 
 ## Invariants

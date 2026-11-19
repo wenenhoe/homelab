@@ -35,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | VM shell in VLAN 30, built by hand, no nested virtualization | Not started | The VM boots in the zone and is reachable only by the two permitted SSH flows |
+| 1 | VM shell in VLAN 30, built by hand once [`coding-agent-network.md`](coding-agent-network.md)'s Stage 2 has applied the zone to the rebuilt production gateway, no nested virtualization | Not started | The VM boots in the zone and is reachable only by the two permitted SSH flows |
 | 2 | `coding_agent` role and inventory group: agent and management accounts, Claude Code, sandbox settings, the hardening baseline's role, `sshd` per-account source restrictions | Not started | The role converges idempotently and the host resolves its own SSH key, never the shared one |
 | 3 | Molecule scenario for the role | Not started | The scenario passes in CI and appears in the scenario matrix |
 

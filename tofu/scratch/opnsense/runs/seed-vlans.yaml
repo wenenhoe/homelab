@@ -4,7 +4,7 @@
 # without a zone leave what the play applies, and the flows of the zones it reaches, as they are. It says nothing about VLAN 30's or
 # VLAN 45's own traffic: no canary sits in either and no flow names them. The `vlans` step counts the gateway's VLAN interfaces; the API
 # user cannot read the tags themselves. test_run_spec.py fails when the list does not start with the seed's.
-name: vlan-30-seed
+name: seed-vlans
 description: >-
   A scratch gateway built with the seed's own VLANs, 20, 25, 30, 35, 40, 45, 50 and 55: the gateway has eight VLAN interfaces, the play applies and a second
   run with --check reports no change, and every flow of the services and desktops zones passes.

@@ -140,7 +140,7 @@ The runner reaches the DMZ canary only through a row that admits the operator ho
 
 ## Untested until VLAN 30 has a zone
 
-The VLAN 30 scratch kit (the seed's VLAN list and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 30 interface: the `vlan-30-seed` run, which builds the gateway with the seed's own eight VLANs, 45 among them. What no run shows yet, because the play has no zone for VLAN 30 and the flow list no row for it:
+The VLAN 30 scratch kit (the seed's VLAN list and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 30 interface: the `seed-vlans` run, which builds the gateway with the seed's own eight VLANs, 45 among them. What no run shows yet, because the play has no zone for VLAN 30 and the flow list no row for it:
 
 - a VM tagged 30 reaching the gateway, which needs the zone's interface address and a pass rule;
 - the zone's flows (rows 8 and 13 of [`opnsense-config.md`](../../projects/opnsense-config.md)), and that default-deny holds in VLAN 30;

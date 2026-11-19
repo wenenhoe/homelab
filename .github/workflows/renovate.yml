@@ -108,7 +108,7 @@ jobs:
           # share GitHub's 60-an-hour limit with every other runner on the IP.
           RENOVATE_HOST_RULES: ${{ format('[{{"matchHost":"api.github.com","token":"{0}"}}]', steps.app-token.outputs.token) }}
         with:
-          renovate-version: "44.240.0@sha256:e33a3330128949311ebc9c4c2ffda7452ab58da8a04e17216a03755ca3449949"
+          renovate-version: "44.252.7@sha256:da2082c34a7e8aee0fbf50122d71a052ba32ea5f51aeded502b742ad7bc9d5a2"
           token: ${{ steps.app-token.outputs.token }}
 
       # renovate.json5's schedule only allows new branch/PR creation Mon/Thu

@@ -124,13 +124,13 @@ shows no dates, so the view depends on the tree alone.
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
 | [0096](decisions/0096-knowing-the-pre-commit-hooks-that-run-are-the-reviewed-ones/revision-000.md) | **Knowing the pre-commit hooks that run are the ones that were reviewed** — How the pre-commit hook code and the images hooks pull are made to be the ones a commit names, so they change only in a pull request that shows the change. | Each hook repository is pinned to a full commit SHA with its tag in a comment, each docker hook's image is pinned by digest in the config, and Renovate moves both in a reviewed pull request | Working |
+| [0117](decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md) | **Delivering the generated documentation views to readers** — How the decision index, the planning view and the disaster-recovery coverage table reach the people who read them on GitHub, on a phone and in a checkout, without every change having to commit them. | Publish the three views as a site on GitHub Pages from every push to main, stop committing them, and generate them locally in a checkout | Working |
 
 ## Open explorations
 
 | Exploration | Question |
 | :--- | :--- |
 | [`cloud-credential-custody.md`](explorations/cloud-credential-custody.md) | How could the credentials that mint and revoke the cloud keys be kept away from the host that runs the secrets store? |
-| [`generated-views-in-commits.md`](explorations/generated-views-in-commits.md) | Do the generated doc views need to be committed with every change? |
 | [`host-alert-declaration.md`](explorations/host-alert-declaration.md) | Where should a host-resource alert be declared so that a rebuilt monitor brings it back? |
 | [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? |
 | [`intrusion-detection-scope.md`](explorations/intrusion-detection-scope.md) | Where should intrusion detection run, and how much of the lab should it see? |

@@ -31,8 +31,8 @@ def flow_list() -> FlowList:
     return load_flow_list()
 
 
-def test_the_seed_list_is_the_vlans_of_the_plays_zones_in_the_order_the_seed_names_their_interfaces(spec):
-    assert list(spec.vlans) == [zone["vlan"] for zone in DEFAULTS["opnsense_gateway_zones"]]
+def test_the_seed_list_holds_the_vlan_of_every_zone_of_the_play(spec):
+    assert {zone["vlan"] for zone in DEFAULTS["opnsense_gateway_zones"]} <= set(spec.vlans)
 
 
 def test_the_flows_are_the_plays_own_with_one_row_that_admits_the_operator_hosts_to_the_dmz(spec):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+import patch_config
 import pytest
 import yaml
 from scratch_run.spec import CanaryVm, SpecError, load_spec, parse_spec
@@ -35,6 +36,14 @@ def test_the_committed_specs_load_against_the_committed_flow_list(subtests):
     for path in paths:
         with subtests.test(spec=path.name):
             assert load_spec(path).name == path.stem
+
+
+def test_a_committed_vlan_list_starts_with_the_seeds_own_because_the_play_names_interfaces_by_position(subtests):
+    for path in sorted(RUNS.glob("*.yaml")):
+        with subtests.test(spec=path.name):
+            vlans = load_spec(path).vlans
+            if vlans:
+                assert vlans[: len(patch_config.DEFAULT_VLANS)] == patch_config.DEFAULT_VLANS
 
 
 def test_a_good_spec_is_read_with_its_defaults():

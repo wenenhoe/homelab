@@ -2,7 +2,7 @@
 """Turn OPNsense's sample config.xml into the gateway's seed configuration.
 
 Assigns the WAN and LAN devices and the LAN address, turns IPv6 off, puts a one-time password in front of the GUI login, adds one VLAN device and
-interface per zone on the LAN device, sets the hostname and domain, keeps the serial port as the console, gives root a password and adds one
+interface per VLAN on the LAN device, sets the hostname and domain, keeps the serial port as the console, gives root a password and adds one
 API user whose key and secret are stored the way OPNsense stores them (the
 secret as a SHA-512 crypt hash, see ApiKeyField::add in opnsense/core).
 
@@ -45,8 +45,11 @@ API_PRIVILEGES = (
 DEFAULT_CREDENTIALS = "~/.config/tofu/credentials.tfvars"
 BASE = Path(__file__).with_name("config.xml.sample")
 # One VLAN per block of 50 VMIDs (vlan_id = vmid // 50 * 5), each a /24 whose
-# third octet is the tag and whose gateway address is .1.
-DEFAULT_VLANS = (20, 25, 40, 50, 55, 35)
+# third octet is the tag and whose gateway address is .1. They are in ascending
+# order, so the Nth smallest tag is interface optN. The gateway play's zones name
+# their interfaces by that order, and 30 and 45 have no zone yet, so their
+# interfaces carry none of its rules.
+DEFAULT_VLANS = (20, 25, 30, 35, 40, 45, 50, 55)
 VLAN_NAMESPACE = uuid.UUID("5d0c7a52-3c1e-4a53-9a0f-6a4a3f0f6a11")
 ASSIGNMENT = re.compile(r'^\s*(\w+)\s*=\s*"([^"\\]*)"\s*(?:#.*)?$')
 

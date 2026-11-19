@@ -36,7 +36,7 @@ A series file records the choice with `# base: develop` in its manifest ([`landi
 
 ## Dependency updates
 
-The Renovate workflow runs daily ([`renovate.md`](ci/renovate.md)). Its first step makes `maintenance` contain `main` (a fast-forward, or a merge commit when the two have diverged), and Renovate then opens its pull requests into `maintenance`. Merge those you want; they do not deploy. When a batch is ready, promote `maintenance`.
+The Renovate workflow runs daily ([`renovate.md`](ci/renovate.md)). Its first step makes `maintenance` contain `main` (a fast-forward, or a merge commit when the two have diverged), and Renovate then opens its pull requests into `maintenance`. Merge those you want; they do not deploy. [`reviewing-renovate-updates.md`](reviewing-renovate-updates.md) covers reading their release notes for breaking changes and merging them in one run. When a batch is ready, promote `maintenance`.
 
 If the realignment step fails, `main` and `maintenance` conflict and the run stops before Renovate starts. `maintenance` is unchanged. Merge `main` into it by hand, push, and dispatch the workflow again:
 

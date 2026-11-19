@@ -58,7 +58,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Hand-offs
 
-The coding-agent zone and the egress proxy are not stages here, so they do not hold the production rebuild back. Each project puts its part in the play, using this project's role and its scratch gateway, and the rebuild carries whatever has landed by then:
+The coding-agent zone and the egress proxy are not stages here, so they do not hold the production rebuild back. Each project puts its part in the play, using this project's role and its scratch gateway, and the rebuild carries whatever has landed by then. A zone that lands after the rebuild reaches the production gateway when the play is applied to it. The zones are never built by hand on the live gateway:
 
 - [`coding-agent-network.md`](coding-agent-network.md) adds VLAN 30 to the role's zones, on the interface the seed gives it, and rows 7 and 12 of the flow list below, and its exit condition is a clean `--check --diff` and passing flow probes on a scratch gateway.
 - [`coding-agent-egress.md`](coding-agent-egress.md) adds VLAN 45, the egress zone, to the role's zones, on the interface the seed gives it, generates the two proxies' allowlists from one source in the repo and applies them from the play or its own role, with the same exit condition.

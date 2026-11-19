@@ -196,6 +196,27 @@ class TestBuildingGate:
         assert code == 1, out
         assert "allowed_paths lacks" in out
 
+    def start_from_main(self, repo, **fields) -> tuple[int, str]:
+        """The doc on main names a file; a branch starts the project; the check runs with main checked out, as a push from main does."""
+        repo.write("src/app/tasks.yaml", "x: 1\n")
+        write_plan(repo, "confirmed", plan="draft", status="not-started", note="`src/app/tasks.yaml`", allowed_paths=None)
+        repo.commit("a draft that names a file")
+        repo.git("checkout", "-q", "-B", "main")
+        repo.branch("later")
+        write_plan(repo, "confirmed", stage="Build it, again", status="building", note="`src/app/tasks.yaml`", **fields)
+        repo.commit("start")
+        repo.git("checkout", "-q", "main")
+        return repo.run_cli("--base", "main", "--head", "later")
+
+    def test_the_scope_is_read_from_the_head_and_not_from_the_checkout(self, waiting):
+        code, out = self.start_from_main(waiting, allowed_paths=["docs/**", "src/**"])
+        assert code == 0, out
+
+    def test_a_scope_that_lacks_a_named_path_still_fails_with_another_branch_checked_out(self, waiting):
+        code, out = self.start_from_main(waiting, allowed_paths=["docs/**"])
+        assert code == 1, out
+        assert "allowed_paths lacks `src/app/tasks.yaml`" in out
+
     def test_starting_needs_a_scope_that_covers_every_sweep_hit(self, waiting):
         waiting.write("legacy/a.md", "widget\n")
         waiting.commit("a mention")

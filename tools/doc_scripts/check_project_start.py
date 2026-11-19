@@ -13,7 +13,9 @@ and ADR 0037 revisions 4 and 5 for why:
 It also warns, without failing, when a stage is added to a project that is already
 building (doc_sizing.added_stage_warnings).
 
-Two modes, both reading the docs as they stand once the change is applied:
+Two modes, both reading the docs as they stand once the change is applied (a
+pull request's scope is read from a checkout of --head, not from the checkout the
+hook runs in):
 
   --staged          the commit being made: the index against HEAD (pre-commit). The
                     trailer is written with the commit message, after the hook runs,
@@ -32,11 +34,17 @@ from pathlib import Path
 
 from doc_scripts.check_project_close import export_docs
 from doc_scripts.doc_frontmatter import ROOT
-from doc_scripts.doc_git import file_at, git
+from doc_scripts.doc_git import checkout, file_at, git
 from doc_scripts.doc_scope import PROJECT_DOC_RE
 from doc_scripts.doc_sizing import added_stage_warnings
 from doc_scripts.doc_start import PLAN_CONFIRMED_RE, building_errors, start_errors, starts_building
 from doc_scripts.suggest_project_scope import completeness_errors
+
+
+def completeness_in(root: Path, head: str, path: str) -> list[str]:
+    """What the scope lacks, read from `head` and not from the checkout the hook runs in, which a push from `main` leaves on the old doc."""
+    with checkout(root, head) as tree:
+        return completeness_errors(tree, path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -73,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
                 for warning in added_stage_warnings(path, before, after):
                     print(f"::warning::{warning}")
                 if starts_building(before, after):
-                    errors.extend(completeness_errors(args.root, path))
+                    errors.extend(completeness_errors(args.root, path) if args.staged else completeness_in(args.root, head, path))
         except SystemExit as exc:  # a doc in the result that doesn't parse: the drift check names it properly
             print(f"::error::the docs after this change don't parse, so the start can't be judged: {str(exc).replace(f'{tmp}/', '')}")
             return 1

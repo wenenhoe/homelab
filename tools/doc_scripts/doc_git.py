@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import re
 import subprocess
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import yaml
@@ -14,6 +17,19 @@ import yaml
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, text=True).stdout
+
+
+@contextmanager
+def checkout(root: Path, rev: str) -> Iterator[Path]:
+    """A detached checkout of `rev` in a temporary directory, for a rule that reads files from disk: it then reads the
+    tree it judges, not the one the hook happens to run in."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tree = Path(tmp) / "tree"
+        git(root, "worktree", "add", "--detach", "--quiet", str(tree), rev)
+        try:
+            yield tree
+        finally:
+            git(root, "worktree", "remove", "--force", str(tree))
 
 
 def file_at(root: Path, ref: str, path: str) -> str | None:

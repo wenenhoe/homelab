@@ -43,3 +43,72 @@ def test_summary_refuses_main(github: FakeGitHub, tmp_path: Path, capsys: pytest
 
     assert "never merges there" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()
+
+
+def test_merge_with_no_numbers_merges_only_the_pull_requests_at_level_none(
+    github: FakeGitHub, two_pulls: tuple[int, int], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = write_summary(github, tmp_path)
+
+    assert cli.main(["merge", str(path), "--repo", str(tmp_path), "--yes"]) == 0
+
+    assert github.merged() == [1]
+    assert "#1  merged  https://example.test/pull/1" in capsys.readouterr().out
+
+
+def test_merge_names_a_flagged_pull_request_to_merge_it(github: FakeGitHub, two_pulls: tuple[int, int], tmp_path: Path) -> None:
+    path = write_summary(github, tmp_path)
+
+    assert cli.main(["merge", str(path), "2", "--repo", str(tmp_path), "--yes"]) == 0
+
+    assert github.merged() == [2]
+
+
+def test_merge_without_a_terminal_or_yes_merges_nothing(
+    github: FakeGitHub, two_pulls: tuple[int, int], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = write_summary(github, tmp_path)
+
+    assert cli.main(["merge", str(path), "--repo", str(tmp_path)]) == 1
+
+    assert "not confirmed" in capsys.readouterr().err
+    assert github.merged() == []
+
+
+def test_merge_exits_1_and_says_why_when_a_pull_request_was_left(
+    github: FakeGitHub, two_pulls: tuple[int, int], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = write_summary(github, tmp_path)
+    state = github.state()
+    state["prs"][0]["listed"]["headRefOid"] = "f" * 40
+    github.save(state)
+    capsys.readouterr()
+
+    assert cli.main(["merge", str(path), "--repo", str(tmp_path), "--yes"]) == 1
+
+    assert "#1  not merged: its head moved from 0000001 to fffffff" in capsys.readouterr().out
+
+
+def test_merge_dry_run_exits_0_and_merges_nothing(github: FakeGitHub, two_pulls: tuple[int, int], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    path = write_summary(github, tmp_path)
+    capsys.readouterr()
+
+    assert cli.main(["merge", str(path), "--repo", str(tmp_path), "--dry-run"]) == 0
+
+    assert "#1  not merged: dry run: ready to merge" in capsys.readouterr().out
+    assert github.merged() == []
+
+
+def test_merge_refuses_a_file_that_is_not_a_summary(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    bogus = tmp_path / "x.json"
+    bogus.write_text("{}")
+
+    assert cli.main(["merge", str(bogus), "--repo", str(tmp_path), "--yes"]) == 1
+
+    assert "not a summary written by" in capsys.readouterr().err
+
+
+def test_merge_reports_a_missing_file(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["merge", str(tmp_path / "absent.json"), "--repo", str(tmp_path), "--yes"]) == 1
+
+    assert "absent.json" in capsys.readouterr().err

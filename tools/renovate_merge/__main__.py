@@ -1,8 +1,11 @@
 """python3 -m renovate_merge summary [--repo DIR] [--base BRANCH] [--out DIR] [--notes-characters N]
+python3 -m renovate_merge merge SUMMARY.json [PR ...] [--repo DIR] [--yes] [--dry-run]
 
 `summary` reads Renovate's open pull requests into BRANCH (default `maintenance`), prints their updates and release notes with
 the lines that look like breaking changes marked, and writes `summary.md` and `summary.json` to OUT (default: `renovate-merge/` in the
-git directory).
+git directory). `merge` merges the pull requests of a summary.json: those named, or with none named every one at level `none`, each only
+while its head is the commit the summary read and once the required checks have passed. It uses the maintainer's own `gh` login and
+never merges into `main`.
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from land_series.run import CommandError, checked
 from renovate_merge import report
 from renovate_merge.collect import collect
 from renovate_merge.gh import GhError
+from renovate_merge.merge import MergeError, Outcome, Reviewed, load_summary, merge, select
 
 DEFAULT_BASE = "maintenance"
 OUT_DIRECTORY = "renovate-merge"
@@ -30,6 +34,16 @@ def say(message: str) -> None:
 
 def default_out(repo: Path) -> Path:
     return Path(checked(["git", "-C", str(repo), "rev-parse", "--absolute-git-dir"]).text) / OUT_DIRECTORY
+
+
+def ask(chosen: Sequence[Reviewed]) -> bool:
+    """Ask on the terminal once for the whole list; with no terminal to ask on, refuse."""
+    if not sys.stdin.isatty():
+        return False
+    print("Merge these once their required checks pass:")
+    for pull in chosen:
+        print(f"  #{pull.number}  {pull.level:<8}  {pull.title}")
+    return input("Type 'yes' to merge them: ").strip() == "yes"
 
 
 def summarise(args: argparse.Namespace) -> int:
@@ -48,6 +62,21 @@ def summarise(args: argparse.Namespace) -> int:
     return 0
 
 
+def outcomes_status(outcomes: Sequence[Outcome]) -> int:
+    for item in outcomes:
+        print(f"#{item.number}  {'merged' if item.merged else 'not merged: ' + item.reason}  {item.url}")
+    return 0 if all(item.merged for item in outcomes) else 1
+
+
+def merging(args: argparse.Namespace) -> int:
+    summary = load_summary(args.summary.read_text(encoding="utf-8"))
+    chosen = select(summary, args.pulls)
+    confirm = (lambda _: True) if args.yes else ask
+    outcomes = merge(args.repo, summary, chosen, confirm, dry_run=args.dry_run, progress=say)
+    status = outcomes_status(outcomes)
+    return 0 if args.dry_run else status
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="renovate_merge", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -56,10 +85,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     summary.add_argument("--base", default=DEFAULT_BASE)
     summary.add_argument("--out", type=Path, default=None)
     summary.add_argument("--notes-characters", type=int, default=report.DEFAULT_NOTES_CHARACTERS, help="how much of each pull request's release notes to print")
+    merging_parser = commands.add_parser("merge", help="merge the pull requests of a summary")
+    merging_parser.add_argument("summary", type=Path, help="the summary.json written by `summary`")
+    merging_parser.add_argument(
+        "pulls", nargs="*", type=int, metavar="PR", help="pull request numbers to merge whatever their level; none means every one at level `none`"
+    )
+    merging_parser.add_argument("--repo", type=Path, default=Path())
+    merging_parser.add_argument("--yes", action="store_true", help="merge without asking")
+    merging_parser.add_argument("--dry-run", action="store_true", help="report what each pull request would do and merge nothing")
     args = parser.parse_args(argv)
     try:
-        return summarise(args)
-    except (GhError, CommandError, subprocess.SubprocessError, OSError, ValueError) as error:
+        return summarise(args) if args.command == "summary" else merging(args)
+    except (MergeError, GhError, CommandError, subprocess.SubprocessError, OSError, ValueError) as error:
         print(f"renovate_merge: {error}", file=sys.stderr)
         return 1
 

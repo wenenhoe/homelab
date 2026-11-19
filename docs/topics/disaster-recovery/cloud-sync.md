@@ -152,6 +152,29 @@ The container runs with every capability dropped except `DAC_OVERRIDE`,
 and owned by the deploy user, which root in the container can only open with
 that capability; without it every job fails with "Failed to load config file".
 
+## A failed run
+
+The Telegram alert names the host. `journalctl -u cloud-sync.service` shows each
+job's errors and, after them, a `FAILED:` line naming the job; the other jobs in
+the run still ran. Running the relay again is safe, because it offers only what
+the cloud lacks and refuses to replace an object that is already there, and the
+next timer run does the same:
+
+```sh
+sudo systemctl start cloud-sync.service
+```
+
+To compare what SeaweedFS and a cloud hold for one app, read the image from the
+installed unit. `--s3-versions` also lists the older versions a lifecycle rule
+has hidden:
+
+```sh
+IMG=$(grep -oP 'rclone/rclone:\S+' /etc/systemd/system/cloud-sync.service)
+R="docker run --rm -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro $IMG"
+$R lsl seaweedfs:homelab-backups/<host>-<app>
+$R lsl --s3-versions <remote>:<bucket>/<host>-<app>
+```
+
 ## Before first use
 
 - Create a bucket by hand on each of R2/B2/OCI — `homelab-backups` for
@@ -185,14 +208,13 @@ that capability; without it every job fails with "Failed to load config file".
 - **Check each remote before trusting the nightly run.** Every
   `rclone.conf` endpoint is written with its scheme (`https://`), not a bare
   hostname, the opposite convention from `docker-volume-backup`'s minio-go
-  client elsewhere in this repo. List each remote with the image the unit
-  deploys; the tag comes from `cloud-sync.service.j2`, so the command
-  follows what is running:
+  client elsewhere in this repo. List each remote with the image the installed
+  unit runs, read from the unit on `storage` so the command follows what is
+  running and needs no checkout of this repository:
   ```sh
+  IMG=$(grep -oP 'rclone/rclone:\S+' /etc/systemd/system/cloud-sync.service)
   docker run --rm \
     -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
-    rclone/rclone:$(grep -oP 'rclone/rclone:\K[0-9.]+' \
-      ansible/roles/cloud_sync/templates/cloud-sync.service.j2) \
-    lsd <name>:
+    "$IMG" lsd <name>:
   ```
   Each remote name should list, or report an empty result without an error.

@@ -18,7 +18,8 @@
 # Addresses are the ones the gateway play and the Tofu VMID scheme fix: a zone is 192.168.<vlan>.0/24, the gateway is its .1
 # and the canary its .8 (tofu/canaries.tf). A flow carries its source zone as a tag, so a run can take the flows of the canaries
 # that exist (--tag services). A deny whose control is tried from another zone's canary is tagged cross-zone instead, since it
-# needs both canaries.
+# needs both canaries. A flow to the Proxmox node is tagged node and not with its zone, since it passes only on a gateway whose
+# play admits the canary to the node.
 zones:
   services: {subnet: 192.168.20.0/24, canary: 192.168.20.8}
   management: {subnet: 192.168.25.0/24, canary: 192.168.25.8}
@@ -549,3 +550,34 @@ flows:
     expect: deny
     control: desktops-services-kms
     tags: [cross-zone, listener]
+
+  # The DMZ's rules deny every private range, which holds the Proxmox node's management address (the play's `host_proxmox_node`),
+  # so no DMZ host reaches its SSH and API ports. The control of each deny is the desktops canary reaching the same port, which
+  # passes only on a gateway whose play admits that canary as an operator host and where the node answers the gateway's WAN
+  # address. The flows carry the `node` tag and not their zone's, so a run that does not set that up leaves them out.
+  - id: desktops-proxmox-node-ssh
+    from: desktops
+    to: {address: 10.0.0.254, port: 22}
+    kind: connect
+    expect: allow
+    tags: [node]
+  - id: desktops-proxmox-node-api
+    from: desktops
+    to: {address: 10.0.0.254, port: 8006}
+    kind: connect
+    expect: allow
+    tags: [node]
+  - id: dmz-to-proxmox-node-ssh-denied
+    from: dmz
+    to: {address: 10.0.0.254, port: 22}
+    kind: connect
+    expect: deny
+    control: desktops-proxmox-node-ssh
+    tags: [cross-zone, node]
+  - id: dmz-to-proxmox-node-api-denied
+    from: dmz
+    to: {address: 10.0.0.254, port: 8006}
+    kind: connect
+    expect: deny
+    control: desktops-proxmox-node-api
+    tags: [cross-zone, node]

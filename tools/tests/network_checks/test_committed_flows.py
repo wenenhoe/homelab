@@ -70,3 +70,11 @@ def test_a_flow_that_needs_a_service_listening_carries_the_listener_tag(flow_lis
 
     assert flows
     assert [flow.id for flow in flows if "listener" not in flow.tags] == []
+
+
+def test_a_flow_to_the_proxmox_node_carries_the_node_tag_and_no_zone_tag(flow_list):
+    node = yaml.safe_load(GATEWAY_DEFAULTS.read_text())["opnsense_gateway_hosts"]["host_proxmox_node"]
+    flows = [flow for flow in flow_list.flows if str(flow.destination.address) == node]
+
+    assert flows
+    assert [flow.id for flow in flows if "node" not in flow.tags or set(flow.tags) & set(flow_list.zones)] == []

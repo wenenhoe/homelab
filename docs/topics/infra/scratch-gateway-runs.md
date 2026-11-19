@@ -121,6 +121,17 @@ Everything the backend keeps of a run is redacted of the credentials the seed ca
 
 The backend needs only the tools, `sudo -n` and a usable `/dev/kvm`, so any host that has them can run it, privately and without the node. None is set up. The operator host's VM is built from `proxmox_ubuntu_vm`, which fixes the CPU type at `x86-64-v2-AES`, a model with no `vmx`, so it would have no `/dev/kvm` and the backend would fall back to software emulation (`SCRATCH_RUN_QEMU_ACCEL=tcg`, about twenty times slower). A run there would need the module to take a CPU type with `vmx` and the node to allow nested virtualization for that VM. The node backend already covers a run that must stay private and must show the real bridge, so this was not built.
 
+## The DMZ probe
+
+[`dmz-probe`](../../../tofu/scratch/opnsense/runs/dmz-probe.yaml) seeds the gateway with the DMZ's VLAN 35, the sixth of the seed's VLANs and the play's `dmz` zone, and shows two things from a canary in it. The canary's own flows pass: the gateway's DNS, time and echo, its own SSH port and Internet over 443. And the zone's rules deny what they should: the services and desktops canaries are refused from it, the services canary cannot reach it, and the Proxmox node's management address (`host_proxmox_node` in the play) is refused on 22 and 8006.
+
+The node's refusals count only beside their controls, which are the desktops canary reaching the same two ports (`node` in the [flow list](network-boundary-checks.md#the-flows-in-the-list)). The spec admits that canary as an operator host for it, and the run needs what the controls need:
+
+- **The node backend.** The QEMU backend's WAN is user-mode networking, which has no route to the node, so its controls fail.
+- **A WAN that reaches the node.** The scratch gateway's WAN (`WAN_BRIDGE`, with `WAN_VLAN_ID`) has to reach `10.0.0.254` on 22 and 8006, and the node has to answer the gateway's WAN address. A control that fails reports that a block is not shown, which points at this setup and not at the rule.
+
+The runner reaches the DMZ canary only through a row that admits the operator hosts to the zone, which the play does not have. The spec carries the play's `opnsense_gateway_flows` with that one row added, and a test fails when the copy differs from the play's list in anything else. The run does not show the node's own firewall, the tailnet policy's tests or the untrusted-tier proxy that [ADR 0116 (Egress for default-deny zones)](../../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md) sets as the DMZ's only way to the Internet, which the play's `dmz` zone does not yet carry: it reaches the Internet directly, with the private ranges denied.
+
 ## What it does not do
 
 - The checks of [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope) stay in that script, and it still writes the play's variables itself.

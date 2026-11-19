@@ -1,0 +1,111 @@
+---
+# The DMZ's boundary to the Proxmox node, shown on a scratch gateway: a canary in the DMZ zone (VLAN 35) is refused the node's management
+# address on its SSH and API ports, while the desktops canary, admitted as an operator host, reaches the same ports. The refusal counts only
+# beside that control, so a run whose gateway cannot reach the node shows nothing. The node backend's gateway can; the QEMU backend's WAN is
+# user-mode networking, which has no route to the node.
+#
+# The play's own flows hold no row from an operator host to the DMZ, so the runner could not reach the DMZ canary. `opnsense_gateway_flows`
+# here is the play's list with one row added at the end, which admits the operator hosts to the zone over SSH, and
+# test_run_dmz_probe_spec.py fails when it differs from the defaults in anything else. The row exists only in this scratch run. It admits the
+# desktops canary too, since that is an operator host here, so the run leaves that canary's own way into the DMZ unasserted.
+name: dmz-probe
+description: >-
+  A scratch gateway seeded with the DMZ zone (VLAN 35): the gateway has six VLAN interfaces, the play applies and a second run with --check
+  reports no change, the DMZ canary's own flows pass, the services canary and the DMZ canary reach neither the other, the desktops canary is
+  not reached from the DMZ, and the DMZ canary is refused the Proxmox node's SSH and API ports while the desktops canary reaches them.
+gateway:
+  vlans: [20, 25, 40, 50, 55, 35]
+  play_vars:
+    opnsense_gateway_operator_hosts: [192.168.40.250, 192.168.40.8]
+    opnsense_gateway_operator_not_listed_ok: true
+    opnsense_gateway_forward_domains: [host.scratch.lab, lan.scratch.lab]
+    opnsense_gateway_dhcp_reservations:
+      - {name: scratch-reservation, zone: desktops, address: 192.168.40.250, mac: "bc:24:11:00:01:91"}
+    opnsense_gateway_flows:
+      - name: operator hosts to the services zone over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: net_services
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to security for the secrets store
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_security
+        protocol: TCP
+        port: "8200"
+      - name: operator hosts to storage for state and restores
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_storage
+        protocol: TCP
+        port: "443"
+        enabled: false
+      - name: operator hosts to the CD agent over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: cd_agent_hosts
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to the Proxmox node
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_proxmox_node
+        protocol: TCP
+        port: proxmox_node_ports
+      - name: CD agent to the services zone over SSH
+        zones: [management]
+        source: cd_agent_hosts
+        destination: net_services
+        protocol: TCP
+        port: "22"
+        enabled: false
+      - name: CD agent to security for the secrets store
+        zones: [management]
+        source: cd_agent_hosts
+        destination: host_security
+        protocol: TCP
+        port: "8200"
+        enabled: false
+      - name: CD agent to storage for the write key
+        zones: [management]
+        source: cd_agent_hosts
+        destination: host_storage
+        protocol: TCP
+        port: "443"
+        enabled: false
+      - name: tailscale router to the operator host 252 over SSH
+        zones: [services]
+        source: host_tailscale
+        destination: host_operator_252
+        protocol: TCP
+        port: "22"
+      - name: desktops to play for Minecraft
+        zones: [desktops]
+        source: net_desktops
+        destination: host_play
+        protocol: TCP
+        port: "25565"
+      - name: desktops to services for KMS
+        zones: [desktops]
+        source: net_desktops
+        destination: host_services
+        protocol: TCP
+        port: "1688"
+      - name: operator hosts to the DMZ canary over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: net_dmz
+        protocol: TCP
+        port: "22"
+steps:
+  - {id: vlan-interfaces, vlans: check}
+  - {id: play-apply, play: apply}
+  - {id: play-check, play: check, expect: unchanged}
+  - {id: dmz-flows, flows: {tags: [dmz]}}
+  - id: dmz-isolation
+    flows:
+      ids: [dmz-to-services-canary-denied, dmz-to-desktops-canary-denied, services-to-dmz-canary-denied]
+  - id: node-probe
+    flows:
+      ids: [dmz-to-proxmox-node-ssh-denied, dmz-to-proxmox-node-api-denied]

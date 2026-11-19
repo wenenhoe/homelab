@@ -61,7 +61,7 @@ flowchart LR
 - **Outbound.** Only through the untrusted-tier forward proxy of [ADR 0116 (Egress for default-deny zones)](../0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), under an allowlist of this host's own, derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied.
 - **DNS.** The zone's hosts resolve through a small resolver on the untrusted-tier proxy's VM that has no internal zone and no forward to one, and are given its address, not the gateway's. The gateway's Unbound keeps serving every other VLAN. The maintainer and the CD agent reach the host by address.
 - **Tailnet.** The host does not join Tailscale. The subnet router (VM 202) advertises the VLAN's route so the maintainer can reach the host away from home, the tailnet policy grants that route to the laptop alone on `tcp:22`, and `tests` assert that no other node has it. OPNsense admits the subnet router to the VLAN on port 22 only.
-- **Rules.** Hand-built and documented in a topic doc first; written again in the gateway's Ansible configuration by the network project's last stage, not imported.
+- **Rules.** Written in the gateway's Ansible configuration and rehearsed on a scratch gateway, then applied to the production gateway once it is rebuilt from the seed and the play. They are never built by hand on the live gateway, so nothing is written twice.
 
 ## Alternatives considered
 
@@ -77,7 +77,7 @@ flowchart LR
 
 - Allowed destinations remain an exfiltration channel for anything the agent can read. This is accepted.
 - The allowlist needs upkeep as the repo's tooling changes.
-- The first rules are hand-maintained, which is drift-prone until they are carried in code.
+- The zone's rules reach the production gateway only with its rebuild from the play, so the zone waits for that rebuild. Its interface already comes from the seed ([ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
 - The proxy's cost, failure policy and zone are [ADR 0116](../0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md)'s.
 - The zone's resolver and the flow to it are one more thing to patch and one more allowed flow; the egress project builds both.
 - [ADR 0040 (Tofu VM DNS)](../0040-dns-for-tofu-provisioned-vms/revision-000.md)'s one resolver holds for every VLAN but this zone.
@@ -98,8 +98,10 @@ flowchart LR
 
 ## Validation
 
-Probes run from a canary VM in the same VLAN under the same rules, outside the coding-agent host, since a compromised host cannot be trusted to report on itself. The exported rule set is compared against the topic doc, and a probe from a tailnet node other than the laptop confirms it cannot reach the VLAN's SSH port. A canary asks the zone's resolver for an internal name and expects it not to resolve, with a public name resolving as its control.
+Probes run from a canary VM in the same VLAN under the same rules, outside the coding-agent host, since a compromised host cannot be trusted to report on itself. The play's `--check --diff` reports no change on a scratch gateway and, once applied, on the production one, and the exported rule set is compared against the topic doc, and a probe from a tailnet node other than the laptop confirms it cannot reach the VLAN's SSH port. A canary asks the zone's resolver for an internal name and expects it not to resolve, with a public name resolving as its control.
 
 ## Revision notes
 
 The proxy moved to its own lineage, [ADR 0116](../0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), because two more zones depend on it and its placement, tiers and failure policy no longer belong to one zone's reach. Outbound now names that proxy and an allowlist of this host's own; the resolver stays here and runs on the untrusted-tier proxy's VM. The proxy measurements and the alternative of domain-named aliases moved with it; the OPNsense package, which revision 0 left as a later option, is rejected there. The zone, the inbound paths, the tailnet route, the rules and the resolver's reasoning are unchanged.
+
+The rules are no longer built by hand first. The zone is written in the play and applied after the production gateway is rebuilt from it, so the hand-maintained rules and the second writing of them are gone. The zone, the inbound paths, the tailnet route and the resolver are unchanged.

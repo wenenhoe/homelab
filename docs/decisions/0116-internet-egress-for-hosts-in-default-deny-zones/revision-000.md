@@ -92,7 +92,7 @@ flowchart LR
 
 ## Consequences
 
-- The zone's interface joins the seed with the coding-agent and DMZ interfaces, so the three come with one rebuild of the gateway; until then it is hand-built and drift-prone ([ADR 0089](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
+- The zone's interface joins the seed with the coding-agent and DMZ interfaces, so the rebuilt gateway has all three, and the zone's rules reach it through the play, not by hand ([ADR 0089](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
 - Two more VMs to patch, size and rebuild, on a node whose headroom is recorded only as the early accounting in [ADR 0035 (Container orchestration)](../0035-container-orchestration-platform/revision-000.md) and as repeated mentions that it is limited.
 - A trusted-tier outage blocks Tofu until it is rebuilt or the temporary rule is applied, and an operator who needs the rule is working from the node's console or the gateway play.
 - Two proxies of different trust share VLAN 45. Neither initiates to the other and each admits only its own consumers, so adjacency gives a compromised untrusted tier a path to the trusted tier's listening port, which its own address filter refuses. This is accepted.

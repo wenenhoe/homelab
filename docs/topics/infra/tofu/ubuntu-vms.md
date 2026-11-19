@@ -229,7 +229,7 @@ another zone is another volume and the template is replaced.
 | Login | The admin user `canary`, with `canary_ssh_public_keys`. The key is the runner's own, not the one Ansible uses. With no key set, no canary is built |
 | Size | 1 core, 1 GiB, 8 GiB disk |
 
-Zones without a canary yet: management, desktops, isolated and experimental need a row in the gateway's policy that admits the runner's host to the canary's address.
+Zones without a canary yet: management, desktops, isolated, experimental and the DMZ need a row in the gateway's policy that admits the runner's host to the canary's address.
 
 ## Scratch Ubuntu VM
 

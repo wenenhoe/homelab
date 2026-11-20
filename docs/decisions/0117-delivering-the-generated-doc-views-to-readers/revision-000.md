@@ -7,7 +7,7 @@ short: Generated doc views
 solution: Publish the three views as a site on GitHub Pages from every push to main, stop committing them, and generate them locally in a checkout
 summary: How the decision index, the planning view and the disaster-recovery coverage table reach the people who read them on GitHub, on a phone and in a checkout, without every change having to commit them.
 topic: documentation-process
-status: working
+status: approved
 related: [ADR-0037, ADR-0095, ADR-0112]
 ---
 

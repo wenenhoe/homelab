@@ -10,6 +10,7 @@ repository.
 | State credentials | `~/.config/tofu/state-backend.env`, mode `0600` in a `0700` directory | The bucket key pair and the encryption passphrase ([Backend environment](#backend-environment)) |
 | Credentials | `~/.config/tofu/credentials.tfvars`, mode `0600` in the same directory | Outside the repo and outside OpenBao ([Credentials file](#credentials-file)) |
 | API token | Created on the Proxmox node | `tofu@pve!skeleton`; privileges listed [below](#proxmox-api-token) |
+| Snapshot token | Created on the Proxmox node; kept in `~/.config/tofu/snapshot-token.env`, mode `0600` in the same directory | `opnsense-snap@pve!snapshot`, for the snapshot before each apply to the gateway ([Snapshot token](#snapshot-token)) |
 
 ## Remote state
 
@@ -178,3 +179,16 @@ the older `Sys.Modify` on `/`, which is far wider; the role takes the first.
 `TofuProvision` holds every privilege on every path, and Proxmox checks each one only
 where it applies. A change that makes Tofu call more of the Proxmox API widens the
 role to the privileges it needs and lists them here.
+
+## Snapshot token
+
+[ADR 0089](../../../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md) has the gateway VM snapshotted before each apply of the play. A token of its own does that, so a leak of it cannot do what the Tofu token can: it holds the privileges to create, delete and list the snapshots of VM 201 and has no privilege to roll one back, which stays the operator's own act. It is created on the node, outside this repo, and this section is its only record. The file sits beside the credentials file and not in it, because Tofu reads `credentials.tfvars` as variables and the token is not one of its inputs.
+
+```sh
+pveum user add opnsense-snap@pve
+pveum role add GatewaySnapshot -privs "VM.Audit,VM.Snapshot"
+pveum acl modify /vms/201 --users opnsense-snap@pve --roles GatewaySnapshot
+pveum user token add opnsense-snap@pve snapshot --privsep=0
+```
+
+The token's value is shown once, when it is made. It is a standing credential on the host that runs the play, which is why [ADR 0048](../../../decisions/0048-where-tofu-credentials-live/revision-000.md) is revised when the CD agent first applies the play.

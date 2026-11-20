@@ -28,6 +28,7 @@ flowchart LR
 | :--- | :--- |
 | `vm_id` | The gateway VMID of a block of 50, host part 01 or 51 (201 by default) |
 | NICs | Two `virtio` NICs with MACs from the [MAC scheme](../vm-provisioning.md#mac-address-scheme). NIC 0 on the physical WAN bridge, NIC 1 on the VLAN-aware LAN bridge, both untagged so OPNsense sees every VLAN |
+| Startup | The VM starts at the node's boot. `startup_order` puts it at that place in the node's order, with `startup_up_delay` seconds (30 by default) before the next VM starts, so the gateway is up before the VMs behind it |
 | WAN as a client | Setting `wan_bridge` to the LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a WAN that is an ordinary client of another OPNsense's LAN. NIC 1 stays untagged |
 | System disk | The only boot device, imported at `disk_gb`. The image is 3 GB and the gateway grows its root file system into the rest at the first boot |
 | Console | A serial port on a socket |

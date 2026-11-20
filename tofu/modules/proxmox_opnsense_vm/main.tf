@@ -126,6 +126,16 @@ resource "proxmox_virtual_environment_vm" "this" {
     type = "other"
   }
 
+  # The VM starts at the node's boot. The order puts the gateway ahead of the VMs behind it.
+  dynamic "startup" {
+    for_each = var.startup_order == null ? [] : [var.startup_order]
+
+    content {
+      order    = startup.value
+      up_delay = var.startup_up_delay
+    }
+  }
+
   # The image's console is the serial port, and the script that answers the
   # importer and reads the gateway's certificate talks to this socket.
   serial_device {

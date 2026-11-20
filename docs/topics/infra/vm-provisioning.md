@@ -9,7 +9,7 @@ covers what happens once it takes over.
 | Subject | Doc | State |
 | :--- | :--- | :--- |
 | Ubuntu template, VM module, prepared image, scratch VM | [`tofu/ubuntu-vms.md`](tofu/ubuntu-vms.md) | Built; the five Ubuntu hosts are declared in the root module |
-| OPNsense VM module, seed disk, first boot | [`tofu/opnsense-vm.md`](tofu/opnsense-vm.md) | Built; the root module declares no gateway, since the production one is hand-maintained |
+| OPNsense VM module, seed disk, first boot | [`tofu/opnsense-vm.md`](tofu/opnsense-vm.md) | Built; the root module declares the production gateway in `tofu/opnsense.tf`, which the rebuild creates |
 | Gateway configuration through its API | [`tofu/opnsense-gateway.md`](tofu/opnsense-gateway.md) | Built; applied to a scratch gateway |
 | Scratch gateway and its acceptance run | [`tofu/opnsense-scratch-gateway.md`](tofu/opnsense-scratch-gateway.md) | Built |
 | State, credentials file, Proxmox API token | [`tofu/state-and-credentials.md`](tofu/state-and-credentials.md) | State is in an encrypted R2 bucket, with a GPG copy on B2 |

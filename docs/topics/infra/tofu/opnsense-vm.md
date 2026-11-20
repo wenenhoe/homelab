@@ -7,9 +7,9 @@ importer at the first boot. What the gateway is then configured with is the
 the importer reads at the first boot
 ([ADR 0089 (OPNsense configuration)](../../../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)).
 
-The root module declares no OPNsense VM: the production gateway is hand-maintained,
-and the module's callers are the [scratch gateway](opnsense-scratch-gateway.md)
-and the tests.
+The root module declares the production gateway in `tofu/opnsense.tf`
+([below](#the-production-gateway)), and the module's other callers are the
+[scratch gateway](opnsense-scratch-gateway.md) and the tests.
 
 ```mermaid
 flowchart LR
@@ -61,7 +61,7 @@ mtools and `xmllint`. It starts from OPNsense's own sample `config.xml`
 | :--- | :--- |
 | NICs | `vtnet0` is the WAN, `vtnet1` the LAN |
 | LAN address | `--lan-ip` |
-| VLANs | A device `vlan0.<tag>` on the LAN device for each tag of `--vlans` (20, 30, 40, 50 and 60 unless overridden), with an interface at `192.168.<tag>.1/24` |
+| VLANs | A device `vlan0.<tag>` on the LAN device for each tag of `--vlans` (20, 25, 30, 35, 40, 45, 50 and 55 unless overridden), with an interface at `192.168.<tag>.1/24` |
 | Hostname and domain | Domain `OPNsense.internal` unless overridden: the name the play verifies the GUI certificate for |
 | Time zone | `--timezone`, `Asia/Singapore` by default, the inventory's `server_timezone` |
 | Management reach | Anti-lockout off, so the gateway admits no host to the GUI, API and SSH ports unless a rule does. The GUI and API listen on the LAN and the VLAN interfaces, never the WAN |
@@ -129,3 +129,30 @@ A node that takes a password is reached through a master connection opened by ha
 (`ssh -fN -M -S /tmp/opn-ssh.sock root@pve`) and named in `SSH_CONTROL_PATH`. A first
 boot that did not take the seed cannot be repeated on the same VM: destroy it and
 apply the module again.
+
+## The production gateway
+
+`tofu/opnsense.tf` calls the module for VMID 201 with the values of the hand-built VM it
+replaces: its name, two cores, 2 GiB, `vmbr0` for the WAN and `vmbr1` for the LAN, and
+startup order 1. Its NICs carry the MACs the MAC scheme derives from VMID 201
+(`BC:24:11:00:C9:00` and `BC:24:11:00:C9:01`), not those of the VM it replaces, so the
+physical router sees the rebuilt gateway as a new WAN client. It sets `started = false`, so the VM is created stopped
+and [`first_boot.sh`](#first-boot) starts it. The image is the pinned release's unpacked
+copy in the images datastore (`opnsense_image_volume_id`), the one the scratch gateway's
+runs stage. The seed is `opnsense_seed_image_path`, null in the steady state.
+
+Until the rebuild the hand-built VM holds VMID 201, so applying the root module would fail
+at the create. The rebuild itself is in
+[`opnsense-config.md`](../../../projects/opnsense-config.md#the-production-rebuild). The
+checks before it:
+
+- `tofu plan` shows the gateway VM and the seed file as the only additions.
+- `pvesm list tofu-images --content import` on the node lists the image under the name the
+  variable gives. When it does not, stage it as `scratch_gateway.sh` does, with
+  `tofu/scratch/opnsense/stage_image.sh`.
+- The seed was built with the LAN address of the gateway and the operator host's address
+  ([above](#seed-disk)).
+
+The create is `tofu apply -var-file="$HOME/.config/tofu/credentials.tfvars"
+-var opnsense_seed_image_path="$HOME/opnsense-seed/seed.img"`, after which `first_boot.sh`
+takes the seed. When it is done, apply again without the seed variable.

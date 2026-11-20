@@ -45,6 +45,7 @@ A step has an `id` and exactly one of these:
 | `block: present` or `block: absent` | Adds or lifts `block_rule` | None: it passes when the playbook succeeds |
 | `vm: up` | Builds the canary VM and waits until it answers over ssh through the gateway; at most one, before every `flows` step (see [the canary VM](#the-canary-vm)). The VM is removed at teardown | None |
 | `vlans: check` | Asks the gateway's API for its interfaces and passes when it has exactly the VLAN interfaces `gateway.vlans` seeds (below); the spec must set `gateway.vlans` | None |
+| `stray: present` | Adds a firewall rule the play does not write, on the desktops zone's interface, behind the play's back ([`stray_rule.yaml`](../../../tofu/scratch/opnsense/acceptance/stray_rule.yaml)). Between `play: check` with `expect: changed` and a `play: apply` it shows the play reports and removes such a rule | None: it passes when the playbook succeeds |
 
 The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, which the seed keeps ascending, so a gateway seeded with eight VLANs has `opt1` to `opt8`. The step shows that the seed took the spec's list (eight interfaces and not seven); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
 

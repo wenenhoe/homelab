@@ -16,6 +16,7 @@ FLOWS_FAIL = Step("s", "flows", "", "fail", flow_ids=("services-gateway-dns",))
 BLOCK = Step("s", "block", "present", "")
 VLANS = Step("s", "vlans", "check", "")
 VM = Step("s", "vm", "up", "")
+STRAY = Step("s", "stray", "present", "")
 RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    failed=0\n"
 
 
@@ -38,6 +39,8 @@ RECAP = "localhost                  : ok=9    changed={n}    unreachable=0    fa
         pytest.param(FLOWS_FAIL, 2, "", False, id="nothing-selected-is-not-a-failure"),
         pytest.param(BLOCK, 0, "", True, id="block-ok"),
         pytest.param(BLOCK, 4, "", False, id="block-fails"),
+        pytest.param(STRAY, 0, "", True, id="stray-ok"),
+        pytest.param(STRAY, 4, "", False, id="stray-fails"),
         pytest.param(VLANS, 0, "the gateway has 6 VLAN interfaces\n", True, id="vlans-match"),
         pytest.param(VLANS, 1, "the gateway has 5 VLAN interfaces\n", False, id="vlans-differ"),
         pytest.param(VM, 0, "VM 208 answered over ssh\n", True, id="vm-answers"),
@@ -185,3 +188,32 @@ def test_a_vm_step_is_run_by_the_backend_and_says_what_happened_in_its_last_line
     assert backend.calls == ["preflight", "up", "vm", "flows:services", "logs", "down"]
     assert "STEP vm-up: running (vm up)" in lines
     assert "STEP vm-up: PASS (VM 208 answered over ssh after 40s; 0s)" in lines
+
+
+def test_the_stray_rule_spec_is_reported_removed_and_gone_when_every_step_has_the_outcome_it_expects(tmp_path):
+    from scratch_run.spec import load_spec
+    from scratch_run_fakes import RUNS
+
+    spec = load_spec(RUNS / "stray-rule.yaml")
+    backend = FakeBackend()
+    status = run(spec, backend, tmp_path, "T9", lambda: 0.0, say=lambda line: None)
+
+    assert status == EXIT_OK
+    assert backend.calls[2:8] == ["play:apply", "play:check", "stray", "play:check", "play:apply", "play:check"]
+
+
+def test_a_gateway_that_keeps_the_stray_rule_after_a_run_fails_the_step_that_follows(tmp_path):
+    from scratch_run.spec import load_spec
+    from scratch_run_fakes import RUNS
+
+    class Keeps(FakeBackend):
+        def play(self, spec, mode):
+            status, output = super().play(spec, mode)
+            self.strayed = self.strayed or (mode == "apply" and self.calls.count("stray") > 0)
+            return status, output
+
+    lines: list[str] = []
+    status = run(load_spec(RUNS / "stray-rule.yaml"), Keeps(), tmp_path, "T10", lambda: 0.0, say=lines.append)
+
+    assert status == EXIT_STEP_FAILED
+    assert "1 STEP(S) FAILED: stray-after" in lines

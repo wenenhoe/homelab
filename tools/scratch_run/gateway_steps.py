@@ -150,6 +150,7 @@ class GatewaySteps:
         self.ansible = self.env.get("ANSIBLE_PLAYBOOK", "ansible-playbook")
         self.local_port = self.env.get("LOCAL_PORT", self.DEFAULT_API_PORT)
         self.block_playbook = repo / "tofu/scratch/opnsense/boundary/block_rule.yaml"
+        self.stray_playbook = repo / "tofu/scratch/opnsense/acceptance/stray_rule.yaml"
         self.cert = out_dir / "first-boot" / "gateway-cert.pem"
         self.creds = out_dir / "credentials.tfvars"
         self.key = out_dir / "runner_key"
@@ -227,6 +228,16 @@ class GatewaySteps:
             "block_state": state,
         }
         return self.run([self.ansible, str(self.block_playbook), "-e", json.dumps(extra)], env=self._noproxy_env(), cwd=self.repo, on_output=self.echo)
+
+    def stray(self, spec: Spec) -> tuple[int, str]:
+        """Add a firewall rule the play does not write, on the interface the role's list gives the desktops zone."""
+        zones = re.findall(
+            r"^  - \{ name: desktops,.* interface: ([a-z0-9]+),", (self.repo / "ansible/roles/opnsense_gateway/defaults/main.yaml").read_text(), re.MULTILINE
+        )
+        if not zones:
+            return 1, "the role's zone list has no desktops zone with an interface\n"
+        extra = {"ca_file": str(self.cert), "api_port": int(self.local_port), "credentials": str(self.creds), "interface": zones[0]}
+        return self.run([self.ansible, str(self.stray_playbook), "-e", json.dumps(extra)], env=self._noproxy_env(), cwd=self.repo, on_output=self.echo)
 
     def vlans(self, spec: Spec) -> tuple[int, str]:
         url = f"https://{MGMT_NAME}:{self.local_port}/{gateway_api.INTERFACE_LIST_PATH}"

@@ -1,0 +1,22 @@
+---
+# The play keeps the gateway's firewall rules equal to its own. The play applies, a rule it does not write is added behind its back, a
+# --check reports it, a run removes it, and the next --check is clean, which also shows the guard rule stayed: a removed guard rule would
+# be written again and reported. The play's variables are those of rehearsal.yaml.
+name: stray-rule
+description: >-
+  The play applies to a scratch gateway; a firewall rule it does not write is added behind its back, --check reports it as a change, a run
+  removes it, and the next --check reports no change.
+gateway:
+  play_vars:
+    opnsense_gateway_operator_hosts: [192.168.40.250]
+    opnsense_gateway_operator_not_listed_ok: true
+    opnsense_gateway_forward_domains: [host.scratch.lab, lan.scratch.lab]
+    opnsense_gateway_dhcp_reservations:
+      - {name: scratch-reservation, zone: desktops, address: 192.168.40.250, mac: "bc:24:11:00:01:91"}
+steps:
+  - {id: play-apply, play: apply}
+  - {id: play-check, play: check, expect: unchanged}
+  - {id: stray-add, stray: present}
+  - {id: stray-check, play: check, expect: changed}
+  - {id: stray-apply, play: apply}
+  - {id: stray-after, play: check, expect: unchanged}

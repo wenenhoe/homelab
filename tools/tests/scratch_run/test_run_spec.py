@@ -75,7 +75,7 @@ def test_a_good_spec_is_read_with_its_defaults():
         pytest.param(broken(lambda s: s.pop("block_rule")), "a block step needs `block_rule`", id="block-without-rule"),
         pytest.param(broken(lambda s: s["steps"].pop(3)), "no step uses it", id="rule-without-block"),
         pytest.param(broken(lambda s: s["steps"][1].update(id="apply")), "`apply` is used twice", id="repeated-step-id"),
-        pytest.param(broken(lambda s: s["steps"][0].update(flows={"tags": ["x"]})), "exactly one of play, flows, block, vlans, vm", id="two-kinds"),
+        pytest.param(broken(lambda s: s["steps"][0].update(flows={"tags": ["x"]})), "exactly one of play, flows, block, vlans, vm, stray", id="two-kinds"),
         pytest.param(broken(lambda s: s["steps"][0].update(play="destroy")), "one of apply, check", id="bad-play-mode"),
         pytest.param(broken(lambda s: s["steps"][0].update(expect="pass")), "one of ok, unchanged, changed", id="wrong-play-expect"),
         pytest.param(broken(lambda s: s["steps"][3].update(expect="ok")), "takes no `expect`", id="block-expect"),

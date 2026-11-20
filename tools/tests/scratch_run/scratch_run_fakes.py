@@ -23,6 +23,7 @@ class FakeBackend:
     secret_values: list[str] = field(default_factory=list)
     calls: list[str] = field(default_factory=list)
     blocked: bool = False  # a block rule is present: the DNS flow it breaks fails, as on a gateway
+    strayed: bool = False  # a rule the play does not write is present: a check reports a change and an apply removes it
     log_files: dict[str, str] = field(default_factory=dict)  # what `logs` hands over
 
     def _answer(self, name: str) -> tuple[int, str]:
@@ -38,7 +39,10 @@ class FakeBackend:
 
     def play(self, spec: Spec, mode: str) -> tuple[int, str]:
         status, output = self._answer(f"play:{mode}")
-        return status, output if mode == "apply" else "localhost : ok=3 changed=0 failed=0\n"
+        if mode == "apply":
+            self.strayed = False
+            return status, output
+        return status, f"localhost : ok=3 changed={int(self.strayed)} failed=0\n"
 
     def flows(self, tags: tuple[str, ...], ids: tuple[str, ...]) -> tuple[int, str]:
         status, output = self._answer("flows:" + ",".join((*tags, *ids)))
@@ -51,6 +55,10 @@ class FakeBackend:
     def block(self, spec: Spec, state: str) -> tuple[int, str]:
         self.blocked = state == "present"
         return self._answer(f"block:{state}")
+
+    def stray(self, spec: Spec) -> tuple[int, str]:
+        self.strayed = True
+        return self._answer("stray")
 
     def vlans(self, spec: Spec) -> tuple[int, str]:
         return self._answer("vlans")

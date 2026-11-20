@@ -16,6 +16,7 @@ every problem at once, so a mistake costs no gateway build. Standard library and
       - {id: services, flows: {tags: [services]}}        # tags and/or ids; expect: pass | fail
       - {id: block-on, block: present}                   # present | absent, needs block_rule
       - {id: vlans, vlans: check}                        # the gateway has the VLAN interfaces `gateway.vlans` seeds
+      - {id: stray, stray: present}                      # adds a firewall rule the play does not write, behind the play's back
       - {id: canary-vm, vm: up}                          # builds the canary VM and waits for it to answer over ssh; before any flows step
 """
 
@@ -40,14 +41,15 @@ TOP_KEYS = ("name", "description", "gateway", "block_rule", "canary_vm", "steps"
 GATEWAY_KEYS = ("vlans", "play_vars")
 RULE_KEYS = ("source", "destination", "protocol", "port")
 CANARY_VM_KEYS = ("zone",)
-STEP_KEYS = ("id", "play", "flows", "block", "vlans", "vm", "expect")
+STEP_KEYS = ("id", "play", "flows", "block", "vlans", "vm", "stray", "expect")
 FLOWS_KEYS = ("tags", "ids")
-KINDS = ("play", "flows", "block", "vlans", "vm")
-MODES = {"play": ("apply", "check"), "block": ("present", "absent"), "vlans": ("check",), "vm": ("up",)}
+KINDS = ("play", "flows", "block", "vlans", "vm", "stray")
+MODES = {"play": ("apply", "check"), "block": ("present", "absent"), "vlans": ("check",), "vm": ("up",), "stray": ("present",)}
 NO_EXPECT = {
     "block": "a block step passes when the playbook succeeds",
     "vlans": "a vlans step passes when the gateway has the VLAN interfaces",
     "vm": "a vm step passes when the VM answers over ssh",
+    "stray": "a stray step passes when the playbook succeeds",
 }
 EXPECTS = {"play": ("ok", "unchanged", "changed"), "flows": ("pass", "fail")}
 DEFAULT_EXPECT = {"apply": "ok", "check": "unchanged", "flows": "pass"}
@@ -71,9 +73,9 @@ class BlockRule:
 @dataclass(frozen=True)
 class Step:
     id: str
-    kind: str  # play, flows, block, vlans or vm
+    kind: str  # play, flows, block, vlans, vm or stray
     mode: str  # apply, check, present, absent or up; empty for flows
-    expect: str  # ok, unchanged, changed, pass or fail; empty for block, vlans and vm
+    expect: str  # ok, unchanged, changed, pass or fail; empty for block, vlans, vm and stray
     tags: tuple[str, ...] = ()
     flow_ids: tuple[str, ...] = ()
 

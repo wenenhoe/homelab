@@ -331,10 +331,19 @@ def _expression(env, source, scope):
     return env.compile_expression(source.removeprefix("{{").removesuffix("}}").strip())(**scope)
 
 
+def _scope(defaults: dict, *, cd_agent: bool) -> dict:
+    """The role's defaults with the facts its tasks set, which the rule tasks and the removal read."""
+    scope = {**defaults, "opnsense_gateway_cd_agent_management": cd_agent}
+    for task in _policy_tasks():
+        for name, source in task.get("ansible.builtin.set_fact", {}).items():
+            scope[name] = _expression(_rule_env(), source, scope)
+    return scope
+
+
 def _written_descriptions(defaults: dict, *, cd_agent: bool) -> list[str]:
     """What the rule tasks write, by rendering each task's description over its own loop."""
     env = _rule_env()
-    scope = {**defaults, "opnsense_gateway_cd_agent_management": cd_agent}
+    scope = _scope(defaults, cd_agent=cd_agent)
     written = []
     for task in _policy_tasks():
         if "oxlorg.opnsense.rule" not in task or task["oxlorg.opnsense.rule"].get("state") == "absent":
@@ -354,7 +363,7 @@ def _wanted(defaults: dict, *, cd_agent: bool) -> list[str]:
     import json
 
     removal = _policy_tasks()[-1]
-    scope = {**defaults, "opnsense_gateway_cd_agent_management": cd_agent}
+    scope = _scope(defaults, cd_agent=cd_agent)
     return json.loads(_rule_env().from_string(removal["vars"]["opnsense_gateway_wanted_rules"]).render(**scope))
 
 
@@ -384,6 +393,33 @@ def test_a_rule_switched_off_by_its_switch_is_not_kept_so_the_removal_agrees_wit
 
     assert cd_rule not in _wanted(defaults, cd_agent=False)
     assert cd_rule in _wanted(defaults, cd_agent=True)
+
+
+def test_every_zone_says_whether_it_may_ask_the_gateway_for_dns(defaults):
+    assert all(isinstance(zone["gateway_dns"], bool) for zone in defaults["opnsense_gateway_zones"])
+
+
+def test_a_zone_that_may_not_ask_the_gateway_for_dns_is_written_its_other_services_and_no_dns_rule(defaults):
+    zones = [{**zone, "gateway_dns": zone["name"] != "services"} for zone in defaults["opnsense_gateway_zones"]]
+    changed = {**defaults, "opnsense_gateway_zones": zones}
+    pattern = defaults["opnsense_gateway_rule_names"]["zone_service"]
+    written = _written_descriptions(changed, cd_agent=False)
+
+    assert pattern % ("services", "DNS over TCP") not in written
+    assert pattern % ("services", "DNS over UDP") not in written
+    assert pattern % ("services", "NTP") in written
+    assert pattern % ("services", "ping") in written
+    assert pattern % ("desktops", "DNS over UDP") in written
+    assert sorted(_wanted(changed, cd_agent=False)) == sorted(written)
+
+
+def test_a_zone_that_may_not_ask_the_gateway_for_dns_has_its_dns_rule_removed_because_the_removal_does_not_keep_it(defaults):
+    zones = [{**zone, "gateway_dns": zone["name"] != "services"} for zone in defaults["opnsense_gateway_zones"]]
+    changed = {**defaults, "opnsense_gateway_zones": zones}
+    pattern = defaults["opnsense_gateway_rule_names"]["zone_service"]
+
+    assert pattern % ("services", "DNS over UDP") in _wanted(defaults, cd_agent=False)
+    assert pattern % ("services", "DNS over UDP") not in _wanted(changed, cd_agent=False)
 
 
 def test_the_zone_without_internet_has_no_internet_rules_kept(defaults):

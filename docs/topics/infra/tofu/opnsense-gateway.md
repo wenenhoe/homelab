@@ -54,7 +54,7 @@ a test fails when the two differ.
 | :--- | :--- |
 | Aliases | One per zone's network; one for the operator hosts, the CD agent and the gateway's management ports |
 | Guard rule | A floating quick pass at sequence 1 admitting the operator hosts to the gateway's SSH and API ports |
-| Per-zone rules | DNS, NTP and ping to the gateway |
+| Per-zone rules | DNS, NTP and ping to the gateway. A zone marked `gateway_dns: false` is given NTP and ping only, since the gateway's Unbound forwards the internal zones and would show them to it |
 | Flows | The flows between zones in `opnsense_gateway_flows`: a pass rule on the source zone's interfaces, each matched by its name. One marked `enabled: false` is written but not in force |
 | Internet zones | A zone marked `internet: true` also gets a rule denying direct DNS (ports 53 and 853) to anything but the gateway, and one passing its traffic to everything outside the private ranges. Other zones reach only the flows listed |
 | Other rules | Removes any rule the gateway's API lists that the play does not write, matched by description, which `--check` reports as a change. What the play writes is every rule above, including a flow marked `enabled: false` and excluding one its switch turns off. The guard rule is one it writes, so it is never removed. The legacy rules the seed holds (the bootstrap rule) are not listed by the API and are outside this. A rule with no description stops the play, as it cannot be named to remove |

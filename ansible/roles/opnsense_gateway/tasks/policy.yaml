@@ -126,7 +126,16 @@
     log: false
     reload: true
 
-- name: Let every zone ask the gateway for DNS, NTP and ping
+# A zone with gateway_dns: false is paired only with the services not marked dns: true. The removal
+# below reads the same pairs, so a rule left out here is removed, not kept.
+- name: Pair each zone with the services it may ask of the gateway
+  ansible.builtin.set_fact:
+    opnsense_gateway_service_pairs: >-
+      {{ (opnsense_gateway_zones | selectattr('gateway_dns') | product(opnsense_gateway_zone_services) | list)
+      + (opnsense_gateway_zones | rejectattr('gateway_dns')
+      | product(opnsense_gateway_zone_services | rejectattr('dns') | list) | list) }}
+
+- name: Let each zone ask the gateway for the services it may
   oxlorg.opnsense.rule:
     description: "{{ opnsense_gateway_rule_names.zone_service | format(opnsense_gateway_pair.0.name, opnsense_gateway_pair.1.name) }}"
     match_fields: [description]
@@ -143,7 +152,7 @@
     icmp_type: "{{ opnsense_gateway_pair.1.icmp_type | default([]) }}"
     log: false
     reload: true
-  loop: "{{ opnsense_gateway_zones | product(opnsense_gateway_zone_services) | list }}"
+  loop: "{{ opnsense_gateway_service_pairs }}"
   loop_control:
     loop_var: opnsense_gateway_pair
     label: "{{ opnsense_gateway_pair.0.name }}: {{ opnsense_gateway_pair.1.name }}"
@@ -257,7 +266,7 @@
       {%- if opnsense_gateway_cd_agent_management | bool -%}
       {%- set _ = wanted.append(opnsense_gateway_rule_names.cd_agent | format(opnsense_gateway_cd_agent_zone)) -%}
       {%- endif -%}
-      {%- for pair in opnsense_gateway_zones | product(opnsense_gateway_zone_services) -%}
+      {%- for pair in opnsense_gateway_service_pairs -%}
       {%- set _ = wanted.append(opnsense_gateway_rule_names.zone_service | format(pair.0.name, pair.1.name)) -%}
       {%- endfor -%}
       {%- for flow in opnsense_gateway_flows -%}

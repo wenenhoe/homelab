@@ -25,15 +25,17 @@ opnsense_gateway_credentials_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/
 # the gateway is its .1. A zone with internet: true may reach the Internet; the
 # others (and every zone for the private ranges) may not. A zone with dhcp: true
 # has a Kea scope, which is only for zones whose clients Tofu does not place
-# (ADR 0089). ansible/tests/test_opnsense_policy.py fails when a zone's
-# VLAN or interface differs from the seed's.
+# (ADR 0089). A zone with gateway_dns: false may not ask the gateway for DNS:
+# the gateway's Unbound forwards the internal zones, so an answer from it would
+# show them. ansible/tests/test_opnsense_policy.py fails when a zone's VLAN or
+# interface differs from the seed's.
 opnsense_gateway_zones:
-  - { name: services, vlan: 20, interface: opt1, internet: true, dhcp: false }
-  - { name: management, vlan: 25, interface: opt2, internet: true, dhcp: false }
-  - { name: desktops, vlan: 40, interface: opt5, internet: true, dhcp: true }
-  - { name: isolated, vlan: 50, interface: opt7, internet: false, dhcp: true }
-  - { name: experimental, vlan: 55, interface: opt8, internet: true, dhcp: true }
-  - { name: dmz, vlan: 35, interface: opt4, internet: true, dhcp: false }
+  - { name: services, vlan: 20, interface: opt1, internet: true, dhcp: false, gateway_dns: true }
+  - { name: management, vlan: 25, interface: opt2, internet: true, dhcp: false, gateway_dns: true }
+  - { name: desktops, vlan: 40, interface: opt5, internet: true, dhcp: true, gateway_dns: true }
+  - { name: isolated, vlan: 50, interface: opt7, internet: false, dhcp: true, gateway_dns: true }
+  - { name: experimental, vlan: 55, interface: opt8, internet: true, dhcp: true, gateway_dns: true }
+  - { name: dmz, vlan: 35, interface: opt4, internet: true, dhcp: false, gateway_dns: true }
 
 # opnsense_gateway_operator_hosts has no default: it is the list of addresses
 # the operator's work runs from, which the guard rule admits to the gateway's
@@ -52,12 +54,13 @@ opnsense_gateway_cd_agent_hosts:
   - 192.168.25.3
 opnsense_gateway_cd_agent_zone: management
 
-# What every zone may ask of the gateway itself.
+# What every zone may ask of the gateway itself, except that a zone with
+# gateway_dns: false is not given the services marked dns: true.
 opnsense_gateway_zone_services:
-  - { name: DNS over TCP, protocol: TCP, port: "53" }
-  - { name: DNS over UDP, protocol: UDP, port: "53" }
-  - { name: NTP, protocol: UDP, port: "123" }
-  - { name: ping, protocol: ICMP, icmp_type: [echoreq] }
+  - { name: DNS over TCP, protocol: TCP, port: "53", dns: true }
+  - { name: DNS over UDP, protocol: UDP, port: "53", dns: true }
+  - { name: NTP, protocol: UDP, port: "123", dns: false }
+  - { name: ping, protocol: ICMP, icmp_type: [echoreq], dns: false }
 
 # The hosts the flows below name, as aliases. ansible/tests/test_opnsense_policy.py
 # fails when an address differs from the inventory's or the DNS records'.

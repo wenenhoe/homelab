@@ -14,6 +14,8 @@ allowed_paths:
   - tofu/modules/proxmox_opnsense_vm/**
   - tofu/scratch/opnsense/**
   - tofu/tests/proxmox_opnsense_vm.tftest.hcl
+  - tofu/opnsense.tf
+  - tofu/tests/root_opnsense.tftest.hcl
   - tools/tests/opnsense_seed/**
   - tools/tests/opnsense_acceptance/**
   - README.md

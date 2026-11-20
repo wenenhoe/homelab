@@ -225,7 +225,7 @@ line_of() {
   : > "$CALLS"
   UPDATE_FAIL=1 run -1 "$SCRIPT" up "$OUT" "$URL" "$SUM"
   assert_output --partial "the update reported failed checks"
-  run grep -c -- '-O' "$CALLS"
+  run grep -cE -- '(^| )-O( |$)' "$CALLS"
   assert_output 0
 }
 
@@ -241,7 +241,7 @@ line_of() {
   assert_output --partial "the update ended with status 3 and no failed check"
   run calls_to scp
   assert_output --partial "root@pve:/tmp/opn-scratch.TEST/update"
-  run grep -c -- '-O' "$CALLS"
+  run grep -cE -- '(^| )-O( |$)' "$CALLS"
   assert_output 0
 }
 

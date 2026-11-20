@@ -16,14 +16,33 @@ Repository rulesets (Settings > Rules) enforce this; none of it is in the reposi
 
 | Ruleset | Applies to | Rules | Bypass |
 | :--- | :--- | :--- | :--- |
-| `main` | `main` | The 16 required checks ([`pipeline.md`](ci/pipeline.md#requiring-checks-before-merge)), no deletion, no force push. | Nobody |
+| `main` | `main` | The 17 required checks ([`pipeline.md`](ci/pipeline.md#requiring-checks-before-merge)), no deletion, no force push. | Nobody |
 | `main-review` | `main` | A pull request, merge commits only, and an `update` rule that refuses every change to anyone off the bypass list. | The Admin role, for pull requests only: a promotion can be merged, nothing can be pushed. |
-| `maintenance-and-develop` | `maintenance`, `develop` | A pull request and the same 16 checks. | The Admin role and the Renovate app, always: a direct push is allowed. |
+| `maintenance-and-develop` | `maintenance`, `develop` | A pull request and the same 17 checks. | The Admin role and the Renovate app, always: a direct push is allowed. |
 | `keep-branches` | `maintenance`, `develop` | No deletion, no force push. | Nobody, so it holds for the maintainer and the app too. |
 
 Two facts shape the table. An approving review is not used on `main`: an approval from the Renovate app counts towards one, and a sole maintainer cannot approve their own pull request, so the `update` rule is what stops any credential but the maintainer merging. And the `keep-branches` rules sit in their own ruleset because a rule in a ruleset with a bypass list can be bypassed, and GitHub's "delete branch on merge" acts as the merging actor, so with a bypass it removes the branch a promotion came from. Rules with no bypass list cannot be bypassed, so the setting can stay on for every other branch.
 
 To retire or rebuild one of the branches, turn `keep-branches` off first and back on afterwards.
+
+### Adding a required check
+
+A job that [`pipeline.md`](ci/pipeline.md#requiring-checks-before-merge) says is required has to be added to the `main` and `maintenance-and-develop` rulesets by hand, since neither is in the repository. This adds a check by its name to both, keeps the app each existing check is tied to, and does nothing to a ruleset that already has it. The job has to have run once, on a pull request or on `main`, for GitHub to offer its name; the command does not need that.
+
+```bash
+CHECK=doc-site
+for name in main maintenance-and-develop; do
+  id=$(gh api repos/wenenhoe/homelab/rulesets --jq ".[] | select(.name == \"$name\") | .id")
+  gh api "repos/wenenhoe/homelab/rulesets/$id" | jq --arg check "$CHECK" '
+      (.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks) |=
+        (if any(.[]; .context == $check) then . else . + [{context: $check} + ((.[0] // {}) | del(.context))] end)
+      | {name, target, enforcement, conditions, rules, bypass_actors}' |
+    gh api --method PUT "repos/wenenhoe/homelab/rulesets/$id" --input - --jq '.name'
+  gh api "repos/wenenhoe/homelab/rulesets/$id" --jq '.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks | map(.context) | sort | join(" ")'
+done
+```
+
+The last line of each round prints the checks the ruleset now requires, which is the way to confirm it. A change to a ruleset is the maintainer's, by hand, and the count in the table above and in `pipeline.md` is changed in the pull request that adds the job to the list.
 
 ## Choosing the branch for a change
 

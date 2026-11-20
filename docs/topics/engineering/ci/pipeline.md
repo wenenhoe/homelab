@@ -312,7 +312,7 @@ The workflow triggers on `pull_request_target`, so the workflow and the code it 
 
 ## Requiring checks before merge
 
-The rulesets on `main`, `maintenance` and `develop` require the same 16
+The rulesets on `main`, `maintenance` and `develop` require the same 17
 checks ([`branching.md`](../branching.md#the-rulesets)). GitHub's rulesets
 (Settings > Rules) reference jobs by their check-run name: the job's name alone
 (`pre-commit-checks`, with no workflow name before it), or, for a job that
@@ -321,9 +321,9 @@ calls a reusable workflow, the calling job and the called one
 
 `warm-pre-commit-cache`, `pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
-`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `renovate-config-check`, `shell-tests`, `tofu-checks`, `compose-syntax-check`
+`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `renovate-config-check`, `shell-tests`, `doc-site`, `tofu-checks`, `compose-syntax-check`
 and `trivy-scan / ansible-misconfig-scan` are required directly, with
-`matrix-jobs-gate` below as the sixteenth; all are safe to
+`matrix-jobs-gate` below as the seventeenth; all are safe to
 require: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required

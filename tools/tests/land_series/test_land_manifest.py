@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from _series_repo import Author, series_file
-from land_series.manifest import Layer, SeriesError, group_pulls, order_layers, parse_base, parse_series
+from land_series.manifest import Layer, Pull, SeriesError, group_pulls, order_layers, parse_base, parse_series
 
 
 def layer(layer_id: str, slug: str | None = None, source: str = "series") -> Layer:
@@ -124,3 +124,80 @@ def test_a_base_line_inside_a_patch_is_not_read(author: Author) -> None:
     patch = author.patch("docs: note", {"a.txt": "# base: develop\n"})
 
     assert parse_base(series_file([("0001a write-one", patch)])) is None
+
+
+def titled_pulls(author: Author, *lines: str) -> list[Pull]:
+    patches = [
+        ("0001a write-one", author.patch("docs: prepare one", {"a.txt": "one\n"})),
+        ("0001b write-one", author.patch("docs: write one", {"a.txt": "one\ntwo\n"})),
+        ("0002a write-two", author.patch("docs: write two", {"b.txt": "two\n"})),
+    ]
+    return group_pulls(order_layers(parse_series("".join(f"{line}\n" for line in lines).encode() + series_file(patches))))
+
+
+def test_a_title_line_names_the_pull_request_and_the_rest_keep_their_first_subject(author: Author) -> None:
+    pulls = titled_pulls(author, "# title 0001: docs(notes): say what the notes are for")
+
+    assert [pull.title for pull in pulls] == ["docs(notes): say what the notes are for", "docs: write two"]
+
+
+def test_a_title_line_may_come_after_other_comments_and_with_loose_spacing(author: Author) -> None:
+    pulls = titled_pulls(author, "# a series", "#title   0002:   fix(tools): name the second  ", "# the title is not named here")
+
+    assert [pull.title for pull in pulls] == ["docs: prepare one", "fix(tools): name the second"]
+
+
+def test_a_layer_from_a_later_file_takes_the_title_the_first_file_named(author: Author) -> None:
+    first = parse_series(
+        b"# title 0001: docs: name the pull request\n" + series_file([("0001a write-one", author.patch("docs: prepare one", {"a.txt": "1\n"}))])
+    )
+    later = parse_series(series_file([("0001b write-one", author.patch("docs: write one", {"a.txt": "2\n"}))]))
+
+    assert [pull.title for pull in group_pulls(order_layers([*first, *later]))] == ["docs: name the pull request"]
+
+
+def test_the_same_title_in_two_files_is_one_title(author: Author) -> None:
+    line = b"# title 0001: docs: name the pull request\n"
+    first = parse_series(line + series_file([("0001a write-one", author.patch("docs: prepare one", {"a.txt": "1\n"}))]))
+    again = parse_series(line + series_file([("0001b write-one", author.patch("docs: write one", {"a.txt": "2\n"}))]))
+
+    assert [pull.title for pull in group_pulls(order_layers([*first, *again]))] == ["docs: name the pull request"]
+
+
+def test_two_files_that_title_one_pull_request_differently_are_refused(author: Author) -> None:
+    first = parse_series(b"# title 0001: docs: name it one way\n" + series_file([("0001a write-one", author.patch("docs: prepare one", {"a.txt": "1\n"}))]))
+    later = parse_series(b"# title 0001: docs: name it another\n" + series_file([("0001b write-one", author.patch("docs: write one", {"a.txt": "2\n"}))]))
+
+    with pytest.raises(SeriesError, match=r"has the titles .* a pull request has one title"):
+        order_layers([*first, *later])
+
+
+@pytest.mark.parametrize(
+    ("line", "message"),
+    [
+        pytest.param("# title: docs: no number", "write a title as", id="no number"),
+        pytest.param("# title 0001 docs: no colon after the number", "write a title as", id="no colon after the number"),
+        pytest.param("# title", "write a title as", id="nothing after the word"),
+        pytest.param("# title 0007: docs: no such layer", "lists no layer 0007", id="a number the manifest does not list"),
+        pytest.param(f"# title 0001: docs: {'a' * 70}", "has at most 72", id="longer than a subject may be"),
+        pytest.param("# title 0001: Docs: capital type", "not a subject", id="capital type"),
+        pytest.param("# title 0001: docs: Capital after the colon", "not a subject", id="capital after the colon"),
+        pytest.param("# title 0001: say what it is for", "not a subject", id="no type"),
+        pytest.param("# title 0001: docs(a b): space in scope", "not a subject", id="space in the scope"),
+    ],
+)
+def test_a_title_line_that_is_not_a_subject_for_a_listed_number_is_refused(author: Author, line: str, message: str) -> None:
+    with pytest.raises(SeriesError, match=message):
+        titled_pulls(author, line)
+
+
+def test_a_second_title_for_one_pull_request_is_refused(author: Author) -> None:
+    with pytest.raises(SeriesError, match="second title"):
+        titled_pulls(author, "# title 0001: docs: one way", "# title 0001: docs: and another")
+
+
+def test_a_title_of_exactly_the_longest_subject_is_accepted(author: Author) -> None:
+    title = "docs: " + "a" * 66
+
+    assert len(title) == 72
+    assert titled_pulls(author, f"# title 0001: {title}")[0].title == title

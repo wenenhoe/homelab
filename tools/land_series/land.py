@@ -157,18 +157,21 @@ def _push(repo: Path, pull: Pull, tip: str, base: str, sleep: Callable[[float], 
 
 
 def _pull_request(repo: Path, pull: Pull, branch: str, body: str, changed: bool, sleep: Callable[[float], None]) -> str:
-    """The address of the open pull request into `branch`: created, or updated when its commits changed.
+    """The address of the open pull request into `branch`: created, or updated when its commits changed or its title is not the series'.
 
     `gh pr list --head` takes a bare branch name, so a pull request from a fork's branch of the same name is listed too; only one
     whose head branch is in this repository can be the one the tool opened.
     """
     found = json.loads(
-        _gh_read(repo, sleep, "pr", "list", "--head", pull.slug, "--base", branch, "--state", "open", "--json", "number,url,isCrossRepository") or "[]"
+        _gh_read(repo, sleep, "pr", "list", "--head", pull.slug, "--base", branch, "--state", "open", "--json", "number,url,title,isCrossRepository") or "[]"
     )
     listed = [candidate for candidate in found if not candidate["isCrossRepository"]]
     if listed:
+        number = str(listed[0]["number"])
         if changed:
-            _gh_ok(repo, "pr", "edit", str(listed[0]["number"]), "--title", pull.title, "--body", body)
+            _gh_ok(repo, "pr", "edit", number, "--title", pull.title, "--body", body)
+        elif listed[0]["title"] != pull.title:
+            _gh_ok(repo, "pr", "edit", number, "--title", pull.title)
         return listed[0]["url"]
     return _gh_ok(repo, "pr", "create", "--base", branch, "--head", pull.slug, "--title", pull.title, "--body", body).splitlines()[-1]
 

@@ -1,0 +1,148 @@
+---
+# The coding-agent zone's boundary on a scratch gateway, from a real VM: a scratch VM with the coding canary's VMID (308, so VLAN 30 and
+# 192.168.30.8) takes that canary's place, as `canary-vm` does for the services zone, and the zone's flows are tried from it. The VM
+# answers the runner's ssh through the gateway only if its NIC's tag, the bridge, the zone's rules and its address all work, so this is
+# the first run in which a VM tagged 30 reaches the gateway. It also shows the zone's isolation both ways, that the gateway answers it no DNS,
+# and, beside a control, that it is refused the Proxmox node's management address on SSH and the API port.
+#
+# The play's flows hold no row from an operator host to the zone's canary (the host is the play's `host_coding_agent`, not the canary), so the
+# runner could not reach it. `opnsense_gateway_flows` here is the play's list with one row added at the end, which admits the operator hosts to
+# the zone over SSH, and test_opnsense_coding_zone_run.py fails when it differs from the defaults in anything else. The row exists only in
+# this scratch run. It admits the desktops canary too, since that is an operator host here (the node controls need it), so the run leaves the
+# desktops canary's own way into the zone unasserted.
+#
+# Needs the node backend (a QEMU gateway has no VM canary and no route to the node), a VLAN-aware bridge, the Ubuntu template and a WAN that
+# reaches the node, as `canary-vm` and `dmz-probe` do between them.
+name: coding-zone
+description: >-
+  A scratch gateway with the coding-agent zone (VLAN 30) and a scratch VM tagged 30 as its canary: the play applies and a second run with --check
+  reports no change, the VM answers over ssh through the gateway, the zone's own flows pass from it, no other zone's canary reaches it and it
+  reaches none of theirs, the secrets store, the Minecraft and KMS hosts, the Internet or the gateway's DNS, and it is refused the Proxmox node's
+  SSH and API ports while the desktops canary reaches them.
+canary_vm:
+  zone: coding
+gateway:
+  vlans: [20, 25, 30, 35, 40, 45, 50, 55]
+  play_vars:
+    opnsense_gateway_operator_hosts: [192.168.40.250, 192.168.40.8]
+    opnsense_gateway_operator_not_listed_ok: true
+    opnsense_gateway_forward_domains: [host.scratch.lab, lan.scratch.lab]
+    opnsense_gateway_dhcp_reservations:
+      - {name: scratch-reservation, zone: desktops, address: 192.168.40.250, mac: "bc:24:11:00:01:91"}
+    opnsense_gateway_flows:
+      - name: operator hosts to the services zone over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: net_services
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to security for the secrets store
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_security
+        protocol: TCP
+        port: "8200"
+      - name: operator hosts to storage for state and restores
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_storage
+        protocol: TCP
+        port: "443"
+        enabled: false
+      - name: operator hosts to the CD agent over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: cd_agent_hosts
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to the Proxmox node
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_proxmox_node
+        protocol: TCP
+        port: proxmox_node_ports
+      - name: CD agent to the services zone over SSH
+        zones: [management]
+        source: cd_agent_hosts
+        destination: net_services
+        protocol: TCP
+        port: "22"
+        enabled: false
+      - name: CD agent to security for the secrets store
+        zones: [management]
+        source: cd_agent_hosts
+        destination: host_security
+        protocol: TCP
+        port: "8200"
+        enabled: false
+      - name: CD agent to storage for the write key
+        zones: [management]
+        source: cd_agent_hosts
+        destination: host_storage
+        protocol: TCP
+        port: "443"
+        enabled: false
+      - name: tailscale router to the operator host 252 over SSH
+        zones: [services]
+        source: host_tailscale
+        destination: host_operator_252
+        protocol: TCP
+        port: "22"
+      - name: desktops to play for Minecraft
+        zones: [desktops]
+        source: net_desktops
+        destination: host_play
+        protocol: TCP
+        port: "25565"
+      - name: desktops to services for KMS
+        zones: [desktops]
+        source: net_desktops
+        destination: host_services
+        protocol: TCP
+        port: "1688"
+      - name: operator hosts to the coding-agent host over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_coding_agent
+        protocol: TCP
+        port: "22"
+      - name: tailscale router to the coding-agent host over SSH
+        zones: [services]
+        source: host_tailscale
+        destination: host_coding_agent
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to the coding-agent canary over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: net_coding
+        protocol: TCP
+        port: "22"
+steps:
+  - {id: vlan-interfaces, vlans: check}
+  - {id: play-apply, play: apply}
+  - {id: play-check, play: check, expect: unchanged}
+  - {id: canary-vm, vm: up}
+  - {id: coding-flows, flows: {tags: [coding]}}
+  - id: coding-isolation
+    flows:
+      ids:
+        - services-to-coding-canary-denied
+        - management-to-coding-canary-denied
+        - isolated-to-coding-canary-denied
+        - experimental-to-coding-canary-denied
+        - dmz-to-coding-canary-denied
+        - coding-to-services-canary-denied
+        - coding-to-management-canary-denied
+        - coding-to-desktops-canary-denied
+        - coding-to-isolated-canary-denied
+        - coding-to-experimental-canary-denied
+        - coding-to-dmz-canary-denied
+        - coding-to-security-vault-denied
+        - coding-to-play-minecraft-denied
+        - coding-to-services-kms-denied
+        - coding-internet-denied
+        - coding-gateway-dns-denied
+  - id: node-probe
+    flows:
+      ids: [coding-to-proxmox-node-ssh-denied, coding-to-proxmox-node-api-denied]

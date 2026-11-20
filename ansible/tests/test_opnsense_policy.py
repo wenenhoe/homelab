@@ -221,7 +221,7 @@ def test_a_flow_that_rests_on_an_unconfirmed_decision_is_written_but_not_in_forc
 def test_kea_serves_the_zones_whose_clients_tofu_does_not_place(defaults):
     dhcp = {zone["name"]: zone["dhcp"] for zone in defaults["opnsense_gateway_zones"]}
 
-    assert dhcp == {"services": False, "management": False, "desktops": True, "isolated": True, "experimental": True, "dmz": False}
+    assert dhcp == {"services": False, "management": False, "desktops": True, "isolated": True, "experimental": True, "dmz": False, "coding": False}
 
 
 def test_the_pool_leaves_the_low_and_high_addresses_to_reservations_and_the_gateway(defaults):
@@ -462,3 +462,71 @@ def test_a_held_rule_is_removed_unless_its_whole_description_is_one_the_play_wri
     assert removes("services: Intern")  # a part of a description the play writes
     assert not removes(guard)
     assert not removes("services: Internet")
+
+
+# The coding-agent zone (ADR 0053): its host is reached on SSH from two sources and the zone reaches nothing of the gateway's but time and echo.
+
+
+def _flow(defaults: dict, name: str) -> dict:
+    return next(flow for flow in defaults["opnsense_gateway_flows"] if flow["name"] == name)
+
+
+def test_the_coding_zone_is_vlan_30_with_no_internet_no_dhcp_and_no_dns_from_the_gateway(defaults):
+    zone = next(zone for zone in defaults["opnsense_gateway_zones"] if zone["name"] == "coding")
+
+    assert (zone["vlan"], zone["interface"]) == (30, "opt3")
+    assert (zone["internet"], zone["dhcp"], zone["gateway_dns"]) == (False, False, False)
+
+
+def test_the_coding_zone_is_the_only_zone_the_gateway_does_not_answer_dns_for(defaults):
+    refused = [zone["name"] for zone in defaults["opnsense_gateway_zones"] if not zone["gateway_dns"]]
+
+    assert refused == ["coding"]
+
+
+def test_the_coding_zone_is_written_time_and_echo_to_the_gateway_and_no_dns(defaults):
+    pattern = defaults["opnsense_gateway_rule_names"]["zone_service"]
+    written = _written_descriptions(defaults, cd_agent=False)
+
+    assert [name for name in written if name.startswith("coding: ")] == [pattern % ("coding", "NTP"), pattern % ("coding", "ping")]
+
+
+def test_the_coding_zone_is_written_no_direct_dns_or_internet_rule_so_its_only_way_out_is_the_proxy_a_later_project_adds(defaults):
+    names = defaults["opnsense_gateway_rule_names"]
+    wanted = _wanted(defaults, cd_agent=True)
+
+    assert names["internet"] % "coding" not in wanted
+    assert names["direct_dns"] % "coding" not in wanted
+
+
+def test_the_coding_agent_host_has_the_address_the_vmid_scheme_gives_vmid_302(defaults):
+    vmid = 302
+    address = f"192.168.{vmid // 50 * 5}.{vmid % 50}"
+
+    assert defaults["opnsense_gateway_hosts"]["host_coding_agent"] == address == "192.168.30.2"
+    assert ipaddress.ip_address(address) in zone_network(defaults, "net_coding")
+
+
+def test_the_coding_agent_host_is_reached_on_ssh_from_the_operator_hosts_and_the_tailscale_router_and_from_nothing_else(defaults):
+    reaching = [flow for flow in defaults["opnsense_gateway_flows"] if flow["destination"] == "host_coding_agent"]
+
+    assert {(flow["source"], tuple(flow["zones"])) for flow in reaching} == {("operator_hosts", ("desktops", "management")), ("host_tailscale", ("services",))}
+    assert all((flow["protocol"], flow["port"]) == ("TCP", "22") and flow.get("enabled", True) for flow in reaching)
+
+
+def test_no_flow_starts_in_the_coding_zone_so_it_reaches_no_other_zone(defaults):
+    assert [flow["name"] for flow in defaults["opnsense_gateway_flows"] if "coding" in flow["zones"]] == []
+
+
+def test_no_flow_reaches_into_the_coding_zone_but_the_two_that_name_its_host(defaults):
+    into = [flow["name"] for flow in defaults["opnsense_gateway_flows"] if flow["destination"] in {"net_coding", "host_coding_agent"}]
+
+    assert into == ["operator hosts to the coding-agent host over SSH", "tailscale router to the coding-agent host over SSH"]
+    assert _flow(defaults, into[0])["source"] == "operator_hosts"
+
+
+def test_the_flows_the_coding_zone_adds_come_last_so_no_rule_already_on_the_gateway_changes_its_sequence(defaults):
+    assert [flow["name"] for flow in defaults["opnsense_gateway_flows"]][-2:] == [
+        "operator hosts to the coding-agent host over SSH",
+        "tailscale router to the coding-agent host over SSH",
+    ]

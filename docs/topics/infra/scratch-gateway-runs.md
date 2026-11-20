@@ -136,18 +136,20 @@ The runner reaches the DMZ canary only through a row that admits the operator ho
 ## What it does not do
 
 - The checks of [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope) stay in that script, and it still writes the play's variables itself.
-- It builds one VM at most, the canary VM, and only for a zone the play and the flow list have. VLAN 30 has neither until [the coding agent's network](../../projects/coding-agent-network.md) adds them, so nothing here shows traffic over VLAN 30 (see below).
+- It builds one VM at most, the canary VM, and only for a zone the play and the flow list have.
 - It never touches the live gateway, and it shows nothing that the scratch gateway cannot: the real `vmbr1` bridge, the tailnet and the node's own firewall.
 
-## Untested until VLAN 30 has a zone
+## The coding-agent zone run
 
-The VLAN 30 scratch kit (the seed's VLAN list and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 30 interface: the `seed-vlans` run, which builds the gateway with the seed's own eight VLANs, 45 among them. What no run shows yet, because the play has no zone for VLAN 30 and the flow list no row for it:
+[`coding-zone`](../../../tofu/scratch/opnsense/runs/coding-zone.yaml) seeds the gateway with the seed's eight VLANs, the play's `coding` zone among them (VLAN 30, no Internet, no DNS from the gateway), and replaces the zone's canary with a scratch VM (VMID 308, as [the canary VM](#the-canary-vm) says). It shows three things from that VM:
 
-- a VM tagged 30 reaching the gateway, which needs the zone's interface address and a pass rule;
-- the zone's flows ([`operator-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy) and [`tailscale-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy)), and that default-deny holds in VLAN 30;
-- the canary VM for that zone, which is this step with `zone` naming it.
+- **The tagged-VM path.** The VM answers the runner's ssh through the gateway, so its tag, the bridge, the zone's rules and its address work, and the zone's own flows pass: time and echo to its gateway, and its own SSH port.
+- **Default-deny in both directions.** No other zone's canary reaches the VM, and it reaches none of theirs, the secrets store, the Minecraft and KMS hosts, an outside address on 443 or its gateway's DNS. Each refusal counts beside its control.
+- **The node.** The VM is refused the Proxmox node's SSH and API ports, beside the desktops canary reaching them, as in [the DMZ probe](#the-dmz-probe).
 
-They wait for [the coding agent's network](../../projects/coding-agent-network.md), which adds the zone to the play. Passing the zone's flows on a scratch gateway is the first run of a spec like `canary-vm` for the new zone. Until then a VM at VMID 308 on the scratch gateway would sit on an interface with no rules and could show only that it is blocked.
+The play's flows hold [`operator-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy) and [`tailscale-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy) to the coding-agent host (`host_coding_agent`), and none to the canary at `.8`. The runner could not reach the VM through them, so the spec carries the play's `opnsense_gateway_flows` with one row added, which admits the operator hosts to the zone over SSH, and a test fails when the copy differs from the play's list in anything else. The row exists only in this scratch run. It admits the desktops canary too, since that is an operator host here (the node's controls need it), so the run leaves the desktops canary's own way into the zone unasserted.
+
+The run needs the node backend, a VLAN-aware bridge, the Ubuntu template and a WAN that reaches the node: the QEMU backend builds no VM canary and has no route to the node. It does not show those two flows to the host, which no canary is, the zone's way to the Internet and its resolver, which [`coding-agent-egress.md`](../../projects/coding-agent-egress.md) adds, or the tailnet policy that limits the route to the laptop.
 
 ## Tests
 

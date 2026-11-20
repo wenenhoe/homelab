@@ -2,7 +2,7 @@
 id: PROJ-views-site
 title: Views Site
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Publish the decision index, the planning view and the disaster-recovery coverage table as a GitHub Pages site built from main, then stop committing them and generate them in a checkout.
 decision: ADR-0117/0
@@ -59,7 +59,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The row model and the renderer: each view's tables are built as rows that the markdown and the pages are both formatted from, with `simple.css` vendored at a pinned version and hash, the card and drawer layer, and Jinja2 declared as a dependency | Not started | The markdown of the three views is byte-for-byte what the generator wrote before, a test builds each page twice from a fixture tree and gets the same bytes, every heading has an anchor equal to the one GitHub gives it, a test fails when the vendored file's hash differs from its pin, and Renovate has a rule that moves the version and the hash together |
+| 1 | The row model and the renderer: each view's tables are built as rows that the markdown and the pages are both formatted from, with `simple.css` vendored at a pinned version and hash, the card and drawer layer, and Jinja2 declared as a dependency | Done | The markdown of the three views is byte-for-byte what the generator wrote before, a test builds each page twice from a fixture tree and gets the same bytes, every heading has an anchor equal to the one GitHub gives it, a test fails when the vendored file's hash differs from its pin, and Renovate has a rule that moves the pin's version, with a command that replaces the file and the hash together and a check of both against the registry's tarball and the repository's tag |
 | 2 | The deploy workflow, the layout check and the topic doc | Not started | `.github/workflows/pages.yml` builds on every push to `main` with a concurrency group and `cancel-in-progress: false`, runs the layout check at portrait and landscape phone widths, and deploys from a job that holds `pages: write` and `id-token: write` and no `contents: write`; every action is pinned by commit; a workflow test fails a `contents: write` on that job; `progress-log.yml`'s header no longer calls itself the only write token; `pr-checks.yml` builds the site and runs the layout check when the renderer, the generator or their inputs change; the site is live at its address with the three views |
 | 3 | The docs link the site | Not started | No doc outside decision revisions links a view by path; an anchor link goes to the site's page and the same anchor; the 3 links inside decision revisions are changed as editorial; the drift check passes with the views still committed |
 | 4 | Stop committing the views | Not started | The three files are not tracked and are ignored; `post-merge` and `post-checkout` hooks and `generate_doc_indexes` write them in a checkout; `check_doc_drift.py`, `doc_scope.py`, `classify.py` and `merge_adr_links.py` read or name them without a committed file; the apply hooks and the list they read are gone with the two tests of them |
@@ -69,9 +69,9 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 1
 
-The generator's `render_*` functions return a markdown string today. The rows move into a small structure per table (headers, cells, and for a status cell its key), and the markdown renderer formats that structure; the test that the markdown is unchanged runs over the real tree. The renderer in `tools/doc_site/` reads the same structure, so it never parses markdown.
+The generator's `render_*` functions return a markdown string today. The rows move into a small structure per table (headers, cells, and for a status cell its key), and the markdown renderer formats that structure; the generator's existing tests and the drift check over the real tree are what hold the markdown unchanged. The renderer in `tools/doc_site/` reads the same structure, so it never parses markdown.
 
-`simple.css` is vendored as a single file with its version and sha256 in a pin file beside it, the way the repository pins a release asset elsewhere. The card layer stacks a row as a card under 62rem, never breaks inside a word in a table cell, hides empty cells, and puts the identifier, the status pill and the title in a fixed order; below 62rem the menu is a left drawer opened by a button, and above it a plain navigation. The drawer is a `<dialog>`, so its focus handling comes from the browser, and without scripts the links show as an ordinary navigation.
+`simple.css` is vendored as a single file with its version and sha256 in a pin file beside it, the way the repository pins a release asset elsewhere. Renovate has no digest for a file inside an npm tarball, so its rule moves the version only; `python -m doc_site.vendor --update` then takes the file from the registry and writes it and the hash together, and `--upstream` checks both against the published tarball and the repository's file at the same version's tag, which `--update` also requires before it writes anything. The card layer stacks a row as a card under 62rem, never breaks inside a word in a table cell, hides empty cells, and puts the identifier, the status pill and the title in a fixed order; below 62rem the menu is a left drawer opened by a button, and above it a plain navigation. The drawer is a `<dialog>`, so its focus handling comes from the browser, and without scripts the links show as an ordinary navigation.
 
 ### Stage 2
 
@@ -85,7 +85,7 @@ The layout check opens each page in a headless Chromium at 360, 390, 768 and 844
 - [ ] No tracked file is a generated view, and a checkout that runs the generator has all three as ignored files with the content the site shows.
 - [ ] A series that edits a view's source lands on `main` with a plain `git am`, and two series that each add a decision do not conflict.
 - [ ] No doc links a view by a path that is not in the tree, and every anchor link into a view reaches its section on the site.
-- [ ] The site's `simple.css` is the pinned version, and Renovate opens a pull request that moves the version and the hash together.
+- [ ] The site's `simple.css` is the pinned version, a test fails when its hash differs from the pin, and Renovate opens a pull request that moves the version, which the vendor command completes with the file and the hash.
 - [ ] ADR 0117 is `accepted`, and a new revision of ADR 0112 describes landing without the views.
 
 ## Agent handoff
@@ -109,6 +109,7 @@ without being restated here.
 ## Open items
 
 - The maintainer's word that the site is trusted, which starts Stage 3.
+- Each view's title and introduction are prose committed in the view file, and the site reads them from it. Stage 4 stops committing the files, so it must first give that prose a tracked home (the generator's template, or a file beside it) for the site and the checkout both to read.
 - Whether the checkout's generator runs from the two hooks or only by hand; Stage 4 settles it from how the hooks behave on a rebase.
 
 ## Closing checklist

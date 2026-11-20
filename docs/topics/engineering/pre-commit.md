@@ -2,9 +2,9 @@
 
 ## Installing the hooks
 
-`pre-commit install` installs both the `pre-commit` and `pre-push` git
-hooks in one step (`default_install_hook_types` in the config): most
-hooks run at commit time. `ansible-lint` runs at push time since it
+`pre-commit install` installs the `pre-commit`, `pre-push`, `post-checkout`,
+`post-merge` and `post-rewrite` git hooks in one step
+(`default_install_hook_types` in the config): most hooks run at commit time. `ansible-lint` runs at push time since it
 always re-lints the whole `ansible/` tree rather than just what changed,
 and so does `check-doc-change-push`, which needs the commits a push adds.
 `.pre-commit-config.yaml` at the repo root is a symlink to
@@ -15,44 +15,18 @@ lints the symlink itself, only real `.yaml` files). To run everything
 manually regardless of stage: `pre-commit run --all-files --hook-stage
 pre-commit` and `... --hook-stage pre-push`.
 
+The generated views (the decision index, the planning view and the disaster-recovery coverage table) are not committed. `generate-doc-indexes` writes them, at commit time and also after a checkout, a merge and a rebase, so a clone has them current after any of those. A fresh clone has no hooks yet, so run `pre-commit run generate-doc-indexes` once after `pre-commit install`. `post-checkout` also runs when `git worktree add` makes a worktree, and `post-rewrite` after a rebase or an amend; a rebase checks out its new base once at the start and not at the end, so `post-rewrite` is what brings the views up to date with the rebased branch.
+
 ## Applying patches with `git am`
 
 `git am` commits without running the `pre-commit` hook. A series is replayed with `git am` in a scratch worktree
-([`landing-a-series.md`](landing-a-series.md)), and a change to the tool that does it is applied by hand with it,
-so link
-[`.githooks/pre-applypatch`](../../../.githooks/pre-applypatch) and
-[`.githooks/post-applypatch`](../../../.githooks/post-applypatch) into
-the hooks directory once, after `pre-commit install`; the tool will not replay a series until they are:
+([`landing-a-series.md`](landing-a-series.md)), which runs the checks after each commit, and a change to the tool that does it is applied by hand
+with `git am`, then checked with `pre-commit run --all-files`. The generated views are not committed, so a patch holds only the change to what
+they are written from, and two series that each add a project or a decision never conflict on them. A view's title and introduction are the
+files in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros), which travel in a patch like any other file.
 
-```sh
-for hook in pre-applypatch post-applypatch; do
-  ln -sf "$PWD/.githooks/$hook" "$(git rev-parse --git-path hooks)/$hook"
-done
-```
-
-Patches leave out the generated views, listed one per line in
-[`.githooks/generated-views`](../../../.githooks/generated-views) (the decision index, the planning view and the disaster-recovery coverage table), so two series that
-each add a project or a decision never conflict on them. After a patch is
-applied, `pre-applypatch` stages the views, regenerates and stages them
-again, then runs the installed `pre-commit` hook. `git am` commits its own
-tree, not the index, so `post-applypatch` amends the views into the commit
-it just made, with `--no-verify` because the checks already passed. It then
-writes back an index without those views, leaving them unstaged for the next
-patch of the series; the first staging is what keeps `pre-commit` from
-stashing them and rolling the regenerated views back over its own rewrite.
-
-A view that git ignores is left out of all of this: it is generated in a checkout and never committed, so the hooks skip it, and with no view left, or no list, they stage and amend nothing. The hooks run from the clone's own copy, so a change to them takes effect for a replay once the clone has pulled it.
-
-When writing a patch, run `uvx --python 3.14 pre-commit run generate-doc-indexes`, stage everything except the views, and check with `git show --stat` that none of them is in the commit. A view's title and introduction are the files in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros), which travel in a patch like any other file. The replay resets the views between layers, so a series that edits one replays; a plain `git am` of the same series stops at the first patch after one the hooks left dirty, so verify such a series with the `land_series` dry-run only.
-
-A failing hook stops `git am` with the patch staged. Hooks that fix
-files (`ruff`, `dclint`, `end-of-file-fixer`) leave the fix unstaged and
-also fail: review it, `git add -u && git am --continue` to keep it in the
-commit, or `git am --abort`. Two decision lineages with the same number
-stop the series the same way; abort, then rewrite the patches with the
-[renumber helper](ci/doc-checks.md#renumbering-a-patch-series-lineages)
-and apply the copies. Only the commit-time hooks run here;
-`ansible-lint` stays a push-time hook.
+Two decision lineages with the same number fail `generate-doc-indexes`, so the checks the replay runs after the commit stop the series;
+rewrite the patches with the [renumber helper](ci/doc-checks.md#renumbering-a-patch-series-lineages) and apply the copies.
 
 Plain patches (a change to `tools/land_series`, and the security series) are named with a letter on every
 one (`0001a`, `0001b`, `0002a`): a follow-up to `0001a` is `0001b`, and plain `ls` and `git am *.patch`
@@ -72,7 +46,7 @@ a series file mean something else: a number is a pull request and each letter a 
 - [`shellcheck`](https://github.com/shellcheck-py/shellcheck-py) — lints every `*.sh`
 - [`actionlint`](https://github.com/rhysd/actionlint) — lints every `.github/workflows/*.yml`: expression types, `needs`/`outputs` wiring, script injection via untrusted `${{ }}` in `run:`, and `shellcheck` over inline `run:` blocks. Runs via its Docker-image variant (`.config/.actionlint.yaml`). Composite actions under `.github/actions/` aren't covered — it only parses workflow files
 - [`zizmor`](https://github.com/zizmorcore/zizmor-pre-commit) — static analysis of `.github/workflows/*.yml` and composite `action.yml` files for credential persistence on checkout, expression injection into `run:`, and over-broad token permissions, among others (`.config/zizmor.yml`, which disables `self-repository`: it asks for the `$/` local-reference syntax, which the pinned actionlint rejects). CI sets `ZIZMOR_GITHUB_TOKEN` on the `pre-commit-checks` step so the audits that query GitHub also run; locally it stays offline unless that variable is exported
-- `generate-doc-indexes` (local) — regenerates the tables in `docs/project-planning.md` and `docs/decision-index.md` from each doc's YAML frontmatter, and the coverage table in `docs/topics/disaster-recovery/coverage.md` from the app catalog; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`tools/doc_scripts/generate_doc_indexes.py`](../../../tools/doc_scripts/generate_doc_indexes.py)
+- `generate-doc-indexes` (local) — writes `docs/project-planning.md` and `docs/decision-index.md` from each doc's YAML frontmatter, and the coverage table in `docs/topics/disaster-recovery/coverage.md` from the app catalog, none of them committed, at commit time and after a checkout, a merge and a rebase; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`tools/doc_scripts/generate_doc_indexes.py`](../../../tools/doc_scripts/generate_doc_indexes.py)
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
 - `check-doc-drift` (local) — keeps `ansible.md`, `molecule-testing.md`, `deployment-flow.md` and `ci/pipeline.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`tools/doc_scripts/check_doc_drift.py`](../../../tools/doc_scripts/check_doc_drift.py)
 - `check-moved-files` (local) — no file names a file that git history shows was renamed or removed, except the noted first mention in a decision revision; it reads the whole history and the whole tree, so it needs a full clone — see [`tools/doc_scripts/check_moved_files.py`](../../../tools/doc_scripts/check_moved_files.py)

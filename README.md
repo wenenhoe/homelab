@@ -33,7 +33,6 @@ Everything runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM d
 ```
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
-├── .githooks/               # Hooks that run the checks on patches applied with git am
 ├── .github/                 # CI workflows, PR-check scripts, Renovate config
 ├── ansible/                 # All automation: playbooks, inventory, roles
 ├── docker/                  # One directory per application

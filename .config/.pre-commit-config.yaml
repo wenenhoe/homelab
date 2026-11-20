@@ -1,4 +1,4 @@
-default_install_hook_types: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit, pre-push, post-checkout, post-merge, post-rewrite]
 default_stages: [pre-commit]
 
 repos:
@@ -106,16 +106,21 @@ repos:
       - id: generate-doc-indexes
         name: generate-doc-indexes
         description: >-
-          Regenerates docs/project-planning.md's project, decision and
-          exploration tables and docs/decision-index.md from frontmatter
-          — see tools/doc_scripts/generate_doc_indexes.py. Runs before
-          markdownlint/check-doc-drift below, so a bad generation is
-          caught the same way a bad hand-edit already is.
+          Writes the three generated views, docs/project-planning.md,
+          docs/decision-index.md and docs/topics/disaster-recovery/coverage.md,
+          from frontmatter and the introductions in
+          tools/doc_scripts/view_intros/ — see
+          tools/doc_scripts/generate_doc_indexes.py. None is committed, so it
+          also runs after a checkout, a merge and a rebase, which is how a
+          clone gets them. At commit time it runs before markdownlint/check-doc-drift
+          below, so a bad generation is caught the same way a bad hand-edit
+          already is.
         entry: bash -c 'cd tools && python3 -m doc_scripts.generate_doc_indexes' --
         language: python
         additional_dependencies: [pyyaml==6.0.3]
         pass_filenames: false
         always_run: true
+        stages: [pre-commit, post-checkout, post-merge, post-rewrite]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.24.1
     hooks:

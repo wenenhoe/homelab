@@ -9,10 +9,12 @@ wired into `.config/.pre-commit-config.yaml` as a local hook, positioned before
 markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
 hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
-frontmatter and regenerates `docs/project-planning.md`'s Roadmap, Super Projects,
+frontmatter and writes `docs/project-planning.md`'s Roadmap, Super Projects,
 Projects, Decisions awaiting a project and Open explorations views, and
 `docs/decision-index.md`'s By number, By topic, Open decisions and History
-views in place, validating each doc's frontmatter as it goes.
+views, and the coverage table, each whole: the title and introduction come from its file in
+[`tools/doc_scripts/view_intros/`](../../../../tools/doc_scripts/view_intros), then the sections. None of the three is committed; they are
+git-ignored, and the hook also runs after a checkout, a merge and a rebase so a clone has them. It validates each doc's frontmatter as it goes.
 The Unblocks counts, the Status and Blocker cells, the order of the
 project tables, and the approved-first order of the decisions table are computed from that
 frontmatter alone, with nothing stored for them. The same holds for the

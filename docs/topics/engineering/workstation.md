@@ -31,7 +31,7 @@ From the clone, once `uv sync` has created the environment:
 | One Molecule scenario | `uv run molecule test` | the role's directory |
 | Unit tests | `uv run pytest ansible/tests/ tools/tests/` | the repo root |
 
-The checks need no credential: CI runs the same ones on hosted runners with no secrets. The `generate-doc-indexes` hook rewrites the generated views and so exits non-zero on a clone whose history is shallower than `main`'s; those views are never part of a commit ([`pre-commit.md`](pre-commit.md)).
+The checks need no credential: CI runs the same ones on hosted runners with no secrets. The `generate-doc-indexes` hook writes the generated views, which git ignores and no commit holds ([`pre-commit.md`](pre-commit.md)).
 
 ## What it must not hold
 

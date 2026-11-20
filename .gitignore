@@ -8,6 +8,11 @@
 crash.log
 crash.*.log
 
+# Generated doc views: written by generate-doc-indexes in a checkout, published on the site, never committed
+/docs/decision-index.md
+/docs/project-planning.md
+/docs/topics/disaster-recovery/coverage.md
+
 # Excluded directories
 .ansible/
 .pytest_cache/

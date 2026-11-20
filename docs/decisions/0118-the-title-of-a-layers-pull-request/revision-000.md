@@ -7,7 +7,7 @@ short: Layer pull request title
 solution: The series file may name a layer's title on a manifest comment line, and a layer without one keeps its first commit's subject
 summary: What a layer's pull request is called when its commits have to be written in dependency order, so that the first commit does not always say what the layer is for.
 topic: repository-tooling
-status: working
+status: accepted
 weight: light
 narrows: ADR-0112
 ---

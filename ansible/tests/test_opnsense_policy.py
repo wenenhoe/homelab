@@ -303,3 +303,126 @@ def test_a_forward_the_gateway_holds_is_judged_by_the_domain_and_server_fields_o
     assert removes(held)
     assert not removes({**held, "server": "192.168.20.3"})
     assert removal["oxlorg.opnsense.unbound_forward"]["target"] == "{{ opnsense_gateway_held.server }}"
+
+
+# The rules the gateway holds are the play's own: the removal's wanted set is derived from what the tasks write.
+
+POLICY = REPO / "ansible/roles/opnsense_gateway/tasks/policy.yaml"
+
+
+def _policy_tasks() -> list[dict]:
+    return yaml.safe_load(POLICY.read_text())
+
+
+def _rule_env():
+    import itertools
+    import json
+
+    import jinja2
+
+    env = jinja2.Environment(autoescape=False)  # noqa: S701 - Ansible expressions, not HTML
+    env.filters["product"] = lambda first, second: list(itertools.product(first, second))
+    env.filters["bool"] = lambda value: str(value).lower() in {"true", "1", "yes"}
+    env.filters["to_json"] = json.dumps
+    return env
+
+
+def _expression(env, source, scope):
+    return env.compile_expression(source.removeprefix("{{").removesuffix("}}").strip())(**scope)
+
+
+def _written_descriptions(defaults: dict, *, cd_agent: bool) -> list[str]:
+    """What the rule tasks write, by rendering each task's description over its own loop."""
+    env = _rule_env()
+    scope = {**defaults, "opnsense_gateway_cd_agent_management": cd_agent}
+    written = []
+    for task in _policy_tasks():
+        if "oxlorg.opnsense.rule" not in task or task["oxlorg.opnsense.rule"].get("state") == "absent":
+            continue
+        rule = task["oxlorg.opnsense.rule"]
+        control = task.get("loop_control", {})
+        items = _expression(env, task["loop"], scope) if "loop" in task else [None]
+        for index, item in enumerate(items):
+            local = {**scope, control.get("loop_var", "item"): item, control.get("index_var", "_index"): index}
+            state = _expression(env, rule["state"], local) if "state" in rule else "present"
+            if state == "present":
+                written.append(_expression(env, rule["description"], local))
+    return written
+
+
+def _wanted(defaults: dict, *, cd_agent: bool) -> list[str]:
+    import json
+
+    removal = _policy_tasks()[-1]
+    scope = {**defaults, "opnsense_gateway_cd_agent_management": cd_agent}
+    return json.loads(_rule_env().from_string(removal["vars"]["opnsense_gateway_wanted_rules"]).render(**scope))
+
+
+@pytest.mark.parametrize("cd_agent", [False, True])
+def test_the_rules_the_removal_keeps_are_exactly_the_rules_the_tasks_write(defaults, cd_agent):
+    assert sorted(_wanted(defaults, cd_agent=cd_agent)) == sorted(_written_descriptions(defaults, cd_agent=cd_agent))
+
+
+def test_every_rule_the_play_writes_has_a_distinct_description_because_the_play_matches_by_it(defaults):
+    written = _written_descriptions(defaults, cd_agent=True)
+
+    assert len(set(written)) == len(written)
+    assert all(written)
+
+
+def test_the_guard_rule_and_the_flows_switched_off_are_among_the_rules_the_removal_keeps(defaults):
+    wanted = _wanted(defaults, cd_agent=False)
+    switched_off = [flow["name"] for flow in defaults["opnsense_gateway_flows"] if flow.get("enabled") is False]
+
+    assert defaults["opnsense_gateway_rule_names"]["guard"] in wanted
+    assert switched_off
+    assert set(switched_off) <= set(wanted)
+
+
+def test_a_rule_switched_off_by_its_switch_is_not_kept_so_the_removal_agrees_with_the_task_that_removes_it(defaults):
+    cd_rule = defaults["opnsense_gateway_rule_names"]["cd_agent"] % defaults["opnsense_gateway_cd_agent_zone"]
+
+    assert cd_rule not in _wanted(defaults, cd_agent=False)
+    assert cd_rule in _wanted(defaults, cd_agent=True)
+
+
+def test_the_zone_without_internet_has_no_internet_rules_kept(defaults):
+    names = defaults["opnsense_gateway_rule_names"]
+    isolated = next(zone["name"] for zone in defaults["opnsense_gateway_zones"] if not zone["internet"])
+    wanted = _wanted(defaults, cd_agent=False)
+
+    assert names["internet"] % isolated not in wanted
+    assert names["direct_dns"] % isolated not in wanted
+
+
+def test_the_rules_are_read_after_every_rule_is_written_and_removed_by_description(defaults):
+    tasks = _policy_tasks()
+    modules = [next(key for key in task if key.startswith(("oxlorg.opnsense.", "ansible.builtin."))) for task in tasks]
+    removal = tasks[-1]["oxlorg.opnsense.rule"]
+    listing = next(task for task in tasks if "oxlorg.opnsense.list" in task)
+
+    assert modules[-3:] == ["oxlorg.opnsense.list", "ansible.builtin.assert", "oxlorg.opnsense.rule"]
+    assert "oxlorg.opnsense.rule" in modules[:-3]
+    assert listing["oxlorg.opnsense.list"]["target"] == "rule"
+    assert listing["check_mode"] is False
+    assert removal["state"] == "absent"
+    assert removal["match_fields"] == ["description"]
+
+
+def test_a_held_rule_is_removed_unless_its_whole_description_is_one_the_play_writes(defaults):
+    import json
+
+    removal = _policy_tasks()[-1]
+    env = _rule_env()
+    wanted = json.dumps(_wanted(defaults, cd_agent=False))
+    env.filters["from_json"] = json.loads
+    guard = defaults["opnsense_gateway_rule_names"]["guard"]
+
+    def removes(description):
+        scope = {"opnsense_gateway_held": {"description": description}, "opnsense_gateway_wanted_rules": wanted}
+        return env.from_string("{{ " + removal["when"] + " }}").render(**scope) == "True"
+
+    assert removes("a rule the play does not write")
+    assert removes("services: Intern")  # a part of a description the play writes
+    assert not removes(guard)
+    assert not removes("services: Internet")

@@ -67,6 +67,7 @@ about 4.5 GB free in the datastore.
 | :--- | :--- |
 | A second run with `--check` exits cleanly and reports no change | `acceptance.sh` |
 | A forward the play does not write, added behind its back, is reported by `--check`, removed by a run, and gone from the next `--check` | `acceptance.sh`, `stale_forward.yaml` |
+| A firewall rule the play does not write, added behind its back, is reported by `--check`, removed by a run that leaves the guard rule alone, and gone from the next `--check` | `acceptance.sh`, `stray_rule.yaml` |
 | The GUI login refuses the password alone, a wrong code and the code after the password, and accepts the code in front of it | `gui_login.py` |
 | The API key is answered on the calls the play and the update make and refused with 403 on user management, source NAT and the service list | `api_scope.py` |
 | From the node's admitted LAN address the gateway's port 443 answers and its port 22 does not; from a second address on the LAN bridge neither does | `acceptance.sh`, `management_reach.py` |

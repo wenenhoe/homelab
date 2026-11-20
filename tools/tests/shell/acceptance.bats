@@ -4,13 +4,13 @@ setup() {
   load test_helper/harness
   harness_setup
   SCRIPT=$(install_script tofu/scratch/opnsense/acceptance/acceptance.sh)
-  cp "$REPO_ROOT/tofu/scratch/opnsense/acceptance/stale_forward.yaml" "$REPO_ROOT/tofu/scratch/opnsense/acceptance/management_reach.py" "$(dirname "$SCRIPT")/"
+  cp "$REPO_ROOT/tofu/scratch/opnsense/acceptance/stale_forward.yaml" "$REPO_ROOT/tofu/scratch/opnsense/acceptance/stray_rule.yaml" "$REPO_ROOT/tofu/scratch/opnsense/acceptance/management_reach.py" "$(dirname "$SCRIPT")/"
   OUT="$BATS_TEST_TMPDIR/out"
   URL=https://mirror.example.net/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2
   SUM=$(printf '0%.0s' $(seq 64))
   export NODE=root@pve PROXMOX_ENDPOINT=https://pve:8006/ PROXMOX_API_TOKEN='tofu@pve!t=token-secret' ANSIBLE_PLAYBOOK=ansible-playbook
   mkdir -p "$TEST_ROOT/ansible/roles/opnsense_gateway/defaults"
-  printf 'opnsense_gateway_release: "26.1.11"\n' > "$TEST_ROOT/ansible/roles/opnsense_gateway/defaults/main.yaml"
+  printf 'opnsense_gateway_release: "26.1.11"\nopnsense_gateway_zones:\n  - { name: desktops, vlan: 40, interface: opt5, internet: true, dhcp: true }\n' > "$TEST_ROOT/ansible/roles/opnsense_gateway/defaults/main.yaml"
   # The repo's own script is tested on its own; here it records the call and leaves what the real one leaves.
   cat > "$TEST_ROOT/tofu/scratch/opnsense/scratch_gateway.sh" <<'BODY'
 #!/usr/bin/env bash
@@ -44,12 +44,17 @@ case "$cmd" in
     ;;
 esac
 BODY
-  # A stand-in for the play: --check reports a change while a forward the play does not write is held,
-  # and a run without --check removes it.
+  # A stand-in for the play: --check reports a change while a forward or a rule the play does not write is held,
+  # and a run without --check removes it, naming the rule it removed as the play's loop does.
   stub ansible-playbook <<'BODY'
 held=$BATS_TEST_TMPDIR/stale-forward
+held_rule=$BATS_TEST_TMPDIR/stray-rule
 case " $* " in
   *" stale_forward.yaml "*) : > "$held" ;;
+  *" stray_rule.yaml "*)
+    : > "$held_rule"
+    printf '%s\n' "$*" > "$BATS_TEST_TMPDIR/stray-args"
+    ;;
   *)
     if [ "${PLAY_FAIL:-}" = 1 ] && [[ " $* " != *" --check "* ]]; then
       echo "fatal: the play failed"
@@ -58,11 +63,18 @@ case " $* " in
     if [[ " $* " == *" --check "* ]]; then
       if [ -e "$held" ] && [ -z "${CHECK_BLIND:-}" ]; then
         echo "localhost : ok=3 changed=1 unreachable=0 failed=0"
+      elif [ -e "$held_rule" ] && [ -z "${RULE_CHECK_BLIND:-}" ]; then
+        echo "changed: [localhost] => (item=scratch acceptance: a rule the play does not write)"
+        echo "localhost : ok=3 changed=1 unreachable=0 failed=0"
       else
         echo "localhost : ok=3 changed=0 unreachable=0 failed=0"
       fi
     elif [ -z "${NO_REMOVE:-}" ]; then
-      rm -f "$held"
+      if [ -e "$held_rule" ]; then
+        echo "changed: [localhost] => (item=scratch acceptance: a rule the play does not write)"
+        [ -z "${GUARD_REMOVED:-}" ] || echo "changed: [localhost] => (item=guard: operator hosts to the gateway's management ports)"
+      fi
+      rm -f "$held" "$held_rule"
     fi
     ;;
 esac
@@ -150,6 +162,28 @@ teardown() {
 @test "a forward that a run does not remove fails the check that follows" {
   NO_REMOVE=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
   assert_output --partial "CHECK --check is clean again once it is removed: FAIL"
+}
+
+@test "the stray rule is added on the interface the role's list gives the desktops zone" {
+  run -0 "$SCRIPT" "$OUT" "$URL" "$SUM"
+  run cat "$BATS_TEST_TMPDIR/stray-args"
+  assert_output --partial "-e interface=opt5"
+}
+
+@test "a --check that does not report the rule the play does not write fails that check" {
+  RULE_CHECK_BLIND=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
+  assert_output --partial "CHECK --check reports the rule the play does not write: FAIL"
+}
+
+@test "a rule that a run does not remove fails the checks that follow" {
+  NO_REMOVE=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
+  assert_output --partial "CHECK the run removed that rule: FAIL"
+  assert_output --partial "CHECK --check is clean again once the rule is removed: FAIL"
+}
+
+@test "a run that removes the guard rule fails the run" {
+  GUARD_REMOVED=1 run ! "$SCRIPT" "$OUT" "$URL" "$SUM"
+  assert_output --partial "CHECK the guard rule is not among the rules the run removed: FAIL"
 }
 
 @test "a credential value in the results fails the run and names the file" {

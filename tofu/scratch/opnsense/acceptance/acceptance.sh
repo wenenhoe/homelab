@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds a scratch OPNsense gateway with scratch_gateway.sh, applies the gateway's play to it and
 # checks what the play must leave behind: a second run with --check reports no change, a forward
-# the play does not write is reported by --check and removed by a run, the GUI login needs the
+# the play does not write and a firewall rule it does not write are each reported by --check and removed by a run, the GUI login needs the
 # one-time code in front of the password, the API key may make only the calls the play needs, and a host
 # on the LAN that the seed does not admit reaches neither the GUI, the API nor SSH.
 # The gateway is removed on every exit path unless KEEP=1.
@@ -49,6 +49,9 @@ probe_ip=192.168.77.11
 lan_bridge=${LAN_BRIDGE:-vmbr9}
 probe_added=0
 forward_domains=(host.scratch.lab lan.scratch.lab)
+stray_description="scratch acceptance: a rule the play does not write"
+# The stray rule goes on the desktops zone's interface, read from the role's zone list.
+stray_interface=$(sed -n 's/^  - { name: desktops,.* interface: \([a-z0-9]*\),.*$/\1/p' "$defaults")
 log=$out/run-$(date +%H%M%S)
 mkdir -p "$log"
 umask 077
@@ -168,6 +171,29 @@ check "the play removes the forward it does not write" $?
 play play-stale-after --check
 unchanged play-stale-after
 check "--check is clean again once it is removed" $?
+
+# --- a firewall rule the play does not write: --check reports it, a run removes it, and the guard rule stays
+[ -n "$stray_interface" ] || {
+  echo "no desktops zone interface in $defaults" >&2
+  exit 1
+}
+(cd "$here" && noproxy ANSIBLE_NOCOLOR=1 "$ansible" stray_rule.yaml -e "ca_file=$cert" -e "api_port=$local_port" \
+  -e "credentials=$creds" -e "interface=$stray_interface") > "$log/stray-rule-present.txt" 2>&1
+check "a firewall rule the play does not write is added behind its back" $?
+play play-rule-check --check
+changed play-rule-check
+check "--check reports the rule the play does not write" $?
+grep -qF -- "$stray_description" "$log/play-rule-check.txt"
+check "--check names that rule" $?
+play play-rule-apply
+check "the play removes the rule it does not write" $?
+grep -qF -- "item=$stray_description" "$log/play-rule-apply.txt"
+check "the run removed that rule" $?
+! grep -qF -- "item=guard:" "$log/play-rule-apply.txt"
+check "the guard rule is not among the rules the run removed" $?
+play play-rule-after --check
+unchanged play-rule-after
+check "--check is clean again once the rule is removed" $?
 
 # --- what the gateway lets in
 python3 -I "$here/gui_login.py" --credentials "$creds" --ca "$cert" --port "$local_port" | tee "$log/gui-login.txt"

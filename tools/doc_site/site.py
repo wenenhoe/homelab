@@ -179,6 +179,13 @@ def build(root: Path = ROOT) -> dict[str, bytes]:
     return files
 
 
+def page_anchors(root: Path = ROOT) -> dict[str, set[str]]:
+    """The heading ids of each page, by its slug (`""` for the home page): what a link to the site can name after the `#`."""
+    pages = {"": "index.html"} | {view.slug: f"{view.slug}/index.html" for view in VIEWS}
+    built = build(root)
+    return {slug: set(re.findall(r'<(?:h[1-6]|section)\b[^>]*? id="([^"]+)"', built[path].decode())) for slug, path in pages.items()}
+
+
 def write(out: Path, root: Path = ROOT) -> list[str]:
     """Writes the site into `out`, which must be empty or absent. Returns the paths written."""
     if out.exists() and any(out.iterdir()):

@@ -529,3 +529,50 @@ class TestMainRunsEveryCheck:
         monkeypatch.setattr(drift, "project_errors", lambda root: ["a project rule broke"])
         assert drift.main() == 1
         assert "::error::a project rule broke" in capsys.readouterr().out
+
+
+class TestViewLinks:
+    """A doc links a generated view by its page on the site, and the page and the anchor have to exist."""
+
+    SITE = "https://wenenhoe.github.io/homelab/"
+
+    @pytest.fixture(autouse=True)
+    def _site(self, repo, monkeypatch):
+        monkeypatch.setattr(drift, "site_anchors", lambda: {"": set(), "project-planning": {"roadmap"}, "decision-index": {"by-number"}, "dr-coverage": set()})
+        for view in ("docs/project-planning.md", "docs/decision-index.md", "docs/topics/disaster-recovery/coverage.md"):
+            repo.write(view, "# View\n\nSee [the other](decision-index.md).\n")
+
+    def test_a_link_to_a_page_and_an_anchor_that_exist_passes(self, repo):
+        repo.write("docs/a.md", f"[x]({self.SITE}project-planning/#roadmap) [y]({self.SITE}dr-coverage/) [z]({self.SITE})\n")
+        drift.check_view_links()
+        assert drift.errors == []
+
+    def test_a_link_by_file_path_fails_and_names_the_page(self, repo):
+        repo.write("docs/a.md", "[x](project-planning.md#roadmap)\n")
+        drift.check_view_links()
+        assert_one_error(drift.errors, f"docs/a.md: links the generated view project-planning.md by its path; link {self.SITE}project-planning/ instead")
+
+    def test_a_link_by_a_path_from_the_repository_root_fails(self, repo):
+        repo.write("README.md", "[x](docs/decision-index.md)\n")
+        drift.check_view_links()
+        assert_one_error(drift.errors, "README.md: links the generated view docs/decision-index.md by its path")
+
+    def test_a_link_to_a_page_that_does_not_exist_fails(self, repo):
+        repo.write("docs/a.md", f"[x]({self.SITE}no-such-page/)\n")
+        drift.check_view_links()
+        assert_one_error(drift.errors, "docs/a.md: links https://wenenhoe.github.io/homelab/no-such-page/, which is not a page of the site")
+
+    def test_a_link_to_a_missing_anchor_fails(self, repo):
+        repo.write("docs/a.md", f"[x]({self.SITE}decision-index/#by-topic)\n")
+        drift.check_view_links()
+        assert_one_error(drift.errors, "has no heading with the anchor 'by-topic'")
+
+    def test_the_views_themselves_may_link_each_other_by_path(self, repo):
+        drift.check_view_links()
+        assert drift.errors == []
+
+    def test_a_link_to_another_file_with_the_same_name_in_another_folder_passes(self, repo):
+        repo.write("docs/topics/other/coverage.md", "# Other\n")
+        repo.write("docs/topics/other/a.md", "[x](coverage.md)\n")
+        drift.check_view_links()
+        assert drift.errors == []

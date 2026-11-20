@@ -64,3 +64,9 @@ The `doc-site` job in `pr-checks.yml` runs the same build and layout check on a 
 ## Subresource integrity
 
 The stylesheet's `<link>` carries an `integrity` attribute with the sha384 of the vendored file, computed when the site is built from the bytes it writes, so it has no pin of its own to keep in step with `simple.pin` and a stylesheet update changes it with no further step. A test holds the attribute to the file.
+
+## Linking a view
+
+A doc links a generated view through its page on the site, `https://wenenhoe.github.io/homelab/<page>/`, with the same `#anchor` it would have used on the file: `project-planning/`, `decision-index/` or `dr-coverage/`. A link to the file's path fails the drift check, and so does a link to a page that does not exist or to an anchor that no heading on the page has ([the check](ci/doc-checks.md)). The anchors are the ones GitHub gives the headings, so a link that worked on the file works on the page. The site is a minute or so behind a merge, so a link to a heading added in the same pull request reaches the page once the deployment has finished, and the drift check, which builds the pages from the tree, accepts it before then.
+
+A table row's details are on the page it names, not behind its own link: the coverage table has no per-app anchors, and a doc that needs one app's row names the app.

@@ -72,8 +72,8 @@ opnsense_gateway_hosts:
 
 # Flows between zones, each a pass rule on the source zone's interfaces. A flow
 # marked enabled: false is written but not in force, until the document it
-# rests on is confirmed. Rows of the project's draft policy in
-# docs/projects/opnsense-config.md.
+# rests on is confirmed. Rows of the zone policy in
+# docs/topics/infra/tofu/opnsense-gateway.md.
 opnsense_gateway_flows:
   - name: operator hosts to the services zone over SSH
     zones: [desktops, management]

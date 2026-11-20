@@ -44,7 +44,7 @@ Builds the only way out of the zones that deny direct Internet access, and the i
 
 ## Scope
 
-VLAN 45 and its interface rules, the trusted-tier and untrusted-tier proxy VMs with their allowlists, the coding-agent zone's resolver on the untrusted tier's VM, the per-VM IP filter that each consumer carries, the temporary rule that admits the operator host directly when the trusted tier is down, and canary probes run from a VM in the coding-agent zone, outside the host. Not in scope: the coding-agent zone's VLAN, rules and route ([`coding-agent-network.md`](coding-agent-network.md)), the hosts that use a proxy ([`coding-agent-host.md`](coding-agent-host.md), [`operator-host-takeover.md`](operator-host-takeover.md), [`gatehouse.md`](gatehouse.md)), and the gateway's play and rebuild themselves ([`opnsense-config.md`](opnsense-config.md)). The zone's configuration in the play is in scope, as Stages 1 and 5; the proxies' configuration is the `egress_proxy` role's, not the play's.
+VLAN 45 and its interface rules, the trusted-tier and untrusted-tier proxy VMs with their allowlists, the coding-agent zone's resolver on the untrusted tier's VM, the per-VM IP filter that each consumer carries, the temporary rule that admits the operator host directly when the trusted tier is down, and canary probes run from a VM in the coding-agent zone, outside the host. Not in scope: the coding-agent zone's VLAN, rules and route ([`coding-agent-network.md`](coding-agent-network.md)), the hosts that use a proxy ([`coding-agent-host.md`](coding-agent-host.md), [`operator-host-takeover.md`](operator-host-takeover.md), [`gatehouse.md`](gatehouse.md)), and the gateway's play and rebuild themselves ([`opnsense-gateway.md`](../topics/infra/tofu/opnsense-gateway.md)). The zone's configuration in the play is in scope, as Stages 1 and 5; the proxies' configuration is the `egress_proxy` role's, not the play's.
 
 ## Decision
 
@@ -76,7 +76,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - The allowlists need upkeep as tooling changes, and a change to the trusted tier's is a security-relevant change to review.
 - Docker Hub and other registries sit behind shared CDN addresses; a proxy that filters on host name only may still be broad.
 - A trusted-tier outage blocks Tofu until the VM is rebuilt or the temporary rule is applied.
-- The proxies cannot be built on the production gateway until it is rebuilt from the play ([`opnsense-config.md`](opnsense-config.md)'s Stage 3) and the zone's rules are applied to it. The zone is never built by hand on the live gateway.
+- The proxies cannot be built until the zone's rules are applied to the production gateway through its play ([`opnsense-gateway.md`](../topics/infra/tofu/opnsense-gateway.md)). The zone is never built by hand on the live gateway.
 
 ## Open items
 

@@ -24,11 +24,11 @@ allowed_paths:
 
 # Network Boundary Checks
 
-Builds the one definition of a canary probe that three projects each promise: [`opnsense-config.md`](opnsense-config.md), [`coding-agent-egress.md`](coding-agent-egress.md) and [`operator-host-takeover.md`](operator-host-takeover.md). It is a project of its own, not a stage of the gateway project, because its flow list and runner are used by all three and outlive any one of them. Its first two stages need no gateway; the later ones need the scratch gateway that [`opnsense-config.md`](opnsense-config.md)'s Stage 1 builds.
+Builds the one definition of a canary probe that three projects each promised: the OPNsense gateway project (now closed), [`coding-agent-egress.md`](coding-agent-egress.md) and [`operator-host-takeover.md`](operator-host-takeover.md). It is a project of its own, not a stage of the gateway project, because its flow list and runner are used by all three and outlive any one of them. Its first two stages need no gateway; the later ones need the scratch gateway that [`opnsense-gateway.md`](../topics/infra/tofu/opnsense-gateway.md) describes.
 
 ## Scope
 
-The flow list and its loader and rule checks, the probe module and runner, the canary VMs, the first flow entries for the existing zones, and the scheduled run with its heartbeat. It removes and renames nothing. Not in scope: the firewall rules and the flows each zone needs ([`opnsense-config.md`](opnsense-config.md), [`coding-agent-network.md`](coding-agent-network.md)), the egress proxy and the flow kind for requests through it ([`coding-agent-egress.md`](coding-agent-egress.md)), and reading `--check --diff` as drift (see Open items).
+The flow list and its loader and rule checks, the probe module and runner, the canary VMs, the first flow entries for the existing zones, and the scheduled run with its heartbeat. It removes and renames nothing. Not in scope: the firewall rules and the flows each zone needs ([`opnsense-gateway.md`](../topics/infra/tofu/opnsense-gateway.md#zone-policy), [`coding-agent-network.md`](coding-agent-network.md)), the egress proxy and the flow kind for requests through it ([`coding-agent-egress.md`](coding-agent-egress.md)), and reading `--check --diff` as drift (see Open items).
 
 ## Decision
 
@@ -55,14 +55,14 @@ The services canary is declared, the flow list holds the first flows, and namesp
 
 - [ ] One flow list in the repo is the only place the expected flows are written for checking, and its rules run as a pre-commit hook.
 - [ ] The runner, started from the host that runs the play, tries each flow from a canary in the source zone, and every deny has a control that passed in the same run.
-- [ ] The canary-probe criteria of [`opnsense-config.md`](opnsense-config.md) (Stages 2 and 3), [`coding-agent-network.md`](coding-agent-network.md) (Stage 2), [`coding-agent-egress.md`](coding-agent-egress.md) (Stages 2 and 3) and [`operator-host-takeover.md`](operator-host-takeover.md) (Stage 1) are met by this runner.
+- [ ] The canary-probe criteria of the OPNsense gateway project (Stages 2 and 3, now closed), [`coding-agent-network.md`](coding-agent-network.md) (Stage 2), [`coding-agent-egress.md`](coding-agent-egress.md) (Stages 2 and 3) and [`operator-host-takeover.md`](operator-host-takeover.md) (Stage 1) are met by this runner.
 - [ ] A scheduled run pushes a heartbeat on a pass and alerts on a failure or a missed run.
 - [ ] The resulting behavior is described in `docs/topics/infra/network-boundary-checks.md`.
 
 ## Agent handoff
 
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced. It covers the flow list package and its tests, the pre-commit hook, the CI path filter that runs the package's tests and the topic docs, which is what Stages 1 and 2 change, the canary VMs' Tofu file with its variable, test and docs, and the scratch gateway's block rule playbook, which Stage 3 changes. Stage 4 widens it, in a change of its own, once the scheduled run's files exist.
-- **Must not change:** the gateway play and its rules ([`opnsense-config.md`](opnsense-config.md)'s), the zones' decisions, and the existing heartbeat jobs.
+- **Must not change:** the gateway play and its rules ([`opnsense-gateway.md`](../topics/infra/tofu/opnsense-gateway.md)), the zones' decisions, and the existing heartbeat jobs.
 - **Relevant files and interfaces:** `tools/utils/app_catalog.py` and `tools/ci/gates/app_catalog_rules.py` (the loader-and-rules-hook pattern to follow), `docs/topics/engineering/ci/gates.md`, `docs/topics/monitoring/gatus.md` and `ansible/roles/gatus_push` (the heartbeat path).
 - **Required checks:** `pre-commit run --all-files`, and `uv run pytest` from `tools/`.
 
@@ -75,9 +75,9 @@ The services canary is declared, the flow list holds the first flows, and namesp
 
 ## Open items
 
-- Reading drift on the gateway: [`opnsense-config.md`](opnsense-config.md)'s Open items state the question. If the answer is code under `tools/`, it joins this project as a stage or becomes a project of its own, under a decision written once real `--check --diff` output has been kept.
-- Whether a pre-merge CI job can boot the pinned pre-installed gateway image under QEMU depends on KVM being available on the runners, which has not been checked. Whether it belongs here, in [`opnsense-config.md`](opnsense-config.md) or in a project of its own is decided after that check.
-- Whether a static check ties the gateway play's rule variables to the flow list. It cannot show effective rule order, so it complements the probes. Decide it with [`opnsense-config.md`](opnsense-config.md)'s Stage 2, when the rules exist.
+- Reading drift on the gateway: [`opnsense-drift-check.md`](opnsense-drift-check.md) owns the question. If the answer is code under `tools/`, it joins this project as a stage or becomes a project of its own, under a decision written once real `--check --diff` output has been kept.
+- Whether a pre-merge CI job can boot the pinned pre-installed gateway image under QEMU depends on KVM being available on the runners, which has not been checked. Whether it belongs here, in [`opnsense-drift-check.md`](opnsense-drift-check.md) or in a project of its own is decided after that check.
+- Whether a static check ties the gateway play's rule variables to the flow list. It cannot show effective rule order, so it complements the probes. The rules now exist, in the [zone policy](../topics/infra/tofu/opnsense-gateway.md#zone-policy).
 
 ## Closing checklist
 

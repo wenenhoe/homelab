@@ -50,6 +50,12 @@ URL, so a newer release is a new URL and checksum.
 
 Exactly one of the two ways must be given, and the plan fails otherwise.
 
+Connections from a workstation to the Proxmox API dropped now and then during the spike runs (an
+upload closed mid-transfer, a VM create answered with an empty reply), and three tries in a row of
+the 3 GB image upload failed. The scratch gateway's script has the node download and unpack the
+image once, so a run uploads none. The cause of the drops is not found, the seed and the other
+uploads still go through the API, and the module has no retry of its own.
+
 ## Seed disk
 
 `seed/build_seed.sh OUTPUT_DIR --lan-ip ADDRESS --operator-host ADDRESS` writes `OUTPUT_DIR/seed.img`, the
@@ -132,19 +138,16 @@ apply the module again.
 
 ## The production gateway
 
-`tofu/opnsense.tf` calls the module for VMID 201 with the values of the hand-built VM it
-replaces: its name, two cores, 2 GiB, `vmbr0` for the WAN and `vmbr1` for the LAN, and
-startup order 1. Its NICs carry the MACs the MAC scheme derives from VMID 201
-(`BC:24:11:00:C9:00` and `BC:24:11:00:C9:01`), not those of the VM it replaces, so the
-physical router sees the rebuilt gateway as a new WAN client. It sets `started = false`, so the VM is created stopped
-and [`first_boot.sh`](#first-boot) starts it. The image is the pinned release's unpacked
+`tofu/opnsense.tf` calls the module for VMID 201: the name `OPNsense`, two cores, 2 GiB, `vmbr0`
+for the WAN, `vmbr1` for the LAN and startup order 1. Its NICs carry the MACs the MAC scheme
+derives from VMID 201 (`BC:24:11:00:C9:00` and `BC:24:11:00:C9:01`). It sets `started = false`,
+so a create leaves the VM stopped and [`first_boot.sh`](#first-boot) starts it; a later apply
+never starts or stops it. The image is the pinned release's unpacked
 copy in the images datastore (`opnsense_image_volume_id`), the one the scratch gateway's
 runs stage. The seed is `opnsense_seed_image_path`, null in the steady state.
 
-Until the rebuild the hand-built VM holds VMID 201, so applying the root module would fail
-at the create. The rebuild itself is in
-[`opnsense-config.md`](../../../projects/opnsense-config.md#the-production-rebuild). The
-checks before it:
+While a VM holds VMID 201, an apply that creates one fails, so a rebuild destroys the old VM
+first ([below](#rebuilding-the-production-gateway)). The checks before a create:
 
 - `tofu plan` shows the gateway VM and the seed file as the only additions.
 - `pvesm list tofu-images --content import` on the node lists the image under the name the
@@ -176,3 +179,62 @@ script fails unless it answers on 26.1.11 afterwards with the seeded key still a
 Before the play has written its rules the operator host reaches only port 443, so the
 snapshot a run of the play is preceded by is taken on the node, with `qm snapshot`, and not
 with the snapshot token over the API.
+
+### Rebuilding the production gateway
+
+A rebuild replaces the VM with one built from the seed, so the whole lab is offline while the
+gateway is down. What it needs:
+
+- **Rehearsal.** A scratch gateway built from the same seed and the same play, with the same
+  `-e` variables, passes `tofu/scratch/opnsense/acceptance/acceptance.sh` (`--check` clean, the
+  stale-forward and stray-rule round trips, the GUI login and the API key's scope) and the flow
+  list's probes before the production gateway is touched.
+- **The operator host.** It runs behind the gateway, so it loses the node, the host zone's DNS and
+  the Internet when the gateway stops. Before the window it takes a fixed address on the
+  untagged LAN for its return (the address `build_seed.sh` takes as `--operator-host`) and its NIC
+  moves to `vmbr0`, where it reaches the node without the gateway. Its hosts file maps the node's
+  name to the node, because the Proxmox endpoint is addressed by name and the gateway's DNS is
+  down. Whether the host should keep a path of its own is open
+  ([`operator-host-reach-without-the-gateway.md`](../../../explorations/operator-host-reach-without-the-gateway.md)).
+- **The router.** The rebuilt gateway carries the MACs the module derives from VMID 201, not the
+  old VM's, so the physical router sees a new WAN client. Check before the window whether it
+  holds a DHCP reservation or a port forward for the old WAN MAC and move it to the new one.
+- **The disk and machine type.** The rebuilt gateway is `q35`, with a disk at least as large as
+  what the old gateway uses.
+- **The variables** the play needs ([above](opnsense-gateway.md#variables-the-play-needs)) and the
+  [credentials file](state-and-credentials.md#credentials-file).
+
+The order:
+
+1. Move the operator host to `vmbr0` as above and build the seed
+   (`seed/build_seed.sh ... --lan-ip ADDRESS --operator-host ADDRESS`).
+2. Stop the gateway, then dump it and destroy it with
+   [`retire_vm.sh`](../../disaster-recovery/rebuild-tools.md) (`dump`, then `destroy`, each with the
+   VM's name).
+3. Apply the root module with `opnsense_seed_image_path` to create VM 201, with the startup order's
+   temporary grant ([above](#the-production-gateway)).
+4. Run `first_boot.sh`, then apply again without the seed variable.
+5. Move the operator host's NIC to `vmbr1`, untagged, with its fixed address, and map
+   `OPNsense.internal` to the gateway's LAN address in its hosts file.
+6. Update the gateway to the pinned release, snapshot it on the node, run the play with
+   `--check --diff`, then apply it with `opnsense_gateway_operator_not_listed_ok` set (the gateway
+   sees the operator host at its untagged address and the alias lists its VLAN address), and check
+   the play is clean again.
+7. Set the operator host's NIC tag to its VLAN and give it its static address in the file netplan
+   reads for it (the gateway's DHCP answer for the reservation carries no default route). Check
+   the gateway answers on 443 from it and that `--check` is clean from that address without the
+   override. The Proxmox console is the way in when it does not.
+8. Run the flow list's probes, delete the snapshots and revoke the grant. Delete the dump
+   (`drop-dump`) only when the hosts behind the gateway are confirmed healthy.
+
+**Rollback.** The dump is the way back: destroy the rebuilt VM and restore the dump to VMID 201 by
+hand with `qmrestore`, which brings the old VM's MACs back with it.
+`retire_vm.sh restore` is not that: it refuses a VMID below 900 and gives the copy new MACs.
+Inside the rebuild, a snapshot of the gateway before the update and another after it are the way
+back.
+
+The seed's legacy rule for the operator host's untagged address admits a host nobody uses once the
+operator host has moved to its VLAN. Remove it in the GUI's LAN rules at the latest when VM 401 is
+retired ([`vm-401-retirement.md`](../../../projects/vm-401-retirement.md)). When VM 252 takes over,
+its address in VLAN 25 replaces VM 401's in `opnsense_gateway_operator_hosts` and the guard rule
+admits it through the management zone's interface.

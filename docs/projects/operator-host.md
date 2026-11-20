@@ -72,7 +72,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 
 ## Risks
 
-- OPNsense rules for VLAN 25 are hand-maintained until [`opnsense-config.md`](opnsense-config.md) lands.
+- OPNsense rules for VLAN 25 are carried by the gateway's play, in the [zone policy](../topics/infra/tofu/opnsense-gateway.md#zone-policy).
 - The laptop is the workstation and holds the only key to this host. The key is hardware-backed, and losing both tokens means recovery through the Proxmox node.
 - The node has limited headroom for another VM.
 - A tailnet policy edit is tailnet-wide and can lock out access.

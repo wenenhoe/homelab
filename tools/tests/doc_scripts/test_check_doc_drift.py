@@ -567,6 +567,13 @@ class TestViewLinks:
         drift.check_view_links()
         assert_one_error(drift.errors, "has no heading with the anchor 'by-topic'")
 
+    def test_a_view_introduction_links_by_path_as_the_view_does(self, repo):
+        intro = "# View\n\nSee [the other](decision-index.md#by-number) and [a doc](decisions/README.md#nope).\n"
+        repo.write("tools/doc_scripts/view_intros/project-planning.md", intro)
+        drift.check_view_links()
+        drift.check_no_stale_anchors()
+        assert not [error for error in drift.errors if "view_intros" in error]
+
     def test_the_views_themselves_may_link_each_other_by_path(self, repo):
         drift.check_view_links()
         assert drift.errors == []

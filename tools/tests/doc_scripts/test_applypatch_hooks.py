@@ -277,16 +277,8 @@ class TestViewsThatAreNotCommitted:
         assert git(sandbox.repo, "status", "--porcelain").stdout == ""
 
 
-def test_the_list_names_the_views_the_generator_writes(monkeypatch: pytest.MonkeyPatch) -> None:
-    written: list[str] = []
-
-    def record(path: Path, heading: str, body: str, *, optional: bool = False) -> bool:
-        written.append(path.relative_to(generator.ROOT).as_posix())
-        return True
-
-    monkeypatch.setattr(generator, "regenerate", record)
-    generator.main()
-    assert sorted(set(written)) == sorted(VIEWS)
+def test_the_list_names_the_views_the_generator_writes() -> None:
+    assert sorted({block.view for block in generator.generated_blocks(generator.ROOT)}) == sorted(VIEWS)
 
 
 def test_every_view_in_the_list_exists_in_the_repo() -> None:

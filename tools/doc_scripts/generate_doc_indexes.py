@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-"""Regenerates the doc-index sections that would otherwise be hand-edited
-every time a project or decision lineage is added or changes status:
+"""Writes the three generated doc views, which are not committed: a checkout
+makes them (the `post-merge` and `post-checkout` hooks, `generate-doc-indexes`)
+and the site publishes them. Each is its introduction, read from
+`doc_scripts/view_intros/`, then the sections built from frontmatter that would
+otherwise be hand-edited every time a project or decision lineage is added or
+changes status:
 
 - docs/project-planning.md: `## Roadmap`, `## Super Projects`, `## Projects`,
   `## Decisions awaiting a project`, and `## Open explorations` (always).
@@ -14,8 +18,7 @@ check_doc_drift.py), which is also the schema of record. Validating
 every decision and project doc's type and status along the way is a
 side effect: a bad combination fails here before it ships.
 
-Run standalone, or via the pre-commit hook. Overwrites the sections in
-place; `git diff` shows whether anything actually changed.
+Run standalone, or via the pre-commit hook. Overwrites each view whole.
 """
 
 from __future__ import annotations
@@ -654,50 +657,36 @@ def validate_adrs(root: Path = ROOT) -> None:
         raise SystemExit("\n".join([*errors, "Renumber the lineage a patch series adds with `python3 -m doc_scripts.renumber_adr_patches`."]))
 
 
-def has_section(text: str, heading: str) -> bool:
-    return re.search(rf"^## {re.escape(heading)}\n", text, re.MULTILINE) is not None
+INTRO_DIR = "tools/doc_scripts/view_intros"
 
 
-def replace_section(text: str, heading: str, new_body: str) -> str:
-    """Swaps the body of a top-level '## <heading>' section for new_body,
-    leaving the heading line and everything outside the section alone.
-    Matches through to the next '## ' heading or end of file.
-    """
-    pattern = re.compile(
-        rf"(^## {re.escape(heading)}\n\n)(.*?)(\n\n(?=## )|\n*\Z)",
-        re.DOTALL | re.MULTILINE,
-    )
-    m = pattern.search(text)
-    if not m:
-        raise SystemExit(f"couldn't find a '## {heading}' section to regenerate")
-    return text[: m.start(2)] + new_body + text[m.end(2) :]
+def intro_path(view: str) -> str:
+    """Where a view's title and introduction live: the text above its first `##` section, kept apart
+    because the view itself is generated whole and is not committed."""
+    return f"{INTRO_DIR}/{Path(view).stem}.md"
 
 
-def regenerate(path: Path, heading: str, body: str, *, optional: bool = False) -> bool:
-    text = path.read_text(encoding="utf-8")
-    if optional and not has_section(text, heading):
-        return False
-    path.write_text(replace_section(text, heading, body), encoding="utf-8")
-    return True
+def render_view(view: str, blocks: list[Generated], root: Path = ROOT) -> str:
+    """The view as it is written: its introduction, then each of its sections in `blocks` order."""
+    intro = (root / intro_path(view)).read_text(encoding="utf-8").rstrip("\n")
+    sections = "".join(f"\n\n## {g.heading}\n\n{g.block.markdown()}" for g in blocks if g.view == view)
+    return f"{intro}{sections}\n"
 
 
-def ensure_section(path: Path, heading: str, *, before: str) -> None:
-    """Adds an empty `## <heading>` section ahead of `## <before>` when the file has none. A patch
-    carries no generated view, so it cannot add the heading its generator fills."""
-    text = path.read_text(encoding="utf-8")
-    if not has_section(text, heading):
-        path.write_text(text.replace(f"## {before}\n", f"## {heading}\n\nPLACEHOLDER\n\n## {before}\n", 1), encoding="utf-8")
+def write_views(root: Path = ROOT) -> tuple[str, ...]:
+    blocks = generated_blocks(root)
+    views = tuple(dict.fromkeys(g.view for g in blocks))
+    for view in views:
+        (root / view).write_text(render_view(view, blocks, root), encoding="utf-8")
+    return views
 
 
 def main() -> int:
     validate_adrs()
-    ensure_section(ROOT / PLANNING_RELATIVE, "Roadmap", before="Super Projects")
-    blocks = generated_blocks()
-    for generated in blocks:
-        regenerate(ROOT / generated.view, generated.heading, generated.block.markdown())
+    views = write_views()
     for warning in active_project_warnings(ROOT):
         print(warning, file=sys.stderr)
-    print(f"Regenerated {PLANNING_RELATIVE}, {DECISION_INDEX}, {COVERAGE_RELATIVE}.")
+    print(f"Regenerated {', '.join(views)}.")
     return 0
 
 

@@ -767,54 +767,37 @@ class TestValidateAdrs:
             gen.validate_adrs(root)
 
 
-class TestSectionReplacement:
-    DOC = "# T\n\nintro\n\n## Index\n\nold\n\n## Other\n\nkeep\n"
+class TestRenderView:
+    """A view is its introduction file, then its generated sections in the order `generated_blocks` lists them."""
 
-    def test_replaces_only_the_named_section(self):
-        assert gen.replace_section(self.DOC, "Index", "new") == "# T\n\nintro\n\n## Index\n\nnew\n\n## Other\n\nkeep\n"
+    def test_the_view_is_the_introduction_then_each_section(self, root):
+        intro = root / gen.intro_path("docs/v.md")
+        intro.parent.mkdir(parents=True)
+        intro.write_text("# V\n\nintro\n\n", encoding="utf-8")
+        blocks = [
+            gen.Generated("docs/v.md", "One", gen.Note("a")),
+            gen.Generated("docs/other.md", "Skipped", gen.Note("x")),
+            gen.Generated("docs/v.md", "Two", gen.Note("b")),
+        ]
+        assert gen.render_view("docs/v.md", blocks, root) == "# V\n\nintro\n\n## One\n\na\n\n## Two\n\nb\n"
 
-    def test_h3_headings_inside_a_section_do_not_end_it(self):
-        doc = "## Lineages\n\n### A\n\nold\n\n### B\n\nold\n\n## Next\n\nkeep\n"
-        assert gen.replace_section(doc, "Lineages", "new") == "## Lineages\n\nnew\n\n## Next\n\nkeep\n"
+    def test_the_introduction_of_each_view_is_a_file_named_for_it(self):
+        assert gen.intro_path("docs/decision-index.md") == "tools/doc_scripts/view_intros/decision-index.md"
+        assert gen.intro_path("docs/topics/disaster-recovery/coverage.md") == "tools/doc_scripts/view_intros/coverage.md"
 
-    def test_missing_required_section_fails(self, root):
-        path = root / "README.md"
-        path.write_text("# T\n", encoding="utf-8")
-        with pytest.raises(SystemExit, match="couldn't find"):
-            gen.regenerate(path, "Index", "x")
+    def test_the_real_introductions_exist_and_hold_no_section(self):
+        for view in dict.fromkeys(g.view for g in gen.generated_blocks(gen.ROOT)):
+            text = (gen.ROOT / gen.intro_path(view)).read_text(encoding="utf-8")
+            assert text.startswith("# ") and not any(line.startswith("## ") for line in text.splitlines()), view
 
-    def test_optional_section_is_skipped_when_absent(self, root):
-        path = root / "README.md"
-        path.write_text("# T\n\n## Other\n\nkeep\n", encoding="utf-8")
-        assert not gen.regenerate(path, "Lineages", "x", optional=True)
-        assert path.read_text(encoding="utf-8") == "# T\n\n## Other\n\nkeep\n"
-
-    def test_optional_section_is_replaced_when_present(self, root):
-        path = root / "README.md"
-        path.write_text("# T\n\n## Lineages\n\nold\n", encoding="utf-8")
-        assert gen.regenerate(path, "Lineages", "new", optional=True)
-        assert path.read_text(encoding="utf-8") == "# T\n\n## Lineages\n\nnew\n"
-
-
-class TestEnsureSection:
-    def test_a_missing_section_is_added_ahead_of_the_one_named(self, root):
-        path = root / "README.md"
-        path.write_text("# T\n\nintro\n\n## Next\n\nkeep\n", encoding="utf-8")
-        gen.ensure_section(path, "Index", before="Next")
-        gen.regenerate(path, "Index", "new")
-        assert path.read_text(encoding="utf-8") == "# T\n\nintro\n\n## Index\n\nnew\n\n## Next\n\nkeep\n"
-
-    def test_a_present_section_is_left_alone(self, root):
-        path = root / "README.md"
-        path.write_text("# T\n\n## Index\n\nold\n\n## Next\n\nkeep\n", encoding="utf-8")
-        gen.ensure_section(path, "Index", before="Next")
-        assert path.read_text(encoding="utf-8") == "# T\n\n## Index\n\nold\n\n## Next\n\nkeep\n"
-
-    def test_with_no_section_to_add_it_before_the_file_is_unchanged(self, root):
-        path = root / "README.md"
-        path.write_text("# T\n", encoding="utf-8")
-        gen.ensure_section(path, "Index", before="Next")
-        assert path.read_text(encoding="utf-8") == "# T\n"
+    def test_writing_the_views_makes_each_file_whole(self, root, monkeypatch):
+        monkeypatch.setattr(gen, "generated_blocks", lambda _root: [gen.Generated("docs/v.md", "One", gen.Note("a"))])
+        intro = root / gen.intro_path("docs/v.md")
+        intro.parent.mkdir(parents=True)
+        intro.write_text("# V\n", encoding="utf-8")
+        (root / "docs").mkdir()
+        assert gen.write_views(root) == ("docs/v.md",)
+        assert (root / "docs/v.md").read_text(encoding="utf-8") == "# V\n\n## One\n\na\n"
 
 
 class TestActiveProjectWarnings:

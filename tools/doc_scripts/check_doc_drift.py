@@ -40,7 +40,9 @@ ANCHOR_SCAN_EXTS = {".md", ".yml", ".yaml", ".py"}
 ANCHOR_SCAN_EXTRA_NAMES = {".trivyignore"}
 ANCHOR_SCAN_EXCLUDE_DIRS = {".git", "node_modules", ".venv"}
 # Expected-output strings in these tests are literal markdown links to files that only exist inside their temp trees.
-ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/", "tools/tests/doc_site/")
+# A view's introduction is written for the view's place in docs/, so its relative links resolve from there, and are
+# checked in the generated view, which the checks read.
+ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/", "tools/tests/doc_site/", "tools/doc_scripts/view_intros/")
 
 CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
 SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")
@@ -422,6 +424,8 @@ def check_view_links() -> None:
     for f in sorted(ROOT.rglob("*.md")):
         rel_f = f.relative_to(ROOT)
         if any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts) or f.resolve() in view_paths or is_template(f.name):
+            continue
+        if rel_f.as_posix().startswith(ANCHOR_SCAN_EXCLUDE_PREFIXES):
             continue
         text = read(f)
         for target in path_link.findall(text):

@@ -117,7 +117,6 @@ without being restated here.
 ## Open items
 
 - The maintainer adds `doc-site` to the `main` and `maintenance-and-develop` rulesets with the commands in [`branching.md`](../topics/engineering/branching.md#adding-a-required-check). The docs already say 17 checks are required.
-- Each view's title and introduction are prose committed in the view file, and the site reads them from it. Stage 4 stops committing the files, so it must first give that prose a tracked home (the generator's template, or a file beside it) for the site and the checkout both to read.
 - Whether the checkout's generator runs from the two hooks or only by hand; Stage 4 settles it from how the hooks behave on a rebase.
 
 ## Closing checklist

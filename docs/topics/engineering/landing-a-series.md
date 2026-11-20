@@ -45,6 +45,13 @@ A docs-only layer has a reason of its own only under the first two; otherwise it
 
 Before writing the manifest, list the layers and say under which of the four reasons each is separate from the one before. A layer with none becomes commits in that one. A layer past about six commits is checked the same way for a split.
 
+## Naming a layer
+
+A layer is known by two names: its slug, which is the branch and shows in the merge commit, and its title, which is the first commit's subject ([`conventions.md`](conventions.md#commits) has the form of a subject).
+
+- **The slug names the theme.** Two to four words, about 30 characters at most. It leaves out what the title carries, the type (`feat-`, `docs-`) and the kind of file (`-exploration`), and it names the theme rather than the step (`gateway-vm-startup-order`, not `stage-four-done`). Layers of one series that carry on one piece of work begin with the same word, so their branches sort together.
+- **The title names the layer.** Put first the commit that says what the layer is for. When the order forces a preparatory commit first, such as a refactor, its subject says what it prepares for, since the pull request carries no other title.
+
 ## Replay
 
 The replay applies the series on a scratch worktree of `origin/main` (fetched first; `--no-fetch` skips it), one `git am` per patch with the generated views reset between, and runs the checks that need no Docker after each commit ([`checks-without-docker.md`](checks-without-docker.md)). The project scope check runs with its base set to the state before the layer's pull request: the tip of the pull request before it in the run, or `origin/main` for the first one applied. A layer can therefore use a widening made by an earlier pull request of the same run, and fails if the widening is in its own pull request or missing, before a pull request exists. `--check COMMAND` can name that commit as `{pull_base}`. `--check COMMAND` adds a check. Before it applies anything the replay checks that the apply hooks are linked ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)), that `pre-commit` is on `PATH` and that git has a committer identity, and stops naming what is missing.

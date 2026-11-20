@@ -1,0 +1,5 @@
+package = simpledotcss
+version = 2.3.7
+file = simple.min.css
+sha256 = fb0624582679e4af905268e0fb461128583a49b5d9e5d8675d1c9e2fc34c7d3d
+repository = kevquirk/simple.css

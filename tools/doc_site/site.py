@@ -1,0 +1,181 @@
+"""Builds the site: one page for each generated view, a home page and the assets they share."""
+
+from __future__ import annotations
+
+import posixpath
+import re
+from dataclasses import dataclass
+from pathlib import Path
+
+from doc_scripts.doc_frontmatter import ROOT
+from doc_scripts.generate_doc_indexes import generated_blocks
+from doc_scripts.view_model import Block, Groups, Note, Table
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+from doc_site.markup import Anchors, UnsupportedMarkup, inline, link_resolver, paragraphs
+
+PACKAGE = Path(__file__).resolve().parent
+
+
+@dataclass(frozen=True)
+class View:
+    source: str  # the markdown view, from the repository root
+    slug: str  # its directory on the site
+    nav: str  # its label in the navigation
+    blurb: str  # what the home page says about it
+
+
+VIEWS = (
+    View("docs/project-planning.md", "project-planning", "Planning", "What is planned, building and waiting, and which decisions have no project yet."),
+    View("docs/decision-index.md", "decision-index", "Decisions", "Every decision by number and by topic, the open ones and the superseded ones."),
+    View(
+        "docs/topics/disaster-recovery/coverage.md",
+        "dr-coverage",
+        "DR coverage",
+        "What each app has: where it runs, what is backed up, its record and its recovery tier.",
+    ),
+)
+
+TITLES = ("Project", "Decision", "Problem", "App", "Exploration")
+EYEBROWS = ("ADR", "Revision")
+NO_VALUE = ("", "—", "(no initiative)")
+
+
+def roles_of(headers: tuple[str, ...]) -> list[str]:
+    """What each column is for on a card: the identifier and the status pill head it, the first
+    name-like column is the title, and everything else is a labelled field."""
+    roles: list[str] = []
+    titled = False
+    for header in headers:
+        if header == "Status":
+            roles.append("status")
+        elif header in EYEBROWS or (header == "Initiative" and "Project" in headers):
+            roles.append("eyebrow")
+        elif (header in TITLES or header == "Initiative") and not titled:
+            roles.append("title")
+            titled = True
+        else:
+            roles.append("field")
+    return roles
+
+
+def status_key(cell: str) -> str:
+    """`Accepted (revision 1)` -> `accepted`: the word that picks a pill's colour."""
+    first = re.split(r"[ ,(]", re.sub(r"<[^>]+>", "", cell).strip().lower(), maxsplit=1)[0]
+    return re.sub(r"[^a-z]", "", first) or "other"
+
+
+@dataclass(frozen=True)
+class Heading:
+    level: int
+    id: str
+    text: str
+
+
+def _table(table: Table, resolve) -> str:
+    roles = roles_of(table.headers)
+    head = "".join(f"<th>{inline(h, resolve)}</th>" for h in table.headers)
+    body = []
+    for row in table.rows:
+        cells = []
+        key = ""
+        for header, role, cell in zip(table.headers, roles, row, strict=True):
+            text = inline(cell, resolve)
+            classes = [role] + (["none"] if cell in NO_VALUE else [])
+            if role == "status" and cell not in NO_VALUE:
+                key = status_key(text)
+                text = f'<span class="pill s-{key}">{text}</span>'
+            cells.append(f'<td class="{" ".join(classes)}" data-label="{inline(header, resolve)}">{text}</td>')
+        has_eyebrow = any(role == "eyebrow" and cell not in NO_VALUE for role, cell in zip(roles, row, strict=True))
+        classes = ([f"s-{key}"] if key else []) + ([] if has_eyebrow else ["ne"])
+        body.append(f'<tr class="{" ".join(classes)}">{"".join(cells)}</tr>')
+    return f"<table><thead><tr>{head}</tr></thead><tbody>{''.join(body)}</tbody></table>"
+
+
+def _block(block: Block, resolve, anchors: Anchors, headings: list[Heading]) -> str:
+    if isinstance(block, Note):
+        return f'<p class="note">{inline(block.text, resolve)}</p>'
+    if isinstance(block, Table):
+        return _table(block, resolve)
+    if isinstance(block, Groups):
+        parts = []
+        for title, table in block.items:
+            anchor = anchors.of(title)
+            headings.append(Heading(3, anchor, title))
+            parts.append(f'<h3 id="{anchor}">{inline(title, resolve)}</h3>{_table(table, resolve)}')
+        return "".join(parts)
+    raise TypeError(f"unknown block {block!r}")
+
+
+def _title_and_intro(text: str, view: str) -> tuple[str, str]:
+    """The `# Title` line and the prose between it and the first `## ` section. Any `## ` section of the
+    file must be a generated one: the page is built from the rows, so a hand-written section would be lost."""
+    lines = text.splitlines()
+    heading = next((i for i, line in enumerate(lines) if line.startswith("# ")), None)
+    if heading is None:
+        raise UnsupportedMarkup(f"{view} has no `# ` title")
+    end = next((i for i in range(heading + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return lines[heading][2:].strip(), "\n".join(lines[heading + 1 : end])
+
+
+def _page_addresses(from_slug: str | None) -> dict[str, str]:
+    """Each view's address from the page for `from_slug` (None for the home page)."""
+    prefix = "" if from_slug is None else "../"
+    return {view.source: f"{prefix}{view.slug}/" for view in VIEWS}
+
+
+def build(root: Path = ROOT) -> dict[str, bytes]:
+    """Every file of the site, by its path under the site's root. Reads only the tree."""
+    env = Environment(loader=FileSystemLoader(PACKAGE / "templates"), autoescape=True, undefined=StrictUndefined, keep_trailing_newline=True)
+    generated = generated_blocks(root)
+    files: dict[str, bytes] = {}
+
+    def nav(slug: str | None) -> list[dict]:
+        pages = _page_addresses(slug)
+        return [{"href": pages[view.source], "label": view.nav, "current": view.slug == slug} for view in VIEWS]
+
+    for view in VIEWS:
+        title, intro = _title_and_intro((root / view.source).read_text(encoding="utf-8"), view.source)
+        resolve = link_resolver(view.source, _page_addresses(view.slug), lambda path: (root / path).is_dir())
+        anchors = Anchors()
+        headings = [Heading(1, anchors.of(title), title)]
+        sections = []
+        for item in (g for g in generated if g.view == view.source):
+            anchor = anchors.of(item.heading)
+            headings.append(Heading(2, anchor, item.heading))
+            sections.append({"id": anchor, "title": item.heading, "html": _block(item.block, resolve, anchors, headings)})
+        files[f"{view.slug}/index.html"] = (
+            env.get_template("page.html.j2")
+            .render(
+                title=title,
+                title_id=headings[0].id,
+                intro=paragraphs(intro, resolve),
+                sections=sections,
+                headings=headings[1:],
+                nav=nav(view.slug),
+                base="../",
+                home="../",
+            )
+            .encode("utf-8")
+        )
+    files["index.html"] = (
+        env.get_template("home.html.j2")
+        .render(views=[{"href": f"{view.slug}/", "label": view.nav, "blurb": view.blurb} for view in VIEWS], nav=nav(None), base="", home="")
+        .encode("utf-8")
+    )
+    files["assets/site.css"] = (PACKAGE / "assets/site.css").read_bytes()
+    files["assets/site.js"] = (PACKAGE / "assets/site.js").read_bytes()
+    files["assets/simple.css"] = (PACKAGE / "vendor/simple.min.css").read_bytes()
+    return files
+
+
+def write(out: Path, root: Path = ROOT) -> list[str]:
+    """Writes the site into `out`, which must be empty or absent. Returns the paths written."""
+    if out.exists() and any(out.iterdir()):
+        raise SystemExit(f"{out} is not empty")
+    files = build(root)
+    for relative, data in files.items():
+        path = out / posixpath.normpath(relative)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    return sorted(files)

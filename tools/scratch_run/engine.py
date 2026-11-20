@@ -39,6 +39,9 @@ class Backend(Protocol):
 
     def block(self, spec: Spec, state: str) -> tuple[int, str]: ...
 
+    def stray(self, spec: Spec) -> tuple[int, str]:
+        """Add a firewall rule the play does not write, behind the play's back."""
+
     def vlans(self, spec: Spec) -> tuple[int, str]:
         """Compare the gateway's VLAN interfaces with `spec.vlans`; the last line of the output says what was found."""
 
@@ -66,7 +69,7 @@ class Outcome:
 
 def judge(step: Step, status: int, output: str) -> tuple[bool, str]:
     """Whether a step had the outcome the spec expected, and a line saying why."""
-    if step.kind == "block":
+    if step.kind in ("block", "stray"):
         return status == 0, f"the playbook exited {status}"
     if step.kind in ("vlans", "vm"):
         lines = [line for line in output.splitlines() if line.strip()]
@@ -153,6 +156,8 @@ def run(spec: Spec, backend: Backend, out_dir: Path, stamp: str, clock: Callable
                 status, output = backend.vlans(spec)
             elif step.kind == "vm":
                 status, output = backend.canary_vm(spec)
+            elif step.kind == "stray":
+                status, output = backend.stray(spec)
             else:
                 status, output = backend.block(spec, step.mode)
             passed, detail = judge(step, status, output)

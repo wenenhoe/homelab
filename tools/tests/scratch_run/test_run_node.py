@@ -165,6 +165,14 @@ def test_a_block_step_with_no_rule_fails_without_running_anything(out, runner, r
     assert backend(out, runner).block(spec, "present")[0] == 1 and runner.calls == []
 
 
+def test_the_stray_playbook_gets_the_desktops_zones_interface_from_the_roles_list(out, runner, rehearsal):
+    made = backend(out, runner)
+    made.stray(rehearsal)
+    argv = runner.calls[0][0]
+    assert argv[1].endswith("acceptance/stray_rule.yaml")
+    assert json.loads(argv[3]) == {"ca_file": str(made.cert), "api_port": 8443, "credentials": str(made.creds), "interface": "opt5"}
+
+
 def test_the_first_flow_step_builds_the_canaries_and_the_next_does_not(out, runner):
     made = backend(out, runner)
     made.flows(("services",), ())

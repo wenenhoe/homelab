@@ -61,7 +61,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | The row model and the renderer: each view's tables are built as rows that the markdown and the pages are both formatted from, with `simple.css` vendored at a pinned version and hash, the card and drawer layer, and Jinja2 declared as a dependency | Done | The markdown of the three views is byte-for-byte what the generator wrote before, a test builds each page twice from a fixture tree and gets the same bytes, every heading has an anchor equal to the one GitHub gives it, a test fails when the vendored file's hash differs from its pin, and Renovate has a rule that moves the pin's version, with a command that replaces the file and the hash together and a check of both against the registry's tarball and the repository's tag |
 | 2 | The deploy workflow, the layout check and the topic doc | Done | `.github/workflows/pages.yml` builds on every push to `main` with a concurrency group and `cancel-in-progress: false`, runs the layout check at portrait and landscape phone widths, and deploys from a job that holds `pages: write` and `id-token: write` and no `contents: write`; every action is pinned by commit; a workflow test fails a `contents: write` on that job; `progress-log.yml`'s header no longer calls itself the only write token; `pr-checks.yml` builds the site and runs the layout check when the renderer, the generator or their inputs change; the site is live at its address with the three views |
-| 3 | The docs link the site | Not started | No doc outside decision revisions links a view by path; an anchor link goes to the site's page and the same anchor; the 3 links inside decision revisions are changed as editorial; the drift check passes with the views still committed |
+| 3 | The docs link the site | Done | No doc outside decision revisions links a view by path; an anchor link goes to the site's page and the same anchor; the 3 links inside decision revisions are changed as editorial; the drift check passes with the views still committed |
 | 4 | Stop committing the views | Not started | The three files are not tracked and are ignored; `post-merge` and `post-checkout` hooks and `generate_doc_indexes` write them in a checkout; `check_doc_drift.py`, `doc_scope.py`, `classify.py` and `merge_adr_links.py` read or name them without a committed file; the apply hooks and the list they read are gone with the two tests of them |
 | 5 | The landing tool and its docs drop the views | Not started | `land_series` no longer resets generated views between layers or applies one patch per `git am`, its tests and `landing-a-series.md`, `pre-commit.md` and `checks-without-docker.md` describe the replay without them, and a series that edits a view's source lands with a plain `git am` |
 
@@ -77,6 +77,10 @@ The generator's `render_*` functions return a markdown string today. The rows mo
 
 The layout check opens each page in the headless Google Chrome that the runner image carries (driven by `playwright`, a dev dependency that downloads no browser), at 360, 390, 768 and 844 pixels and fails a page that scrolls sideways, a table cell wider than its card, a text smaller than 12 pixels, or a cell whose text overflows its box. It runs in the workflow before the artifact is uploaded, so a layout change that breaks a phone does not deploy. The stylesheet's `<link>` carries a sha384 `integrity` attribute computed at build time from the vendored bytes, so it has no second pin. The workflow is two jobs: `build` has a read-only token and uploads the artifact, and `deploy` runs no repository code and holds `pages: write` and `id-token: write` only. The Pages source and the `github-pages` environment are the maintainer's settings, and the site is live with the home page and the three views.
 
+### Stage 3
+
+Every markdown link to a view by path (69 of them in 37 files, 3 inside decision revisions) became a link to the view's page with the same anchor. A link target is not part of a revision's frozen sections, so those three needed no editorial trailer. The drift check now fails a markdown file that links a view by its path, and fails a link to the site that names a page that does not exist or an anchor no heading on the page has; it takes the headings from the pages built from the tree, so it accepts a link to a heading added in the same pull request. The check is in place before the views stop being committed, so Stage 4 only removes what read the files. The index of `docs/topics/README.md` keeps the coverage table's path as the text of its row, which the index check reads, and Stage 4 drops that rule with the file.
+
 ## Acceptance criteria
 
 - [x] The site is live at the repository's Pages address with the decision index, the planning view and the coverage table, and a phone reads each in portrait and landscape without sideways scrolling.
@@ -84,7 +88,7 @@ The layout check opens each page in the headless Google Chrome that the runner i
 - [x] The deploy job has no `contents: write`, and `zizmor` reports nothing on the workflow.
 - [ ] No tracked file is a generated view, and a checkout that runs the generator has all three as ignored files with the content the site shows.
 - [ ] A series that edits a view's source lands on `main` with a plain `git am`, and two series that each add a decision do not conflict.
-- [ ] No doc links a view by a path that is not in the tree, and every anchor link into a view reaches its section on the site.
+- [x] No doc links a view by a path that is not in the tree, and every anchor link into a view reaches its section on the site.
 - [x] The site's `simple.css` is the pinned version, a test fails when its hash differs from the pin, and Renovate opens a pull request that moves the version, which the vendor command completes with the file and the hash.
 - [ ] ADR 0117 is `accepted`, and a new revision of ADR 0112 describes landing without the views.
 
@@ -109,7 +113,6 @@ without being restated here.
 ## Open items
 
 - The maintainer adds `doc-site` to the `main` and `maintenance-and-develop` rulesets with the commands in [`branching.md`](../topics/engineering/branching.md#adding-a-required-check). The docs already say 17 checks are required.
-- The maintainer's word that the site is trusted, which starts Stage 3.
 - Each view's title and introduction are prose committed in the view file, and the site reads them from it. Stage 4 stops committing the files, so it must first give that prose a tracked home (the generator's template, or a file beside it) for the site and the checkout both to read.
 - Whether the checkout's generator runs from the two hooks or only by hand; Stage 4 settles it from how the hooks behave on a rebase.
 

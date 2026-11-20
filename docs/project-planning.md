@@ -130,6 +130,7 @@ shows no dates, so the view depends on the tree alone.
 
 | Exploration | Question |
 | :--- | :--- |
+| [`canary-vms-per-run.md`](explorations/canary-vms-per-run.md) | Should a zone's canary exist only for the length of a run? |
 | [`cloud-credential-custody.md`](explorations/cloud-credential-custody.md) | How could the credentials that mint and revoke the cloud keys be kept away from the host that runs the secrets store? |
 | [`host-alert-declaration.md`](explorations/host-alert-declaration.md) | Where should a host-resource alert be declared so that a rebuilt monitor brings it back? |
 | [`host-drift-detection.md`](explorations/host-drift-detection.md) | How could the lab notice that a host no longer matches what `main` declares? |

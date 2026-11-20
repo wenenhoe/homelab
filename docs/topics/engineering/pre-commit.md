@@ -41,6 +41,8 @@ writes back an index without those views, leaving them unstaged for the next
 patch of the series; the first staging is what keeps `pre-commit` from
 stashing them and rolling the regenerated views back over its own rewrite.
 
+A view that git ignores is left out of all of this: it is generated in a checkout and never committed, so the hooks skip it, and with no view left, or no list, they stage and amend nothing. The hooks run from the clone's own copy, so a change to them takes effect for a replay once the clone has pulled it.
+
 When writing a patch, run `uvx --python 3.14 pre-commit run generate-doc-indexes`, stage everything except the views, and check with `git show --stat` that none of them is in the commit. The hand-written text of a view, such as the introduction of [`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/), is not generated and does travel in a patch: commit it as its own hunks, made on the file as it is on `main`, so that no generated section is in the diff. The replay resets the views between layers, so a series that edits one replays; a plain `git am` of the same series stops at the first patch after one the hooks left dirty, so verify such a series with the `land_series` dry-run only.
 
 A failing hook stops `git am` with the patch staged. Hooks that fix

@@ -43,7 +43,7 @@ exploration; it ends in a new revision of that lineage or is dropped.
 - **Nothing durable points at an exploration.** It is deleted when it ends, so
   a link from a decision, topic doc, project or comment would dangle.
   `check_doc_drift.py` fails any file outside this directory that names one,
-  apart from the generated [planning view](../project-planning.md#open-explorations),
+  apart from the generated [planning view](https://wenenhoe.github.io/homelab/project-planning/#open-explorations),
   which lists the open ones. An exploration may link to anything.
 - **It stays small.** A question that grows a design is a decision that has
   not been written yet.

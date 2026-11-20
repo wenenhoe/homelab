@@ -20,7 +20,7 @@ two facts about what the apps can reach are recorded as unknown.
 
 - **What runs there.** The apps on `services` are `caddy`, `beszel-agent`, `bind9`,
   `bentopdf`, `cobalt`, `dashy`, `kms`, `librespeed`, `shlink` and `wastebin`
-  ([`coverage.md`](../topics/disaster-recovery/coverage.md)). `bind9` is the
+  ([`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/)). `bind9` is the
   primary of every zone, with a secondary on `storage`. `kms` publishes port 1688
   to activation clients, and the flow list expects it reachable from the desktops
   zone ([`network-boundary-checks.md`](../topics/infra/network-boundary-checks.md#the-flows-in-the-list)).

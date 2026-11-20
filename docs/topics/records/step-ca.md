@@ -1,6 +1,6 @@
 # step-ca: Service Record
 
-The private certificate authority for internal TLS, on `security`. Its initialisation, certificate lifetime and client flow are in [`step-ca.md`](../services/step-ca.md). The catalog's facts (host, volumes, backup) are in the [coverage table](../disaster-recovery/coverage.md).
+The private certificate authority for internal TLS, on `security`. Its initialisation, certificate lifetime and client flow are in [`step-ca.md`](../services/step-ca.md). The catalog's facts (host, volumes, backup) are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

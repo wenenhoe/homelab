@@ -1,6 +1,6 @@
 # BIND9: Service Record
 
-The authoritative, non-recursive internal DNS: a primary on `services` and a secondary on `storage`. How zones are gathered, transferred and rendered is in [`bind9.md`](../services/bind9.md); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The authoritative, non-recursive internal DNS: a primary on `services` and a secondary on `storage`. How zones are gathered, transferred and rendered is in [`bind9.md`](../services/bind9.md); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

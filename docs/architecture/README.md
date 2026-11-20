@@ -33,7 +33,7 @@ grows past a few hosts or gains more than one active contributor.
 
 A diagram of the project dependency graph, drawn from `depends_on`, was
 tried and left out: the cross-initiative edges tangle it, and
-[`project-planning.md`](../project-planning.md) already lists what each
+[`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/) already lists what each
 project waits on. Don't add it without a reason that holds up against
 that.
 

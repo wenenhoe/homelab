@@ -400,6 +400,45 @@ def check_nist_alignment_currency() -> None:
             )
 
 
+def site_anchors() -> dict[str, set[str]]:
+    from doc_site.site import page_anchors  # imported here: the renderer imports the generator, which imports the checks
+
+    return page_anchors(ROOT)
+
+
+def check_view_links() -> None:
+    """A doc links a generated view through its page on the site, never by its file path, and a link to the site names a page
+    that exists and, after the `#`, a heading on it. The pages are built from the tree, so this reads the same headings a
+    reader's browser will find. The views themselves link each other by path and are left out.
+    """
+    from doc_site.markup import SITE_URL
+    from doc_site.site import VIEWS
+
+    view_paths = {(ROOT / view.source).resolve(): view.slug for view in VIEWS}
+    site_link = re.compile(re.escape(SITE_URL) + r"([\w-]*)/?(?:#([\w-]+))?")
+    path_link = re.compile(r"\]\(([^)\s#]+)(?:#[^)\s]*)?\)")
+    anchors: dict[str, set[str]] | None = None
+
+    for f in sorted(ROOT.rglob("*.md")):
+        rel_f = f.relative_to(ROOT)
+        if any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts) or f.resolve() in view_paths or is_template(f.name):
+            continue
+        text = read(f)
+        for target in path_link.findall(text):
+            for base in (f.parent, ROOT):
+                slug = view_paths.get((base / target).resolve())
+                if slug:
+                    fail(f"{rel_f}: links the generated view {target} by its path; link {SITE_URL}{slug}/ instead")
+                    break
+        for slug, anchor in site_link.findall(text):
+            if anchors is None:
+                anchors = site_anchors()
+            if slug not in anchors:
+                fail(f"{rel_f}: links {SITE_URL}{slug}/, which is not a page of the site")
+            elif anchor and anchor not in anchors[slug]:
+                fail(f"{rel_f}: links {SITE_URL}{slug}/#{anchor}, but that page has no heading with the anchor '{anchor}'")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--strict", action="store_true", help="fail on an unmet reliance between decisions, which is otherwise a warning")
@@ -416,6 +455,7 @@ def main(argv: list[str] | None = None) -> int:
     check_deploy_flow()
     check_ci_jobs_table()
     check_no_stale_anchors()
+    check_view_links()
     check_doc_path_mentions()
     check_adr_link_names()
     check_nist_alignment_currency()

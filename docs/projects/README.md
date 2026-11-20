@@ -23,7 +23,7 @@ gates it.
 
 - **Super-project** — a large initiative that needs several projects. A
   label (`super_project:`), not a document; see
-  [Super Projects](../project-planning.md#super-projects).
+  [Super Projects](https://wenenhoe.github.io/homelab/project-planning/#super-projects).
 - **Project** — the smallest independently manageable and closable unit;
   one doc.
 - **Stage** — a sequential build step inside one project. Numbering is
@@ -33,7 +33,7 @@ No level is required; don't add one for naming's sake. Decompose a broad
 initiative top-down, or add a `super_project` label once existing
 projects turn out to be coupled — both are fine.
 
-The generated [Super Projects](../project-planning.md#super-projects) view
+The generated [Super Projects](https://wenenhoe.github.io/homelab/project-planning/#super-projects) view
 groups an initiative's projects and reads them by dependency depth, then by
 file name. An order that is not a dependency is not recorded: if one project
 cannot start until another is done, declare it; if it merely goes first, say
@@ -42,14 +42,14 @@ so in the stage prose.
 Hierarchy says where work belongs; dependency says what must finish
 first. Declare `depends_on` (`project:` and `reason:`) only when work
 here cannot proceed until that project is done — not for relatedness, a
-shared ADR, similar subject, or preferred order. The [project-planning view](../project-planning.md)
+shared ADR, similar subject, or preferred order. The [project-planning view](https://wenenhoe.github.io/homelab/project-planning/)
 shows "waiting on" while the predecessor still exists; remove the entry in the
 change that deletes the finished predecessor, or the checker fails on a
 dangling one.
 
 ## Initiatives
 
-The initiatives, in the order the [Roadmap](../project-planning.md#roadmap) lists them, each with what it delivers. The order says where to look first, not that a later initiative waits for an earlier one. A project's `super_project:` is one of these names, and the generator fails when it is missing here, listed twice or used by no project
+The initiatives, in the order the [Roadmap](https://wenenhoe.github.io/homelab/project-planning/#roadmap) lists them, each with what it delivers. The order says where to look first, not that a later initiative waits for an earlier one. A project's `super_project:` is one of these names, and the generator fails when it is missing here, listed twice or used by no project
 ([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-002.md)).
 
 1. `controller-separation` — the controller's work moved off VM 401 to an operator host and a managed workstation.
@@ -184,7 +184,7 @@ closing PR sets ADR 0050 to `accepted`) is the existing example.
 `also_implements:` doesn't gate anything — `check_doc_drift.py` only
 confirms each entry resolves to a real revision, and the close check reads it
 (see [When a project finishes](#when-a-project-finishes)) — it exists so
-[`project-planning.md`'s "Decisions awaiting a project"](../project-planning.md#decisions-awaiting-a-project)
+[`project-planning.md`'s "Decisions awaiting a project"](https://wenenhoe.github.io/homelab/project-planning/#decisions-awaiting-a-project)
 view can tell this ADR is covered without scanning every project's
 prose for a mention. It also exempts that revision, and the one it
 supersedes, from `allowed_paths` (see [Scope](#scope)). Don't confuse
@@ -308,7 +308,7 @@ skipping it is how a real fact gets lost instead of promoted.
 A project that names only `working` revisions is withdrawn, not closed:
 delete the doc, with no checklist, since it built nothing and its stage plan
 is only a draft. The revision then shows in
-[Decisions awaiting a project](../project-planning.md#decisions-awaiting-a-project)
+[Decisions awaiting a project](https://wenenhoe.github.io/homelab/project-planning/#decisions-awaiting-a-project)
 until a project is opened for it again. A doc that names any other revision
 closes as described below.
 

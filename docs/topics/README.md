@@ -32,7 +32,7 @@ Machines and what sits beneath the apps: hosts, network, hypervisor, provisionin
 | :--- | :--- |
 | [`network-boundary-checks.md`](infra/network-boundary-checks.md) | The flow list of expected flows between the zones, the rules its loader enforces and the hook that runs them, and the probe module and runner that try the flows from the canaries. |
 | [`scratch-gateway-runs.md`](infra/scratch-gateway-runs.md) | The single command that runs a written spec against a scratch gateway: the spec's keys and steps, what a run checks before it starts, what it leaves behind and what it leaves to `acceptance.sh`. |
-| [`vm-provisioning.md`](infra/vm-provisioning.md) | The scheme OpenTofu-driven Proxmox provisioning rests on (VMID, VLAN, IP and MAC), the Tofu↔Ansible inventory handoff, and how to install and run Tofu. Links to the docs below for what Tofu builds. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
+| [`vm-provisioning.md`](infra/vm-provisioning.md) | The scheme OpenTofu-driven Proxmox provisioning rests on (VMID, VLAN, IP and MAC), the Tofu↔Ansible inventory handoff, and how to install and run Tofu. Links to the docs below for what Tofu builds. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/#super-projects). |
 | [`tofu/ubuntu-vms.md`](infra/tofu/ubuntu-vms.md) | The Ubuntu template and VM modules, the prepared cloud image (initramfs, hosts template, timezone) and the scratch Ubuntu VM. |
 | [`tofu/opnsense-vm.md`](infra/tofu/opnsense-vm.md) | The OPNsense VM module, its image, the seed disk and the first-boot script that answers the importer. |
 | [`tofu/opnsense-gateway.md`](infra/tofu/opnsense-gateway.md) | The Ansible play that writes the gateway's policy, Kea and Unbound configuration through its API. |
@@ -89,7 +89,7 @@ Backup, offsite copies, and getting data back.
 | [`rebuild-storage.md`](disaster-recovery/rebuild-storage.md) | Rebuilding `storage`, the one host that cannot take the plain cycle: building beside the old VM, copying the bucket, flipping DNS, and moving back. |
 | [`exercises.md`](disaster-recovery/exercises.md) | The disaster-recovery exercises: the recovery tiers, each exercise and how often it is run, how each is run, and where it is recorded. |
 | [`fire-drill.md`](disaster-recovery/fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
-| [`coverage.md`](disaster-recovery/coverage.md) | The generated table of every catalog app with its hosts, volumes, routes, backup, service record and recovery tier. |
+| [`disaster-recovery/coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/) | The generated table of every catalog app with its hosts, volumes, routes, backup, service record and recovery tier. |
 | [`cloud-sync.md`](disaster-recovery/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
 | [`operating-modes.md`](disaster-recovery/operating-modes.md) | The four modes the lab runs in (Normal, Away, Dark, Dark+Away): what runs in each, which clocks keep running while the node is off, and the checks on the way in and out. |
 
@@ -105,7 +105,7 @@ Observability and alerting.
 
 ## records/
 
-Service records: for each integrated system, what it depends on, holds, exposes, how its failure is noticed, how it is recovered and how it is changed. The catalog's own facts are in the [coverage table](disaster-recovery/coverage.md).
+Service records: for each integrated system, what it depends on, holds, exposes, how its failure is noticed, how it is recovered and how it is changed. The catalog's own facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 | Doc | Covers |
 | :--- | :--- |

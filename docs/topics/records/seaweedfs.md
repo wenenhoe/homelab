@@ -1,6 +1,6 @@
 # SeaweedFS: Service Record
 
-The on-site S3 store that every host's backups go to, running single-node on `storage`. The backup design that uses it is in [`backup.md`](../disaster-recovery/backup.md#storage-host); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The on-site S3 store that every host's backups go to, running single-node on `storage`. The backup design that uses it is in [`backup.md`](../disaster-recovery/backup.md#storage-host); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

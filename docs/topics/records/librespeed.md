@@ -1,6 +1,6 @@
 # LibreSpeed: Service Record
 
-A browser speed test on `services`. The catalog's facts are in the [coverage table](../disaster-recovery/coverage.md); there is no other topic doc for it.
+A browser speed test on `services`. The catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/); there is no other topic doc for it.
 
 ## Dependencies
 

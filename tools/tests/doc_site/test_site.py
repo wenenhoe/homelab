@@ -40,22 +40,33 @@ def test_the_stylesheet_is_the_vendored_file(tree):
     assert site.build(tree)["assets/simple.css"] == (site.PACKAGE / "vendor/simple.min.css").read_bytes()
 
 
-def ids(html: str) -> list[str]:
-    return re.findall(r'<h[1-3] id="([^"]+)"', html)
+def headings(html: str) -> list[tuple[str, str]]:
+    """(anchor, text) of every heading on a page: the h1, each section's h2 (the id is on the section) and each h3."""
+    found = re.findall(r'<(?:h1|h3) id="([^"]+)">(.*?)</h[13]>|<section id="([^"]+)"><h2>(.*?)</h2>', html)
+    return [(a or c, re.sub(r"<[^>]+>", "", b or d).replace("&amp;", "&")) for a, b, c, d in found]
 
 
 def test_every_heading_has_the_anchor_github_gives_it(tree):
+    built = site.build(tree)
     for view in site.VIEWS:
-        html = site.build(tree)[f"{view.slug}/index.html"].decode()
-        expected = []
+        html = built[f"{view.slug}/index.html"].decode()
+        found = headings(html)
+        assert len(found) >= 2, view.slug
         seen: dict[str, int] = {}
-        titles = [re.sub(r"<[^>]+>", "", t).replace("&amp;", "&") for t in re.findall(r"<h[1-3] id=\"[^\"]+\">(.*?)</h[1-3]>", html)]
-        for title in titles:
-            slug = github_slug(title)
+        for anchor, text in found:
+            slug = github_slug(text)
             n = seen.get(slug, 0)
             seen[slug] = n + 1
-            expected.append(slug if n == 0 else f"{slug}-{n}")
-        assert ids(html) == expected, view.slug
+            assert anchor == (slug if n == 0 else f"{slug}-{n}"), (view.slug, text)
+
+
+def test_the_anchors_a_link_can_name_are_those_of_the_headings(tree):
+    anchors = site.page_anchors(tree)
+    assert set(anchors) == {"", *(view.slug for view in site.VIEWS)}
+    built = site.build(tree)
+    for view in site.VIEWS:
+        html = built[f"{view.slug}/index.html"].decode()
+        assert {anchor for anchor, _ in headings(html)} <= anchors[view.slug]
 
 
 def test_a_link_into_a_view_reaches_the_same_section_on_its_page(tree):

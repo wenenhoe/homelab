@@ -33,7 +33,7 @@ share a number, naming both and pointing at the
 [renumber helper](#renumbering-a-patch-series-lineages).
 
 It also regenerates the `## Apps` table of
-[`coverage.md`](../../disaster-recovery/coverage.md) from the app catalog and the
+[`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/) from the app catalog and the
 inventory ([`doc_coverage.py`](../../../../tools/doc_scripts/doc_coverage.py)): each
 app's hosts, volumes, routes, backup, service record and recovery tier. It reads no
 result of any exercise.
@@ -78,6 +78,7 @@ these narrow, structural things:
   a heading that actually slugs to that anchor; same for same-file
   `#anchor` links. Catches the class of bug a file move/rename/split
   leaves behind.
+- No markdown file links a generated view by its file path: the decision index, the planning view and the coverage table are linked through their pages on the site, and every link to the site names a page that exists and, after a `#`, a heading on it. The headings are those of the pages built from the tree ([`doc-site.md`](../doc-site.md#linking-a-view)). The views link each other by path, and are not checked.
 - Every path under `docs/decisions/` or `docs/projects/` ending in `.md`
   that is written in any docs, code, or config file (`.md`, `.py`,
   `.yaml`, `.sh`, `.toml`, …) exists — comments included. This is what
@@ -295,7 +296,7 @@ last project to close either accepts the revision or leaves a
 `not-started` successor naming it for whatever is unfinished. A doc that
 names only `working` revisions is withdrawn rather than closed and may be
 deleted: it has built nothing, and the revision shows in
-[Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project).
+[Decisions awaiting a project](https://wenenhoe.github.io/homelab/project-planning/#decisions-awaiting-a-project).
 A change that deletes no project doc isn't checked.
 
 It runs in the same two places as the scope check, with the same
@@ -317,7 +318,7 @@ addition, so a renamed project doc keeps its revision named.
 
 Two PRs that each leave the other's project in place can both pass and
 together leave a revision `approved` with no project. The generated
-[Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project)
+[Decisions awaiting a project](https://wenenhoe.github.io/homelab/project-planning/#decisions-awaiting-a-project)
 view lists it, so the gap is visible but not blocked.
 
 ## Project start check

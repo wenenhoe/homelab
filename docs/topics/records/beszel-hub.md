@@ -1,6 +1,6 @@
 # Beszel Hub: Service Record
 
-The hub of the host and container monitor, running once on `security`. The connection model, key and token bootstrap and rebuild steps are in [`beszel.md`](../monitoring/beszel.md); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The hub of the host and container monitor, running once on `security`. The connection model, key and token bootstrap and rebuild steps are in [`beszel.md`](../monitoring/beszel.md); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

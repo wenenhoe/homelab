@@ -1,6 +1,6 @@
 # BentoPDF: Service Record
 
-A self-hosted PDF toolbox on `services`. The catalog's facts are in the [coverage table](../disaster-recovery/coverage.md); there is no other topic doc for it.
+A self-hosted PDF toolbox on `services`. The catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/); there is no other topic doc for it.
 
 ## Dependencies
 

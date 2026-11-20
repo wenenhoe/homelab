@@ -29,7 +29,7 @@ exercises are kept in a private record, not here.
 ## Scope
 
 - The tier, as a column of the coverage view
-  ([`coverage.md`](../topics/disaster-recovery/coverage.md)).
+  ([`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/)).
 - The first quarter of exercises, each recorded in the private drill record.
 - The staged total-loss exercise, now that the host migration is done.
 - Accepting ADR 0101, and deleting this doc by its closing checklist.

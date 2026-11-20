@@ -23,7 +23,7 @@ to, so that it comes back with the monitor.
   ([`beszel.md`](../topics/monitoring/beszel.md#alert-notifications)). That doc
   names no alert rule.
 - The hub's `data` volume has a backup and a restore drill row
-  ([`coverage.md`](../topics/disaster-recovery/coverage.md)), so rules in its
+  ([`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/)), so rules in its
   database survive a restore. They are lost when the hub is deliberately wiped, a
   procedure `beszel.md` describes, and on a rebuild that does not restore the volume.
 - The agent runs on every app host, `storage` included.

@@ -13,6 +13,7 @@ import re
 from collections.abc import Callable
 
 REPO_URL = "https://github.com/wenenhoe/homelab"
+SITE_URL = "https://wenenhoe.github.io/homelab/"
 BRANCH = "main"
 
 _TOKEN = re.compile(

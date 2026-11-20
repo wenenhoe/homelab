@@ -1,6 +1,6 @@
 # Caddy: Service Record
 
-The reverse proxy and TLS terminator that runs on every managed host and fronts only the apps that host runs. The Caddyfile generation, the custom image and the expiry alerting are in [`caddy.md`](../services/caddy.md); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The reverse proxy and TLS terminator that runs on every managed host and fronts only the apps that host runs. The Caddyfile generation, the custom image and the expiry alerting are in [`caddy.md`](../services/caddy.md); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 
@@ -17,7 +17,7 @@ The reverse proxy and TLS terminator that runs on every managed host and fronts 
 - Ports 80 and 443 (TCP) and 443 (UDP, HTTP/3) are published on every interface of each host. It is the only listener most apps have.
 - A wildcard virtual host serves `*.{{ caddy_domain }}` and returns 403 for any host name no route matches ([`caddy.md`](../services/caddy.md#caddyfile-generation)).
 - Outbound, it calls the DNS provider's API and the certificate authority. It keeps `NET_BIND_SERVICE` only ([`adding-an-app.md`](../deploy/adding-an-app.md#container-hardening)).
-- Which routes skip Tinyauth is a catalog decision and is shown in the [coverage table](../disaster-recovery/coverage.md).
+- Which routes skip Tinyauth is a catalog decision and is shown in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Threat model
 

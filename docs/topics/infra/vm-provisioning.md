@@ -16,7 +16,7 @@ covers what happens once it takes over.
 | Rebuilding a host | [`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md) | Built |
 
 Build status across the initiative is in the `tofu-vm-provisioning` entry of
-[`project-planning.md`](../../project-planning.md#super-projects).
+[`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/#super-projects).
 
 ## VMID / VLAN / IP scheme
 

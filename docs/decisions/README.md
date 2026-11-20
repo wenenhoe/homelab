@@ -73,7 +73,7 @@ Before creating a lineage, check that:
 
 A lineage is not a topic grouping. Several decisions that make up one
 initiative are separate lineages sharing a `topic:`; the generated
-[decision index](../decision-index.md#by-topic) groups by it.
+[decision index](https://wenenhoe.github.io/homelab/decision-index/#by-topic) groups by it.
 
 ## Revision states
 
@@ -303,7 +303,7 @@ what a deleted record said.
 
 When a later solution replaces only part of an earlier revision's scope,
 don't edit the old record. The new lineage covers just that slice and
-declares `narrows: ADR-NNNN`; the [decision index](../decision-index.md#by-topic) shows "Narrowed by" on the old
+declares `narrows: ADR-NNNN`; the [decision index](https://wenenhoe.github.io/homelab/decision-index/#by-topic) shows "Narrowed by" on the old
 one. The sizing check above is what prevents this — it only happens when
 an earlier record bundled two problems.
 
@@ -318,9 +318,9 @@ docs. See
 
 ## Finding a decision
 
-The generated [decision index](../decision-index.md) lists every lineage by
-[number](../decision-index.md#by-number) and by
-[topic](../decision-index.md#by-topic), the
-[open decisions](../decision-index.md#open-decisions) with the projects that
-implement them, and the [history](../decision-index.md#history) of superseded
+The generated [decision index](https://wenenhoe.github.io/homelab/decision-index/) lists every lineage by
+[number](https://wenenhoe.github.io/homelab/decision-index/#by-number) and by
+[topic](https://wenenhoe.github.io/homelab/decision-index/#by-topic), the
+[open decisions](https://wenenhoe.github.io/homelab/decision-index/#open-decisions) with the projects that
+implement them, and the [history](https://wenenhoe.github.io/homelab/decision-index/#history) of superseded
 and abandoned revisions.

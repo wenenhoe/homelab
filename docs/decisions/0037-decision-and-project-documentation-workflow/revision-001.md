@@ -26,7 +26,7 @@ each entry resolves to a real lineage revision, the same check
 `PROJECT_DECISION_GATE`; it records a fact, and gates nothing.
 
 Add a generated table to a new topic doc,
-[`docs/project-planning.md`](../../project-planning.md): every ADR
+[`docs/project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/): every ADR
 lineage with an open revision that appears in no project's `decision:`
 or `also_implements:`. Move the existing `## By initiative` table there
 too — a planning/build-order view, not a rule, and it doesn't belong in

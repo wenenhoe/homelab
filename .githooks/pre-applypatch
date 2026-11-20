@@ -11,17 +11,22 @@ if [ ! -x "$hook" ]; then
   exit 1
 fi
 
-# The generated views, one path per line, in the list the post hook and the tests read too.
+# The generated views, one path per line, in the list the post hook and the tests read too. A view that
+# is git-ignored is generated in a checkout and never committed, so it is left out; with every view
+# left out, or no list, there is nothing to stage.
 views=()
-while IFS= read -r view; do
-  [ -z "$view" ] || views+=("$view")
-done < "$(git rev-parse --show-toplevel)/.githooks/generated-views"
+list="$(git rev-parse --show-toplevel)/.githooks/generated-views"
+if [ -f "$list" ]; then
+  while IFS= read -r view; do
+    [ -z "$view" ] || git check-ignore -q -- "$view" || views+=("$view")
+  done < "$list"
+fi
 
 # After the previous patch of a series, `git am` writes back an index without the views that
 # post-applypatch folded into that commit, which leaves them unstaged. pre-commit stashes
 # unstaged changes and restores them over a hook's own rewrite, so stage them first.
-git add -- "${views[@]}"
+if [ "${#views[@]}" -gt 0 ]; then git add -- "${views[@]}"; fi
 # A failure here (a duplicate ADR number, say) is reported again by the pre-commit run below.
 pre-commit run generate-doc-indexes >/dev/null 2>&1 || true
-git add -- "${views[@]}"
+if [ "${#views[@]}" -gt 0 ]; then git add -- "${views[@]}"; fi
 exec "$hook"

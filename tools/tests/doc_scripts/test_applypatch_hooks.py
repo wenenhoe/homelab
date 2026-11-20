@@ -253,6 +253,30 @@ class TestTheViewList:
             assert not [view for view in VIEWS if view in text], hook
 
 
+class TestViewsThatAreNotCommitted:
+    """Once the views are git-ignored and generated in a checkout, the hooks have nothing to stage."""
+
+    def stop_committing_the_views(self, sandbox: Sandbox, *, keep_list: bool) -> None:
+        sandbox.install("pre-applypatch", "post-applypatch")
+        sandbox.write(".gitignore", "\n".join(VIEWS) + "\n")
+        git(sandbox.repo, "rm", "-q", "--cached", *VIEWS)
+        if not keep_list:
+            git(sandbox.repo, "rm", "-q", VIEW_LIST)
+        git(sandbox.repo, "add", ".gitignore")
+        git(sandbox.repo, "commit", "-q", "--no-verify", "-m", "stop committing the views")
+        sandbox.base = git(sandbox.repo, "rev-parse", "HEAD").stdout.strip()
+        (sandbox.hooks / "pre-commit").write_text("#!/usr/bin/env bash\nexit 0\n")
+
+    @pytest.mark.parametrize("keep_list", [True, False], ids=["the-list-still-names-them", "no-list"])
+    def test_a_series_applies_and_commits_no_view(self, sandbox: Sandbox, keep_list: bool) -> None:
+        self.stop_committing_the_views(sandbox, keep_list=keep_list)
+        result = sandbox.am(sandbox.project_patch("alpha"), sandbox.project_patch("beta"))
+        assert result.returncode == 0, result.stderr
+        assert sandbox.count() == 4
+        assert git(sandbox.repo, "ls-files", "docs/decision-index.md").stdout == ""
+        assert git(sandbox.repo, "status", "--porcelain").stdout == ""
+
+
 def test_the_list_names_the_views_the_generator_writes(monkeypatch: pytest.MonkeyPatch) -> None:
     written: list[str] = []
 

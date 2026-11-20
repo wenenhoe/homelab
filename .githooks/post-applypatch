@@ -4,10 +4,14 @@
 set -euo pipefail
 
 views=()
-while IFS= read -r view; do
-  [ -z "$view" ] || views+=("$view")
-done < "$(git rev-parse --show-toplevel)/.githooks/generated-views"
-if ! git diff --quiet HEAD -- "${views[@]}"; then
+list="$(git rev-parse --show-toplevel)/.githooks/generated-views"
+if [ -f "$list" ]; then
+  while IFS= read -r view; do
+    [ -z "$view" ] || git check-ignore -q -- "$view" || views+=("$view")
+  done < "$list"
+fi
+# A view that is git-ignored is never committed, so with none left there is nothing to fold in.
+if [ "${#views[@]}" -gt 0 ] && ! git diff --quiet HEAD -- "${views[@]}"; then
   git add -- "${views[@]}"
   git commit --amend --no-edit --no-verify --quiet
 fi

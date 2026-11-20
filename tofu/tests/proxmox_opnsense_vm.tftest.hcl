@@ -259,6 +259,36 @@ run "derives_the_macs_from_the_vmid_and_nic_index" {
   }
 }
 
+run "sets_no_startup_order_unless_asked" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_vm.this.startup) == 0
+    error_message = "the VM must carry no startup block by default"
+  }
+}
+
+run "starts_ahead_of_the_vms_behind_it_when_given_an_order" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    startup_order = 1
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_vm.this.startup) == 1 && proxmox_virtual_environment_vm.this.startup[0].order == 1 && proxmox_virtual_environment_vm.this.startup[0].up_delay == 30
+    error_message = "the VM must start first and give the next VM thirty seconds"
+  }
+}
+
 run "carries_a_vmid_above_255_into_the_first_mac_byte" {
   command = plan
 

@@ -123,3 +123,25 @@ variable "started" {
   type        = bool
   default     = true
 }
+
+variable "startup_order" {
+  description = "Proxmox startup order at the node's boot. Null sets none. The gateway sets 1, so the VMs behind it start after it. The VM always starts at boot."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.startup_order == null || var.startup_order >= 0
+    error_message = "startup_order must be null or a non-negative number."
+  }
+}
+
+variable "startup_up_delay" {
+  description = "Seconds Proxmox waits after starting this VM before it starts the next one in the order. It applies only when startup_order is set."
+  type        = number
+  default     = 30
+
+  validation {
+    condition     = var.startup_up_delay >= 0
+    error_message = "startup_up_delay must be a non-negative number of seconds."
+  }
+}

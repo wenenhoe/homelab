@@ -180,6 +180,22 @@ the older `Sys.Modify` on `/`, which is far wider; the role takes the first.
 where it applies. A change that makes Tofu call more of the Proxmox API widens the
 role to the privileges it needs and lists them here.
 
+The one exception is a VM's startup order: Proxmox demands `Sys.Modify` on `/` to set it,
+on create or on a change, and the role does not hold it. The production gateway has
+startup order 1, so its create runs with that one privilege granted for the create and
+revoked at once after it. The token has no privilege separation, so the grant goes on
+the user, and an ACL on the token itself is ignored:
+
+```sh
+pveum role add TofuStartup -privs "Sys.Modify"
+pveum acl modify / --users tofu@pve --roles TofuStartup
+# apply, then:
+pveum acl delete / --users tofu@pve --roles TofuStartup
+pveum role delete TofuStartup
+```
+
+An apply that leaves the order alone does not need it.
+
 ## Snapshot token
 
 [ADR 0089](../../../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md) has the gateway VM snapshotted before each apply of the play. A token of its own does that, so a leak of it cannot do what the Tofu token can: it holds the privileges to create, delete and list the snapshots of VM 201 and has no privilege to roll one back, which stays the operator's own act. It is created on the node, outside this repo, and this section is its only record. The file sits beside the credentials file and not in it, because Tofu reads `credentials.tfvars` as variables and the token is not one of its inputs.

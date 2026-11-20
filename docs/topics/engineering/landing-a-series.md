@@ -18,9 +18,32 @@ One plain-text `.series` file, or several: the tool takes more than one and read
 - Optionally, in the manifest, a `# base: <branch>` comment line (`# base: develop`) naming the branch the series lands on, so the choice travels with the file. `--base` overrides it, files that name different bases are refused, and a series with neither lands on `main`. [`branching.md`](branching.md#choosing-the-branch-for-a-change) says which branch a change belongs on; the maintainer runs the command, so the choice stays theirs.
 - Then the patches, a single mbox of `git format-patch` messages in the manifest's order. Write them as plain `git format-patch` output: ordinary `diff --git` headers, readable paths, and no encoded or binary bodies, so each patch can be read in full before it is replayed, which the stop list below relies on.
 
-A number is a pull request and each letter is a commit in it. Commits that share a number share a slug, and a slug belongs to one number; the tool refuses anything else. Pull requests land in number order. A slug is lowercase kebab-case, and `main`, `maintenance` and `develop` are refused. A slug is not reused from an earlier series: it is the name of the pull request's branch. Keep a pull request to a few commits that each stand alone: a squash would lose each change's blame, and a long list is noise. The first commit's subject is the pull request's title.
+A number is a pull request and each letter is a commit in it. Commits that share a number share a slug, and a slug belongs to one number; the tool refuses anything else. Pull requests land in number order. A slug is lowercase kebab-case, and `main`, `maintenance` and `develop` are refused. A slug is not reused from an earlier series: it is the name of the pull request's branch. Keep a pull request to a few commits that each stand alone: a squash would lose each change's blame, and a long list is noise. [Cutting a series](#cutting-a-series) says what is a commit and what is a layer. The first commit's subject is the pull request's title.
 
 A fix to a layer that has landed is a new commit with the next letter, or a new number. A file that repeats earlier layers unchanged is fine, since a commit already in the base is skipped, so a follow-up file can hold only the new commits.
+
+## Cutting a series
+
+A layer costs and a commit does not. Each layer is a full CI run waited for before the next one opens, a merge to `main` ([a deploy](branching.md)), a confirmation by hand, and the unit one revert undoes. A commit costs none of that and keeps its own blame. A series is therefore a few layers of several commits each, never a layer per commit.
+
+**A commit** is one logical change that stands alone. The replay checks every commit, so one that cannot pass without the next is not yet a commit. A change's tests and the docs that describe it ride with it, and a correction found while writing the series is made in the commit it corrects: a series adds no fix-up of its own, unlanded work.
+
+**A layer** starts as the whole of one theme: everything in the series that serves one purpose, such as one feature, one fix, or one decision and the docs it moves. A second layer needs a reason from this list, and no other counts:
+
+1. **A stage.** A project stage is one pull request ([What a stage is](../../projects/README.md#what-a-stage-is)).
+2. **An order the checks force.** The replay judges a layer's project scope against the state before its pull request, so a widened `allowed_paths` has to merge in an earlier layer than the one that needs it. One early layer carries every widening the series needs, not one layer per widening.
+3. **A revert of its own.** The rest of the series still makes sense without it, and the maintainer could want to undo one and keep the other. If both would always be undone together, they are one layer.
+4. **The stop list or a review.** A layer that changes a path on [the stop list](#replay), or that trips a criterion of [`pr-review.md`](pr-review.md#when-it-is-worth-asking), stays apart from layers that do not, so the confirmation and the review attach to the code that asked for them. The docs that describe that code stay with it.
+
+These always join the layer that does the work, as commits in it:
+
+- Opening a stage, marking it done, and any other edit to the project doc's table or status.
+- Edits to one document, or to one project, decision or exploration: one layer, with a commit for each point that stands alone.
+- A layer of fewer than about 30 changed lines that shares a file or a theme with a neighbouring layer.
+
+A docs-only layer has a reason of its own only under the first two; otherwise it joins the nearest docs layer of the series, whatever the theme.
+
+Before writing the manifest, list the layers and say under which of the four reasons each is separate from the one before. A layer with none becomes commits in that one. A layer past about six commits is checked the same way for a split.
 
 ## Replay
 

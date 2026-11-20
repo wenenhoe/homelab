@@ -14,7 +14,7 @@ Docs are grouped by artifact type, one directory each:
 - **[`explorations/`](explorations/README.md)** — a question with no chosen
   solution yet: the facts, the options and what each costs. Deleted when it
   becomes a decision, becomes a project or is dropped; nothing durable links
-  to one, and the generated [`project-planning.md`](project-planning.md#open-explorations)
+  to one, and the generated [`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/#open-explorations)
   lists the open ones.
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
   when the reasoning isn't obvious from the code. One lineage per
@@ -22,7 +22,7 @@ Docs are grouped by artifact type, one directory each:
   revision's reasoning stays fixed — a changed decision is a new
   revision — while editorial fixes are fine. See
   [`decisions/README.md#editing-a-revision`](decisions/README.md#editing-a-revision)
-  for where that line sits. The generated [`decision-index.md`](decision-index.md)
+  for where that line sits. The generated [`decision-index.md`](https://wenenhoe.github.io/homelab/decision-index/)
   lists every lineage by number and by topic, the open decisions and the
   superseded and abandoned revisions.
 - **[`architecture/`](architecture/README.md)** — Mermaid diagrams for
@@ -37,7 +37,7 @@ Docs are grouped by artifact type, one directory each:
   done and everything durable has been promoted out of it. It can also
   bound what its work may change (`allowed_paths`); see
   [`projects/README.md#scope`](projects/README.md#scope). The generated
-  [`project-planning.md`](project-planning.md) orders them across the
+  [`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/) orders them across the
   whole repo: what can be started now, projects with an initiative by
   build order, standalone projects, and the open ADRs no project covers
   yet.

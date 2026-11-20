@@ -1,6 +1,6 @@
 # Minecraft: Service Record
 
-A Fabric game server with a map viewer and an in-stack backup container, on `play`. The catalog's facts are in the [coverage table](../disaster-recovery/coverage.md); the restore is in [`restore.md`](../disaster-recovery/restore.md).
+A Fabric game server with a map viewer and an in-stack backup container, on `play`. The catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/); the restore is in [`restore.md`](../disaster-recovery/restore.md).
 
 ## Dependencies
 

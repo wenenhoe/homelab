@@ -39,7 +39,7 @@ given security gap exists, so it stays in the public repo.
 ## Decision
 
 Add a **Roadmap** view as the first section of the generated
-[project planning](../../project-planning.md): one row per initiative, in the
+[project planning](https://wenenhoe.github.io/homelab/project-planning/): one row per initiative, in the
 order the maintainer keeps, then a last row for projects with no
 `super_project`. The columns are the same for every row and derive from what
 each project already records:

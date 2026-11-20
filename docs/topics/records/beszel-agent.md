@@ -1,6 +1,6 @@
 # Beszel Agent: Service Record
 
-The per-host agent that reports host and container metrics to the hub; it runs on every managed host, including `security`. The connection model and bootstrap are in [`beszel.md`](../monitoring/beszel.md); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The per-host agent that reports host and container metrics to the hub; it runs on every managed host, including `security`. The connection model and bootstrap are in [`beszel.md`](../monitoring/beszel.md); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

@@ -17,4 +17,4 @@ For a reader short on time. Each row is a claim this repo makes, the document th
 
 The rows are hand-maintained. [`check_doc_drift.py`](../../../tools/doc_scripts/check_doc_drift.py) fails on a link that no longer resolves, but not on a check that stopped asserting what its row says, so a row is only as current as the last change to the check it names.
 
-What is not covered is stated rather than implied: open work and undecided designs are listed in [`project-planning.md`](../../project-planning.md), not described as done anywhere.
+What is not covered is stated rather than implied: open work and undecided designs are listed in [`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/), not described as done anywhere.

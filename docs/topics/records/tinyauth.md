@@ -1,6 +1,6 @@
 # Tinyauth: Service Record
 
-The forward-auth gate in front of every Caddy route that does not set `auth: false`, on `security`. Its trust of the internal CA is in [`lldap.md`](../services/lldap.md#closing-tinyauths-trust-gap); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The forward-auth gate in front of every Caddy route that does not set `auth: false`, on `security`. Its trust of the internal CA is in [`lldap.md`](../services/lldap.md#closing-tinyauths-trust-gap); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 
@@ -24,7 +24,7 @@ The forward-auth gate in front of every Caddy route that does not set `auth: fal
 
 - A flaw or misconfiguration in the gate exposes every app behind it. The config denies nothing by default at the ACL level (`policy: allow`); access control is that the login must succeed. Unknown: whether any app needs a per-group restriction; check the `acls` section against the apps' sensitivity.
 - A stolen session cookie gives access until it expires. The cookie, `tinyauth-session-<identifier>`, is scoped to the parent domain, and Caddy removes it from every request it proxies to an app upstream ([Caddy topic](../services/caddy.md#caddyfile-generation)), so an app container never sees it.
-- A bypass through a route with `auth: false` is a catalog decision, shown in the [coverage table](../disaster-recovery/coverage.md).
+- A bypass through a route with `auth: false` is a catalog decision, shown in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 - Analytics are off in its config.
 
 ## Observability

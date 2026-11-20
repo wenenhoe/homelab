@@ -1,6 +1,6 @@
 # Wastebin: Service Record
 
-A paste service on `services`. The image build is in [`wastebin.md`](../services/wastebin.md); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+A paste service on `services`. The image build is in [`wastebin.md`](../services/wastebin.md); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

@@ -33,7 +33,7 @@ share a number, naming both and pointing at the
 [renumber helper](#renumbering-a-patch-series-lineages).
 
 It also regenerates the `## Apps` table of
-[`coverage.md`](../../disaster-recovery/coverage.md) from the app catalog and the
+[`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/) from the app catalog and the
 inventory ([`doc_coverage.py`](../../../../tools/doc_scripts/doc_coverage.py)): each
 app's hosts, volumes, routes, backup, service record and recovery tier. It reads no
 result of any exercise.
@@ -295,7 +295,7 @@ last project to close either accepts the revision or leaves a
 `not-started` successor naming it for whatever is unfinished. A doc that
 names only `working` revisions is withdrawn rather than closed and may be
 deleted: it has built nothing, and the revision shows in
-[Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project).
+[Decisions awaiting a project](https://wenenhoe.github.io/homelab/project-planning/#decisions-awaiting-a-project).
 A change that deletes no project doc isn't checked.
 
 It runs in the same two places as the scope check, with the same
@@ -317,7 +317,7 @@ addition, so a renamed project doc keeps its revision named.
 
 Two PRs that each leave the other's project in place can both pass and
 together leave a revision `approved` with no project. The generated
-[Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project)
+[Decisions awaiting a project](https://wenenhoe.github.io/homelab/project-planning/#decisions-awaiting-a-project)
 view lists it, so the gap is visible but not blocked.
 
 ## Project start check

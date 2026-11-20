@@ -1,6 +1,6 @@
 # lldap: Service Record
 
-The directory that holds the login accounts, on `security`. The container, its certificate renewal and the observer-account bootstrap are in [`lldap.md`](../services/lldap.md). The catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The directory that holds the login accounts, on `security`. The container, its certificate renewal and the observer-account bootstrap are in [`lldap.md`](../services/lldap.md). The catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

@@ -1,6 +1,6 @@
 # Gatus: Service Record
 
-The job-heartbeat monitor, on `security`. Each scheduled job pushes a heartbeat and Gatus alerts to Telegram when one is missed. The endpoints, tokens and alert topics are in [`gatus.md`](../monitoring/gatus.md); the catalog's facts are in the [coverage table](../disaster-recovery/coverage.md).
+The job-heartbeat monitor, on `security`. Each scheduled job pushes a heartbeat and Gatus alerts to Telegram when one is missed. The endpoints, tokens and alert topics are in [`gatus.md`](../monitoring/gatus.md); the catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

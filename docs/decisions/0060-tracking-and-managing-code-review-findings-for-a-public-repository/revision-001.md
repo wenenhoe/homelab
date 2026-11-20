@@ -59,7 +59,7 @@ own existence needs to stay secret.
   Rejected because a finding's state lives in labels and free-text
   bodies: deduplicating across two producers means searching bodies for
   a marker, and dashboards over findings — the kind
-  [`project-planning.md`](../../project-planning.md) is for projects —
+  [`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/) is for projects —
   would have to go through the API rather than read files in a
   checkout. Files trade Issues' built-in triage and notifications for
   structured, greppable, versioned state.

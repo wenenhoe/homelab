@@ -148,7 +148,7 @@ A section that does not apply says why in one line, and a fact not yet known
 says `Unknown:` and what to check; only an empty or missing section fails
 the `check-doc-drift` hook. Don't restate what the catalog declares (hosts,
 volumes, routes, backup): the generated
-[coverage table](../disaster-recovery/coverage.md) shows it. Add the record to
+[coverage table](https://wenenhoe.github.io/homelab/dr-coverage/) shows it. Add the record to
 [`docs/topics/README.md`](../README.md). A project that introduces the app
 carries one line per section in its acceptance criteria, from
 [`docs/projects/TEMPLATE.md`](../../projects/TEMPLATE.md).

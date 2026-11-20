@@ -1,6 +1,6 @@
 # OpenBao: Service Record
 
-The secrets store: a single-node OpenBao with integrated raft storage on `security`. How it is deployed, initialised and unsealed is in [`openbao.md`](../secrets/openbao.md); this record answers the integration questions and links where each is owned. What the catalog declares (host, volumes) is in the [coverage table](../disaster-recovery/coverage.md).
+The secrets store: a single-node OpenBao with integrated raft storage on `security`. How it is deployed, initialised and unsealed is in [`openbao.md`](../secrets/openbao.md); this record answers the integration questions and links where each is owned. What the catalog declares (host, volumes) is in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/).
 
 ## Dependencies
 

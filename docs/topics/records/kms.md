@@ -1,6 +1,6 @@
 # KMS: Service Record
 
-A Windows and Office activation emulator with a web console, on `services`. The catalog's facts are in the [coverage table](../disaster-recovery/coverage.md); there is no other topic doc for it.
+A Windows and Office activation emulator with a web console, on `services`. The catalog's facts are in the [coverage table](https://wenenhoe.github.io/homelab/dr-coverage/); there is no other topic doc for it.
 
 ## Dependencies
 

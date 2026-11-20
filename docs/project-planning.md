@@ -138,6 +138,7 @@ shows no dates, so the view depends on the tree alone.
 | [`new-system-planning.md`](explorations/new-system-planning.md) | What must be settled before a new system is added, and where is it kept? |
 | [`node-capacity.md`](explorations/node-capacity.md) | Does the node have room for the hosts planned for it, and how is its headroom judged? |
 | [`offsite-lock-settings-check.md`](explorations/offsite-lock-settings-check.md) | How could the lab notice that an off-site bucket's lock or lifecycle setting is gone or shorter than it should be? |
+| [`operator-host-reach-without-the-gateway.md`](explorations/operator-host-reach-without-the-gateway.md) | How does the operator host reach the node while the gateway is down? |
 | [`opnsense-rule-drift-read.md`](explorations/opnsense-rule-drift-read.md) | How could the play tell a firewall rule it writes from one it must remove? |
 | [`post-compromise-archive-relay.md`](explorations/post-compromise-archive-relay.md) | How could the lab notice that an archive a compromised host made has been relayed offsite as if it were genuine? |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? |

@@ -23,6 +23,7 @@ allowed_paths:
   - docs/topics/infra/vm-provisioning.md
   - docs/topics/services/bind9.md
   - docs/topics/infra/scratch-gateway-runs.md
+  - docs/topics/infra/tofu/state-and-credentials.md
   - tools/scratch_run/**
   - tools/tests/scratch_run/**
   - tools/tests/shell/build_seed.bats

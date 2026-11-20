@@ -153,6 +153,16 @@ opnsense_gateway_private_networks:
   - 172.16.0.0/12
   - 192.168.0.0/16
 
+# How each rule the play writes is named, as printf formats over the zone and service names.
+# A rule is matched by its name, and the play removes any rule whose name is not one of these
+# or a flow's, so the tasks and the removal read the names from here.
+opnsense_gateway_rule_names:
+  guard: "guard: operator hosts to the gateway's management ports"
+  cd_agent: "%s: CD agent to the gateway's API"
+  zone_service: "%s: %s to the gateway"
+  direct_dns: "%s: direct DNS to anywhere but the gateway"
+  internet: "%s: Internet"
+
 # Where each family of rules sits among a zone interface's rules, lowest first.
 # The service rules take the sequences from zone_services up and the flows
 # from flows up, so each family must fit before the next one starts.

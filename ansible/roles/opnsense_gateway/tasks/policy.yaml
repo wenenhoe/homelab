@@ -93,7 +93,7 @@
 
 - name: Admit the operator hosts to the gateway's management ports before any other rule
   oxlorg.opnsense.rule:
-    description: "guard: operator hosts to the gateway's management ports"
+    description: "{{ opnsense_gateway_rule_names.guard }}"
     match_fields: [description]
     sequence: "{{ opnsense_gateway_sequences.guard }}"
     action: pass
@@ -110,7 +110,7 @@
 
 - name: Admit the CD agent to the gateway's API, or remove that rule
   oxlorg.opnsense.rule:
-    description: "{{ opnsense_gateway_cd_agent_zone }}: CD agent to the gateway's API"
+    description: "{{ opnsense_gateway_rule_names.cd_agent | format(opnsense_gateway_cd_agent_zone) }}"
     match_fields: [description]
     sequence: "{{ opnsense_gateway_sequences.cd_agent }}"
     state: "{{ 'present' if opnsense_gateway_cd_agent_management | bool else 'absent' }}"
@@ -128,7 +128,7 @@
 
 - name: Let every zone ask the gateway for DNS, NTP and ping
   oxlorg.opnsense.rule:
-    description: "{{ opnsense_gateway_pair.0.name }}: {{ opnsense_gateway_pair.1.name }} to the gateway"
+    description: "{{ opnsense_gateway_rule_names.zone_service | format(opnsense_gateway_pair.0.name, opnsense_gateway_pair.1.name) }}"
     match_fields: [description]
     sequence: "{{ opnsense_gateway_sequences.zone_services + opnsense_gateway_zone_services.index(opnsense_gateway_pair.1) }}"
     action: pass
@@ -173,7 +173,7 @@
 
 - name: Deny direct DNS to anywhere but the gateway, from each zone with Internet access
   oxlorg.opnsense.rule:
-    description: "{{ opnsense_gateway_zone.name }}: direct DNS to anywhere but the gateway"
+    description: "{{ opnsense_gateway_rule_names.direct_dns | format(opnsense_gateway_zone.name) }}"
     match_fields: [description]
     sequence: "{{ opnsense_gateway_sequences.direct_dns }}"
     state: "{{ 'present' if opnsense_gateway_zone.internet | bool else 'absent' }}"
@@ -195,7 +195,7 @@
 
 - name: Let each zone with Internet access reach everything but the private ranges
   oxlorg.opnsense.rule:
-    description: "{{ opnsense_gateway_zone.name }}: Internet"
+    description: "{{ opnsense_gateway_rule_names.internet | format(opnsense_gateway_zone.name) }}"
     match_fields: [description]
     sequence: "{{ opnsense_gateway_sequences.internet }}"
     state: "{{ 'present' if opnsense_gateway_zone.internet | bool else 'absent' }}"
@@ -214,3 +214,57 @@
   loop_control:
     loop_var: opnsense_gateway_zone
     label: "{{ opnsense_gateway_zone.name }}"
+
+# The rules the gateway holds are the play's own and nothing else. A rule is matched by
+# its description, so one the play does not write is found by its description not being
+# among the ones above: the names come from opnsense_gateway_rule_names and the flow
+# list, which the tasks above use too, and a rule switched off stays written, so only a
+# rule the play no longer writes at all is removed. The guard rule is among the ones
+# written, so it is never removed. The gateway's API does not list the legacy rules the
+# seed holds, so those are outside this.
+
+- name: Read the rules the gateway holds
+  oxlorg.opnsense.list:
+    target: rule
+  register: opnsense_gateway_held_rules
+  check_mode: false
+
+# A rule is removed by its description, so one without cannot be told from another.
+- name: Require every rule the gateway holds to carry a description
+  ansible.builtin.assert:
+    that:
+      - opnsense_gateway_held_rules.data | rejectattr('description', 'truthy') | list | length == 0
+    quiet: true
+    fail_msg: >-
+      The gateway holds a firewall rule with no description, which the play cannot name to remove. Give it one in the GUI,
+      or delete it there.
+
+- name: Remove a rule the play does not write
+  oxlorg.opnsense.rule:
+    description: "{{ opnsense_gateway_held.description }}"
+    match_fields: [description]
+    state: absent
+    reload: true
+  loop: "{{ opnsense_gateway_held_rules.data }}"
+  loop_control:
+    loop_var: opnsense_gateway_held
+    label: "{{ opnsense_gateway_held.description }}"
+  when: opnsense_gateway_held.description not in (opnsense_gateway_wanted_rules | from_json)
+  # The variable is JSON text, so the conditional compares whole descriptions and not substrings of it.
+  vars:
+    opnsense_gateway_wanted_rules: >-
+      {%- set wanted = [opnsense_gateway_rule_names.guard] -%}
+      {%- if opnsense_gateway_cd_agent_management | bool -%}
+      {%- set _ = wanted.append(opnsense_gateway_rule_names.cd_agent | format(opnsense_gateway_cd_agent_zone)) -%}
+      {%- endif -%}
+      {%- for pair in opnsense_gateway_zones | product(opnsense_gateway_zone_services) -%}
+      {%- set _ = wanted.append(opnsense_gateway_rule_names.zone_service | format(pair.0.name, pair.1.name)) -%}
+      {%- endfor -%}
+      {%- for flow in opnsense_gateway_flows -%}
+      {%- set _ = wanted.append(flow.name) -%}
+      {%- endfor -%}
+      {%- for zone in opnsense_gateway_zones if zone.internet | bool -%}
+      {%- set _ = wanted.append(opnsense_gateway_rule_names.direct_dns | format(zone.name)) -%}
+      {%- set _ = wanted.append(opnsense_gateway_rule_names.internet | format(zone.name)) -%}
+      {%- endfor -%}
+      {{ wanted | to_json }}

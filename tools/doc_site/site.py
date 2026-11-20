@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import posixpath
 import re
 from dataclasses import dataclass
@@ -124,10 +126,17 @@ def _page_addresses(from_slug: str | None) -> dict[str, str]:
     return {view.source: f"{prefix}{view.slug}/" for view in VIEWS}
 
 
+def integrity(data: bytes) -> str:
+    """The `integrity` attribute value (Subresource Integrity, sha384) for `data`."""
+    return "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode("ascii")
+
+
 def build(root: Path = ROOT) -> dict[str, bytes]:
     """Every file of the site, by its path under the site's root. Reads only the tree."""
     env = Environment(loader=FileSystemLoader(PACKAGE / "templates"), autoescape=True, undefined=StrictUndefined, keep_trailing_newline=True)
     generated = generated_blocks(root)
+    stylesheet = (PACKAGE / "vendor/simple.min.css").read_bytes()
+    sri = integrity(stylesheet)
     files: dict[str, bytes] = {}
 
     def nav(slug: str | None) -> list[dict]:
@@ -155,17 +164,18 @@ def build(root: Path = ROOT) -> dict[str, bytes]:
                 nav=nav(view.slug),
                 base="../",
                 home="../",
+                sri=sri,
             )
             .encode("utf-8")
         )
     files["index.html"] = (
         env.get_template("home.html.j2")
-        .render(views=[{"href": f"{view.slug}/", "label": view.nav, "blurb": view.blurb} for view in VIEWS], nav=nav(None), base="", home="")
+        .render(views=[{"href": f"{view.slug}/", "label": view.nav, "blurb": view.blurb} for view in VIEWS], nav=nav(None), base="", home="", sri=sri)
         .encode("utf-8")
     )
     files["assets/site.css"] = (PACKAGE / "assets/site.css").read_bytes()
     files["assets/site.js"] = (PACKAGE / "assets/site.js").read_bytes()
-    files["assets/simple.css"] = (PACKAGE / "vendor/simple.min.css").read_bytes()
+    files["assets/simple.css"] = stylesheet
     return files
 
 

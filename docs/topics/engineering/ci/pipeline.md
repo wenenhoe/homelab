@@ -98,6 +98,7 @@ parse on an older Python than the repo's own. The rest run through
 | `shell-tests` | a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py`, changed | Fetches the pinned Bats clones and runs the shell tests on them, with the project's locked Python environment for the templates — see [Shell tests](shell-tests.md). A change to the pin file or the tooling beside it also checks each pinned tag — see [Shell test pins](shell-test-pins.md). |
 | `mermaid-check` | a markdown file, or `tools/doc_scripts/check_mermaid.py`, changed | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](doc-checks.md#mermaid-render-check). |
 | `renovate-config-check` | `.github/renovate.json5`, `.github/workflows/renovate.yml` (which pins the Renovate version), or `tools/ci/gates/renovate_config.py` changed | `.github/renovate.json5` is a valid Renovate repo config under the pinned Renovate image — see [Validating the config](renovate.md#validating-the-config). |
+| `doc-site` | `tools/doc_site/**`, the generator and its inputs (`tools/doc_scripts/**`, `tools/utils/**`, `docs/**`, `ansible/inventory/**`), `pages.yml`, `pyproject.toml` or `uv.lock` changed | Builds the documentation site and checks its layout at phone widths, the two steps `pages.yml` runs before it deploys — see [The doc site renderer](../doc-site.md#publishing). |
 | `tofu-checks` | anything under `tofu/` changed | In `tofu/`: `tofu fmt -check -recursive`, `tofu init -backend=false -lockfile=readonly`, `tofu validate` and `tofu test`, on the OpenTofu version the job pins, and the same init and validate again in `tofu/scratch/opnsense` and `tofu/scratch/ubuntu`, two more roots that share the first one's lock file. Needs no state, credentials or Proxmox: the tests mock the provider. |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
@@ -128,6 +129,7 @@ flowchart TD
     mermaid["mermaid-check<br/>(markdown or its check changed)"]
     renovatechk["renovate-config-check<br/>(Renovate config or its pin changed)"]
     shellchk["shell-tests<br/>(shell script, shell test or pin changed)"]
+    docsite["doc-site<br/>(site code or what it is built from changed)"]
     tofuchk["tofu-checks<br/>(anything under tofu/ changed)"]
     molecule["molecule<br/>(any role touched — matrix)"]
     molcov["molecule-coverage<br/>(always)"]
@@ -136,9 +138,9 @@ flowchart TD
     dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 
-    detect --> lint & uvlock & pytest & deployorder & relchk & provenance & mermaid & renovatechk & shellchk & tofuchk & molecule & boottest & synchk & dockerbuild
+    detect --> lint & uvlock & pytest & deployorder & relchk & provenance & mermaid & renovatechk & shellchk & docsite & tofuchk & molecule & boottest & synchk & dockerbuild
     detect --> trivy
-    warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & shellchk & molecule & boottest
+    warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & shellchk & docsite & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
     warmprecommit --> precommit & lint
     detect --> molcov

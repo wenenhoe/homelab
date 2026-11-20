@@ -215,6 +215,7 @@ credentials change, on any suspected exposure, and every 90 days. The
   [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md).
 - The `credential-expiry` job's Gatus push token is a file the host needs besides the four credential files, written by hand today ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md#heartbeats)). Whether the delivery command also writes it is not decided.
 - What reminds the maintainer that a 90-day rotation is due is not decided. The `credential-expiry` job cannot read the `secret_id`'s age, since its policy grants no `auth/approle` capability.
+- [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) is revised when the CD agent first applies the OPNsense gateway's play ([`opnsense-drift-check.md`](opnsense-drift-check.md) is the first scheduled apply): the credentials file is then no longer only on the host that runs Tofu, and the snapshot token ([`opnsense-gateway.md`](../topics/infra/tofu/opnsense-gateway.md)) is a fourth credential held beside it.
 
 ## Closing checklist
 

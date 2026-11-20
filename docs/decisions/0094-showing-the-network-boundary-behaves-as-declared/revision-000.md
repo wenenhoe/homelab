@@ -21,7 +21,7 @@ What has to be true: the flows the lab expects, allowed and blocked, are written
 
 ## Context
 
-Three projects name canary probes, and none defines one: [`opnsense-config.md`](../../projects/opnsense-config.md) (the exit conditions of its Stages 2 and 3), [`coding-agent-egress.md`](../../projects/coding-agent-egress.md) (Stage 2: probes to the secrets store, CD agent, operator host, managed hosts, workstation and Proxmox management address all fail) and [`operator-host-takeover.md`](../../projects/operator-host-takeover.md) (Stage 1: a canary in VLAN 25 reaches every allowlisted destination and no other). ADR 0053's validation places the canary in the zone, outside the host, because a compromised host cannot be trusted to report on itself. [ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md) lists smoke checks for a release change: a probe VM gets a lease and resolves names, NAT works, the API answers.
+Three projects name canary probes, and none defines one: the OPNsense gateway project, now [`opnsense-gateway.md`](../../topics/infra/tofu/opnsense-gateway.md) (the exit conditions of its Stages 2 and 3), [`coding-agent-egress.md`](../../projects/coding-agent-egress.md) (Stage 2: probes to the secrets store, CD agent, operator host, managed hosts, workstation and Proxmox management address all fail) and [`operator-host-takeover.md`](../../projects/operator-host-takeover.md) (Stage 1: a canary in VLAN 25 reaches every allowlisted destination and no other). ADR 0053's validation places the canary in the zone, outside the host, because a compromised host cannot be trusted to report on itself. [ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md) lists smoke checks for a release change: a probe VM gets a lease and resolves names, NAT works, the API answers.
 
 Facts recorded in ADR 0089 that shape a probe:
 
@@ -35,7 +35,7 @@ The play runs from the operator host and, until it is retired, VM 401 ([ADR 0089
 
 Batfish's list of supported devices names no OPNsense or pfSense release.
 
-What the flows of the existing zones need ([`opnsense-config.md`](../../projects/opnsense-config.md)'s draft policy, rows 1 to 17):
+What the flows of the existing zones need (the OPNsense gateway project's draft policy, rows 1 to 17, kept as the zone policy of [`opnsense-gateway.md`](../../topics/infra/tofu/opnsense-gateway.md#zone-policy)):
 
 - Rows 2 to 13, 16 and 17 are TCP connections. Rows 14 and 15 deny direct DNS, which a `dns` query to an outside resolver on 53 and a connect to 853 show.
 - Row 1 has every zone reach the gateway's address for NTP (UDP 123) and ICMP echo, and the play writes a rule for each. Neither is a connection or a DNS query, so the schema carries a kind for each. DHCP is not a flow: Kea opens its own firewall rules, and a canary that gets a lease is a state check.

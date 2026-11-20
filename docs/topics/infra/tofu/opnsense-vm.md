@@ -155,4 +155,24 @@ checks before it:
 
 The create is `tofu apply -var-file="$HOME/.config/tofu/credentials.tfvars"
 -var opnsense_seed_image_path="$HOME/opnsense-seed/seed.img"`, after which `first_boot.sh`
-takes the seed. When it is done, apply again without the seed variable.
+takes the seed. When it is done, apply again without the seed variable. The startup order
+needs `Sys.Modify` on `/`, which the Tofu user does not hold, so the create fails with a
+403 until it is granted for the create
+([the credentials topic](state-and-credentials.md#proxmox-api-token) says how, and to revoke it).
+
+The image is OPNsense 26.1.6 and the play is pinned to 26.1.11, so the gateway is updated
+between the first boot and the first apply of the play. The update script of the scratch
+gateway runs from the operator host, which reaches the gateway's port 443 on the LAN and
+needs no more than the seed admits:
+
+```sh
+printf 'API_KEY=%q\nAPI_SECRET=%q\nLAN_IP=ADDRESS\n' KEY SECRET > ~/.opnsense-update.env   # mode 0600, removed after
+bash tofu/scratch/opnsense/update_gateway.sh ~/.opnsense-update.env CERT 26.1.11 OUTPUT_DIR
+```
+
+`KEY` and `SECRET` are the credentials file's `opnsense_api_key` and `opnsense_api_secret`,
+and `CERT` is the `gateway-cert.pem` the first boot wrote. The gateway reboots, and the
+script fails unless it answers on 26.1.11 afterwards with the seeded key still accepted.
+Before the play has written its rules the operator host reaches only port 443, so the
+snapshot a run of the play is preceded by is taken on the node, with `qm snapshot`, and not
+with the snapshot token over the API.

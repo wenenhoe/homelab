@@ -1,0 +1,73 @@
+name: Documentation site
+
+# On every push to main, and on demand. Builds the three generated views as a static site,
+# checks the site's layout at phone widths, and deploys it to GitHub Pages — see
+# docs/decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md and
+# docs/topics/engineering/doc-site.md.
+#
+# Two jobs, so that what builds does not hold what deploys. `build` runs the repository's own Python
+# with a read-only token and hands the site on as an artifact. `deploy` runs no repository code: it
+# holds `pages: write` and `id-token: write` and nothing else, which is a deployment and no ref, so
+# it cannot change a branch or a tag. A job's `permissions` replace the workflow's, so `deploy`
+# has no `contents` permission at all; tools/tests/doc_site/test_pages_workflow.py holds both to that.
+#
+# One run at a time and one waiting: a newer waiting run replaces an older one, so a burst of merges
+# ends with a deployment of the newest commit, and a run in progress is never cancelled halfway
+# through a deployment. The repository's Pages source is GitHub Actions, and the `github-pages`
+# environment accepts a deployment from main only; both are settings, not something this file sets.
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          locked: "true"
+
+      - name: Build the site
+        run: uv run --locked python -m doc_site --out "$RUNNER_TEMP/site"
+        working-directory: tools
+
+      # Chrome comes with the runner image. A page that scrolls sideways or sets text under 12px on a phone
+      # fails here, before the artifact is uploaded, so it is never deployed.
+      - name: Check the layout at phone widths
+        run: uv run --locked python -m doc_site.layout "$RUNNER_TEMP/site"
+        working-directory: tools
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -5,10 +5,11 @@ name: Progress log
 # see docs/decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md
 # and docs/topics/engineering/progress-log.md.
 #
-# This is the one workflow with a write token. It is held by the publish job
-# alone, and the job pushes to progress-log and nowhere else: a plain push
-# (never forced) to a branch that must already exist, so a rejected push fails
-# the run and nothing is created or overwritten. Nothing goes to main.
+# The publish job alone holds `contents: write`, and it pushes to progress-log
+# and nowhere else: a plain push (never forced) to a branch that must already
+# exist, so a rejected push fails the run and nothing is created or overwritten.
+# Nothing goes to main. pages.yml's deploy job holds a token of another kind,
+# `pages: write`, which writes a deployment and no ref.
 #
 # The minute is off the hour to stay clear of the top-of-the-hour crowd on
 # GitHub's scheduler; 16:17 UTC is 00:17 in Asia/Singapore, just after a day

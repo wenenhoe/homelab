@@ -1,6 +1,6 @@
 # The doc site renderer
 
-`tools/doc_site` turns the three generated views ([`project-planning.md`](../../project-planning.md), [`decision-index.md`](../../decision-index.md) and [`coverage.md`](../disaster-recovery/coverage.md)) into a small static site. Its design is [ADR 0117](../../decisions/0117-generated-doc-views/), and the plan for getting the site published is [`views-site.md`](../../projects/views-site.md). Until that plan finishes, the views stay committed and this renderer only builds the site on request.
+`tools/doc_site` turns the three generated views ([`project-planning.md`](../../project-planning.md), [`decision-index.md`](../../decision-index.md) and [`coverage.md`](../disaster-recovery/coverage.md)) into a small static site. Its design is [ADR 0117](../../decisions/0117-generated-doc-views/), and the plan for getting the site published is [`views-site.md`](../../projects/views-site.md). Until that plan finishes, the views stay committed, and the site is built and deployed beside them.
 
 ## One set of rows, two outputs
 
@@ -37,3 +37,30 @@ The file has no trailing newline, as published, so `end-of-file-fixer` skips `to
 Renovate moves only the pin's `version` line, because it has no digest for a file inside an npm tarball. The pull request it opens fails the pin test until `--update` has been run with that version, which writes the file and the new hash in one step.
 
 The card layout, the menu drawer and the row filter are `assets/site.css` and `assets/site.js`, which belong to this repository. The page works without JavaScript; the script only adds the filter and the drawer's open button.
+
+## The layout check
+
+```sh
+python -m doc_site.layout /tmp/site
+```
+
+The check serves a built site on localhost and opens every page in the installed Google Chrome, headless, at 360, 390, 768 and 844 pixels wide: two portrait phones, a small tablet and a phone in landscape. It needs Chrome and `playwright` (a dev dependency), and downloads nothing; the runner image has Chrome. A page fails when it scrolls sideways, when an element ends past the right edge of the screen, when a block holds text wider than the block (a table cell or a card cell that overflows its box), or when visible text is under 12 pixels. Text hidden for screen readers, such as the table header that the card layout hides, is not on the screen and is not measured. Where the page has a menu button the check also opens the drawer, holds it to the same rules, and fails if the button opens nothing. Every error names the page, the width and the element.
+
+A check on what the page measures cannot see a layout that is readable by the numbers and wrong to the eye, such as words broken in the middle in a narrow column. Reading the page on a phone is still how that is found.
+
+## Publishing
+
+`.github/workflows/pages.yml` runs on every push to `main` and on demand. It has two jobs, so that what builds does not hold what deploys:
+
+- `build` has a read-only token. It builds the site, runs the layout check and uploads the result as the Pages artifact, in that order, so a layout that breaks a phone is never deployed.
+- `deploy` runs no repository code. It holds `pages: write` and `id-token: write` and no `contents` permission at all, so it writes a deployment and no branch or tag. It runs in the `github-pages` environment.
+
+One run goes at a time and one waits, and a newer waiting run replaces an older one, so a burst of merges ends with the newest commit deployed. A run that has started is never cancelled halfway through a deployment. Every action is pinned by commit and kept current by Renovate. `tools/tests/doc_site/test_pages_workflow.py` fails a `contents: write` on any job or on the workflow, a deploy job with permissions other than those two, a layout check that does not sit between the build and the upload, and an action that is not pinned by commit.
+
+Two settings are the maintainer's and live on GitHub: the repository's Pages source is GitHub Actions, and the `github-pages` environment accepts a deployment from `main` only. The workflow sets neither, and a deployment from another branch is refused by the environment, not by this file.
+
+The `doc-site` job in `pr-checks.yml` runs the same build and layout check on a pull request that changes the renderer, the generator or what they read ([change scoping](ci/change-scoping.md)). It deploys nothing and has no write permission.
+
+## Subresource integrity
+
+The stylesheet's `<link>` carries an `integrity` attribute with the sha384 of the vendored file, computed when the site is built from the bytes it writes, so it has no pin of its own to keep in step with `simple.pin` and a stylesheet update changes it with no further step. A test holds the attribute to the file.

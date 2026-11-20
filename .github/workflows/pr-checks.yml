@@ -26,6 +26,7 @@ jobs:
       image_provenance: ${{ steps.filter.outputs.image_provenance }}
       mermaid_check: ${{ steps.filter.outputs.mermaid_check }}
       renovate_config: ${{ steps.filter.outputs.renovate_config }}
+      doc_site: ${{ steps.filter.outputs.doc_site }}
       tofu: ${{ steps.filter.outputs.tofu }}
       shell_tests: ${{ steps.filter.outputs.shell_tests }}
       shell_test_pins: ${{ steps.filter.outputs.shell_test_pins }}
@@ -601,6 +602,36 @@ jobs:
       # image; the check pulls the pinned Renovate image itself.
       - name: Validate the Renovate config
         run: python3 -m ci.gates.renovate_config
+        working-directory: tools
+
+  # Builds the documentation site and checks its layout at phone widths, the
+  # two steps pages.yml runs before it deploys — see
+  # docs/topics/engineering/doc-site.md. Deploys nothing and holds no credential.
+  # Not a matrix job, so it can be required directly: a PR that changes neither
+  # the site's code nor what it is built from reports it skipped.
+  doc-site:
+    needs: [detect-changes, warm-uv-cache]
+    if: needs.detect-changes.outputs.doc_site == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          locked: "true"
+
+      - name: Build the site
+        run: uv run --locked python -m doc_site --out "$RUNNER_TEMP/site"
+        working-directory: tools
+
+      # Chrome comes with the runner image.
+      - name: Check the layout at phone widths
+        run: uv run --locked python -m doc_site.layout "$RUNNER_TEMP/site"
         working-directory: tools
 
   # Formatting, validation and the mocked-provider tests of the root module in

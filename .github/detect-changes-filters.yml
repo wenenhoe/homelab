@@ -148,3 +148,16 @@ shell_tests:
 shell_test_pins:
   - 'tools/ci/shell_tests/**'
   - 'tools/ci/verification.py'
+# Gates doc-site: the renderer and the layout check, the generator whose rows the pages are built from, everything the
+# generator reads (the docs, the app catalog and the inventory the coverage table is checked against), the workflow
+# that deploys the site, and the dependencies the build runs on — see docs/topics/engineering/doc-site.md. Not narrowed
+# by ci.scope.effective_changes: a doc change is never a no-op, and the run is short.
+doc_site:
+  - 'tools/doc_site/**'
+  - 'tools/doc_scripts/**'
+  - 'tools/utils/**'
+  - 'docs/**'
+  - 'ansible/inventory/**'
+  - '.github/workflows/pages.yml'
+  - 'pyproject.toml'
+  - 'uv.lock'

@@ -22,7 +22,9 @@ related: [ADR-0094]
 - The runner reaches a canary over SSH from the operator host, and the canary holds no credential, so a per-run VM carries the same public key and nothing else.
 - The scratch runs also have a namespace stand-in on the node, joined to the gateway's bridge with the zone's VLAN tag, which costs no VM.
 
-Still to check: how long a build from the template takes to answer over SSH, since a run waits for it; and what a run that dies before its destroy leaves behind, and how it is found.
+A canary built this way on the production gateway's VLAN 20 took 29.5 seconds to apply and answered over SSH about a second after, so a run waits half a minute for it. Each build gets a fresh host key, so the runner's `known_hosts` entry for the canary's address has to be cleared before the run or its host key accepted as new, and the flows were probed with that entry fresh.
+
+Still to check: what a run that dies before its destroy leaves behind, and how it is found.
 
 ## Options
 
@@ -33,4 +35,4 @@ Still to check: how long a build from the template takes to answer over SSH, sin
 
 ## Leaning
 
-Built for the run, with a state of its own, because it keeps the node's memory free and reuses what the scratch runs prove. It needs the two checks above and a clean-up for a run that dies. A scheduled production run then holds the Proxmox credentials and Tofu on the host that runs it, which the operator host already does. The namespace is worth a second look if the build time proves to be the problem.
+Built for the run, with a state of its own, because it keeps the node's memory free and reuses what the scratch runs prove. It needs a clean-up for a run that dies and a known_hosts step for each build. A scheduled production run then holds the Proxmox credentials and Tofu on the host that runs it, which the operator host already does. The namespace is worth a second look only if a half-minute build proves to be the problem.

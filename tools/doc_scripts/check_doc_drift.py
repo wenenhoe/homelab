@@ -40,7 +40,7 @@ ANCHOR_SCAN_EXTS = {".md", ".yml", ".yaml", ".py"}
 ANCHOR_SCAN_EXTRA_NAMES = {".trivyignore"}
 ANCHOR_SCAN_EXCLUDE_DIRS = {".git", "node_modules", ".venv"}
 # Expected-output strings in these tests are literal markdown links to files that only exist inside their temp trees.
-ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/",)
+ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/", "tools/tests/doc_site/")
 
 CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
 SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")

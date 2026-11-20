@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "sys_platform == 'linux2'",
@@ -697,6 +697,7 @@ dependencies = [
     { name = "docker" },
     { name = "httpx" },
     { name = "hvac" },
+    { name = "jinja2" },
     { name = "oci" },
     { name = "paramiko" },
     { name = "requests" },
@@ -719,6 +720,7 @@ requires-dist = [
     { name = "docker", specifier = ">=7.1" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "hvac", specifier = ">=2.3" },
+    { name = "jinja2", specifier = ">=3.1" },
     { name = "oci", specifier = ">=2.130" },
     { name = "paramiko", specifier = ">=3.5" },
     { name = "requests", specifier = ">=2.32" },

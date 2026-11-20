@@ -358,6 +358,19 @@
       autoReplaceStringTemplate: 'COSIGN_IMAGE = "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
+    // The site's stylesheet is a file committed with a pin beside it (package, version, the file taken
+    // from the package, its sha256). Renovate has no digest for a file in an npm tarball, so this moves
+    // the version only; the pull request then fails the pin test until `python -m doc_site.vendor
+    // --update <version>` has replaced the file and the hash, which is the step that checks the
+    // registry's tarball and writes both together.
+    {
+      customType: "regex",
+      description: "The site's vendored stylesheet (tools/doc_site/vendor/simple.pin): the version only, the file and its hash follow from `python -m doc_site.vendor --update`",
+      managerFilePatterns: ["/^tools/doc_site/vendor/simple\\.pin$/"],
+      matchStrings: ["package = (?<depName>[^\\n]+)\\nversion = (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"],
+      autoReplaceStringTemplate: "package = {{{depName}}}\nversion = {{{newValue}}}\n",
+      datasourceTemplate: "npm",
+    },
   ],
 
   packageRules: [

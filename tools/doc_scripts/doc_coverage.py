@@ -13,10 +13,12 @@ from pathlib import Path
 from utils.app_catalog import CATALOG_RELATIVE, CatalogError, load_backup_inventory, load_catalog
 
 from doc_scripts.doc_frontmatter import ROOT
+from doc_scripts.view_model import Table
 
 COVERAGE_RELATIVE = "docs/topics/disaster-recovery/coverage.md"
 INVENTORY_RELATIVE = "ansible/inventory"
-HEADER = "| App | Hosts | Volumes | Routes | Backup | Record | Tier |\n| :--- | :--- | :--- | :--- | :--- | :--- | :--- |"
+COLUMNS = ("App", "Hosts", "Volumes", "Routes", "Backup", "Record", "Tier")
+HEADER = Table(COLUMNS, (":---",) * len(COLUMNS), ()).markdown()
 
 
 def tier_of(entry: dict) -> int:
@@ -30,7 +32,7 @@ def _cell(values: list[str]) -> str:
     return ", ".join(values) if values else "—"
 
 
-def render_coverage_table(root: Path = ROOT) -> str:
+def coverage_block(root: Path = ROOT) -> Table:
     try:
         catalog = load_catalog(root / CATALOG_RELATIVE)
         inventory = load_backup_inventory(root / INVENTORY_RELATIVE)
@@ -56,5 +58,9 @@ def render_coverage_table(root: Path = ROOT) -> str:
             backup_cell = "—"
         doc = app.get("doc")
         record = f"[{Path(doc).name}]({os.path.relpath(root / doc, view_dir)})" if isinstance(doc, str) else "—"
-        rows.append(f"| `{name}` | {_cell(hosts)} | {_cell([f'`{v}`' for v in volumes])} | {_cell(route_cells)} | {backup_cell} | {record} | {tier_of(app)} |")
-    return "\n".join([HEADER, *rows])
+        rows.append((f"`{name}`", _cell(hosts), _cell([f"`{v}`" for v in volumes]), _cell(route_cells), backup_cell, record, str(tier_of(app))))
+    return Table(COLUMNS, (":---",) * len(COLUMNS), tuple(rows))
+
+
+def render_coverage_table(root: Path = ROOT) -> str:
+    return coverage_block(root).markdown()

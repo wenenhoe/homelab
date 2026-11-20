@@ -1,0 +1,85 @@
+:root{--radius:.75rem;--ok:#1a7f37;--info:#0b5cad;--warn:#9a6700;--mute:#59636e;--bad:#b3261e;--shadow:0 1px 2px rgb(0 0 0/.08),0 1px 8px rgb(0 0 0/.04)}
+@media (prefers-color-scheme:dark){:root{--ok:#4ac26b;--info:#6cb0ff;--warn:#e3b341;--mute:#9aa4af;--bad:#ff8a80;--shadow:0 1px 2px rgb(0 0 0/.5)}}
+body{display:block;grid-template-columns:none;margin:0;font-size:1rem}
+body>*{grid-column:auto}
+main,.bar-in,footer{max-width:72rem;margin-inline:auto;padding-inline:1rem}
+main{min-width:0;overflow-wrap:break-word;padding-block:1rem 3rem}
+main>section{border:0;margin:0;padding:0}
+main h1{margin:1rem 0 .25rem;font-size:1.75rem}
+main h2{margin:2.25rem 0 .75rem;font-size:1.3rem}
+.lede{color:var(--text-light);margin:.25rem 0 1rem}
+code{font-size:1em;overflow-wrap:anywhere;color:var(--text);background:var(--accent-bg);padding:.1em .35em;border-radius:.3em}
+a code,.eyebrow code{color:inherit;background:none;padding:0}
+td,th{overflow-wrap:normal;word-break:normal;hyphens:none}
+
+/* top bar */
+body>header.bar{background:var(--bg);border-bottom:1px solid var(--border);padding:0;text-align:left;position:sticky;top:0;z-index:5}
+.bar-in{display:flex;align-items:center;gap:1rem;min-height:56px}
+.brand{font-weight:700;color:var(--text);text-decoration:none;margin-right:auto}
+.bar nav{padding:0;display:flex;gap:.25rem}
+.bar nav a{margin:0;padding:.5rem .75rem;border:0;border-radius:var(--standard-border-radius);text-decoration:none;color:var(--text);line-height:1.2;min-height:44px;display:inline-flex;align-items:center}
+.bar nav a[aria-current=page]{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.menu-btn{display:none;min-height:44px;min-width:44px;margin:0;padding:.5rem .9rem;background:none;border:1px solid var(--border);color:var(--text);cursor:pointer}
+.js .menu-btn{display:inline-flex;align-items:center;gap:.5rem}
+@media (min-width:62rem){.js .menu-btn{display:none}}
+@media (max-width:61.99rem){.js .bar nav{display:none}.bar nav{flex-wrap:wrap}}
+
+/* drawer */
+dialog.drawer{margin:0;padding:0;border:0;height:100dvh;max-height:none;width:min(20rem,86vw);background:var(--bg);color:var(--text);box-shadow:0 0 40px rgb(0 0 0/.35);inset:0 auto 0 0}
+dialog.drawer::backdrop{background:rgb(0 0 0/.45)}
+.drawer-in{padding:1rem 1rem 2rem;display:flex;flex-direction:column;gap:.25rem}
+.drawer h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin:1.25rem 0 .25rem}
+.drawer a{display:flex;align-items:center;min-height:44px;padding:.25rem .75rem;border-radius:var(--standard-border-radius);color:var(--text);text-decoration:none}
+.drawer a[aria-current=page]{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.drawer a:hover{background:var(--accent-bg)}
+.drawer a.sub{padding-left:1.5rem;font-size:.95rem}
+.drawer .close{align-self:flex-end;min-height:44px;min-width:44px;margin:0;background:none;border:1px solid var(--border);color:var(--text);cursor:pointer}
+
+/* controls */
+.filter{position:relative;margin:1rem 0 .5rem}
+.filter input{display:block;width:100%;min-height:48px;margin:0;padding:.6rem .9rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--accent-bg);color:var(--text)}
+
+/* tables (desktop) */
+section table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:.95rem}
+section thead th{background:var(--accent-bg);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-light);text-align:left;white-space:nowrap}
+section td,section th{padding:.65rem .85rem;vertical-align:top;border:0;border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
+section tbody tr:last-child td{border-bottom:0}
+section tbody tr:nth-child(even){background:transparent}
+section tbody tr:hover{background:var(--accent-bg)}
+td.title{font-weight:600}
+
+/* status pills */
+.pill{display:inline-block;padding:.1rem .6rem;border-radius:999px;font-size:.8rem;font-weight:600;line-height:1.5;white-space:nowrap;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
+.s-accepted,.s-building{--c:var(--ok)}
+.s-approved{--c:var(--info)}
+.s-working{--c:var(--warn)}
+.s-not,.s-superseded,.s-retired{--c:var(--mute)}
+.s-abandoned{--c:var(--bad)}
+.pill{--c:var(--mute)}
+.pill.s-accepted,.pill.s-building{--c:var(--ok)}.pill.s-approved{--c:var(--info)}.pill.s-working{--c:var(--warn)}.pill.s-abandoned{--c:var(--bad)}
+
+/* cards (phones, landscape phones, small tablets) */
+@media (max-width:61.99rem){
+ section table,section tbody{display:block;border:0;border-radius:0;overflow:visible}
+ section thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+ section tr{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .6rem;margin:0 0 .75rem;padding:.9rem 1rem 1rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);overflow:hidden;box-shadow:inset 4px 0 0 var(--c,transparent),var(--shadow)}
+ section tbody tr:hover{background:var(--bg)}
+ section td{display:block;border:0;padding:0;width:100%}
+ section td.eyebrow{order:1;width:auto;font-size:.85rem;font-weight:600;color:var(--text-light)}
+ section td.eyebrow::before{text-transform:uppercase;letter-spacing:.04em;font-size:.75rem;content:attr(data-label);margin-right:.4em;font-weight:400}
+ section td.status{order:2;width:auto;margin-left:auto}
+ section tr.ne td.title{order:1;width:auto;flex:1 1 11rem;margin-top:0}
+ section tr.ne td.status{order:2}
+ section td.title{order:3;font-size:1.1rem;line-height:1.35;margin-top:.15rem}
+ section td.field{order:4;font-size:.95rem}
+ section td.field::before{content:attr(data-label);display:block;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);margin-bottom:.1rem}
+ section td.none,section td:empty{display:none}
+}
+@media (min-width:62rem){td.none{color:var(--text-light)}}
+
+/* home */
+.home{display:grid;gap:.75rem;margin:1.5rem 0}
+.home .tile{display:flex;flex-direction:column;gap:.25rem;padding:1rem 1.1rem;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);text-decoration:none;color:var(--text)}
+.home .tile:hover{background:var(--accent-bg)}
+.home .tile span{color:var(--text-light)}
+@media (min-width:62rem){.home{grid-template-columns:repeat(3,1fr)}}

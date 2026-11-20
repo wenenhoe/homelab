@@ -62,7 +62,7 @@ a series file mean something else: a number is a pull request and each letter a 
 
 `.config/.pre-commit-config.yaml` wires up:
 
-- `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene
+- `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene; `end-of-file-fixer` skips `tools/doc_site/vendor/`, whose stylesheet is kept as published so its pinned hash holds ([`doc-site.md`](doc-site.md#the-stylesheet))
 - [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning of what is staged; CI skips the hook and scans the PR's commits instead, see [Secret scanning on pull requests](security-scanning.md#secret-scanning-on-pull-requests)
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`

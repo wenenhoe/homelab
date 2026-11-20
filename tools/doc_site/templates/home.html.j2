@@ -1,0 +1,6 @@
+{% extends "base.html.j2" %}
+{% block main %}<h1>Homelab docs</h1>
+<p class="lede">Views generated from the repository's documentation. Each one is built from the repository as it stands on <code>main</code>.</p>
+<div class="home">{% for view in views %}<a class="tile" href="{{ view.href }}"><strong>{{ view.label }}</strong><span>{{ view.blurb }}</span></a>
+{% endfor %}</div>
+{% endblock %}

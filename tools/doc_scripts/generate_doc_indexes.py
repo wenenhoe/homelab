@@ -25,12 +25,13 @@ import re
 import sys
 from pathlib import Path
 
-from doc_scripts.doc_coverage import COVERAGE_RELATIVE, render_coverage_table
+from doc_scripts.doc_coverage import COVERAGE_RELATIVE, coverage_block
 from doc_scripts.doc_explorations import load_explorations
 from doc_scripts.doc_frontmatter import DECISION_INDEX, ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
 from doc_scripts.doc_reliance import unmet_reliances
 from doc_scripts.doc_removed import LEDGER
+from doc_scripts.view_model import Block, Generated, Groups, Note, Table
 
 # Project status -> display text for the regenerated table.
 STATUS_DISPLAY = {
@@ -136,11 +137,6 @@ def _status_pair(
     return project_status_cells(fm, _waiting_on(fm, projects, project_prefix), decisions.get(ref), link, (rests_on or {}).get(ref))
 
 
-def _status_cells(*args, **kwargs) -> str:
-    """The Status and Blocker cells of `_status_pair`, as the two cells of a row."""
-    return " | ".join(_status_pair(*args, **kwargs))
-
-
 def _unblocks(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
     """How many existing projects wait on each one, directly or through a chain of
     `depends_on`. Read from the same entries as `_waiting_on`, so a finished
@@ -178,7 +174,7 @@ def _unblocks_cell(count: int) -> str:
     return str(count) if count else "—"
 
 
-def render_standalone_projects_table(root: Path = ROOT) -> str:
+def standalone_projects_block(root: Path = ROOT) -> Block:
     """Projects with no `super_project`: the complement of the Super
     Projects view below, with the same columns plus Covers, rendered with the
     `projects/` prefix since this lives one level above docs/projects/.
@@ -190,7 +186,7 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
     unblocks = _unblocks(projects)
     rests_on = _rests_on(root)
     cells = functools.partial(
-        _status_cells,
+        _status_pair,
         projects=projects,
         decisions=decisions,
         decision_paths=decision_paths,
@@ -199,15 +195,14 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
         decision_prefix="decisions/",
         rests_on=rests_on,
     )
-    rows = [
-        f"| [`{path.name}`](projects/{path.name}) | {_unblocks_cell(unblocks[pid])} | {cells(fm)} | {_cell(fm['summary'])} |"
+    rows = tuple(
+        (f"[`{path.name}`](projects/{path.name})", _unblocks_cell(unblocks[pid]), *cells(fm), _cell(fm["summary"]))
         for pid, (path, fm) in _by_status(projects)
         if "super_project" not in fm
-    ]
+    )
     if not rows:
-        return "Every project belongs to a super-project."
-    header = "| Project | Unblocks | Status | Blocker | Covers |\n| :--- | ---: | :--- | :--- | :--- |"
-    return "\n".join([header, *rows])
+        return Note("Every project belongs to a super-project.")
+    return Table(("Project", "Unblocks", "Status", "Blocker", "Covers"), (":---", "---:", ":---", ":---", ":---"), rows)
 
 
 def _dependency_depths(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
@@ -231,7 +226,7 @@ def _dependency_depths(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]
     return {pid: depth(pid) for pid in projects}
 
 
-def render_initiatives_table(root: Path = ROOT) -> str:
+def initiatives_block(root: Path = ROOT) -> Block:
     """Rows are grouped by initiative, then ordered by dependency depth, then by filename."""
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
@@ -243,7 +238,7 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     entries = [(fm["super_project"], depths[pid], path.name, fm) for pid, (path, fm) in projects.items() if "super_project" in fm]
     labelled = sorted(entries, key=lambda e: (e[0], e[1], e[2]))
     if not labelled:
-        return "No project is grouped into an initiative."
+        return Note("No project is grouped into an initiative.")
     counts: dict[str, int] = {}
     for initiative, *_ in labelled:
         counts[initiative] = counts.get(initiative, 0) + 1
@@ -252,20 +247,17 @@ def render_initiatives_table(root: Path = ROOT) -> str:
             print(f"warning: super_project '{initiative}' is used by one project only — a typo, or not yet an initiative", file=sys.stderr)
     # Renders into docs/project-planning.md, one level above docs/projects/ — every link needs that prefix.
     # The sort above already groups an initiative's rows; blank its label on every row after the
-    # first of a run so the table reads as one block per initiative. A blank cell renders as a
-    # single space between its pipes ("| |"), not the two spaces a populated cell's padding
-    # would otherwise leave — MD060's compact table style (.config/.markdownlint.yaml) flags the latter.
+    # first of a run so the table reads as one block per initiative.
     rows = []
     prev_initiative: str | None = None
     for initiative, _, name, fm in labelled:
-        initiative_cell = f" `{initiative}` " if initiative != prev_initiative else " "
+        initiative_cell = f"`{initiative}`" if initiative != prev_initiative else ""
         prev_initiative = initiative
-        cells = _status_cells(
+        status, blocker = _status_pair(
             fm, projects, decisions, decision_paths, decision_shorts, project_prefix="projects/", decision_prefix="decisions/", rests_on=rests_on
         )
-        rows.append(f"|{initiative_cell}| [`{name}`](projects/{name}) | {_unblocks_cell(unblocks[fm['id']])} | {cells} | {_cell(fm['summary'])} |")
-    header = "| Initiative | Project | Unblocks | Status | Blocker | Covers |\n| :--- | :--- | ---: | :--- | :--- | :--- |"
-    return "\n".join([header, *rows])
+        rows.append((initiative_cell, f"[`{name}`](projects/{name})", _unblocks_cell(unblocks[fm["id"]]), status, blocker, _cell(fm["summary"])))
+    return Table(("Initiative", "Project", "Unblocks", "Status", "Blocker", "Covers"), (":---", ":---", "---:", ":---", ":---", ":---"), tuple(rows))
 
 
 INITIATIVES_HEADING = "Initiatives"
@@ -297,7 +289,7 @@ ROADMAP_COLUMNS = ("In progress", "Startable", "Waiting")
 NO_INITIATIVE = "(no initiative)"
 
 
-def render_roadmap_table(root: Path = ROOT) -> str:
+def roadmap_block(root: Path = ROOT) -> Block:
     """One row per initiative in the kept order, then a row for projects with no `super_project`.
     A project's column comes from its status and Blocker cell; a `done` project is not shown.
     Fails, naming each, when the initiative list and the projects' `super_project` values disagree."""
@@ -324,12 +316,12 @@ def render_roadmap_table(root: Path = ROOT) -> str:
         count = f" (unblocks {unblocks[pid]})" if unblocks[pid] else ""
         columns.setdefault(fm.get("super_project"), {}).setdefault(column, []).append((depths[pid], path.name, f"[`{path.name}`](projects/{path.name}){count}"))
 
-    def row(label: str, initiative: str | None) -> str:
+    def row(label: str, initiative: str | None) -> tuple[str, ...]:
         cells = [", ".join(cell for *_, cell in sorted(columns.get(initiative, {}).get(column, []))) or "—" for column in ROADMAP_COLUMNS]
-        return f"| {label} | " + " | ".join(cells) + " |"
+        return (label, *cells)
 
-    header = "| Initiative | " + " | ".join(ROADMAP_COLUMNS) + " |\n| :--- | :--- | :--- | :--- |"
-    return "\n".join([header, *(row(f"`{name}`", name) for name in order), row(NO_INITIATIVE, None)])
+    rows = (*(row(f"`{name}`", name) for name in order), row(NO_INITIATIVE, None))
+    return Table(("Initiative", *ROADMAP_COLUMNS), (":---",) * 4, rows)
 
 
 ADR_STATUS_DISPLAY = {
@@ -407,13 +399,13 @@ def _pending_notes(lineage: Lineage) -> list[str]:
     return [f"Revision {r.label} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
 
 
-def render_decisions_by_number(root: Path = ROOT, prefix: str = "decisions/") -> str:
+def decisions_by_number_block(root: Path = ROOT, prefix: str = "decisions/") -> Block:
     """Every lineage in number order, one short row each, for finding an ADR by the number
     something else cites. A merged lineage's old number is in its Notes. `prefix` is the path
     from the file this renders into to docs/decisions/."""
     lineages = load_lineages(root)
     if not lineages:
-        return "No decision lineages yet."
+        return Note("No decision lineages yet.")
     by_id = {lineage.id: lineage for lineage in lineages}
     rows = []
     for lineage in lineages:
@@ -421,17 +413,16 @@ def render_decisions_by_number(root: Path = ROOT, prefix: str = "decisions/") ->
         adr_cell, _, status = _adr_solution_cells(lineage, prefix)
         notes = "; ".join([*_pending_notes(lineage), *_relies_note(lineage, by_id, prefix), *_former_note(lineage)])
         topic = TOPICS.get(current.fm["topic"], current.fm["topic"])
-        rows.append(f"| {adr_cell} | {_cell(current.fm['short'])} | {status} | {topic} | {_cell(notes) or '—'} |")
-    header = "| ADR | Decision | Status | Topic | Notes |\n| :--- | :--- | :--- | :--- | :--- |"
-    return "\n".join([header, *rows])
+        rows.append((adr_cell, _cell(current.fm["short"]), status, topic, _cell(notes) or "—"))
+    return Table(("ADR", "Decision", "Status", "Topic", "Notes"), (":---",) * 5, tuple(rows))
 
 
-def render_lineages_index(root: Path = ROOT, prefix: str = "decisions/") -> str:
+def lineages_index_block(root: Path = ROOT, prefix: str = "decisions/") -> Block:
     """The lineages grouped by topic, with the problem and solution of each. `prefix` is the
     path from the file this renders into to docs/decisions/."""
     lineages = load_lineages(root)
     if not lineages:
-        return "No decision lineages yet."
+        return Note("No decision lineages yet.")
     by_id = {lineage.id: lineage for lineage in lineages}
     narrowed_by: dict[str, set[str]] = {}
     related: dict[str, set[str]] = {}
@@ -458,12 +449,12 @@ def render_lineages_index(root: Path = ROOT, prefix: str = "decisions/") -> str:
             if lineage.id in related:
                 notes.append("Related: " + ", ".join(_lineage_link(by_id[i], prefix) for i in sorted(related[lineage.id])))
             notes.extend(_former_note(lineage))
-            cells = [adr_cell, f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}", _cell(solution), status, _cell("; ".join(notes)) or "—"]
-            rows.append("| " + " | ".join(cells) + " |")
+            rows.append(
+                (adr_cell, f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}", _cell(solution), status, _cell("; ".join(notes)) or "—")
+            )
         if rows:
-            header = "| ADR | Problem | Current solution | Status | Notes |\n| :--- | :--- | :--- | :--- | :--- |"
-            sections.append("\n".join([f"### {topic_title}", "", header, *rows]))
-    return "\n\n".join(sections)
+            sections.append((topic_title, Table(("ADR", "Problem", "Current solution", "Status", "Notes"), (":---",) * 5, tuple(rows))))
+    return Groups(tuple(sections))
 
 
 def _approved_first(uncovered) -> int:
@@ -473,7 +464,7 @@ def _approved_first(uncovered) -> int:
     return 0 if any(r.status == "approved" for r in uncovered) else 1
 
 
-def render_needs_project_table(root: Path = ROOT) -> str:
+def needs_project_block(root: Path = ROOT) -> Block:
     """Every ADR lineage with at least one open (working/approved)
     revision that appears in no project's decision: or also_implements:.
     Includes a pending successor to an already-accepted revision (shown
@@ -492,7 +483,7 @@ def render_needs_project_table(root: Path = ROOT) -> str:
             covered.add(fm["decision"])
         covered.update(fm.get("also_implements", []))
 
-    entries: list[tuple[int, str]] = []
+    entries: list[tuple[int, tuple[str, ...]]] = []
     for lineage in lineages:
         open_revisions = [r for r in lineage.revisions if r.status in ("working", "approved")]
         uncovered = [r for r in open_revisions if f"{lineage.id}/{r.label}" not in covered]
@@ -508,16 +499,15 @@ def render_needs_project_table(root: Path = ROOT) -> str:
                 adr_cell = f"[{lineage.number}](decisions/{lineage.dir.name}/{r.path.name})"
                 solution = f"Proposed revision {r.label}: {r.fm['solution']}"
                 status = f"{ADR_STATUS_DISPLAY[r.status]} (proposed revision {r.label})"
-                entries.append((_approved_first([r]), "| " + " | ".join([adr_cell, problem, _cell(solution), status]) + " |"))
+                entries.append((_approved_first([r]), (adr_cell, problem, _cell(solution), status)))
         else:
             adr_cell, solution, status = _adr_solution_cells(lineage, prefix="decisions/")
-            entries.append((_approved_first(uncovered), "| " + " | ".join([adr_cell, problem, _cell(solution), status]) + " |"))
+            entries.append((_approved_first(uncovered), (adr_cell, problem, _cell(solution), status)))
     if not entries:
-        return "Every open ADR is named in some project's `decision:` or `also_implements:`."
+        return Note("Every open ADR is named in some project's `decision:` or `also_implements:`.")
     # sorted() is stable, so each group keeps the lineage order the loop produced.
-    rows = [row for _, row in sorted(entries, key=lambda e: e[0])]
-    header = "| ADR | Problem | Current solution | Status |\n| :--- | :--- | :--- | :--- |"
-    return "\n".join([header, *rows])
+    rows = tuple(row for _, row in sorted(entries, key=lambda e: e[0]))
+    return Table(("ADR", "Problem", "Current solution", "Status"), (":---",) * 4, rows)
 
 
 def _implementing_projects(root: Path) -> dict[str, list[str]]:
@@ -529,7 +519,7 @@ def _implementing_projects(root: Path) -> dict[str, list[str]]:
     return named
 
 
-def render_open_decisions(root: Path = ROOT, prefix: str = "decisions/", project_prefix: str = "projects/") -> str:
+def open_decisions_block(root: Path = ROOT, prefix: str = "decisions/", project_prefix: str = "projects/") -> Block:
     """Every `approved` or `working` revision, approved first, each group in lineage order,
     with the projects that implement it. Unlike the awaiting-a-project view this lists the
     covered ones too, so it is the whole set of decisions still open."""
@@ -544,16 +534,16 @@ def render_open_decisions(root: Path = ROOT, prefix: str = "decisions/", project
             entries.append(
                 (
                     rev.status != "approved",
-                    f"| {adr_cell} | {_revision_label(rev)} | {_cell(rev.fm['short'])} | {ADR_STATUS_DISPLAY[rev.status]} | {projects} |",
+                    (adr_cell, _revision_label(rev), _cell(rev.fm["short"]), ADR_STATUS_DISPLAY[rev.status], projects),
                 )
             )
     if not entries:
-        return "No decision is open."
-    header = "| ADR | Revision | Decision | Status | Implemented by |\n| :--- | :--- | :--- | :--- | :--- |"
-    return "\n".join([header, *(row for _, row in sorted(entries, key=lambda e: e[0]))])
+        return Note("No decision is open.")
+    rows = tuple(row for _, row in sorted(entries, key=lambda e: e[0]))
+    return Table(("ADR", "Revision", "Decision", "Status", "Implemented by"), (":---",) * 5, rows)
 
 
-def render_history(root: Path = ROOT, prefix: str = "decisions/") -> str:
+def history_block(root: Path = ROOT, prefix: str = "decisions/") -> Block:
     """The revisions that no longer answer their problem: superseded ones, with the revision that
     replaced them, and abandoned ones. The By number view shows only the current revision of a lineage."""
     rows = []
@@ -564,23 +554,77 @@ def render_history(root: Path = ROOT, prefix: str = "decisions/") -> str:
             successor = lineage.get(rev.fm.get("superseded_by"))
             replaced_by = f"[revision {successor.label}]({prefix}{lineage.dir.name}/{successor.path.name})" if successor else "—"
             adr_cell = f"[{lineage.number}]({prefix}{lineage.dir.name}/{rev.path.name})"
-            rows.append(f"| {adr_cell} | {_revision_label(rev)} | {_cell(rev.fm['short'])} | {ADR_STATUS_DISPLAY[rev.status]} | {replaced_by} |")
+            rows.append((adr_cell, _revision_label(rev), _cell(rev.fm["short"]), ADR_STATUS_DISPLAY[rev.status], replaced_by))
     if not rows:
-        return "No revision has been superseded or abandoned."
-    header = "| ADR | Revision | Decision | Status | Replaced by |\n| :--- | :--- | :--- | :--- | :--- |"
-    return "\n".join([header, *rows])
+        return Note("No revision has been superseded or abandoned.")
+    return Table(("ADR", "Revision", "Decision", "Status", "Replaced by"), (":---",) * 5, tuple(rows))
 
 
-def render_explorations_table(root: Path = ROOT) -> str:
+def explorations_block(root: Path = ROOT) -> Block:
     """Every open exploration, by file name. The one place that links an exploration: nothing else
     may (see doc_explorations.py). Renders into docs/project-planning.md, so links need the prefix.
     The table reads only the tree, so a rebuilt view is the same whatever the history."""
     explorations = load_explorations(root)
     if not explorations:
-        return "No exploration is open."
-    rows = [f"| [`{path.name}`](explorations/{path.name}) | {_cell(fm['title'])} |" for path, fm in explorations]
-    header = "| Exploration | Question |\n| :--- | :--- |"
-    return "\n".join([header, *rows])
+        return Note("No exploration is open.")
+    rows = tuple((f"[`{path.name}`](explorations/{path.name})", _cell(fm["title"])) for path, fm in explorations)
+    return Table(("Exploration", "Question"), (":---", ":---"), rows)
+
+
+def render_standalone_projects_table(root: Path = ROOT) -> str:
+    return standalone_projects_block(root).markdown()
+
+
+def render_initiatives_table(root: Path = ROOT) -> str:
+    return initiatives_block(root).markdown()
+
+
+def render_roadmap_table(root: Path = ROOT) -> str:
+    return roadmap_block(root).markdown()
+
+
+def render_decisions_by_number(root: Path = ROOT, prefix: str = "decisions/") -> str:
+    return decisions_by_number_block(root, prefix).markdown()
+
+
+def render_lineages_index(root: Path = ROOT, prefix: str = "decisions/") -> str:
+    return lineages_index_block(root, prefix).markdown()
+
+
+def render_needs_project_table(root: Path = ROOT) -> str:
+    return needs_project_block(root).markdown()
+
+
+def render_open_decisions(root: Path = ROOT, prefix: str = "decisions/", project_prefix: str = "projects/") -> str:
+    return open_decisions_block(root, prefix, project_prefix).markdown()
+
+
+def render_history(root: Path = ROOT, prefix: str = "decisions/") -> str:
+    return history_block(root, prefix).markdown()
+
+
+def render_explorations_table(root: Path = ROOT) -> str:
+    return explorations_block(root).markdown()
+
+
+PLANNING_RELATIVE = "docs/project-planning.md"
+
+
+def generated_blocks(root: Path = ROOT) -> list[Generated]:
+    """Every generated section, in the order they are written: the three views' rows, which the
+    markdown files and the published pages are both formatted from."""
+    return [
+        Generated(PLANNING_RELATIVE, "Roadmap", roadmap_block(root)),
+        Generated(PLANNING_RELATIVE, "Super Projects", initiatives_block(root)),
+        Generated(PLANNING_RELATIVE, "Projects", standalone_projects_block(root)),
+        Generated(PLANNING_RELATIVE, "Decisions awaiting a project", needs_project_block(root)),
+        Generated(PLANNING_RELATIVE, "Open explorations", explorations_block(root)),
+        Generated(DECISION_INDEX, "By number", decisions_by_number_block(root)),
+        Generated(DECISION_INDEX, "By topic", lineages_index_block(root)),
+        Generated(DECISION_INDEX, "Open decisions", open_decisions_block(root)),
+        Generated(DECISION_INDEX, "History", history_block(root)),
+        Generated(COVERAGE_RELATIVE, "Apps", coverage_block(root)),
+    ]
 
 
 # More projects than this at `building` or `de-risking` at once is reported (ADR 0037 revision 4).
@@ -647,22 +691,13 @@ def ensure_section(path: Path, heading: str, *, before: str) -> None:
 
 def main() -> int:
     validate_adrs()
-    planning = ROOT / "docs/project-planning.md"
-    ensure_section(planning, "Roadmap", before="Super Projects")
-    regenerate(planning, "Roadmap", render_roadmap_table())
-    regenerate(planning, "Super Projects", render_initiatives_table())
-    regenerate(planning, "Projects", render_standalone_projects_table())
-    regenerate(planning, "Decisions awaiting a project", render_needs_project_table())
-    regenerate(planning, "Open explorations", render_explorations_table())
+    ensure_section(ROOT / PLANNING_RELATIVE, "Roadmap", before="Super Projects")
+    blocks = generated_blocks()
+    for generated in blocks:
+        regenerate(ROOT / generated.view, generated.heading, generated.block.markdown())
     for warning in active_project_warnings(ROOT):
         print(warning, file=sys.stderr)
-    index = ROOT / DECISION_INDEX
-    regenerate(index, "By number", render_decisions_by_number())
-    regenerate(index, "By topic", render_lineages_index())
-    regenerate(index, "Open decisions", render_open_decisions())
-    regenerate(index, "History", render_history())
-    regenerate(ROOT / COVERAGE_RELATIVE, "Apps", render_coverage_table(ROOT))
-    print(f"Regenerated docs/project-planning.md, {DECISION_INDEX}, {COVERAGE_RELATIVE}.")
+    print(f"Regenerated {PLANNING_RELATIVE}, {DECISION_INDEX}, {COVERAGE_RELATIVE}.")
     return 0
 
 

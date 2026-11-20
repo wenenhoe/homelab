@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}{% endblock %}Homelab docs</title>
+<link rel="stylesheet" href="{{ base }}assets/simple.css">
+<link rel="stylesheet" href="{{ base }}assets/site.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+<a class="brand" href="{{ home or './' }}">Homelab docs</a>
+<nav aria-label="Views">{% for item in nav %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}</nav>
+<button class="menu-btn" type="button" aria-haspopup="dialog" aria-controls="drawer"><span aria-hidden="true">&#9776;</span> Menu</button>
+</div></header>
+<dialog class="drawer" id="drawer" aria-label="Menu"><div class="drawer-in">
+<button class="close" type="button" aria-label="Close menu">&#10005;</button>
+<h2>Views</h2>{% for item in nav %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}
+{% block drawer %}{% endblock %}</div></dialog>
+<main>
+{% block main %}{% endblock %}
+</main>
+<footer>Generated from the <a href="https://github.com/wenenhoe/homelab">homelab repository</a>'s documentation.</footer>
+<script src="{{ base }}assets/site.js"></script>
+</body>
+</html>

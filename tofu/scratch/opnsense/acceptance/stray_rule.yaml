@@ -1,0 +1,39 @@
+---
+# Adds a firewall rule the play does not write, behind its back, for the acceptance run to find and remove.
+# Needs -e ca_file=... api_port=... credentials=... interface=...
+- name: Add a rule the play does not write
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Read the API credentials
+      ansible.builtin.set_fact:
+        scratch_key: "{{ lookup('ansible.builtin.file', credentials) | regex_findall('(?m)^\\s*opnsense_api_key\\s*=\\s*\"([^\"]*)\"') | first }}"
+        scratch_secret: "{{ lookup('ansible.builtin.file', credentials) | regex_findall('(?m)^\\s*opnsense_api_secret\\s*=\\s*\"([^\"]*)\"') | first }}"
+      no_log: true
+
+    - name: Write the rule
+      module_defaults:
+        group/oxlorg.opnsense.all:
+          firewall: OPNsense.internal
+          api_port: "{{ api_port }}"
+          api_key: "{{ scratch_key }}"
+          api_secret: "{{ scratch_secret }}"
+          ssl_verify: true
+          ssl_ca_file: "{{ ca_file }}"
+      block:
+        - name: Pass a connection the play does not name
+          oxlorg.opnsense.rule:
+            description: "scratch acceptance: a rule the play does not write"
+            match_fields: [description]
+            sequence: 90000
+            action: pass
+            quick: true
+            interface: ["{{ interface }}"]
+            direction: in
+            ip_protocol: inet
+            protocol: TCP
+            source_net: 192.0.2.250
+            destination_net: 192.0.2.1
+            destination_port: "8080"
+            reload: true

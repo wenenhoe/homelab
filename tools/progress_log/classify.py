@@ -9,8 +9,6 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-# Generated from the docs themselves, so a change that only regenerates them says nothing about the work.
-VIEWS = ("docs/decision-index.md", "docs/project-planning.md")
 PROJECT_DOC = re.compile(r"^docs/projects/([^/]+)\.md$")
 NOT_PROJECTS = ("README", "TEMPLATE")
 CONVENTIONAL = re.compile(r"^(\w+)(?:\([^)]*\))?!?:\s*")
@@ -58,12 +56,11 @@ def project_slugs(paths: list[str]) -> list[str]:
 
 def category(paths: list[str], bot: bool) -> str:
     """`dep` (a bot's update), `built` (touches anything outside docs/), `scope` (only project docs) or `planned` (other docs and decisions)."""
-    real = [path for path in paths if path not in VIEWS]
     if bot:
         return "dep"
-    if any(not path.startswith("docs/") for path in real):
+    if any(not path.startswith("docs/") for path in paths):
         return "built"
-    if real and all(path.startswith("docs/projects/") for path in real):
+    if paths and all(path.startswith("docs/projects/") for path in paths):
         return "scope"
     return "planned"
 
@@ -78,7 +75,6 @@ def group(paths: list[str], bot: bool, title: str, events: list[list[str]]) -> s
     if bot:
         return DEPENDENCY_UPDATES
     touched = project_slugs(paths)
-    real = [path for path in paths if path not in VIEWS]
     if touched:
         changed = {event[1] for event in events if event[0] == "project"}
         words = set(re.findall(r"[a-z0-9]+", title.lower()))
@@ -90,10 +86,10 @@ def group(paths: list[str], bot: bool, title: str, events: list[list[str]]) -> s
         best = max(touched, key=lambda slug: (score(slug), slug))
         if score(best) >= 2 or len(touched) == 1:
             return f"{PROJECT_PREFIX}{best}"
-        if all(path.startswith("docs/") for path in real):
+        if all(path.startswith("docs/") for path in paths):
             return SEVERAL_PROJECTS
-    if real and all(path.startswith("docs/decisions/") for path in real):
+    if paths and all(path.startswith("docs/decisions/") for path in paths):
         return DECISIONS
-    code = [path for path in real if not path.startswith("docs/")]
-    areas = Counter(bucket(path) for path in (code or real))
+    code = [path for path in paths if not path.startswith("docs/")]
+    areas = Counter(bucket(path) for path in (code or paths))
     return areas.most_common(1)[0][0] if areas else "Root files"

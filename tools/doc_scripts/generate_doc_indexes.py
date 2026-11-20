@@ -30,7 +30,7 @@ from pathlib import Path
 
 from doc_scripts.doc_coverage import COVERAGE_RELATIVE, coverage_block
 from doc_scripts.doc_explorations import load_explorations
-from doc_scripts.doc_frontmatter import DECISION_INDEX, ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
+from doc_scripts.doc_frontmatter import DECISION_INDEX, PLANNING_VIEW, ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
 from doc_scripts.doc_reliance import unmet_reliances
 from doc_scripts.doc_removed import LEDGER
@@ -610,7 +610,7 @@ def render_explorations_table(root: Path = ROOT) -> str:
     return explorations_block(root).markdown()
 
 
-PLANNING_RELATIVE = "docs/project-planning.md"
+PLANNING_RELATIVE = PLANNING_VIEW
 
 
 def generated_blocks(root: Path = ROOT) -> list[Generated]:

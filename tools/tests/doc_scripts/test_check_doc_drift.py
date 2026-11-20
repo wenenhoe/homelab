@@ -11,7 +11,6 @@ from pathlib import Path
 import pytest
 from _doc_fixtures import assert_one_error, revision
 from doc_scripts import check_doc_drift as drift
-from doc_scripts.doc_frontmatter import DECISION_INDEX
 
 INDEX_DIRS = ("docs", "docs/decisions", "docs/architecture", "docs/projects", "docs/topics")
 
@@ -35,27 +34,6 @@ def repo(root: Path, monkeypatch: pytest.MonkeyPatch):
     drift.errors.clear()
 
 
-class TestLineageIndex:
-    @pytest.fixture(autouse=True)
-    def _index_readmes(self, repo):
-        for d in INDEX_DIRS:
-            repo.write(f"{d}/README.md", "# Index\n")
-        repo.write(DECISION_INDEX, "# Decision Index\n")
-        repo.write("docs/README.md", "# Index\n\n[decision index](decision-index.md)\n")
-
-    def test_lineage_directory_must_appear_in_the_decision_index(self, repo):
-        revision(repo.root, "0013-secret-storage", 0)
-        drift.check_doc_indexes()
-        assert len(drift.errors) == 1, drift.errors
-        assert f"{DECISION_INDEX}: lineage 0013-secret-storage/ exists but isn't linked" in drift.errors[0]
-
-    def test_linked_lineage_directory_passes(self, repo):
-        revision(repo.root, "0013-secret-storage", 0)
-        repo.write(DECISION_INDEX, "# Decision Index\n\n[0013](decisions/0013-secret-storage/revision-000.md)\n")
-        drift.check_doc_indexes()
-        assert drift.errors == []
-
-
 class TestRecursiveIndex:
     """A recursive INDEXED_DOC_DIRS entry covers nested folders and matches
     each doc by its path relative to the index, not by bare filename."""
@@ -71,6 +49,13 @@ class TestRecursiveIndex:
         drift.check_doc_indexes()
         assert len(drift.errors) == 1, drift.errors
         assert "dev/ci/overview.md exists but isn't linked" in drift.errors[0]
+
+    def test_a_generated_view_needs_no_row_in_the_index(self, repo):
+        repo.write("docs/topics/README.md", "# Topics\n")
+        repo.write("docs/topics/disaster-recovery/coverage.md", "# Coverage\n")
+        repo.write("docs/decision-index.md", "# Decision Index\n")
+        drift.check_doc_indexes()
+        assert drift.errors == []
 
     def test_nested_doc_linked_by_relative_path_passes(self, repo):
         repo.write("docs/topics/README.md", "[CI](dev/ci/overview.md) [Tests](dev/molecule.md)\n")

@@ -10,6 +10,7 @@ import io
 import pytest
 from _doc_fixtures import project, revision
 from doc_scripts import generate_doc_indexes as gen
+from doc_scripts.doc_frontmatter import GENERATED_VIEWS
 
 
 class TestProjectsTable:
@@ -765,6 +766,10 @@ class TestValidateAdrs:
         (root / "docs" / "decisions" / "notes.md").write_text("no frontmatter\n", encoding="utf-8")
         with pytest.raises(SystemExit):
             gen.validate_adrs(root)
+
+
+def test_the_generated_views_are_the_ones_the_generator_writes():
+    assert sorted(GENERATED_VIEWS) == sorted({block.view for block in gen.generated_blocks(gen.ROOT)})
 
 
 class TestRenderView:

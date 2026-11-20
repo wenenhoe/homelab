@@ -12,10 +12,10 @@ from pathlib import Path
 
 from utils.app_catalog import CATALOG_RELATIVE, CatalogError, load_backup_inventory, load_catalog
 
-from doc_scripts.doc_frontmatter import ROOT
+from doc_scripts.doc_frontmatter import COVERAGE_VIEW, ROOT
 from doc_scripts.view_model import Table
 
-COVERAGE_RELATIVE = "docs/topics/disaster-recovery/coverage.md"
+COVERAGE_RELATIVE = COVERAGE_VIEW
 INVENTORY_RELATIVE = "ansible/inventory"
 COLUMNS = ("App", "Hosts", "Volumes", "Routes", "Backup", "Record", "Tier")
 HEADER = Table(COLUMNS, (":---",) * len(COLUMNS), ()).markdown()

@@ -18,7 +18,7 @@ from pathlib import Path
 import yaml
 
 from doc_scripts.doc_explorations import exploration_errors
-from doc_scripts.doc_frontmatter import DECISION_INDEX, LINEAGE_DIR_RE, doc_kind, is_template, load_lineages, read_frontmatter
+from doc_scripts.doc_frontmatter import GENERATED_VIEWS, doc_kind, is_template, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import (
     condense_superseded_revisions,
     heading_errors,
@@ -77,7 +77,9 @@ def check_doc_indexes() -> None:
     a false positive (a name coincidentally appearing elsewhere) is the
     safe failure mode here, not a false negative. The reverse direction
     only reads bare-filename links; a link with a path in it that points
-    nowhere is caught repo-wide by check_no_stale_anchors.
+    nowhere is caught repo-wide by check_no_stale_anchors. A generated view
+    is not a doc to index: it is written in a checkout and not committed, so
+    whether the file is there says nothing about the index.
     """
     for subdir, recursive in INDEXED_DOC_DIRS:
         label = f"docs/{subdir}" if subdir else "docs"
@@ -86,17 +88,11 @@ def check_doc_indexes() -> None:
         index = read(index_path)
 
         for doc in sorted(base.rglob("*.md") if recursive else base.glob("*.md")):
-            if doc.name == "README.md" or is_template(doc.name):
+            if doc.name == "README.md" or is_template(doc.name) or doc.relative_to(ROOT).as_posix() in GENERATED_VIEWS:
                 continue
             rel = doc.relative_to(base).as_posix()
             if rel not in index:
                 fail(f"{label}/README.md: {rel} exists but isn't linked in its index")
-
-        if subdir == "decisions":
-            decision_index = read(ROOT / DECISION_INDEX)
-            for lineage_dir in sorted(p for p in (ROOT / "docs" / subdir).iterdir() if p.is_dir() and LINEAGE_DIR_RE.match(p.name)):
-                if f"{lineage_dir.name}/" not in decision_index:
-                    fail(f"{DECISION_INDEX}: lineage {lineage_dir.name}/ exists but isn't linked in it")
 
         for link in re.findall(r"\]\(([\w-]+\.md)\)", index):
             if is_template(link):

@@ -18,8 +18,12 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# The generated index of decision lineages, beside docs/project-planning.md.
+# The generated views: none is committed. A checkout writes them (generate_doc_indexes.py) and the site publishes them.
+PLANNING_VIEW = "docs/project-planning.md"
+# The generated index of decision lineages, beside the planning view.
 DECISION_INDEX = "docs/decision-index.md"
+COVERAGE_VIEW = "docs/topics/disaster-recovery/coverage.md"
+GENERATED_VIEWS = (PLANNING_VIEW, DECISION_INDEX, COVERAGE_VIEW)
 
 # `topic:` values, in the order the generated decision index lists them.
 TOPICS = {

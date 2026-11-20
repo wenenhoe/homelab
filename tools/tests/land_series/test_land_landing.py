@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -272,6 +273,50 @@ def test_running_again_reuses_the_open_pull_request_without_pushing_it_again(git
     assert [item.merged for item in landed] == [True]
     assert pushed == git(github.remote, "rev-parse", "main^2")
     assert len(github.calls("pr", "create")) == 1
+    assert github.calls("pr", "edit") == []
+
+
+def titled_layers(author: Author) -> list[Layer]:
+    patches = [
+        ("0001a write-one", author.patch("docs: prepare one", {"a.txt": "one\n"})),
+        ("0001b write-one", author.patch("docs: write one", {"a.txt": "one\ntidy\n"})),
+    ]
+    return order_layers(parse_series(b"# title 0001: docs(notes): say what one is for\n" + series_file(patches)))
+
+
+def test_the_title_a_manifest_names_is_the_pull_requests_title_and_its_body_still_lists_the_commits(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = titled_layers(author)
+    kept(repo, layers)
+
+    land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
+    pr = github.state()["prs"][0]
+    assert pr["title"] == "docs(notes): say what one is for"
+    assert pr["body"] == "- docs: prepare one\n- docs: write one"
+
+
+def test_a_title_changed_in_the_file_retitles_the_open_pull_request_and_leaves_its_branch_and_body(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = titled_layers(author)
+    kept(repo, layers)
+    land(repo.path, layers, Reviews(False), sleep=lambda _: None)
+    pushed = git(github.remote, "rev-parse", "write-one")
+    retitled = [replace(layer, title="docs(notes): say it another way") for layer in layers]
+
+    land(repo.path, retitled, Reviews(True), sleep=lambda _: None)
+
+    assert github.calls("pr", "edit")[0][3:] == ["--title", "docs(notes): say it another way"]
+    assert len(github.calls("pr", "create")) == 1
+    assert pushed == git(github.remote, "rev-parse", "main^2")
+    assert github.state()["prs"][0]["body"] == "- docs: prepare one\n- docs: write one"
+
+
+def test_an_open_pull_request_that_already_has_the_title_is_not_edited(github: FakeGitHub, repo: Repo, author: Author) -> None:
+    layers = titled_layers(author)
+    kept(repo, layers)
+    land(repo.path, layers, Reviews(False), sleep=lambda _: None)
+
+    land(repo.path, layers, Reviews(True), sleep=lambda _: None)
+
     assert github.calls("pr", "edit") == []
 
 

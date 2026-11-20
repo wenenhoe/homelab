@@ -9,8 +9,9 @@
 
 A manifest line is a patch id (four digits and a letter, the patch naming scheme) and a branch slug. The number is a pull
 request and the letter a commit in it, so the commits that share a number share one slug, and a slug belongs to one number.
-Blank lines and `#` comments are skipped, except a `# base: <branch>` line, which names the branch the series lands on (`develop`, say) and
-which `--base` overrides. Commits land in id order, which the naming scheme keeps in step with the order they
+Blank lines and `#` comments are skipped, except two lines. A `# base: <branch>` line names the branch the series lands on (`develop`, say)
+and `--base` overrides it. A `# title <number>: <subject>` line names the title of the pull request with that number, which is otherwise
+its first commit's subject. Commits land in id order, which the naming scheme keeps in step with the order they
 were written in; a pull request's commits are its branch, in that order.
 
 Standard library only: the maintainer runs this with whatever python3 is at hand.
@@ -27,6 +28,11 @@ from dataclasses import dataclass
 LAYER_ID = re.compile(r"\d{4}[a-z]")
 BASE_LINE = re.compile(r"#\s*base:(.*)")
 BASE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*")
+TITLE_LINE = re.compile(r"#\s*title\b(.*)")
+TITLE_BODY = re.compile(r"(\d{4}):\s*(.+)")
+# The form of a commit subject: Conventional Commits, lowercase after the colon.
+TITLE_FORM = re.compile(r"[a-z]+(?:\([^()\s]+\))?!?: [^\sA-Z].*")
+TITLE_MAX = 72
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _ENVELOPE = re.compile(rb"^From [0-9a-f]{40,64} ", re.MULTILINE)
 _SUBJECT_TAG = re.compile(r"^\[[^\]]*\]\s*")
@@ -48,6 +54,8 @@ class Layer:
     subject: str
     authored: int
     source: str
+    # The title the manifest names for this commit's pull request, when it names one.
+    title: str | None = None
 
     @property
     def number(self) -> str:
@@ -64,8 +72,8 @@ class Pull:
 
     @property
     def title(self) -> str:
-        """The first commit's subject, which becomes the merge commit's body and so the history's one line for the change."""
-        return self.layers[0].subject
+        """The title the manifest names, else the first commit's subject. It becomes the merge commit's body and so the history's one line for the change."""
+        return next((layer.title for layer in self.layers if layer.title), self.layers[0].subject)
 
 
 def parse_series(data: bytes, source: str = "series") -> list[Layer]:
@@ -73,11 +81,13 @@ def parse_series(data: bytes, source: str = "series") -> list[Layer]:
     starts = [match.start() for match in _ENVELOPE.finditer(data)]
     if not starts:
         raise SeriesError(f"{source}: no patches (an mbox starts with a 'From <commit> ' line)")
-    entries = _manifest_entries(data[: starts[0]].decode("utf-8", errors="replace"), source)
+    manifest = data[: starts[0]].decode("utf-8", errors="replace")
+    entries = _manifest_entries(manifest, source)
+    titles = _manifest_titles(manifest, {layer_id[:4] for layer_id, _ in entries}, source)
     chunks = [data[begin:end] for begin, end in zip(starts, [*starts[1:], len(data)], strict=True)]
     if len(entries) != len(chunks):
         raise SeriesError(f"{source}: the manifest lists {len(entries)} layers but the mbox holds {len(chunks)} patches")
-    return [_layer(entry, chunk, source) for entry, chunk in zip(entries, chunks, strict=True)]
+    return [_layer(entry, chunk, source, titles.get(entry[0][:4])) for entry, chunk in zip(entries, chunks, strict=True)]
 
 
 def parse_base(data: bytes, source: str = "series") -> str | None:
@@ -117,7 +127,31 @@ def _manifest_entries(text: str, source: str) -> list[tuple[str, str]]:
     return entries
 
 
-def _layer(entry: tuple[str, str], chunk: bytes, source: str) -> Layer:
+def _manifest_titles(text: str, numbers: set[str], source: str) -> dict[str, str]:
+    """The pull request titles the manifest names, by number; a line that is not a well-formed title for a listed number is refused."""
+    titles: dict[str, str] = {}
+    for line_number, raw in enumerate(text.splitlines(), start=1):
+        found = TITLE_LINE.fullmatch(raw.strip())
+        if not found:
+            continue
+        where = f"{source}:{line_number}"
+        named = TITLE_BODY.fullmatch(found.group(1).strip())
+        if not named:
+            raise SeriesError(f"{where}: write a title as `# title 0001: docs(scope): say what the pull request is for`")
+        number, title = named.group(1), named.group(2).strip()
+        if number not in numbers:
+            raise SeriesError(f"{where}: the manifest lists no layer {number}, so there is no pull request to title")
+        if number in titles:
+            raise SeriesError(f"{where}: the pull request {number} is given a second title")
+        if len(title) > TITLE_MAX:
+            raise SeriesError(f"{where}: the title is {len(title)} characters; a subject has at most {TITLE_MAX}")
+        if not TITLE_FORM.fullmatch(title):
+            raise SeriesError(f"{where}: {title!r} is not a subject (a Conventional Commits type, then lowercase text after the colon)")
+        titles[number] = title
+    return titles
+
+
+def _layer(entry: tuple[str, str], chunk: bytes, source: str, title: str | None) -> Layer:
     layer_id, slug = entry
     message = email.message_from_bytes(chunk, policy=email.policy.default)
     subject, date = message["Subject"], message["Date"]
@@ -134,6 +168,7 @@ def _layer(entry: tuple[str, str], chunk: bytes, source: str) -> Layer:
         subject=" ".join(_SUBJECT_TAG.sub("", str(subject)).split()),
         authored=authored,
         source=source,
+        title=title,
     )
 
 
@@ -142,6 +177,7 @@ def order_layers(layers: list[Layer]) -> list[Layer]:
     by_id: dict[str, Layer] = {}
     slug_of_number: dict[str, str] = {}
     number_of_slug: dict[str, str] = {}
+    title_of_number: dict[str, str] = {}
     for layer in layers:
         if layer.id in by_id:
             raise SeriesError(f"{layer.id} is listed twice ({by_id[layer.id].source} and {layer.source}); a fix takes the next letter")
@@ -152,6 +188,8 @@ def order_layers(layers: list[Layer]) -> list[Layer]:
             )
         if number_of_slug.setdefault(layer.slug, layer.number) != layer.number:
             raise SeriesError(f"the branch slug {layer.slug!r} is used by {number_of_slug[layer.slug]} and {layer.number}; one slug is one number")
+        if layer.title and title_of_number.setdefault(layer.number, layer.title) != layer.title:
+            raise SeriesError(f"{layer.number} has the titles {title_of_number[layer.number]!r} and {layer.title!r}: a pull request has one title")
         by_id[layer.id] = layer
     return sorted(layers, key=lambda layer: layer.id)
 

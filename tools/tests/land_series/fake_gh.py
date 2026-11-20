@@ -71,9 +71,11 @@ def main(args: list[str]) -> int:
     elif verb == ["pr", "list"]:
         head = option(args, "--head")
         found = [
-            {"number": pr["number"], "url": pr["url"], "isCrossRepository": pr.get("fork", False)} for pr in state["prs"] if pr["head"] == head and pr["open"]
+            {"number": pr["number"], "url": pr["url"], "title": pr["title"], "isCrossRepository": pr.get("fork", False)}
+            for pr in state["prs"]
+            if pr["head"] == head and pr["open"]
         ]
-        assert "isCrossRepository" in option(args, "--json"), args
+        assert {"title", "isCrossRepository"} <= set(option(args, "--json").split(",")), args
         print(json.dumps(found))
     elif verb == ["pr", "create"]:
         number = len(state["prs"]) + 1
@@ -84,7 +86,9 @@ def main(args: list[str]) -> int:
         print(url)
     elif verb == ["pr", "edit"]:
         pr = state["prs"][number_of(args[2]) - 1]
-        pr["title"], pr["body"] = option(args, "--title"), option(args, "--body")
+        for field in ("title", "body"):
+            if f"--{field}" in args:
+                pr[field] = option(args, f"--{field}")
     elif args[:1] == ["api"]:
         assert args[1].startswith("repos/{owner}/{repo}/rules/branches/"), args
         if os.environ.get("FAKE_GH_API") == "fail":

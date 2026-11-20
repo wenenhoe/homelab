@@ -1222,6 +1222,395 @@
    "bot": false,
    "group": "docs/",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "048816f3669b6d089ec25159895783447482ec22",
+   "date": "2026-11-20T11:21:23+08:00",
+   "kind": "pr",
+   "pr": 973,
+   "title": "decide to publish the generated views as a site",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": [
+    [
+     "adr",
+     "ADR 0117 r000 \u00b7 delivering the generated doc views to readers",
+     "added (approved)"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "b6bf85b1fe458a1842ceadc09ee29aba7dcf8560",
+   "date": "2026-11-20T12:09:22+08:00",
+   "kind": "pr",
+   "pr": 974,
+   "title": "add the views site project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": [
+    [
+     "project",
+     "views-site",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "e42241008040e630b513e91bacf9f0a187739533",
+   "date": "2026-11-20T14:13:55+08:00",
+   "kind": "pr",
+   "pr": 975,
+   "title": "ask how the gateway's play tells its own firewall rules from others",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "9837365d49954890748cf9451d4f2e89b3231f3e",
+   "date": "2026-11-20T14:15:59+08:00",
+   "kind": "pr",
+   "pr": 976,
+   "title": "mark the gateway seed stage done",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "27c7816dfa9a463ce24e3a0652ee646f2606c6b7",
+   "date": "2026-11-20T15:03:08+08:00",
+   "kind": "pr",
+   "pr": 977,
+   "title": "build each generated view section from rows",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": [
+    [
+     "project",
+     "views-site",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "ac18e067741e6db2c532ec1ee9033f2fe89c6ad2",
+   "date": "2026-11-20T17:49:41+08:00",
+   "kind": "pr",
+   "pr": 979,
+   "title": "match the ssh control option as a word",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "7e40f8db46a4fd816d4d574999c2cffb8ce45e92",
+   "date": "2026-11-20T17:53:19+08:00",
+   "kind": "pr",
+   "pr": 978,
+   "title": "remove firewall rules the gateway's play does not write",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "6d9b3362fde15633fa458e6463af9c532ac2f749",
+   "date": "2026-11-20T17:56:06+08:00",
+   "kind": "pr",
+   "pr": 980,
+   "title": "add a step that adds a rule the play does not write",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "31960b4b8611b066e96e935abaf7e93943295a85",
+   "date": "2026-11-20T17:58:10+08:00",
+   "kind": "pr",
+   "pr": 981,
+   "title": "mark the gateway rule removal stage done",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "9d2485620a47df3d31ac426ed15272a780926ede",
+   "date": "2026-11-20T18:57:02+08:00",
+   "kind": "pr",
+   "pr": 982,
+   "title": "let the gateway project edit the Tofu credentials topic",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "78f7f1bc3deabe64947e358b6848330ce2087c2e",
+   "date": "2026-11-20T18:59:07+08:00",
+   "kind": "pr",
+   "pr": 983,
+   "title": "settle the production rebuild's open decisions",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "58afbc56b02ba8b99d0ad0285cf5176bcd1e4c54",
+   "date": "2026-11-20T22:43:39+08:00",
+   "kind": "pr",
+   "pr": 984,
+   "title": "let the gateway project declare the production gateway",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "75f8aacdf7784999313337721f7c794ed16bfc93",
+   "date": "2026-11-20T22:46:06+08:00",
+   "kind": "pr",
+   "pr": 985,
+   "title": "let the gateway start ahead of the VMs behind it",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ca9501268a46de09f9589213436ce9285b24f703",
+   "date": "2026-11-20T22:48:54+08:00",
+   "kind": "pr",
+   "pr": 986,
+   "title": "declare the production gateway in the root module",
+   "type": "feat",
+   "bot": false,
+   "group": "tofu/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "cd5b34fc0b888cb638f5af0996aed163b719f792",
+   "date": "2026-11-20T22:50:58+08:00",
+   "kind": "pr",
+   "pr": 987,
+   "title": "write the production rebuild around the gateway being stopped",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "eb49379fbaf98d3761c5e93d65ce701e5b89d44d",
+   "date": "2026-11-20T23:27:15+08:00",
+   "kind": "pr",
+   "pr": 988,
+   "title": "ask how the operator host reaches the node without the gateway",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "6cdc9e14cadd2904af480cfe6066257eb4b7c793",
+   "date": "2026-11-20T23:29:43+08:00",
+   "kind": "pr",
+   "pr": 989,
+   "title": "ask what would rehearse a production gateway rebuild",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "dbb7dd9d1dc29e9f02d17490a18692116fd5d335",
+   "date": "2026-11-20T23:32:11+08:00",
+   "kind": "pr",
+   "pr": 990,
+   "title": "ask whether a zone's canary should exist only for a run",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ac196c9c1018312be748adfc83780ec613dfbccf",
+   "date": "2026-11-20T23:56:36+08:00",
+   "kind": "pr",
+   "pr": 991,
+   "title": "open the OPNsense drift check",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-drift-check",
+   "events": [
+    [
+     "project",
+     "opnsense-config",
+     "closed"
+    ],
+    [
+     "project",
+     "opnsense-drift-check",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "ff7c6bbc95f5ddc413bc3f20982140d5828017df",
+   "date": "2026-11-20T23:59:24+08:00",
+   "kind": "pr",
+   "pr": 992,
+   "title": "record how long a per-run canary takes to build",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "bda3453517034a5d0da2362b1fff6f825e9fc3d5",
+   "date": "2026-11-21T00:19:07+08:00",
+   "kind": "pr",
+   "pr": 993,
+   "title": "add playwright to the dev group",
+   "type": "ci",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "76269110889b0037eec91c2db75a87910bc6389e",
+   "date": "2026-11-21T01:10:15+08:00",
+   "kind": "pr",
+   "pr": 994,
+   "title": "say when a series gets a layer of its own",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "ba1792567833f798c2b29b34468026d17b6a888e",
+   "date": "2026-11-21T01:12:42+08:00",
+   "kind": "pr",
+   "pr": 995,
+   "title": "say how a layer's slug and title are named",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "9242b0ec3311f49b0df501723dd421d80796a569",
+   "date": "2026-11-21T01:14:47+08:00",
+   "kind": "pr",
+   "pr": 996,
+   "title": "draft how a layer's pull request is titled",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0118 r000 \u00b7 the title of a layers pull request",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "2956c63da79f4a09b3dce6e4cb1bee088b4a0609",
+   "date": "2026-11-21T01:29:18+08:00",
+   "kind": "pr",
+   "pr": 997,
+   "title": "require the doc-site check before merge",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "6aca2665f044d54196f4655048606ac12bce9296",
+   "date": "2026-11-21T01:34:06+08:00",
+   "kind": "pr",
+   "pr": 998,
+   "title": "link the generated views by their site pages",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "05fbf8e5cb7801d72d67451777e92474a804604a",
+   "date": "2026-11-21T01:39:07+08:00",
+   "kind": "pr",
+   "pr": 999,
+   "title": "let a manifest name a pull request's title",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "745cce003116588df4e29b724ed8874c02c93842",
+   "date": "2026-11-21T01:42:50+08:00",
+   "kind": "pr",
+   "pr": 1000,
+   "title": "accept how a layer's pull request is titled",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0118 r000 \u00b7 the title of a layers pull request",
+     "working \u2192 accepted"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "8e2aa5becbebd35736c92082d767d344d4d33d8c",
+   "date": "2026-11-21T02:17:51+08:00",
+   "kind": "pr",
+   "pr": 1001,
+   "title": "leave git-ignored views out of the apply hooks",
+   "type": "fix",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": []
   }
  ]
 }

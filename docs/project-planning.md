@@ -141,6 +141,7 @@ shows no dates, so the view depends on the tree alone.
 | [`operator-host-reach-without-the-gateway.md`](explorations/operator-host-reach-without-the-gateway.md) | How does the operator host reach the node while the gateway is down? |
 | [`opnsense-rule-drift-read.md`](explorations/opnsense-rule-drift-read.md) | How could the play tell a firewall rule it writes from one it must remove? |
 | [`post-compromise-archive-relay.md`](explorations/post-compromise-archive-relay.md) | How could the lab notice that an archive a compromised host made has been relayed offsite as if it were genuine? |
+| [`production-rebuild-rehearsal.md`](explorations/production-rebuild-rehearsal.md) | What would rehearse a production rebuild of the gateway before the window? |
 | [`refactoring-review-lens.md`](explorations/refactoring-review-lens.md) | Can the automated review look for refactoring without producing noise? |
 | [`second-cloud-archive-window.md`](explorations/second-cloud-archive-window.md) | Can a second cloud hold the game-world archive for a short window of its own? |
 | [`series-landing-throughput.md`](explorations/series-landing-throughput.md) | Can a series land faster without giving up an exact check on every layer? |

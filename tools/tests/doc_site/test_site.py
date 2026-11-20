@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import re
 
 import pytest
@@ -91,3 +93,16 @@ class TestRoles:
     @pytest.mark.parametrize("cell", ["Building", "Not started", "blocked: x"])
     def test_a_status_has_a_key(self, cell):
         assert re.fullmatch(r"[a-z-]*", site.status_key(cell))
+
+
+class TestIntegrity:
+    def test_the_stylesheet_link_carries_the_sha384_of_the_vendored_file(self, tree):
+        files = site.build(tree)
+        expected = "sha384-" + base64.b64encode(hashlib.sha384(files["assets/simple.css"]).digest()).decode()
+        for path, data in files.items():
+            if path.endswith("index.html"):
+                assert f'assets/simple.css" integrity="{expected}"' in data.decode(), path
+
+    def test_the_value_is_the_one_openssl_gives(self):
+        # sha384 of the empty string, in the form the attribute takes.
+        assert site.integrity(b"") == "sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"

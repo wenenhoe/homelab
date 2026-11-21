@@ -5,7 +5,7 @@ checks after every commit, then keep a local branch per pull request for review 
 kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
 confirms every merge). Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
 (the base for the first), and `pre-commit run --all-files`; at each pull request's last commit the Python unit tests run as well, when CI's
-`python_unit_tests` filter is true for the pull request. Hooks to skip are named in SKIP in the environment, which the apply hooks read too.
+`python_unit_tests` filter is true for the pull request. Hooks to skip are named in SKIP in the environment, which `pre-commit` reads.
 """
 
 from __future__ import annotations

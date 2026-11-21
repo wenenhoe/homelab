@@ -63,7 +63,7 @@ Update at the start and end of each PR that works a stage.
 | 2 | The deploy workflow, the layout check and the topic doc | Done | `.github/workflows/pages.yml` builds on every push to `main` with a concurrency group and `cancel-in-progress: false`, runs the layout check at portrait and landscape phone widths, and deploys from a job that holds `pages: write` and `id-token: write` and no `contents: write`; every action is pinned by commit; a workflow test fails a `contents: write` on that job; `progress-log.yml`'s header no longer calls itself the only write token; `pr-checks.yml` builds the site and runs the layout check when the renderer, the generator or their inputs change; the site is live at its address with the three views |
 | 3 | The docs link the site | Done | No doc outside decision revisions links a view by path; an anchor link goes to the site's page and the same anchor; the 3 links inside decision revisions are changed as editorial; the drift check passes with the views still committed |
 | 4 | Stop committing the views | Done | The three files are not tracked and are ignored; `post-merge` and `post-checkout` hooks and `generate_doc_indexes` write them in a checkout; `check_doc_drift.py`, `doc_scope.py`, `classify.py` and `merge_adr_links.py` read or name them without a committed file; the apply hooks and the list they read are gone with the two tests of them |
-| 5 | The landing tool and its docs drop the views | Not started | `land_series` no longer resets generated views between layers or applies one patch per `git am`, its tests and `landing-a-series.md`, `pre-commit.md` and `checks-without-docker.md` describe the replay without them, and a series that edits a view's source lands with a plain `git am` |
+| 5 | The landing tool and its docs drop the views | Done | `land_series` no longer resets generated views between layers or applies one patch per `git am`, its tests and `landing-a-series.md`, `pre-commit.md` and `checks-without-docker.md` describe the replay without them, and a series that edits a view's source lands with a plain `git am` |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -87,13 +87,17 @@ The apply hooks cannot replay the commit that stops tracking the views: they `gi
 
 The checkout's generator runs from git hooks, which `pre-commit install` installs: `generate-doc-indexes` has the `post-checkout`, `post-merge` and `post-rewrite` stages besides the commit one. A test in a throwaway repository settled the choice. A rebase runs `post-checkout` once, when it checks out the new base, and not when it finishes, and a fast-forward merge runs `post-merge`; `post-rewrite` runs when a rebase or an amend finishes, so the three together leave the views current after each of those. A fresh clone has no hooks yet and runs the generator once by hand. The index check skips a generated view, so whether the file is there says nothing about a README, and the topics index no longer has to carry the coverage table's path as its row text.
 
+### Stage 5
+
+`land_series` applies every commit with all hooks off, which also means its apply no longer runs a hook that leaves a view unstaged, so the reset between commits is gone, and so are the hook preflight and the second `git am` that read a layer's paths. The replay still applies a commit at a time, because the checks run after each commit; the reason for the one-patch rule, a hook that left a view unstaged, is what went. The layer is now applied before the stop list asks about it, since applying with every hook off runs nothing it adds. ADR 0112 has a new revision, `working`, that describes landing without the views; the maintainer approves it, and ADR 0117 is set `accepted` in the pull request that closes this project, once that revision has landed.
+
 ## Acceptance criteria
 
 - [x] The site is live at the repository's Pages address with the decision index, the planning view and the coverage table, and a phone reads each in portrait and landscape without sideways scrolling.
 - [ ] The repository's Pages source is GitHub Actions and the `github-pages` environment accepts a deployment from `main` only; a deployment from another branch is refused.
 - [x] The deploy job has no `contents: write`, and `zizmor` reports nothing on the workflow.
 - [x] No tracked file is a generated view, and a checkout that runs the generator has all three as ignored files with the content the site shows.
-- [ ] A series that edits a view's source lands on `main` with a plain `git am`, and two series that each add a decision do not conflict.
+- [x] A series that edits a view's source lands on `main` with a plain `git am`, and two series that each add a decision do not conflict.
 - [x] No doc links a view by a path that is not in the tree, and every anchor link into a view reaches its section on the site.
 - [x] The site's `simple.css` is the pinned version, a test fails when its hash differs from the pin, and Renovate opens a pull request that moves the version, which the vendor command completes with the file and the hash.
 - [ ] ADR 0117 is `accepted`, and a new revision of ADR 0112 describes landing without the views.
@@ -107,7 +111,7 @@ without being restated here.
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced.
 - **Must not change:** the ADR's Decision, the repository's Pages and environment settings, the rulesets, and ADR 0112 (its new revision is the maintainer's to approve).
 - **Starts after the maintainer's word:** Stage 3 and every stage after it. Stages 1 and 2 leave every committed view and every link as it is; whether the site is trusted is the maintainer's call, and it is not inferred from a deployment succeeding.
-- **Relevant files and interfaces:** `tools/doc_scripts/generate_doc_indexes.py`, `view_intros/` and the three view paths in `doc_frontmatter.py`; the `generate-doc-indexes` hook's stages; `tools/land_series/` for the reset and the one-patch-per-`git am` rule; `warm-caches.yml` for a workflow with a concurrency group; `progress-log.yml` and [`progress-log.md`](../topics/engineering/progress-log.md) for the one other write token.
+- **Relevant files and interfaces:** `tools/doc_scripts/generate_doc_indexes.py`, `view_intros/` and the three view paths in `doc_frontmatter.py`; the `generate-doc-indexes` hook's stages; `tools/land_series/replay.py`; `warm-caches.yml` for a workflow with a concurrency group; `progress-log.yml` and [`progress-log.md`](../topics/engineering/progress-log.md) for the one other write token.
 - **Required checks:** `pre-commit run --all-files`, `uv run pytest` from `tools/`, and the layout check from Stage 2.
 
 ## Risks

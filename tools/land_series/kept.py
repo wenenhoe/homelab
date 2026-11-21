@@ -3,8 +3,8 @@
 `series/<slug>` is a pull request's branch, and the branches form a chain: a pull request's commits sit on the one before, and
 the first on the base. A record beside the repository's git directory holds the first and last commit the tool built and a hash
 of the patches they came from, so landing pushes a branch only while its tip is that commit and the patches are the ones in the
-series file. The branch is never compared with a rebuild: the generated views carry dates of the apply, so a rebuilt commit
-differs from the kept one in content nobody changed.
+series file. The branch is never compared with a rebuild: a rebuilt commit carries the time of the rebuild as its committer date, so
+it differs from the kept one in something nobody changed.
 """
 
 from __future__ import annotations

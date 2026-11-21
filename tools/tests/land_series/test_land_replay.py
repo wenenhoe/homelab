@@ -66,19 +66,18 @@ def test_each_layer_is_checked_on_the_tree_the_layers_before_it_made(repo: Repo,
     assert len(repo.worktrees()) == 1
 
 
-def test_files_an_apply_hook_leaves_behind_are_dropped_before_the_checks_and_the_next_layer(repo: Repo, author: Author, log: Path, tmp_path: Path) -> None:
-    hook_runs = tmp_path / "hook-runs"
-    repo.install_hook("post-applypatch", f"echo ran >> {hook_runs}\necho regenerated >> base.txt\n")
+def test_layers_that_edit_what_a_view_is_written_from_apply_one_after_the_other(repo: Repo, author: Author, log: Path) -> None:
+    """The views are not committed, so a series carries only their sources and no apply step has a view to reset."""
     layers = layers_of(
-        ("0001a", author.patch("docs: one", {"base.txt": "base\none\n"})),
-        ("0001b", author.patch("docs: two", {"base.txt": "base\none\ntwo\n"})),
+        ("0001a", author.patch("docs: add a note", {"one.txt": "one\n"})),
+        ("0001b", author.patch("docs: add another note", {"two.txt": "two\n"})),
+        ("0002a", author.patch("docs: reword an introduction", {"tools/doc_scripts/view_intros/decision-index.md": "# Index\n"})),
     )
 
-    results = replay(repo.path, layers, [recording_check("base.txt")], Confirmations(False), base="main")
+    results = replay(repo.path, layers, [recording_check("one.txt")], Confirmations(True), base="main")
 
-    assert hook_runs.read_text().splitlines() == ["ran", "ran"]
-    assert log.read_text().splitlines() == ["base/one", "base/one/two"]
-    assert all(result.applied for result in results)
+    assert [result.applied for result in results] == [True, True, True]
+    assert log.read_text().splitlines() == ["one", "one", "one"]
 
 
 def test_a_layer_already_in_the_base_is_skipped_and_the_ones_after_it_replay(repo: Repo, author: Author, log: Path) -> None:
@@ -287,39 +286,6 @@ def test_a_pull_request_with_some_of_its_commits_in_the_base_is_refused(repo: Re
         replay(repo.path, layers_of(("0001a", first), ("0001b", second)), [], Confirmations(False), base="main")
 
 
-def with_apply_hooks(repo: Repo) -> None:
-    """Add the file that tells the tool the base wants the apply hooks, and commit it on `main`."""
-    hook = repo.path / ".githooks" / "pre-applypatch"
-    hook.parent.mkdir()
-    hook.write_text("#!/bin/sh\n")
-    git(repo.path, "add", "-A")
-    git(repo.path, "commit", "-q", "-m", "chore: add the apply hook")
-
-
-def test_a_base_that_wants_the_apply_hooks_is_not_replayed_until_they_are_installed(repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
-    with_apply_hooks(repo)
-    monkeypatch.setattr("land_series.replay.shutil.which", lambda name: None)
-    layers = layers_of(("0001a", author.patch("docs: write one", {"a.txt": "one\n"})))
-
-    with pytest.raises(ReplayError) as error:
-        replay(repo.path, layers, [], Confirmations(False), base="main")
-
-    message = str(error.value)
-    assert "pre-applypatch, post-applypatch, pre-commit not installed" in message
-    assert "ln -sf" in message
-    assert "`pre-commit` is not on PATH" in message
-    assert repo.worktrees() == [f"worktree {repo.path}"]
-
-
-def test_a_base_without_the_apply_hook_file_needs_none_of_them(repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("land_series.replay.shutil.which", lambda name: None)
-    layers = layers_of(("0001a", author.patch("docs: write one", {"a.txt": "one\n"})))
-
-    results = replay(repo.path, layers, [], Confirmations(False), base="main")
-
-    assert [result.applied for result in results] == [True]
-
-
 def test_a_machine_without_a_committer_identity_is_named_before_anything_is_applied(repo: Repo, author: Author, monkeypatch: pytest.MonkeyPatch) -> None:
     for name in ("GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "EMAIL"):
         monkeypatch.delenv(name, raising=False)
@@ -372,14 +338,13 @@ def test_a_confirmed_layer_with_a_disguised_patch_replays(repo: Repo, author: Au
     assert [result.applied for result in results] == [True]
 
 
-def test_no_hook_runs_while_the_stop_list_is_read(repo: Repo, author: Author, tmp_path: Path) -> None:
+def test_no_hook_runs_while_a_layer_is_applied(repo: Repo, author: Author, tmp_path: Path) -> None:
     marker = tmp_path / "hook-ran"
     repo.install_hook("pre-applypatch", f"touch {marker}\n")
     repo.install_hook("post-applypatch", f"touch {marker}\n")
-    layers = layers_of(("0001a", author.patch("chore: change a tool", {"tools/run.py": "print()\n"})))
+    layers = layers_of(("0001a", author.patch("docs: write one", {"a.txt": "one\n"})))
 
-    with pytest.raises(ReplayError, match="was not confirmed"):
-        replay(repo.path, layers, [], Confirmations(False), base="main")
+    replay(repo.path, layers, [], Confirmations(False), base="main")
 
     assert not marker.exists()
 
@@ -399,7 +364,7 @@ def test_a_layer_that_does_not_apply_is_reported_before_the_stop_list_is_asked(r
     ("paths", "expected"),
     [
         pytest.param(["docs/x.md"], [], id="a doc"),
-        pytest.param([".githooks/pre-applypatch"], [".githooks/pre-applypatch"], id="a hook"),
+        pytest.param([".githooks/post-merge"], [".githooks/post-merge"], id="a hook"),
         pytest.param([".pre-commit-config.yaml"], [".pre-commit-config.yaml"], id="the pre-commit config link"),
         pytest.param(
             [".config/.pre-commit-config.yaml", ".config/zizmor.yml"], [".config/.pre-commit-config.yaml", ".config/zizmor.yml"], id="the config directory"

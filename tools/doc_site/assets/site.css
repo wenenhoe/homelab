@@ -74,6 +74,13 @@ td.title{font-weight:600}
 .pill{--c:var(--mute)}
 .pill.s-accepted,.pill.s-building{--c:var(--ok)}.pill.s-approved{--c:var(--info)}.pill.s-working{--c:var(--warn)}.pill.s-abandoned{--c:var(--bad)}
 
+/* project chips in the roadmap */
+.chips{display:flex;flex-wrap:wrap;gap:.35rem}
+.chip{display:inline-block;max-width:100%;padding:.2rem .6rem;border-radius:.5rem;font-size:.9rem;line-height:1.35;text-decoration:none;color:var(--text);background:color-mix(in srgb,var(--c) 12%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
+.chip:hover{background:color-mix(in srgb,var(--c) 22%,transparent)}
+.chip .badge{display:inline-block;margin-left:.4rem;padding:0 .4rem;border-radius:999px;font-size:.75rem;font-weight:600;color:var(--c);background:var(--bg)}
+.col-in-progress{--c:var(--ok)}.col-startable{--c:var(--info)}.col-waiting{--c:var(--mute)}
+
 /* cards (phones, landscape phones, small tablets) */
 @media (max-width:61.99rem){
  section table,section tbody{display:block;border:0;border-radius:0;overflow:visible}

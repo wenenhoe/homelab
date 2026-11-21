@@ -526,6 +526,21 @@ class TestDecisionsAwaitingAProject:
         revision(root, "0002-b", 0, status="approved")
         assert adrs() == ["0002", "0001"]
 
+    def test_the_decision_and_its_problem_are_separate_columns(self, root):
+        revision(root, "0002-b", 0, title="Choosing a thing", summary="Which thing, and why it is needed.", status="approved", solution="The first thing")
+        table = gen.needs_project_block(root)
+        assert table.headers == ("ADR", "Decision", "Problem", "Current solution", "Status")
+        ((_, title, problem, solution, status),) = table.rows
+        assert (title, problem, solution) == ("Choosing a thing", "Which thing, and why it is needed.", "The first thing")
+        assert status.startswith("Approved")
+
+    def test_a_pending_successor_has_the_same_columns(self, root):
+        revision(root, "0001-a", 0, title="Host config", summary="Where it lives.", status="accepted")
+        revision(root, "0001-a", 1, title="Host config", summary="Where it lives.", status="working", supersedes=0, solution="Newer")
+        ((_, title, problem, solution, status),) = gen.needs_project_block(root).rows
+        assert (title, problem, solution) == ("Host config", "Where it lives.", "Proposed revision 1: Newer")
+        assert status == "Working (proposed revision 1)"
+
 
 class TestLineagesIndex:
     def test_empty(self, root):

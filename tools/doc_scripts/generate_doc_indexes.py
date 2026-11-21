@@ -493,7 +493,7 @@ def needs_project_block(root: Path = ROOT) -> Block:
         if not uncovered:
             continue
         current = lineage.current()
-        problem = f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}"
+        title, problem = _cell(current.fm["title"]), _cell(current.fm["summary"])
         if current.status in ("accepted", "retired"):
             # current() is the shipped answer; what's actually uncovered is a
             # pending successor proposing to replace it — show that, not the
@@ -502,15 +502,15 @@ def needs_project_block(root: Path = ROOT) -> Block:
                 adr_cell = f"[{lineage.number}](decisions/{lineage.dir.name}/{r.path.name})"
                 solution = f"Proposed revision {r.label}: {r.fm['solution']}"
                 status = f"{ADR_STATUS_DISPLAY[r.status]} (proposed revision {r.label})"
-                entries.append((_approved_first([r]), (adr_cell, problem, _cell(solution), status)))
+                entries.append((_approved_first([r]), (adr_cell, title, problem, _cell(solution), status)))
         else:
             adr_cell, solution, status = _adr_solution_cells(lineage, prefix="decisions/")
-            entries.append((_approved_first(uncovered), (adr_cell, problem, _cell(solution), status)))
+            entries.append((_approved_first(uncovered), (adr_cell, title, problem, _cell(solution), status)))
     if not entries:
         return Note("Every open ADR is named in some project's `decision:` or `also_implements:`.")
     # sorted() is stable, so each group keeps the lineage order the loop produced.
     rows = tuple(row for _, row in sorted(entries, key=lambda e: e[0]))
-    return Table(("ADR", "Problem", "Current solution", "Status"), (":---",) * 4, rows)
+    return Table(("ADR", "Decision", "Problem", "Current solution", "Status"), (":---",) * 5, rows)
 
 
 def _implementing_projects(root: Path) -> dict[str, list[str]]:

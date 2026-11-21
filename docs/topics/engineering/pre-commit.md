@@ -6,7 +6,7 @@
 `post-merge` and `post-rewrite` git hooks in one step
 (`default_install_hook_types` in the config): most hooks run at commit time. `ansible-lint` runs at push time since it
 always re-lints the whole `ansible/` tree rather than just what changed,
-and so does `check-doc-change-push`, which needs the commits a push adds.
+and so does `check-doc-change-push`, which needs the commits a push adds. `land_series` mirrors both stages without depending on these being installed: its replay runs the `pre-commit`-stage hooks for each commit, and `--land` runs the `pre-push` ones before each push and then pushes with hooks off ([`landing-a-series.md`](landing-a-series.md#landing)).
 `.pre-commit-config.yaml` at the repo root is a symlink to
 `.config/.pre-commit-config.yaml` (config lives under `.config/`, but
 `pre-commit` only ever looks for its own config at the repo root by

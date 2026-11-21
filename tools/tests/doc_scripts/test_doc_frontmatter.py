@@ -4,9 +4,11 @@ and project docs. Run via `uv run pytest tools/tests/ -v`.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
+import yaml
 from _doc_fixtures import project, revision, write_doc
 from doc_scripts import doc_frontmatter as fm_mod
 
@@ -52,6 +54,39 @@ class TestReadFrontmatter:
         no_title = write_doc(root, "docs/projects/q.md", {"id": "PROJ-q", "type": "project", "status": "done"})
         with pytest.raises(SystemExit, match="missing required field 'title'"):
             fm_mod.read_frontmatter(no_title)
+
+
+class TestParsing:
+    def test_an_edited_file_is_read_afresh(self, root):
+        path = project(root, "p", summary="before")
+        assert fm_mod.read_frontmatter(path)["summary"] == "before"
+        project(root, "p", summary="after")
+        assert fm_mod.read_frontmatter(path)["summary"] == "after"
+
+    def test_a_caller_changing_what_it_read_does_not_change_the_next_read(self, root):
+        path = project(root, "p", depends_on=[{"project": "PROJ-q", "reason": "needs q"}])
+        first = fm_mod.read_frontmatter(path)
+        first["summary"] = "changed"
+        first["depends_on"].append({"project": "PROJ-r", "reason": "needs r"})
+        again = fm_mod.read_frontmatter(path)
+        assert again["summary"] == "p summary"
+        assert [d["project"] for d in again["depends_on"]] == ["PROJ-q"]
+
+    def test_a_block_that_fails_to_parse_fails_every_time(self, root):
+        path = root / "docs/projects/p.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("---\nid: [unclosed\n---\n", encoding="utf-8")
+        for _ in range(2):
+            with pytest.raises(yaml.YAMLError):
+                fm_mod.read_frontmatter(path)
+
+    @pytest.mark.skipif(not hasattr(yaml, "CSafeLoader"), reason="this PyYAML is built without libyaml")
+    def test_the_libyaml_loader_reads_every_doc_as_the_python_one_does(self):
+        blocks = [re.match(r"^---\n(.*?)\n---\n", path.read_text(encoding="utf-8"), re.DOTALL) for path in sorted((fm_mod.ROOT / "docs").rglob("*.md"))]
+        parsed = [m.group(1) for m in blocks if m]
+        assert parsed, "the repository has frontmatter to compare"
+        for block in parsed:
+            assert yaml.load(block, Loader=yaml.CSafeLoader) == yaml.load(block, Loader=yaml.SafeLoader), block
 
 
 def _lettered_file_without_a_candidate_field(root: Path) -> Path:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import re
+from typing import ClassVar
 
 import pytest
 from doc_scripts.generate_doc_indexes import intro_path
@@ -201,3 +202,55 @@ class TestDecisionsAwaitingAProject:
             < card.index('data-label="Problem"')
             < card.index('data-label="Current solution"')
         )
+
+
+class TestIntroduction:
+    PLANNING: ClassVar[site.View] = site.VIEWS[0]
+
+    def page(self, tree, intro: str) -> str:
+        (tree / intro_path(self.PLANNING.source)).write_text(f"# Planning view\n\n{intro}\n", encoding="utf-8")
+        return site.build(tree)[f"{self.PLANNING.slug}/index.html"].decode()
+
+    def test_a_paragraph_that_opens_with_a_sections_name_is_that_sections_caption(self, tree):
+        html = self.page(tree, "The lede.\n\n**Roadmap** has one row for each initiative.\n\n**Projects** is every project.")
+        assert '<h2>Roadmap</h2>\n<p class="caption"><strong>Roadmap</strong> has one row for each initiative.</p>' in html
+        assert '<h2>Projects</h2>\n<p class="caption"><strong>Projects</strong> is every project.</p>' in html
+        assert '<p class="lede">The lede.</p>' in html
+        assert html.count('class="lede"') == 1 and "<details" not in html
+
+    def test_a_paragraph_for_no_section_goes_in_a_legend_after_the_lede(self, tree):
+        html = self.page(tree, "The lede.\n\n**Status**, in every table, is the lifecycle status.\n\n**Roadmap** has one row.")
+        legend = html[html.index('<details class="legend">') : html.index("</details>")]
+        assert "<summary>How to read this page</summary>" in legend and "lifecycle status" in legend and "one row" not in legend
+        assert html.index("The lede.") < html.index("<details") < html.index('<div class="filter">')
+
+    def test_a_caption_whose_section_is_gone_is_not_lost(self, tree):
+        html = self.page(tree, "The lede.\n\n**Renamed section** has rows.")
+        assert "<p>" in html[html.index("<details") :] and "Renamed section" in html[html.index("<details") :]
+        assert 'class="caption"' not in html
+
+    def test_a_section_with_no_paragraph_has_no_caption(self, tree):
+        assert 'class="caption"' not in self.page(tree, "Only a lede.")
+
+    def test_a_link_in_a_caption_is_resolved_like_any_other(self, tree):
+        html = self.page(tree, "The lede.\n\n**Roadmap** is in [the decisions](decision-index.md#by-number).")
+        assert 'href="../decision-index/#by-number"' in html[html.index('class="caption"') :]
+
+
+class TestSplitIntro:
+    HEADINGS: ClassVar[list[str]] = ["Roadmap", "Projects"]
+
+    def test_the_first_paragraph_that_is_not_a_caption_is_the_lede(self):
+        lede, captions, legend = site.split_intro(["**Roadmap** a", "Lede", "Other", "**Projects** b"], self.HEADINGS)
+        assert (lede, legend) == (["Lede"], ["Other"]) and captions == {"Roadmap": "**Roadmap** a", "Projects": "**Projects** b"}
+
+    def test_a_name_that_only_starts_a_longer_one_is_not_a_caption(self):
+        _, captions, legend = site.split_intro(["Lede", "**Roadmap items** a"], self.HEADINGS)
+        assert captions == {} and legend == ["**Roadmap items** a"]
+
+    def test_a_second_paragraph_for_one_section_goes_to_the_legend(self):
+        _, captions, legend = site.split_intro(["Lede", "**Roadmap** a", "**Roadmap** b"], self.HEADINGS)
+        assert captions == {"Roadmap": "**Roadmap** a"} and legend == ["**Roadmap** b"]
+
+    def test_no_paragraphs_gives_nothing(self):
+        assert site.split_intro([], self.HEADINGS) == ([], {}, [])

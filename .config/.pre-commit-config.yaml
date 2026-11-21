@@ -10,10 +10,11 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-yaml
-      # The vendored stylesheet is the published file byte for byte, and its pin holds that file's hash.
+      # The vendored stylesheet and bundle are the published files byte for byte, and each pin holds its file's hash.
       - id: end-of-file-fixer
         exclude: ^tools/doc_site/vendor/
       - id: trailing-whitespace
+        exclude: ^tools/doc_site/vendor/
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.38.0
     hooks:

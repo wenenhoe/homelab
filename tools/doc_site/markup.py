@@ -74,8 +74,8 @@ def inline(text: str, resolve: Resolver) -> str:
     return "".join(out)
 
 
-def paragraphs(text: str, resolve: Resolver) -> list[str]:
-    """Blank-line separated paragraphs as HTML. A wrapped paragraph is one line of text."""
+def blocks(text: str) -> list[str]:
+    """Blank-line separated paragraphs as markdown, each a single line. Refuses what starts a block this module does not render."""
     result = []
     for block in re.split(r"\n\s*\n", text.strip()):
         if not block.strip():
@@ -83,8 +83,13 @@ def paragraphs(text: str, resolve: Resolver) -> list[str]:
         for line in block.splitlines():
             if _UNSUPPORTED_BLOCK.match(line):
                 raise UnsupportedMarkup(f"not rendered: {line.strip()[:60]!r}")
-        result.append(inline(" ".join(line.strip() for line in block.splitlines()), resolve))
+        result.append(" ".join(line.strip() for line in block.splitlines()))
     return result
+
+
+def paragraphs(text: str, resolve: Resolver) -> list[str]:
+    """Blank-line separated paragraphs as HTML. A wrapped paragraph is one line of text."""
+    return [inline(block, resolve) for block in blocks(text)]
 
 
 def link_resolver(view: str, pages: dict[str, str], is_dir: Callable[[str], bool]) -> Resolver:

@@ -15,7 +15,8 @@ from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
 from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, inline, link_resolver, paragraphs
+from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, blocks, inline, link_resolver
+from doc_site.summary import tiles
 
 PACKAGE = Path(__file__).resolve().parent
 
@@ -122,6 +123,24 @@ def _title_and_intro(text: str, view: str) -> tuple[str, str]:
     return lines[heading][2:].strip(), "\n".join(lines[heading + 1 :])
 
 
+def split_intro(paragraphs: list[str], headings: list[str]) -> tuple[list[str], dict[str, str], list[str]]:
+    """An introduction's paragraphs as markdown, sorted for the page: the lede that opens it, the caption of each section, and the rest.
+
+    A paragraph that opens with a section's name in bold (`**Roadmap** has one row...`) is that section's caption, and the page puts it
+    under the section's heading, where it explains what is there. The first paragraph that is not a caption is the lede. Every other
+    paragraph, such as a definition of a column that several sections share, goes in a legend the reader opens. A section renamed
+    without its paragraph does not lose the paragraph: it moves to the legend."""
+    captions: dict[str, str] = {}
+    rest: list[str] = []
+    for paragraph in paragraphs:
+        lead = re.match(r"\*\*([^*]+)\*\*", paragraph)
+        if lead and lead[1] in headings and lead[1] not in captions:
+            captions[lead[1]] = paragraph
+        else:
+            rest.append(paragraph)
+    return rest[:1], captions, rest[1:]
+
+
 def _page_addresses(from_slug: str | None) -> dict[str, str]:
     """Each view's address from the page for `from_slug` (None for the home page)."""
     prefix = "" if from_slug is None else "../"
@@ -190,17 +209,24 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
         resolve = link_resolver(view.source, _page_addresses(view.slug), lambda path: (root / path).is_dir())
         anchors = Anchors()
         headings = [Heading(1, anchors.of(title), title)]
+        own = [g for g in generated if g.view == view.source]
+        lede, captions, legend = split_intro(blocks(intro), [g.heading for g in own])
         sections = []
-        for item in (g for g in generated if g.view == view.source):
+        counted: dict[str, tuple[str, Block]] = {}
+        for item in own:
             anchor = anchors.of(item.heading)
+            counted[item.heading] = (anchor, item.block)
             headings.append(Heading(2, anchor, item.heading))
-            sections.append({"id": anchor, "title": item.heading, "html": _block(item.block, resolve, anchors, headings)})
+            caption = inline(captions[item.heading], resolve) if item.heading in captions else ""
+            sections.append({"id": anchor, "title": item.heading, "caption": caption, "html": _block(item.block, resolve, anchors, headings)})
         files[f"{view.slug}/index.html"] = (
             env.get_template("page.html.j2")
             .render(
                 title=title,
                 title_id=headings[0].id,
-                intro=paragraphs(intro, resolve),
+                tiles=tiles(view.slug, counted),
+                lede=[inline(paragraph, resolve) for paragraph in lede],
+                legend=[inline(paragraph, resolve) for paragraph in legend],
                 sections=sections,
                 headings=headings[1:],
                 nav=nav(view.slug),

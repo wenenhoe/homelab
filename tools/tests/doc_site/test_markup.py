@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 import pytest
-from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, github_slug, inline, link_resolver, paragraphs
+from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, blocks, github_slug, inline, link_resolver, paragraphs
 
 
 def keep(target: str) -> str:
@@ -82,3 +82,12 @@ class TestLinkResolver:
     def test_a_link_out_of_the_repository_is_refused(self):
         with pytest.raises(UnsupportedMarkup):
             self.resolver()("../../../etc/passwd")
+
+
+class TestBlocks:
+    def test_a_wrapped_paragraph_is_one_line_and_paragraphs_are_split_on_blank_lines(self):
+        assert blocks("one\ntwo\n\nthree\n") == ["one two", "three"]
+
+    def test_markup_that_is_not_rendered_is_refused(self):
+        with pytest.raises(UnsupportedMarkup):
+            blocks("fine\n\n- a list")

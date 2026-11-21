@@ -254,3 +254,44 @@ class TestSplitIntro:
 
     def test_no_paragraphs_gives_nothing(self):
         assert site.split_intro([], self.HEADINGS) == ([], {}, [])
+
+
+class TestRoadmapChips:
+    @staticmethod
+    def resolve(target: str) -> str:
+        return f"https://example.com/{target}"
+
+    def test_each_project_is_a_chip_and_an_unblocks_count_is_its_badge(self):
+        cell = "[`one.md`](projects/one.md) (unblocks 2), [`two.md`](projects/two.md)"
+        assert site._chips(cell, self.resolve) == (
+            '<div class="chips">'
+            '<a class="chip" href="https://example.com/projects/one.md">one<span class="badge">unblocks 2</span></a>'
+            '<a class="chip" href="https://example.com/projects/two.md">two</a>'
+            "</div>"
+        )
+
+    @pytest.mark.parametrize(
+        "cell", ["—", "", "text before [`one.md`](projects/one.md)", "[`one.md`](projects/one.md) and more", "[`one.md`](projects/one.md); [`two.md`](x)"]
+    )
+    def test_a_cell_that_is_not_a_list_of_projects_is_left_to_the_text_renderer(self, cell):
+        assert site._chips(cell, self.resolve) is None
+
+    def test_a_name_is_escaped(self):
+        assert ">a&amp;b<" in site._chips("[`a&b.md`](x)", self.resolve)
+
+    def roadmap(self, tree) -> str:
+        html = site.build(tree)["project-planning/index.html"].decode()
+        return html[html.index('<section id="roadmap">') : html.index("</section>", html.index('<section id="roadmap">'))]
+
+    def test_the_roadmaps_project_columns_hold_chips_by_state(self, tree):
+        roadmap = self.roadmap(tree)
+        assert re.search(r'<td class="field col-in-progress" data-label="In progress"><div class="chips"><a class="chip" href="[^"]*one\.md">one</a>', roadmap)
+        assert re.search(r'<td class="field col-startable" data-label="Startable"><div class="chips"><a class="chip" href="[^"]*two\.md">two</a>', roadmap)
+
+    def test_an_empty_column_is_still_a_dash(self, tree):
+        assert '<td class="field none col-waiting" data-label="Waiting">—</td>' in self.roadmap(tree)
+
+    def test_other_tables_keep_their_links_as_text(self, tree):
+        html = site.build(tree)["project-planning/index.html"].decode()
+        after = html[html.index("</section>", html.index('<section id="roadmap">')) :]
+        assert 'class="chip"' not in after

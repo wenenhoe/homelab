@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import html
 import posixpath
 import re
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, blocks, inline, link_resolver
-from doc_site.summary import tiles
+from doc_site.summary import ROADMAP_COLUMNS, tiles
 
 PACKAGE = Path(__file__).resolve().parent
 
@@ -76,7 +77,25 @@ class Heading:
     text: str
 
 
-def _table(table: Table, resolve) -> str:
+_LINK = r"\[`(?P<name>[^`]+?)(?:\.md)?`\]\((?P<target>[^)\s]+)\)(?: \(unblocks (?P<count>\d+)\))?"
+_CHIP = re.compile(_LINK)
+
+
+def _chips(cell: str, resolve) -> str | None:
+    """A roadmap cell, a comma-separated list of project links each with an optional `(unblocks N)`, as one chip for each project. None when
+    the cell is anything else, so it is rendered as text and nothing is lost."""
+    links = list(_CHIP.finditer(cell))
+    if not links or ", ".join(link.group(0) for link in links) != cell:
+        return None
+    chips = []
+    for link in links:
+        href = html.escape(resolve(link["target"]), quote=True)
+        badge = f'<span class="badge">unblocks {link["count"]}</span>' if link["count"] else ""
+        chips.append(f'<a class="chip" href="{href}">{html.escape(link["name"], quote=False)}{badge}</a>')
+    return f'<div class="chips">{"".join(chips)}</div>'
+
+
+def _table(table: Table, resolve, chips: tuple[str, ...] = ()) -> str:
     roles = roles_of(table.headers)
     head = "".join(f"<th>{inline(h, resolve)}</th>" for h in table.headers)
     body = []
@@ -84,8 +103,8 @@ def _table(table: Table, resolve) -> str:
         cells = []
         key = ""
         for header, role, cell in zip(table.headers, roles, row, strict=True):
-            text = inline(cell, resolve)
-            classes = [role] + (["none"] if cell in NO_VALUE else [])
+            text = (_chips(cell, resolve) if header in chips else None) or inline(cell, resolve)
+            classes = [role] + (["none"] if cell in NO_VALUE else []) + ([f"col-{re.sub(r'[^a-z]+', '-', header.lower())}"] if header in chips else [])
             if role == "status" and cell not in NO_VALUE:
                 key = status_key(text)
                 text = f'<span class="pill s-{key}">{text}</span>'
@@ -96,11 +115,11 @@ def _table(table: Table, resolve) -> str:
     return f"<table><thead><tr>{head}</tr></thead><tbody>{''.join(body)}</tbody></table>"
 
 
-def _block(block: Block, resolve, anchors: Anchors, headings: list[Heading]) -> str:
+def _block(block: Block, resolve, anchors: Anchors, headings: list[Heading], chips: tuple[str, ...] = ()) -> str:
     if isinstance(block, Note):
         return f'<p class="note">{inline(block.text, resolve)}</p>'
     if isinstance(block, Table):
-        return _table(block, resolve)
+        return _table(block, resolve, chips)
     if isinstance(block, Groups):
         parts = []
         for title, table in block.items:
@@ -218,7 +237,14 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
             counted[item.heading] = (anchor, item.block)
             headings.append(Heading(2, anchor, item.heading))
             caption = inline(captions[item.heading], resolve) if item.heading in captions else ""
-            sections.append({"id": anchor, "title": item.heading, "caption": caption, "html": _block(item.block, resolve, anchors, headings)})
+            sections.append(
+                {
+                    "id": anchor,
+                    "title": item.heading,
+                    "caption": caption,
+                    "html": _block(item.block, resolve, anchors, headings, ROADMAP_COLUMNS if item.heading == "Roadmap" else ()),
+                }
+            )
         files[f"{view.slug}/index.html"] = (
             env.get_template("page.html.j2")
             .render(

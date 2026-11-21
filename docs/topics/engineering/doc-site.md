@@ -32,6 +32,10 @@ Each page takes its `# Title` and introduction from the view's file in [`tools/d
 
 The planning page and the decision index open with a strip of counts, each linking to the section it counts ([`summary.py`](../../../tools/doc_site/summary.py)). The planning page shows the projects in progress, startable and waiting (a link in a roadmap cell is a project; its "unblocks" count is not one), the decisions awaiting a project with how many of them are approved, and the open explorations. The decision index shows every decision, the open ones with how many are approved, and the superseded or abandoned ones. Each is counted from the rows of its section, so it cannot disagree with the table. A count that names a section the page lacks shows 0 and links nowhere; a view the module does not know has no strip.
 
+## Roadmap chips
+
+In the roadmap each project in the In progress, Startable and Waiting columns is a chip, a link named by the project without its `.md`, coloured by its column, with an "unblocks N" badge where the row has one. A cell that is anything other than a comma-separated list of project links (a dash, say) is rendered as text, so a change to the cell's form shows as plain links and loses nothing. No other table has chips.
+
 ## Anchors and links
 
 Every heading has the anchor GitHub gives it: lowercase, everything but letters, digits, spaces, hyphens and underscores removed, spaces as hyphens, a repeat numbered `-1`, `-2`. Docs that link to a section of a view therefore reach the same section on the site. A link from one view to another goes to its page, with the anchor kept; a link to any other file goes to it on GitHub.

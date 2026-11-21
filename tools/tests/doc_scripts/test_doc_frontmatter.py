@@ -89,6 +89,51 @@ class TestParsing:
             assert yaml.load(block, Loader=yaml.CSafeLoader) == yaml.load(block, Loader=yaml.SafeLoader), block
 
 
+class TestLineagesLoadedOnce:
+    def test_a_load_inside_the_scope_is_reused_and_one_outside_reads_the_tree(self, root):
+        revision(root, "0044-x", 0, status="working")
+        with fm_mod.lineages_loaded_once():
+            (first,) = fm_mod.load_lineages(root)
+            revision(root, "0045-y", 0, status="working")
+            assert [lineage.id for lineage in fm_mod.load_lineages(root)] == ["ADR-0044"]
+        assert first.id == "ADR-0044"
+        assert [lineage.id for lineage in fm_mod.load_lineages(root)] == ["ADR-0044", "ADR-0045"]
+
+    def test_each_root_is_loaded_for_itself(self, root, tmp_path_factory):
+        other = tmp_path_factory.mktemp("other")
+        revision(root, "0044-x", 0)
+        revision(other, "0055-z", 0)
+        with fm_mod.lineages_loaded_once():
+            assert [lineage.id for lineage in fm_mod.load_lineages(root)] == ["ADR-0044"]
+            assert [lineage.id for lineage in fm_mod.load_lineages(other)] == ["ADR-0055"]
+
+    def test_a_caller_changing_its_list_does_not_change_the_next_caller_s(self, root):
+        revision(root, "0044-x", 0)
+        with fm_mod.lineages_loaded_once():
+            fm_mod.load_lineages(root).clear()
+            assert [lineage.id for lineage in fm_mod.load_lineages(root)] == ["ADR-0044"]
+
+    def test_a_tree_that_fails_to_load_fails_for_every_caller_and_ends_the_scope(self, root):
+        revision(root, "0044-x", 0, topic="not-a-topic")
+        with pytest.raises(SystemExit, match="not-a-topic"), fm_mod.lineages_loaded_once():
+            for _ in range(2):
+                try:
+                    fm_mod.load_lineages(root)
+                except SystemExit as first:
+                    assert "not-a-topic" in str(first)
+            fm_mod.load_lineages(root)
+        revision(root, "0044-x", 0)
+        assert [lineage.id for lineage in fm_mod.load_lineages(root)] == ["ADR-0044"]
+
+    def test_a_nested_scope_joins_the_outer_one(self, root):
+        revision(root, "0044-x", 0)
+        with fm_mod.lineages_loaded_once():
+            fm_mod.load_lineages(root)
+            with fm_mod.lineages_loaded_once():
+                revision(root, "0045-y", 0)
+            assert [lineage.id for lineage in fm_mod.load_lineages(root)] == ["ADR-0044"]
+
+
 def _lettered_file_without_a_candidate_field(root: Path) -> Path:
     path = revision(root, "0047-x", 0, letter="a")
     path.write_text(path.read_text(encoding="utf-8").replace("candidate: a\n", ""), encoding="utf-8")

@@ -30,7 +30,7 @@ from pathlib import Path
 
 from doc_scripts.doc_coverage import COVERAGE_RELATIVE, coverage_block
 from doc_scripts.doc_explorations import load_explorations
-from doc_scripts.doc_frontmatter import DECISION_INDEX, PLANNING_VIEW, ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
+from doc_scripts.doc_frontmatter import DECISION_INDEX, PLANNING_VIEW, ROOT, TOPICS, Lineage, docs_in, lineages_loaded_once, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
 from doc_scripts.doc_reliance import unmet_reliances
 from doc_scripts.doc_removed import LEDGER
@@ -616,18 +616,19 @@ PLANNING_RELATIVE = PLANNING_VIEW
 def generated_blocks(root: Path = ROOT) -> list[Generated]:
     """Every generated section, in the order they are written: the three views' rows, which the
     markdown files and the published pages are both formatted from."""
-    return [
-        Generated(PLANNING_RELATIVE, "Roadmap", roadmap_block(root)),
-        Generated(PLANNING_RELATIVE, "Super Projects", initiatives_block(root)),
-        Generated(PLANNING_RELATIVE, "Projects", standalone_projects_block(root)),
-        Generated(PLANNING_RELATIVE, "Decisions awaiting a project", needs_project_block(root)),
-        Generated(PLANNING_RELATIVE, "Open explorations", explorations_block(root)),
-        Generated(DECISION_INDEX, "By number", decisions_by_number_block(root)),
-        Generated(DECISION_INDEX, "By topic", lineages_index_block(root)),
-        Generated(DECISION_INDEX, "Open decisions", open_decisions_block(root)),
-        Generated(DECISION_INDEX, "History", history_block(root)),
-        Generated(COVERAGE_RELATIVE, "Apps", coverage_block(root)),
-    ]
+    with lineages_loaded_once():
+        return [
+            Generated(PLANNING_RELATIVE, "Roadmap", roadmap_block(root)),
+            Generated(PLANNING_RELATIVE, "Super Projects", initiatives_block(root)),
+            Generated(PLANNING_RELATIVE, "Projects", standalone_projects_block(root)),
+            Generated(PLANNING_RELATIVE, "Decisions awaiting a project", needs_project_block(root)),
+            Generated(PLANNING_RELATIVE, "Open explorations", explorations_block(root)),
+            Generated(DECISION_INDEX, "By number", decisions_by_number_block(root)),
+            Generated(DECISION_INDEX, "By topic", lineages_index_block(root)),
+            Generated(DECISION_INDEX, "Open decisions", open_decisions_block(root)),
+            Generated(DECISION_INDEX, "History", history_block(root)),
+            Generated(COVERAGE_RELATIVE, "Apps", coverage_block(root)),
+        ]
 
 
 # More projects than this at `building` or `de-risking` at once is reported (ADR 0037 revision 4).
@@ -682,9 +683,11 @@ def write_views(root: Path = ROOT) -> tuple[str, ...]:
 
 
 def main() -> int:
-    validate_adrs()
-    views = write_views()
-    for warning in active_project_warnings(ROOT):
+    with lineages_loaded_once():
+        validate_adrs()
+        views = write_views()
+        warnings = active_project_warnings(ROOT)
+    for warning in warnings:
         print(warning, file=sys.stderr)
     print(f"Regenerated {', '.join(views)}.")
     return 0

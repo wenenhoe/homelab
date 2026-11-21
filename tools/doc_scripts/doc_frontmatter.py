@@ -10,9 +10,11 @@ which `status` values it may carry.
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import functools
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -308,7 +310,7 @@ class Lineage:
         return [r for r in self.revisions if r.number > current.number and r.status in ("working", "approved")]
 
 
-def load_lineages(root: Path = ROOT) -> list[Lineage]:
+def _read_lineages(root: Path) -> list[Lineage]:
     decisions = root / "docs" / "decisions"
     if not decisions.is_dir():
         return []
@@ -325,3 +327,31 @@ def load_lineages(root: Path = ROOT) -> list[Lineage]:
             raise SystemExit(f"{lineage_dir}: lineage directory has no revision files")
         lineages.append(Lineage(lineage_dir.name[:4], lineage_dir, tuple(revisions)))
     return lineages
+
+
+# While a `lineages_loaded_once` block runs, the lineages of each root as first loaded; None otherwise.
+_loaded_once: dict[Path, list[Lineage]] | None = None
+
+
+@contextlib.contextmanager
+def lineages_loaded_once() -> Iterator[None]:
+    """Within the block `load_lineages` reads each root's tree once and every caller gets that result, for a run that
+    asks for the same lineages many times and changes none of them. A load that fails is not kept, so it fails again for
+    the next caller, and the scope ends however the block does."""
+    global _loaded_once
+    if _loaded_once is not None:
+        yield
+        return
+    _loaded_once = {}
+    try:
+        yield
+    finally:
+        _loaded_once = None
+
+
+def load_lineages(root: Path = ROOT) -> list[Lineage]:
+    if _loaded_once is None:
+        return _read_lineages(root)
+    if root not in _loaded_once:
+        _loaded_once[root] = _read_lineages(root)
+    return list(_loaded_once[root])

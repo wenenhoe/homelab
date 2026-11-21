@@ -2,7 +2,8 @@
 
 A CommonMark library reads the body, so lists, tables, code blocks and the rest come out as GitHub's rules say. What the repository's
 documents use is a small set, and anything else is refused rather than shown wrongly, as `markup.py` does for the views: raw HTML,
-an image, a block the renderer has no rule for. A heading takes the anchor GitHub gives it, a link is turned into the address the page
+an image, a block the renderer has no rule for. A Mermaid block is left as a marker, which the build replaces with the diagram
+(`diagrams.py`). A heading takes the anchor GitHub gives it, a link is turned into the address the page
 uses, a task-list item is a box, and a table carries the labels its cells need for the card layout on a phone.
 """
 
@@ -35,12 +36,22 @@ TASK = re.compile(r"\[( |x|X)\] ")
 CHECKBOX = '<input type="checkbox" disabled aria-label="{label}"{checked}> '
 
 
+MARKER = "<!--diagram:{}-->"
+
+
+@dataclass(frozen=True)
+class Diagram:
+    line: int  # where its fence opens in the file
+    code: str
+
+
 @dataclass(frozen=True)
 class Rendered:
     title: str  # the text of the `# ` heading, which the page shows itself
     title_id: str
-    html: str  # the rest of the body
+    html: str  # the rest of the body; a Mermaid block is a `MARKER` for the diagram of that number, for the build to replace
     headings: tuple[Heading, ...]  # the `##` and `###` headings, for the page's contents
+    diagrams: tuple[Diagram, ...] = ()
 
 
 def _plain(inline: Token) -> str:
@@ -63,8 +74,6 @@ def _checked(source: str, tokens: list[Token]) -> list[Token]:
             if not COMMENT.fullmatch(token.content):
                 raise _refuse(source, token, f"HTML {token.content.strip()[:40]!r}")
             continue
-        if token.type == "fence" and token.info.split()[:1] == ["mermaid"]:
-            raise _refuse(source, token, "a Mermaid diagram")
         if token.type not in BLOCKS:
             raise _refuse(source, token, f"a block of type {token.type!r}")
         if token.type == "inline":
@@ -83,6 +92,12 @@ def _checked(source: str, tokens: list[Token]) -> list[Token]:
 def _html(content: str) -> Token:
     token = Token("html_inline", "", 0)
     token.content = content
+    return token
+
+
+def _html_block(content: str) -> Token:
+    token = Token("html_block", "", 0)
+    token.content = content + "\n"
     return token
 
 
@@ -140,6 +155,7 @@ def render(text: str, resolve: Resolver, source: str = "document") -> Rendered:
     headings: list[Heading] = []
     title = title_id = ""
     body: list[Token] = []
+    diagrams: list[Diagram] = []
     skip = 0
     for index, token in enumerate(tokens):
         if skip:
@@ -155,6 +171,9 @@ def render(text: str, resolve: Resolver, source: str = "document") -> Rendered:
             token.attrSet("id", anchor)
             if level in (2, 3):
                 headings.append(Heading(level, anchor, _plain(inline)))
+        if token.type == "fence" and token.info.split()[:1] == ["mermaid"]:
+            token = _html_block(MARKER.format(len(diagrams)))
+            diagrams.append(Diagram((tokens[index].map or [0])[0] + 1, tokens[index].content))
         if token.type == "inline":
             for child in token.children:
                 if child.type == "link_open":
@@ -164,4 +183,4 @@ def render(text: str, resolve: Resolver, source: str = "document") -> Rendered:
         raise UnsupportedMarkup(f"{source} has no `# ` title")
     _tasks(body)
     _tables(body)
-    return Rendered(title, title_id, md.renderer.render(body, md.options, {}), tuple(headings))
+    return Rendered(title, title_id, md.renderer.render(body, md.options, {}), tuple(headings), tuple(diagrams))

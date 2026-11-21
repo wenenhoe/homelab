@@ -53,9 +53,13 @@ def test_an_image_is_refused():
         html_of("![alt](a.png)\n")
 
 
-def test_a_mermaid_block_is_refused_until_the_site_draws_it():
-    with pytest.raises(UnsupportedMarkup, match="a Mermaid diagram is not rendered"):
-        html_of("```mermaid\ngraph TD\n```\n")
+def test_a_mermaid_block_is_a_marker_for_the_build_to_draw():
+    page = render("# T\n\ntext\n\n```mermaid\ngraph TD\n  A --> B\n```\n\n```mermaid\ngraph LR\n```\n", same, "doc.md")
+    assert page.html.count("<!--diagram:") == 2
+    assert "<!--diagram:0-->" in page.html
+    assert "<!--diagram:1-->" in page.html
+    assert "graph TD" not in page.html
+    assert [(d.line, d.code) for d in page.diagrams] == [(5, "graph TD\n  A --> B\n"), (10, "graph LR\n")]
 
 
 def test_other_code_blocks_are_kept():

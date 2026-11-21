@@ -134,3 +134,74 @@ def test_update_writes_nothing_when_the_tarball_differs_from_the_tag(vendored):
     with pytest.raises(vendor.VendorError):
         vendor.update("2.4.0", registry("2.4.0", b"new", b"tagged"), folder, pin)
     assert ((folder / "simple.min.css").read_bytes(), pin.read_text()) == before
+
+
+class TestTheMermaidBundle:
+    """A bundle the repository builds rather than commits: its file is in a directory of the package, and only the registry holds it."""
+
+    @staticmethod
+    def package(body: bytes) -> bytes:
+        return package("11.17.2", body, name="package/dist/mermaid.min.js")
+
+    @staticmethod
+    def vendored_bundle(tmp_path):
+        folder = tmp_path / "vendor"
+        folder.mkdir()
+        (folder / "mermaid.min.js").write_bytes(BODY)
+        pin = folder / "mermaid.pin"
+        lines = ["package = mermaid", "version = 11.17.2", "file = dist/mermaid.min.js", f"sha256 = {vendor.digest(BODY)}"]
+        pin.write_text("\n".join([*lines, "repository = mermaid-js/mermaid", "source = registry", ""]), encoding="utf-8")
+        return folder, pin
+
+    def test_the_committed_bundle_is_the_one_its_pin_names(self):
+        assert vendor.local_errors(pin_path=vendor.MERMAID_PIN) == []
+
+    def test_the_bundle_has_its_licence(self):
+        assert (vendor.VENDOR / "mermaid.LICENSE").read_text(encoding="utf-8").startswith("The MIT License")
+
+    def test_the_file_is_checked_by_its_name_in_the_vendor_directory(self, tmp_path):
+        folder, pin = self.vendored_bundle(tmp_path)
+        assert vendor.read_pin(pin).name == "mermaid.min.js"
+        assert vendor.local_errors(folder, pin) == []
+        (folder / "mermaid.min.js").write_bytes(b"other")
+        assert vendor.local_errors(folder, pin)
+
+    def test_only_the_registry_is_compared_and_no_tag_is_fetched(self, tmp_path):
+        folder, pin = self.vendored_bundle(tmp_path)
+        urls: list[str] = []
+
+        def fetch(url: str) -> bytes:
+            urls.append(url)
+            return self.package(BODY)
+
+        assert vendor.upstream_errors(fetch, folder, pin) == []
+        assert not any(url.startswith(vendor.RAW) for url in urls)
+
+    def test_a_bundle_that_is_not_the_published_one_fails(self, tmp_path):
+        folder, pin = self.vendored_bundle(tmp_path)
+        assert len(vendor.upstream_errors(lambda url: self.package(b"other"), folder, pin)) == 2
+
+    def test_update_keeps_the_source_and_the_directory_of_the_file(self, tmp_path):
+        folder, pin = self.vendored_bundle(tmp_path)
+        new = vendor.update("11.18.0", lambda url: self.package(b"new"), folder, pin)
+        assert (new.version, new.source) == ("11.18.0", "registry")
+        assert (folder / "mermaid.min.js").read_bytes() == b"new"
+        assert "source = registry" in pin.read_text(encoding="utf-8")
+        assert vendor.local_errors(folder, pin) == []
+
+    def test_a_file_that_leaves_the_package_directory_is_refused(self, tmp_path):
+        _, pin = self.vendored_bundle(tmp_path)
+        pin.write_text(pin.read_text(encoding="utf-8").replace("dist/mermaid.min.js", "../mermaid.min.js"), encoding="utf-8")
+        with pytest.raises(vendor.VendorError):
+            vendor.read_pin(pin)
+
+    def test_a_source_other_than_tag_or_registry_is_refused(self, tmp_path):
+        _, pin = self.vendored_bundle(tmp_path)
+        pin.write_text(pin.read_text(encoding="utf-8").replace("registry", "elsewhere"), encoding="utf-8")
+        with pytest.raises(vendor.VendorError):
+            vendor.read_pin(pin)
+
+    def test_the_command_checks_every_pin_and_an_update_needs_to_name_one(self, capsys):
+        assert vendor.main([]) == 0
+        with pytest.raises(SystemExit):
+            vendor.main(["--update", "2.4.0"])

@@ -11,12 +11,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from doc_scripts.doc_frontmatter import ROOT, docs_in, read_frontmatter
+from doc_scripts.doc_frontmatter import GENERATED_VIEWS, ROOT, docs_in, is_template, read_frontmatter
 from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
 from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from doc_site.documents import render
+from doc_site import diagrams
+from doc_site.diagrams import DiagramError, Draw, Drawn
+from doc_site.documents import MARKER, Rendered, render
 from doc_site.markup import BRANCH, REPO_URL, Anchors, Heading, UnsupportedMarkup, blocks, inline, link_resolver, status_key
 from doc_site.summary import ROADMAP_COLUMNS, tiles
 
@@ -28,18 +30,30 @@ class View:
     source: str  # the markdown view, from the repository root
     slug: str  # its directory on the site
     nav: str  # its label in the navigation
-    blurb: str  # what the home page says about it
 
 
 VIEWS = (
-    View("docs/project-planning.md", "project-planning", "Planning", "What is planned, building and waiting, and which decisions have no project yet."),
-    View("docs/decision-index.md", "decision-index", "Decisions", "Every decision by number and by topic, the open ones and the superseded ones."),
-    View(
-        "docs/topics/disaster-recovery/coverage.md",
-        "dr-coverage",
-        "DR coverage",
-        "What each app has: where it runs, what is backed up, its record and its recovery tier.",
-    ),
+    View("docs/project-planning.md", "project-planning", "Planning"),
+    View("docs/decision-index.md", "decision-index", "Decisions"),
+    View("docs/topics/disaster-recovery/coverage.md", "dr-coverage", "DR coverage"),
+)
+
+# What the home page says about each entry of the navigation.
+HOME = {
+    "project-planning": "What is planned, building and waiting, and which decisions have no project yet.",
+    "projects": "How projects work, and where each stage of a project stands.",
+    "decision-index": "Every decision by number and by topic, the open ones and the superseded ones.",
+    "topics": "How each part of the homelab is built, run and recovered.",
+    "dr-coverage": "What each app has: where it runs, what is backed up, its record and its recovery tier.",
+}
+
+# The navigation, in order: the page each entry opens (a source path) and its slug and label.
+NAV = (
+    ("docs/project-planning.md", "project-planning", "Planning"),
+    ("docs/projects/README.md", "projects", "Projects"),
+    ("docs/decision-index.md", "decision-index", "Decisions"),
+    ("docs/topics/README.md", "topics", "Topics"),
+    ("docs/topics/disaster-recovery/coverage.md", "dr-coverage", "DR coverage"),
 )
 
 TITLES = ("Project", "Decision", "Problem", "App", "Exploration")
@@ -151,18 +165,43 @@ def split_intro(paragraphs: list[str], headings: list[str]) -> tuple[list[str], 
 @dataclass(frozen=True)
 class Document:
     source: str  # the markdown file, from the repository root
-    slug: str  # its directory on the site, `projects/<name>`
-    front: dict  # its front matter
+    slug: str  # its directory on the site: `projects/<name>`, `topics/<path>`
+    front: dict  # its front matter, empty for a document that has none
+
+    @property
+    def depth(self) -> int:
+        return self.slug.count("/") + 1
+
+
+def _slug(source: str) -> str:
+    """A document's directory on the site: its path under `docs/` without `.md`, and a README is its directory's page."""
+    path = source.removeprefix("docs/").removesuffix(".md")
+    return path.removesuffix("/README")
 
 
 def _documents(root: Path) -> list[Document]:
-    """The documents with a page of their own. Only the projects so far."""
-    return [Document(f"docs/projects/{path.name}", f"projects/{path.stem}", read_frontmatter(path)) for path in docs_in(root / "docs/projects")]
+    """The documents with a page of their own: the projects and the topic docs, with the README of each directory that has one."""
+    projects = [(path, read_frontmatter(path)) for path in docs_in(root / "docs/projects")]
+    topics = sorted(
+        path for path in (root / "docs/topics").rglob("*.md") if not is_template(path.name) and path.relative_to(root).as_posix() not in GENERATED_VIEWS
+    )
+    found = [(path, front) for path, front in projects] + [(path, {}) for path in topics]
+    found += [(root / "docs/projects/README.md", {})]
+    documents = []
+    for path, front in found:
+        source = path.relative_to(root).as_posix()
+        documents.append(Document(source, _slug(source), front))
+    return sorted(documents, key=lambda document: document.source)
 
 
 def _page_addresses(targets: dict[str, str], depth: int) -> dict[str, str]:
     """Each page's address from a page `depth` directories under the site's root; `targets` maps a source path to its directory."""
     return {source: f"{'../' * depth}{slug}/" for source, slug in targets.items()}
+
+
+def _figure(drawn: Drawn) -> str:
+    """A diagram in both renderings; the stylesheet shows the one that goes with the reader's colour scheme."""
+    return f'<figure class="diagram"><div class="light">{drawn.light}</div><div class="dark">{drawn.dark}</div></figure>'
 
 
 def _targets(documents: list[Document]) -> dict[str, str]:
@@ -172,7 +211,9 @@ def _targets(documents: list[Document]) -> dict[str, str]:
 def _facts(document: Document, documents: list[Document], resolve) -> list[dict]:
     """The header of a project page, from its front matter: what a reader looks at before the body."""
     front = document.front
-    by_id = {other.front["id"]: other for other in documents}
+    if not front:
+        return []
+    by_id = {other.front["id"]: other for other in documents if other.front}
     waits = [by_id[d["project"]] for d in front.get("depends_on", []) if d["project"] in by_id]
     facts = [{"label": "Status", "html": f'<span class="pill s-{status_key(front["status"])}">{html.escape(front["status"])}</span>'}]
     if front.get("blocked"):
@@ -228,8 +269,8 @@ def fingerprinted(name: str, data: bytes) -> str:
     return f"assets/{stem}.{hashlib.sha256(data).hexdigest()[:10]}{dot}{extension}"
 
 
-def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
-    """Every file of the site, by its path under the site's root. Reads only the tree and the stamp it is given."""
+def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.draw) -> dict[str, bytes]:
+    """Every file of the site, by its path under the site's root. Reads only the tree and the stamp it is given, and the bundle that `draw` runs."""
     env = Environment(loader=FileSystemLoader(PACKAGE / "templates"), autoescape=True, undefined=StrictUndefined, keep_trailing_newline=True)
     generated = generated_blocks(root)
     stylesheet = (PACKAGE / "vendor/simple.min.css").read_bytes()
@@ -248,7 +289,11 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
 
     def nav(slug: str | None, depth: int) -> list[dict]:
         pages = _page_addresses(targets, depth)
-        return [{"href": pages[view.source], "label": view.nav, "current": view.slug == slug} for view in VIEWS]
+        return [
+            {"href": pages[source], "label": label, "current": slug is not None and (slug == page or slug.startswith(f"{page}/"))}
+            for source, page, label in NAV
+            if source in pages
+        ]
 
     for view in VIEWS:
         title, intro = _title_and_intro((root / intro_path(view.source)).read_text(encoding="utf-8"), intro_path(view.source))
@@ -291,10 +336,23 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
             )
             .encode("utf-8")
         )
+    pages: list[tuple[Document, Rendered]] = []
     for document in documents:
-        resolve = link_resolver(document.source, _page_addresses(targets, 2), lambda path: (root / path).is_dir())
-        text = (root / document.source).read_text(encoding="utf-8")
-        page = render(text, resolve, document.source)
+        resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
+        pages.append((document, render((root / document.source).read_text(encoding="utf-8"), resolve, document.source)))
+    sources = [(document, diagram) for document, page in pages for diagram in page.diagrams]
+    try:
+        drawn = iter(draw([diagram.code for _, diagram in sources]))
+    except DiagramError as error:
+        index = int(re.match(r"diagram (\d+)", str(error))[1]) if re.match(r"diagram (\d+)", str(error)) else 0
+        document, diagram = sources[index]
+        raise DiagramError(f"{document.source}:{diagram.line}: {re.sub(r'^diagram \d+: ', '', str(error))}") from error
+    for document, page in pages:
+        body = page.html
+        for number in range(len(page.diagrams)):
+            body = body.replace(MARKER.format(number), _figure(next(drawn)))
+        resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
+        base = "../" * document.depth
         files[f"{document.slug}/index.html"] = (
             env.get_template("document.html.j2")
             .render(
@@ -302,12 +360,12 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
                 title_id=page.title_id,
                 summary=document.front.get("summary", ""),
                 facts=_facts(document, documents, resolve),
-                body=page.html,
+                body=body,
                 headings=page.headings,
                 source_url=f"{REPO_URL}/blob/{BRANCH}/{document.source}",
-                nav=nav(None, 2),
-                base="../../",
-                home="../../",
+                nav=nav(document.slug, document.depth),
+                base=base,
+                home=base,
                 sri=sri,
                 assets=urls,
                 stamp=stamp,
@@ -317,7 +375,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
     files["index.html"] = (
         env.get_template("home.html.j2")
         .render(
-            views=[{"href": f"{view.slug}/", "label": view.nav, "blurb": view.blurb} for view in VIEWS],
+            views=[{"href": f"{slug}/", "label": label, "blurb": HOME[slug]} for source, slug, label in NAV if source in targets],
             nav=nav(None, 0),
             base="",
             home="",
@@ -332,7 +390,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
 
 def page_anchors(root: Path = ROOT) -> dict[str, set[str]]:
     """The heading ids of each page, by its slug (`""` for the home page): what a link to the site can name after the `#`."""
-    built = build(root)
+    built = build(root, draw=diagrams.skip)
     pages = {"": "index.html"} | {path.removesuffix("/index.html"): path for path in built if path.endswith("/index.html")}
     return {slug: set(re.findall(r'<(?:h[1-6]|section)\b[^>]*? id="([^"]+)"', built[path].decode())) for slug, path in pages.items()}
 

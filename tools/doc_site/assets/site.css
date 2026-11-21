@@ -36,7 +36,7 @@ dialog.drawer{margin:0;padding:0;border:0;height:100dvh;max-height:none;width:mi
 dialog.drawer::backdrop{background:rgb(0 0 0/.45)}
 .drawer-in{padding:1rem 1rem 2rem;display:flex;flex-direction:column;gap:.25rem}
 .drawer h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin:1.25rem 0 .25rem}
-.drawer a{display:flex;align-items:center;min-height:44px;padding:.25rem .75rem;border-radius:var(--standard-border-radius);color:var(--text);text-decoration:none}
+.drawer a{overflow-wrap:anywhere;display:flex;align-items:center;min-height:44px;padding:.25rem .75rem;border-radius:var(--standard-border-radius);color:var(--text);text-decoration:none}
 .drawer a[aria-current=page]{background:var(--accent-bg);color:var(--accent);font-weight:600}
 .drawer a:hover{background:var(--accent-bg)}
 .drawer a.sub{padding-left:1.5rem;font-size:.95rem}
@@ -108,11 +108,17 @@ td.title{font-weight:600}
 .doc{border:0;margin:0;padding:0;max-width:none}
 .doc>:first-child{margin-top:0}
 .doc h2{margin-top:2rem}
-.doc pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.doc pre,.doc pre code{white-space:break-spaces;overflow-wrap:anywhere}
 .doc ul.tasks{list-style:none;padding-left:0}
 .doc li.task{position:relative;padding-left:1.7rem}
 .doc li.task input{position:absolute;left:0;top:.4em;margin:0}
 .source{margin:2rem 0 0;font-size:.9rem}
+
+/* diagrams, drawn at build time in a light and a dark rendering */
+.diagram{margin:1.25rem 0;overflow-x:auto}
+.diagram svg{display:block;margin-inline:auto;height:auto}
+.diagram .dark{display:none}
+@media (prefers-color-scheme:dark){.diagram .light{display:none}.diagram .dark{display:block}}
 
 /* home */
 .home{display:grid;gap:.75rem;margin:1.5rem 0}

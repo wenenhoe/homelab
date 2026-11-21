@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "doc_scripts"))
 
 import test_doc_coverage
 from _doc_fixtures import project, revision
+from doc_scripts.generate_doc_indexes import intro_path
 from doc_site.site import VIEWS
 
 INTRO = "A view with [a link](decision-index.md#by-number), `code` and **bold** text.\n\nA second paragraph."
@@ -20,9 +21,9 @@ INTRO = "A view with [a link](decision-index.md#by-number), `code` and **bold** 
 def tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = test_doc_coverage.tree(tmp_path_factory.mktemp("tree"))
     for view in VIEWS:
-        path = root / view.source
+        path = root / intro_path(view.source)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"# {view.nav} view\n\n{INTRO}\n\n## Placeholder\n", encoding="utf-8")
+        path.write_text(f"# {view.nav} view\n\n{INTRO}\n", encoding="utf-8")
     (root / "docs/projects").mkdir(parents=True, exist_ok=True)
     (root / "docs/projects/README.md").write_text("# Projects\n\n## Initiatives\n\n1. `base`\n", encoding="utf-8")
     revision(root, "0001-a", 0, status="approved")

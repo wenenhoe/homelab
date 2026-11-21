@@ -28,7 +28,7 @@ Instead of activating the environment, prefix any command with `uv run`, for exa
 pre-commit install
 ```
 
-This installs both the commit-time and push-time hooks. To run the same hooks on `git am`, which replaying a series needs, link the two `applypatch` hooks as well; the commands, and what runs when, are in [`pre-commit.md`](../engineering/pre-commit.md#applying-patches-with-git-am).
+This installs the commit-time and push-time hooks, and the ones that write the generated doc views after a checkout, a merge and a rebase; what runs when is in [`pre-commit.md`](../engineering/pre-commit.md). Run `pre-commit run generate-doc-indexes` once to write the views in a fresh clone.
 
 ## OpenBao CLI
 

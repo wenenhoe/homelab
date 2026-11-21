@@ -7,8 +7,8 @@ For any environment, whoever works in it, that has no Docker daemon or reaches G
 - Neither `pre-commit` nor `shellcheck` needs installing: `uvx --python 3.14 pre-commit run --all-files`, and `uvx --from shellcheck-py shellcheck -x FILE`.
 - The hooks that run a container image (the `-docker` ones) or reach the network (`gitleaks`, `zizmor`) cannot run. Skip them with `SKIP=<id>,<id>` and say which were skipped.
 - The doc tools use Python 3.14 syntax, so the hooks fail when `pre-commit` runs on an older `python3`: pin it with `--python 3.14`, as above. Run a tool by itself with `uv run python -m doc_scripts.<tool>` from `tools/`, and run ruff and `uv run pytest` from there too.
-- Run pre-commit twice: `generate-doc-indexes` fails the first time it rewrites a view.
-- A failed run can leave regenerated files unstaged; reset them before committing anything else, apart from the views in [`.githooks/generated-views`](../../../.githooks/generated-views) when a change is delivered as patches ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)).
+- Run pre-commit twice: a hook that fixes a file fails the first time.
+- A failed run can leave regenerated files unstaged; reset them before committing anything else.
 
 ## Linters run by hand
 
@@ -20,8 +20,8 @@ For any environment, whoever works in it, that has no Docker daemon or reaches G
 
 Replay a `.series` file the way the maintainer will ([`landing-a-series.md`](landing-a-series.md)), on a fresh clone of `main`, with `--dry-run`, which pushes nothing and keeps no branch:
 
-- `git clone --depth 50 https://github.com/wenenhoe/homelab.git`, then `pre-commit install` in it and link the two apply hooks ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)).
-- Put a `pre-commit` shim on `PATH`: `printf '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit`. Without it `pre-applypatch` cannot regenerate the views.
+- `git clone --depth 50 https://github.com/wenenhoe/homelab.git`, then `pre-commit install` in it.
+- Put a `pre-commit` shim on `PATH`: `printf '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit`.
 - Set `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, and `SKIP` to the hooks that cannot run here (`gitleaks`, `zizmor` and the `-docker` ones, `ansible-lint`); say which were skipped.
 - From `tools/` in a checkout of the tool: `uv run python -m land_series FILE.series --repo CLONE --base origin/main --no-fetch --dry-run`. It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and stops for a layer on its stop list.
 
@@ -52,7 +52,7 @@ sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))
 
 A replay whose log has stopped growing while no `pre-commit`, `pytest` or `uv` process runs is waiting at that prompt and is not computing.
 
-A change to `.githooks/` or to how `git am` is used is tested with a real `git am` in a throwaway repository.
+A change to how `git am` is used is tested with a real `git am` in a throwaway repository.
 
 ## Docker without registries
 
@@ -68,7 +68,3 @@ A pinned image cannot be pulled, so test the software it packages: build it or d
 This proves behaviour on the host's kernel, with GNU coreutils in place of BusyBox. For `no-new-privileges` and file capabilities, the real hosts are the authority.
 
 A test target for an external service is a local process or container on a user-defined network (`rclone serve s3` for S3). A target that caches listings or state gets its own path for each test variant. Read a container's address from `NetworkSettings.Networks`, since the top-level `NetworkSettings.IPAddress` can be empty.
-
-## Git hooks
-
-A change to [`.githooks/`](../../../.githooks) or to how patches are applied is tested with a real `git am` in a throwaway repository, as [`test_applypatch_hooks.py`](../../../tools/tests/doc_scripts/test_applypatch_hooks.py) does, with a control that fails without the hook.

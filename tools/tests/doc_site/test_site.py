@@ -7,7 +7,7 @@ import hashlib
 import re
 
 import pytest
-from doc_scripts.generate_doc_indexes import generated_blocks
+from doc_scripts.generate_doc_indexes import intro_path
 from doc_site import site
 from doc_site.markup import UnsupportedMarkup, github_slug
 
@@ -81,16 +81,18 @@ def test_the_pages_hold_the_rows_of_the_generator(tree):
 
 
 def test_markup_the_renderer_does_not_know_stops_the_build(tree):
-    path = tree / site.VIEWS[0].source
+    path = tree / intro_path(site.VIEWS[0].source)
     path.write_text(path.read_text().replace("A second paragraph.", "- a list"), encoding="utf-8")
     with pytest.raises(UnsupportedMarkup):
         site.build(tree)
 
 
-def test_a_hand_written_section_is_not_published_silently(tree):
-    # The views hold generated sections only below their introduction; the title and intro are read, the rest is the rows.
-    headings = {g.heading for g in generated_blocks(tree)}
-    assert "Placeholder" not in headings
+def test_a_hand_written_section_in_an_introduction_stops_the_build(tree):
+    # The sections of a view are its rows; a section written by hand would be dropped from the page without a word.
+    path = tree / intro_path(site.VIEWS[0].source)
+    path.write_text(path.read_text() + "\n## Notes\n\ntext\n", encoding="utf-8")
+    with pytest.raises(UnsupportedMarkup, match="sections of a view are generated"):
+        site.build(tree)
 
 
 class TestRoles:

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT
-from doc_scripts.generate_doc_indexes import generated_blocks
+from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
 from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -110,14 +110,15 @@ def _block(block: Block, resolve, anchors: Anchors, headings: list[Heading]) -> 
 
 
 def _title_and_intro(text: str, view: str) -> tuple[str, str]:
-    """The `# Title` line and the prose between it and the first `## ` section. Any `## ` section of the
-    file must be a generated one: the page is built from the rows, so a hand-written section would be lost."""
+    """The `# Title` line and the prose after it, from the view's introduction file. A `## ` section in that
+    file is refused: the page is built from the rows, so a hand-written section would be lost."""
     lines = text.splitlines()
     heading = next((i for i, line in enumerate(lines) if line.startswith("# ")), None)
     if heading is None:
         raise UnsupportedMarkup(f"{view} has no `# ` title")
-    end = next((i for i in range(heading + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
-    return lines[heading][2:].strip(), "\n".join(lines[heading + 1 : end])
+    if any(line.startswith("## ") for line in lines):
+        raise UnsupportedMarkup(f"{view} has a `## ` section; the sections of a view are generated")
+    return lines[heading][2:].strip(), "\n".join(lines[heading + 1 :])
 
 
 def _page_addresses(from_slug: str | None) -> dict[str, str]:
@@ -144,7 +145,7 @@ def build(root: Path = ROOT) -> dict[str, bytes]:
         return [{"href": pages[view.source], "label": view.nav, "current": view.slug == slug} for view in VIEWS]
 
     for view in VIEWS:
-        title, intro = _title_and_intro((root / view.source).read_text(encoding="utf-8"), view.source)
+        title, intro = _title_and_intro((root / intro_path(view.source)).read_text(encoding="utf-8"), intro_path(view.source))
         resolve = link_resolver(view.source, _page_addresses(view.slug), lambda path: (root / path).is_dir())
         anchors = Anchors()
         headings = [Heading(1, anchors.of(title), title)]

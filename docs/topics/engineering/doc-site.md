@@ -18,7 +18,7 @@ python -m doc_site --out /tmp/site
 
 `--out` must be empty or absent. The site is `index.html`, one `<view>/index.html` for each view, and `assets/`. A build reads the tree and nothing else (no clock, no commit, no network), so building twice gives the same bytes; a test holds that.
 
-Each page takes its `# Title` and introduction from the committed view file and its sections from the rows. A hand-written `##` section in a view is not carried to the site; the views hold generated sections only.
+Each page takes its `# Title` and introduction from the view's file in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros) and its sections from the rows. The generator writes the markdown view from the same file and the same rows, so the view and the page say the same. An introduction holds no `##` section: a section written by hand would be dropped from the page, so the build refuses it. The links in an introduction are written for the view's place in `docs/`, and the drift checks read them in the generated view.
 
 ## Anchors and links
 

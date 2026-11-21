@@ -1611,6 +1611,266 @@
    "bot": false,
    "group": "Project: views-site",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "336c8802139d2d2e50cbb829a4c76b0941dad59f",
+   "date": "2026-11-21T13:11:36+08:00",
+   "kind": "pr",
+   "pr": 1002,
+   "title": "stop committing the generated doc views",
+   "type": "ci",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d670f46d0abf69e9bf038f9ac43b574b4136982c",
+   "date": "2026-11-21T13:49:13+08:00",
+   "kind": "pr",
+   "pr": 1003,
+   "title": "Modify land series replay",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r002 \u00b7 landing a series of dependent changes on main",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "14d76cd92cbf78c7ec0a080ca02a43822d521e3a",
+   "date": "2026-11-21T15:04:55+08:00",
+   "kind": "pr",
+   "pr": 1004,
+   "title": "run the pre-push hooks before each push",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "691f28d3e1581a64b57f02b54fcc78fce5fd145b",
+   "date": "2026-11-21T15:23:30+08:00",
+   "kind": "pr",
+   "pr": 1005,
+   "title": "close the views site project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: views-site",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r001 \u00b7 landing a series of dependent changes on main",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0112 r002 \u00b7 landing a series of dependent changes on main",
+     "working \u2192 accepted"
+    ],
+    [
+     "adr",
+     "ADR 0117 r000 \u00b7 delivering the generated doc views to readers",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "views-site",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "ffce40934c62004bf9fa51cbbd065fd1b2da8c03",
+   "date": "2026-11-21T15:44:36+08:00",
+   "kind": "pr",
+   "pr": 1006,
+   "title": "parse frontmatter with libyaml, once per block",
+   "type": "perf",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2d8826e8e4bb0fdef76adb7fa42e36b3a3b39a9b",
+   "date": "2026-11-21T15:47:24+08:00",
+   "kind": "pr",
+   "pr": 1007,
+   "title": "load the decision lineages once per run",
+   "type": "perf",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c0b28483550e9a178c820223fc21568081389964",
+   "date": "2026-11-21T15:58:02+08:00",
+   "kind": "pr",
+   "pr": 1008,
+   "title": "accept adjacent TOTP steps in the stub page",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b65cb5c8d2716f3f96e3ccf9e8b2c423726b8195",
+   "date": "2026-11-21T16:09:16+08:00",
+   "kind": "pr",
+   "pr": 1009,
+   "title": "judge each pre-push layer against its own base",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a030fe08b65e5803e2f8d67edc5e24128c78ac8e",
+   "date": "2026-11-21T17:20:54+08:00",
+   "kind": "pr",
+   "pr": 1010,
+   "title": "stamp pages with their commit and fix the sticky bar",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8d624cb2cd40d6a853f3e41d75915388709e9444",
+   "date": "2026-11-21T17:24:02+08:00",
+   "kind": "pr",
+   "pr": 1011,
+   "title": "give an awaiting decision's problem a column",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "0b52b25bfb4088cc58fc4af37b5f34d57198eba7",
+   "date": "2026-11-21T18:01:28+08:00",
+   "kind": "pr",
+   "pr": 1012,
+   "title": "ask how much of the docs the site should render",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2973e54379e20094f227eb3fb5313aa6ce3d10bb",
+   "date": "2026-11-21T18:03:54+08:00",
+   "kind": "pr",
+   "pr": 1013,
+   "title": "open planning pages with counts and captions",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b8a60a9f212cd9d4fd04aff00403c34d66c552f4",
+   "date": "2026-11-21T18:06:21+08:00",
+   "kind": "pr",
+   "pr": 1014,
+   "title": "show each roadmap project as a chip coloured by state",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "275563e474c9da8b0ef46f1d5cd878601e8277e9",
+   "date": "2026-11-21T19:37:29+08:00",
+   "kind": "pr",
+   "pr": 1015,
+   "title": "publish the documentation tree as pages of the doc site",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: doc-site-pages",
+   "events": [
+    [
+     "adr",
+     "ADR 0119 r000 \u00b7 reading the documentation tree away from github",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "doc-site-pages",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "e5aeccb2054fd582f61848f0e4dc5be4dc8535b0",
+   "date": "2026-11-21T20:20:32+08:00",
+   "kind": "pr",
+   "pr": 1016,
+   "title": "start the doc site pages project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: doc-site-pages",
+   "events": [
+    [
+     "project",
+     "doc-site-pages",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "172b70d776f0ae902466f67f0115b0cbf2fc47a3",
+   "date": "2026-11-21T20:31:36+08:00",
+   "kind": "pr",
+   "pr": 1017,
+   "title": "publish the projects as site pages",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: doc-site-pages",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "bff3ab5210cc20f07e971b03e2220b52d4ec9a09",
+   "date": "2026-11-21T22:00:57+08:00",
+   "kind": "pr",
+   "pr": 1018,
+   "title": "let the doc site pages project edit the renovate config",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: doc-site-pages",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "95810bd7c0aa4983de7d67d23112f09142f40e9a",
+   "date": "2026-11-21T22:06:32+08:00",
+   "kind": "pr",
+   "pr": 1019,
+   "title": "publish the topic docs and draw their diagrams",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: doc-site-pages",
+   "events": []
   }
  ]
 }

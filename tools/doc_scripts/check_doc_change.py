@@ -12,10 +12,13 @@ Three modes:
                     for CI's project-checks job, which judges the whole pull
                     request.
     --push          the same range as --base, for the pre-push hook: the base is
-                    the default branch as the clone knows it (origin/HEAD, else
-                    origin/main, origin/master, main, master; not fetched, and
-                    the checks read the merge-base, so a stale one still gives
-                    the branch's own commits) and the head is the commit being
+                    the commit named in CHECK_DOC_CHANGE_BASE when that is set
+                    (the landing tool names the state before a pull request, so
+                    a layer is judged on its own commits), else the default
+                    branch as the clone knows it (origin/HEAD, else origin/main,
+                    origin/master, main, master; not fetched, and the checks
+                    read the merge-base, so a stale one still gives the
+                    branch's own commits), and the head is the commit being
                     pushed (PRE_COMMIT_TO_REF), else HEAD. A stray file in an
                     earlier commit, or an `Editorial-Fix:` trailer that is
                     written after the commit hook runs, is judged only here. It
@@ -42,6 +45,7 @@ from doc_scripts import check_accepted_records, check_project_close, check_proje
 from doc_scripts.doc_frontmatter import ROOT
 
 RULES = (check_project_scope, check_project_close, check_project_start, check_accepted_records)
+BASE_ENV = "CHECK_DOC_CHANGE_BASE"
 
 
 def _git(root: Path, *args: str) -> str | None:
@@ -67,11 +71,11 @@ def run_rules(rule_args: list[str], root: Path) -> int:
     return 0
 
 
-def push_range(root: Path, head: str, remote: str) -> tuple[str, str] | str:
-    """The (base, head) a push is judged on, or the message saying why it is skipped."""
+def push_range(root: Path, head: str, remote: str, named_base: str | None = None) -> tuple[str, str] | str:
+    """The (base, head) a push is judged on, or the message saying why it is skipped. A named base replaces the default branch."""
     if set(head) == {"0"}:
         return "A ref is being deleted; there is no change to check."
-    base = default_branch(root, remote)
+    base = named_base or default_branch(root, remote)
     if base is None:
         return f"No default branch found in this clone ({remote}/HEAD, {remote}/main, main); the pull-request checks were skipped and CI runs them."
     merge_base = _git(root, "merge-base", base, head)
@@ -99,7 +103,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.base:
         return run_rules(["--base", args.base, "--head", args.head or "HEAD"], args.root)
 
-    span = push_range(args.root, head, args.remote)
+    named_base = os.environ.get(BASE_ENV) or None
+    if named_base and _git(args.root, "rev-parse", "--verify", "--quiet", f"{named_base}^{{commit}}") is None:
+        print(f"{BASE_ENV} names {named_base}, which is not a commit in this clone.", file=sys.stderr)
+        return 1
+    span = push_range(args.root, head, args.remote, named_base)
     if isinstance(span, str):
         print(span)
         return 0

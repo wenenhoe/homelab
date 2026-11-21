@@ -410,9 +410,13 @@ call, so a rule added to the list runs everywhere at once. It has three forms:
 
 For `--push`:
 
-- **The base** is the remote's HEAD (`origin/HEAD`), else `origin/main`,
-  `origin/master`, `main` or `master`. It is not fetched: the checks read the
-  merge-base, so a stale base still gives the branch's own commits.
+- **The base** is the commit `CHECK_DOC_CHANGE_BASE` names when it is set, else
+  the remote's HEAD (`origin/HEAD`), else `origin/main`, `origin/master`, `main`
+  or `master`. A name that is not a commit in the clone fails the check, not
+  skips it. The landing tool sets it to the state before each pull request of a
+  series, which the default branch does not hold yet. The default is not
+  fetched: the checks read the merge-base, so a stale base still gives the
+  branch's own commits.
 - **The head** is the commit being pushed (`PRE_COMMIT_TO_REF`), else `HEAD`.
 - **Skipped**, with a message and a pass, when there is no default branch in the
   clone, when the head shares no history with it (a shallow clone), when the

@@ -179,3 +179,25 @@ class TestFooter:
     def test_a_date_that_is_not_iso_is_refused(self):
         with pytest.raises(ValueError):
             site.Stamp("0" * 40, "yesterday")
+
+
+class TestDecisionsAwaitingAProject:
+    def card(self, tree) -> str:
+        html = site.build(tree)["project-planning/index.html"].decode()
+        section = html[html.index('<section id="decisions-awaiting-a-project">') :]
+        return section[: section.index("</section>")]
+
+    def test_the_decision_is_the_title_and_the_problem_a_labelled_field_of_its_own(self, tree):
+        card = self.card(tree)
+        assert '<td class="title" data-label="Decision">Secret storage</td>' in card
+        assert '<td class="field" data-label="Problem">Where secrets live.</td>' in card
+        assert "<strong>Secret storage</strong>" not in card
+
+    def test_the_number_heads_the_card_and_the_solution_follows_the_problem(self, tree):
+        card = self.card(tree)
+        assert (
+            card.index('data-label="ADR"')
+            < card.index('data-label="Decision"')
+            < card.index('data-label="Problem"')
+            < card.index('data-label="Current solution"')
+        )

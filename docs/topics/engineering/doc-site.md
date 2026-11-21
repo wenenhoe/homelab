@@ -16,7 +16,7 @@ From `tools/`:
 python -m doc_site --commit "$(git rev-parse HEAD)" --out /tmp/site
 ```
 
-`--out` must be empty or absent. The site is `index.html`, one `<view>/index.html` for each view, one `projects/<name>/index.html` for each project, and `assets/`. A build reads the tree and the commit it is given and nothing else (no clock, no git state, no network), so building twice from one tree and one commit gives the same bytes; a test holds that. `--commit` takes a full commit id; the command looks up that commit's date and hands both to the build. Without it the footer says "Local build".
+`--out` must be empty or absent. The site is `index.html`, one `<view>/index.html` for each view, one `projects/<name>/index.html` for each project, one `topics/<path>/index.html` for each topic doc, and `assets/`. A build that has a diagram to draw needs Google Chrome and `playwright`, as the layout check does. A build reads the tree and the commit it is given and nothing else (no clock, no git state, no network), so building twice from one tree and one commit gives the same bytes; a test holds that. `--commit` takes a full commit id; the command looks up that commit's date and hands both to the build. Without it the footer says "Local build".
 
 ## The footer
 
@@ -38,14 +38,21 @@ In the roadmap each project in the In progress, Startable and Waiting columns is
 
 ## Document pages
 
-A document with a page of its own is a markdown file of the repository, shown as it reads on GitHub ([ADR 0119 (Docs as site pages)](../../decisions/0119-reading-the-documentation-tree-away-from-github/revision-000.md)). Only the projects have pages so far; `README.md` and the `TEMPLATE` files in `docs/projects/` have none. `doc_site/documents.py` reads the body with a CommonMark library (`markdown-it-py`), so lists, tables and code blocks follow GitHub's rules, and it refuses what it has no rule for, as `markup.py` does for the views: raw HTML, an image, and a Mermaid block until the site draws those. An HTML comment is dropped, as GitHub does not show it. An error names the file and the line. The `check-doc-drift` hook imports the site to read its anchors, so it pins `markdown-it-py` beside `jinja2` in `.config/.pre-commit-config.yaml`; a new library the renderer imports goes there too.
+A document with a page of its own is a markdown file of the repository, shown as it reads on GitHub ([ADR 0119 (Docs as site pages)](../../decisions/0119-reading-the-documentation-tree-away-from-github/revision-000.md)). The projects, the topic docs and the READMEs of `docs/projects/` and `docs/topics/` have pages so far, at `projects/<name>/`, `topics/<path>/`, `projects/` and `topics/`; the `TEMPLATE` files have none, and the generated coverage view is a view, not a topic doc. `doc_site/documents.py` reads the body with a CommonMark library (`markdown-it-py`), so lists, tables and code blocks follow GitHub's rules, and it refuses what it has no rule for, as `markup.py` does for the views: raw HTML and an image. An HTML comment is dropped, as GitHub does not show it. An error names the file and the line. The `check-doc-drift` hook imports the site to read its anchors, so it pins `markdown-it-py` beside `jinja2` in `.config/.pre-commit-config.yaml`; a new library the renderer imports goes there too.
 
 - The first top-level heading is the page's title, and the front matter is read for a header above the body: the status as a pill, whether the project is blocked, the project it is part of, its decision, the projects it waits on as links to their pages, and its summary as the lede.
 - A heading has the anchor GitHub gives it, and a `##` or `###` heading is in the menu's list of the page.
+- The navigation lists Planning, Projects, Decisions, Topics and DR coverage, and a page under `projects/` or `topics/` marks its own entry. The home page has a tile for each.
 - A link to a page of the site goes to it with its anchor kept, and a link to any other file goes to it on GitHub, as in a view. A link from a project to a view or to another project is therefore a link between pages.
 - A list item that starts `[ ]` or `[x]` is a disabled box, so a closing checklist reads as one. The page does not change the file: the box is not a control.
 - A table takes the same card layout as a view on a phone, each cell labelled by its column, and a `Status` cell is a pill. A code block wraps, as the layout check refuses a block that scrolls sideways.
 - Every page links to its file on GitHub, where the document can be edited.
+
+## Diagrams
+
+A Mermaid block is drawn to SVG during the build, so no script reaches a reader and a diagram shows without one. `doc_site/diagrams.py` runs the bundle `vendor/mermaid.min.js` in the installed Chrome, headless, in a page made from nothing with every request refused, at Mermaid's strict security level. Every diagram of the site is drawn in one browser session, twice, in Mermaid's light and dark themes, and the page holds both: the stylesheet shows the one the reader's `prefers-color-scheme` asks for. The drawing takes about ten seconds for the repository's diagrams. A diagram that does not draw stops the build with the file, the line of its fence and Mermaid's message. The seed Mermaid uses for the outline of a node is fixed, so two builds of one tree are the same bytes, which a test holds.
+
+The block's source is not shown; GitHub shows the diagram too, and a reader who wants the source opens the file there. A diagram is scaled to the width of its column, and the check holds it to the page like any other block. `page_anchors`, which the drift check calls, draws nothing, because an anchor does not depend on it.
 
 ## Anchors and links
 
@@ -55,13 +62,15 @@ Every heading has the anchor GitHub gives it: lowercase, everything but letters,
 
 The page is styled with [Simple.css](https://simplecss.org/) (MIT), committed at `tools/doc_site/vendor/simple.min.css`, with its licence beside it. `vendor/simple.pin` names the npm package, the version, the file taken from it, that file's sha256 and the GitHub repository the package is built from. The site makes no request to a third party; nothing is fetched at build time or by a reader's browser.
 
+The Mermaid bundle is vendored the same way, as `vendor/mermaid.min.js` with `vendor/mermaid.pin` and `vendor/mermaid.LICENSE` (MIT, copied from the package; an update does not rewrite it). Its pin has `source = registry`: the repository builds the bundle and does not commit it, so there is no tagged file to compare, and `--upstream` holds the file and the pin to the registry's tarball alone. Both pins are checked by the one test, by `python -m doc_site.vendor` without arguments, and the build checks the bundle's hash before it runs it.
+
 - A test fails when the committed file's hash differs from the pin.
 - `python -m doc_site.vendor --upstream` also compares both with the tarball the npm registry serves for that version, read in memory and never extracted, and with the same file at the repository's `v<version>` tag, so a tarball that differs from the published source fails.
-- `python -m doc_site.vendor --update VERSION` replaces the file and the pin together, and writes nothing when the tarball and the tag differ.
+- `python -m doc_site.vendor --pin simple --update VERSION` (or `--pin mermaid`) replaces the file and the pin together, and writes nothing when the tarball and the tag differ.
 
-The file has no trailing newline, as published, so `end-of-file-fixer` skips `tools/doc_site/vendor/` and the drift check's anchor scan skips `tools/tests/doc_site/`, whose fixtures hold example links to files that exist only in their temp trees.
+The stylesheet has no trailing newline and the bundle has trailing spaces, as published, so `end-of-file-fixer` and `trailing-whitespace` skip `tools/doc_site/vendor/` and the drift check's anchor scan skips `tools/tests/doc_site/`, whose fixtures hold example links to files that exist only in their temp trees.
 
-Renovate moves only the pin's `version` line, because it has no digest for a file inside an npm tarball. The pull request it opens fails the pin test until `--update` has been run with that version, which writes the file and the new hash in one step.
+Renovate moves only the `version` line of either pin, because it has no digest for a file inside an npm tarball. The pull request it opens fails the pin test until `--update` has been run for that pin with that version, which writes the file and the new hash in one step.
 
 The card layout, the menu drawer and the row filter are `assets/site.css` and `assets/site.js`, which belong to this repository. The page works without JavaScript; the script only adds the filter and the drawer's open button.
 

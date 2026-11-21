@@ -14,10 +14,10 @@ def page(tree, name: str) -> str:
     return site.build(tree)[f"projects/{name}/index.html"].decode()
 
 
-def test_each_project_has_a_page_and_the_readme_and_template_have_none(tree):
+def test_each_project_has_a_page_and_so_does_the_readme_but_the_template_has_none(tree):
     (tree / "docs/projects/TEMPLATE.md").write_text("not a document\n", encoding="utf-8")
     pages = {path for path in site.build(tree) if path.startswith("projects/")}
-    assert pages == {"projects/one/index.html", "projects/two/index.html"}
+    assert pages == {"projects/index.html", "projects/one/index.html", "projects/two/index.html"}
 
 
 def test_the_header_is_the_front_matter(tree):

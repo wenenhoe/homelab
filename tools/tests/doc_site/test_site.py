@@ -12,7 +12,15 @@ from doc_scripts.generate_doc_indexes import intro_path
 from doc_site import site
 from doc_site.markup import UnsupportedMarkup, github_slug
 
-PAGES = {"index.html", *(f"{view.slug}/index.html" for view in site.VIEWS), "projects/one/index.html", "projects/two/index.html"}
+PAGES = {
+    "index.html",
+    *(f"{view.slug}/index.html" for view in site.VIEWS),
+    "projects/index.html",
+    "projects/one/index.html",
+    "projects/two/index.html",
+    "topics/index.html",
+    "topics/infra/network/index.html",
+}
 STAMP = site.Stamp("0123456789abcdef0123456789abcdef01234567", "2026-11-21T16:12:00+08:00")
 
 
@@ -76,7 +84,7 @@ def test_every_heading_has_the_anchor_github_gives_it(tree):
 
 def test_the_anchors_a_link_can_name_are_those_of_the_headings(tree):
     anchors = site.page_anchors(tree)
-    assert set(anchors) == {"", *(view.slug for view in site.VIEWS), "projects/one", "projects/two"}
+    assert set(anchors) == {"", *(view.slug for view in site.VIEWS), "projects", "projects/one", "projects/two", "topics", "topics/infra/network"}
     built = site.build(tree)
     for view in site.VIEWS:
         html = built[f"{view.slug}/index.html"].decode()

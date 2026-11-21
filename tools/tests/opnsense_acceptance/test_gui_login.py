@@ -5,6 +5,7 @@ from __future__ import annotations
 import http.server
 import re
 import threading
+import time
 import urllib.parse
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -18,14 +19,16 @@ LOGIN_PAGE = b'<form method="post"><input type="hidden" name="csrf1" value="tok4
 
 
 def accepts(mode: str, secret: str) -> bool:
-    code = gui_login.totp(SEED)
+    # The check reads the clock once and sends that moment's code, so a 30 s step can end before the page reads its own clock.
+    # The neighbouring steps' codes are accepted too, which is also what the check counts as valid when it picks a wrong code.
+    codes = {gui_login.totp(SEED, time.time() + shift) for shift in (-30, 0, 30)}
     if mode == "password-only":
         return secret == PASSWORD
     if mode == "any-code":
         return re.fullmatch(r"\d{6}" + PASSWORD, secret) is not None
     if mode == "either-order":
-        return secret in (code + PASSWORD, PASSWORD + code)
-    return secret == code + PASSWORD
+        return any(secret in (code + PASSWORD, PASSWORD + code) for code in codes)
+    return any(secret == code + PASSWORD for code in codes)
 
 
 def handler_for(mode: str) -> type[http.server.BaseHTTPRequestHandler]:
@@ -107,6 +110,18 @@ def test_a_login_that_lets_too_much_in_fails_the_checks_it_breaks(login_page, tm
     out = capsys.readouterr().out
     assert status == 1
     assert [line.split(": FAIL")[0].removeprefix("LOGIN ") for line in out.splitlines() if ": FAIL" in line] == failing
+
+
+def test_a_code_sent_just_before_a_step_ends_is_still_accepted(login_page, tmp_path, capsys, monkeypatch):
+    boundary = (int(time.time()) // 30 + 1) * 30
+    reads = iter([boundary - 0.01])
+    # The check reads the clock once, just before a step ends; the page reads it after.
+    monkeypatch.setattr(gui_login.time, "time", lambda: next(reads, boundary + 0.5))
+    status = run_check(tmp_path, login_page("totp"), FULL)
+
+    out = capsys.readouterr().out
+    assert status == 0, out
+    assert out.count("PASS") == 4
 
 
 def test_an_unreachable_gateway_fails_every_check(tmp_path, capsys):

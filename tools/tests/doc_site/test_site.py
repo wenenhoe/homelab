@@ -11,11 +11,19 @@ from doc_scripts.generate_doc_indexes import intro_path
 from doc_site import site
 from doc_site.markup import UnsupportedMarkup, github_slug
 
-EXPECTED_FILES = {"index.html", "assets/site.css", "assets/site.js", "assets/simple.css", *(f"{view.slug}/index.html" for view in site.VIEWS)}
+PAGES = {"index.html", *(f"{view.slug}/index.html" for view in site.VIEWS)}
+STAMP = site.Stamp("0123456789abcdef0123456789abcdef01234567", "2026-11-21T16:12:00+08:00")
+
+
+def asset(files: dict[str, bytes], stem: str, extension: str) -> str:
+    """The path of the one fingerprinted `assets/<stem>.<hash>.<extension>` in `files`."""
+    (path,) = [path for path in files if re.fullmatch(rf"assets/{stem}\.[0-9a-f]{{10}}\.{extension}", path)]
+    return path
 
 
 def test_the_site_is_these_files(tree):
-    assert set(site.build(tree)) == EXPECTED_FILES
+    files = site.build(tree)
+    assert set(files) == PAGES | {"assets/simple-licence.txt", asset(files, "site", "css"), asset(files, "site", "js"), asset(files, "simple", "css")}
 
 
 def test_two_builds_of_one_tree_are_the_same_bytes(tree):
@@ -37,7 +45,12 @@ def test_writing_into_a_directory_with_files_is_refused(tree, tmp_path):
 
 
 def test_the_stylesheet_is_the_vendored_file(tree):
-    assert site.build(tree)["assets/simple.css"] == (site.PACKAGE / "vendor/simple.min.css").read_bytes()
+    files = site.build(tree)
+    assert files[asset(files, "simple", "css")] == (site.PACKAGE / "vendor/simple.min.css").read_bytes()
+
+
+def test_the_licence_served_is_the_vendored_one(tree):
+    assert site.build(tree)["assets/simple-licence.txt"] == (site.PACKAGE / "vendor/simple.LICENSE").read_bytes()
 
 
 def headings(html: str) -> list[tuple[str, str]]:
@@ -111,11 +124,58 @@ class TestRoles:
 class TestIntegrity:
     def test_the_stylesheet_link_carries_the_sha384_of_the_vendored_file(self, tree):
         files = site.build(tree)
-        expected = "sha384-" + base64.b64encode(hashlib.sha384(files["assets/simple.css"]).digest()).decode()
+        stylesheet = asset(files, "simple", "css")
+        expected = "sha384-" + base64.b64encode(hashlib.sha384(files[stylesheet]).digest()).decode()
         for path, data in files.items():
             if path.endswith("index.html"):
-                assert f'assets/simple.css" integrity="{expected}"' in data.decode(), path
+                assert f'{stylesheet}" integrity="{expected}"' in data.decode(), path
 
     def test_the_value_is_the_one_openssl_gives(self):
         # sha384 of the empty string, in the form the attribute takes.
         assert site.integrity(b"") == "sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+
+
+class TestFingerprints:
+    def test_a_name_carries_ten_hex_of_the_files_sha256(self):
+        assert site.fingerprinted("site.css", b"") == "assets/site.e3b0c44298.css"
+
+    def test_every_page_names_the_files_it_loads(self, tree):
+        files = site.build(tree)
+        names = [asset(files, "site", "css"), asset(files, "site", "js"), asset(files, "simple", "css")]
+        for path in PAGES:
+            html = files[path].decode()
+            assert all(name in html for name in names), path
+
+    def test_a_name_changes_when_the_content_does(self):
+        assert site.fingerprinted("a.css", b"x") != site.fingerprinted("a.css", b"y")
+
+
+class TestFooter:
+    def test_a_stamped_build_names_its_commit_and_date(self, tree):
+        for path in PAGES:
+            html = site.build(tree, STAMP)[path].decode()
+            assert f'<a href="{site.REPO_URL}/commit/{STAMP.sha}"><code>0123456</code></a>' in html, path
+            assert '<time datetime="2026-11-21T16:12:00+08:00">2026-11-21 08:12 UTC</time>' in html, path
+            assert "Local build" not in html
+
+    def test_an_unstamped_build_says_it_is_local(self, tree):
+        html = site.build(tree)["index.html"].decode()
+        assert "Local build" in html and "/commit/" not in html
+
+    def test_the_footer_credits_simple_css_and_links_its_licence(self, tree):
+        files = site.build(tree)
+        assert 'href="assets/simple-licence.txt"' in files["index.html"].decode()
+        assert 'href="../assets/simple-licence.txt"' in files["decision-index/index.html"].decode()
+        assert "Simple.css" in files["index.html"].decode()
+
+    def test_a_stamped_build_is_the_same_bytes_every_time(self, tree):
+        assert site.build(tree, STAMP) == site.build(tree, STAMP)
+
+    @pytest.mark.parametrize("sha", ["", "abc1234", "G" * 40, "0" * 39, "0" * 41, "main"])
+    def test_a_commit_that_is_not_a_full_id_is_refused(self, sha):
+        with pytest.raises(ValueError, match="full commit id"):
+            site.Stamp(sha, "2026-11-21T16:12:00+08:00")
+
+    def test_a_date_that_is_not_iso_is_refused(self):
+        with pytest.raises(ValueError):
+            site.Stamp("0" * 40, "yesterday")

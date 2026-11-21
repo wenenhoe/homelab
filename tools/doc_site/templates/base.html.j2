@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>{% block title %}{% endblock %}Homelab docs</title>
-<link rel="stylesheet" href="{{ base }}assets/simple.css" integrity="{{ sri }}">
-<link rel="stylesheet" href="{{ base }}assets/site.css">
+<link rel="stylesheet" href="{{ base }}{{ assets.simple_css }}" integrity="{{ sri }}">
+<link rel="stylesheet" href="{{ base }}{{ assets.site_css }}">
 <script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
@@ -22,7 +22,10 @@
 <main>
 {% block main %}{% endblock %}
 </main>
-<footer>Generated from the <a href="https://github.com/wenenhoe/homelab">homelab repository</a>'s documentation.</footer>
-<script src="{{ base }}assets/site.js"></script>
+<footer>
+<p>Generated from the <a href="https://github.com/wenenhoe/homelab">homelab repository</a>'s documentation. {% if stamp %}Built from <a href="{{ stamp.url }}"><code>{{ stamp.short }}</code></a>, committed <time datetime="{{ stamp.date }}">{{ stamp.label }}</time>.{% else %}Local build.{% endif %}</p>
+<p>Styled with <a href="https://simplecss.org/">Simple.css</a> under its <a href="{{ base }}assets/simple-licence.txt">MIT licence</a>.</p>
+</footer>
+<script src="{{ base }}{{ assets.site_js }}"></script>
 </body>
 </html>

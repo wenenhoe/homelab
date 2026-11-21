@@ -86,3 +86,8 @@ td.title{font-weight:600}
 .home .tile:hover{background:var(--accent-bg)}
 .home .tile span{color:var(--text-light)}
 @media (min-width:62rem){.home{grid-template-columns:repeat(3,1fr)}}
+
+/* footer */
+footer{padding-block:1.5rem 2rem;color:var(--text-light);font-size:.9rem}
+footer p{margin:.25rem 0}
+footer code{font-size:.95em}

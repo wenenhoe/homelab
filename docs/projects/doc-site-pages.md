@@ -15,6 +15,7 @@ allowed_paths:
   - uv.lock
   - .github/workflows/pr-checks.yml
   - .github/detect-changes-filters.yml
+  - .github/renovate.json5
   - .config/.pre-commit-config.yaml
   - docs/topics/engineering/doc-site.md
   - docs/topics/engineering/ci/doc-checks.md
@@ -33,7 +34,8 @@ markup, and the checks that scale with the page count can only be set once the p
   `.config/.pre-commit-config.yaml`, as it imports the site.
 - Pages for the projects, the topic docs with their index, the decision revisions, the READMEs and the architecture docs; none for
   `explorations/` or the `TEMPLATE` files.
-- Mermaid blocks drawn to SVG during the build from a pinned bundle in `tools/doc_site/vendor/`, in a light and a dark rendering.
+- Mermaid blocks drawn to SVG during the build from a pinned bundle in `tools/doc_site/vendor/`, in a light and a dark rendering. The
+  Renovate rule that moves the stylesheet's pin also moves the bundle's.
 - Navigation entries for Topics, Projects and Decisions, and the rows of the generated views linking to the pages.
 - The checks the page count needs: the doc-site pull request job for a changed document, and the layout check on a sample of
   document pages for each kind.

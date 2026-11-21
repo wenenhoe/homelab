@@ -10,11 +10,16 @@ which `status` values it may carry.
 
 from __future__ import annotations
 
+import copy
+import functools
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+
+# libyaml's loader reads the same safe YAML several times faster; a PyYAML built without libyaml falls back to the Python one.
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -215,12 +220,18 @@ def _validate_exploration(path: Path, data: dict) -> None:
     _id_list(path, data, "related")
 
 
+@functools.cache
+def _parse_block(block: str) -> dict:
+    return yaml.load(block, Loader=_YAML_LOADER) or {}  # noqa: S506 - a SafeLoader either way
+
+
 def read_frontmatter(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
     if not m:
         raise SystemExit(f"{path}: missing frontmatter")
-    data = yaml.safe_load(m.group(1)) or {}
+    # Keyed by the block's text, so an edited file is parsed afresh; each caller gets its own copy to change.
+    data = copy.deepcopy(_parse_block(m.group(1)))
     for required in ("id", "title", "type", "status"):
         if required not in data:
             raise SystemExit(f"{path}: frontmatter missing required field '{required}'")

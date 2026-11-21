@@ -7,7 +7,6 @@ code the replay itself runs stops the replay until the maintainer confirms it.
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import tempfile
@@ -21,7 +20,7 @@ from land_series.live import Display, hidden
 from land_series.manifest import Layer, group_pulls
 from land_series.run import Completed, run
 
-# A layer touching one of these changes code or configuration that `git am`'s hooks or the checks run on this machine
+# A layer touching one of these changes code or configuration that a hook or the checks run on this machine
 # before CI sees it; `pyproject.toml` and `uv.lock` decide which packages `uv run` installs and runs. `.config/` holds the real
 # pre-commit configuration that `.pre-commit-config.yaml` links to, and the settings of the hooks it runs.
 STOP_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".config/", ".github/workflows/", ".github/actions/", "tools/", "pyproject.toml", "uv.lock")
@@ -112,37 +111,22 @@ def scratch_worktree(repo: Path, base: str) -> Iterator[Path]:
         git_run(repo, "worktree", "prune")
 
 
-def _reset(tree: Path) -> None:
-    """Drop what the apply hooks and the checks leave unstaged: the generated views, which stop a second `git am`."""
-    git_run(tree, "reset", "--hard", "--quiet")
-    git_run(tree, "clean", "--force", "-d", "--quiet")
-
-
-def _am(tree: Path, layer: Layer, onto: str, *options: str) -> None:
-    applied = git_run(tree, *options, "am", "--quiet", stdin=layer.patch)
+def _am(tree: Path, layer: Layer, onto: str) -> None:
+    """`git am` the layer with every hook off: nothing the patch adds runs while it is applied."""
+    applied = git_run(tree, *NO_HOOKS, "am", "--quiet", stdin=layer.patch)
     if applied.returncode != 0:
         git_run(tree, "am", "--abort")
         raise ReplayError(f"commit {layer.id} does not apply on {onto}:\n{git_text(applied)}")
 
 
-def changed_paths(tree: Path, layer: Layer, onto: str) -> list[str]:
-    """Every path `git am` changes for the layer, read from the commits it makes, so no encoding of the patch hides one.
-
-    The layer is applied with every hook switched off, so nothing it adds runs, and then taken back out.
-    """
+def apply_layer(tree: Path, layer: Layer, onto: str) -> list[str]:
+    """Apply the layer in `tree` and return every path it changes, read from the commit `git am` makes, so no encoding of the patch hides one."""
     before = git_text(git_run(tree, "rev-parse", "HEAD"))
-    _am(tree, layer, onto, *NO_HOOKS)
+    _am(tree, layer, onto)
     changed = git_run(tree, "diff", "--no-renames", "--name-only", "-z", before, "HEAD")
-    git_run(tree, "reset", "--hard", "--quiet", before)
     if changed.returncode != 0:
         raise ReplayError(f"cannot read what commit {layer.id} changes: {git_text(changed)}")
     return [path.decode("utf-8", errors="replace") for path in changed.stdout.split(b"\0") if path]
-
-
-def apply_layer(tree: Path, layer: Layer, onto: str) -> None:
-    """`git am` the layer in `tree` (its apply hooks run), then drop what the hooks left unstaged."""
-    _am(tree, layer, onto)
-    _reset(tree)
 
 
 LIVE_OUTPUT_LINES = 6
@@ -184,28 +168,14 @@ def _run_check(tree: Path, check: Check, display: Display, label: str) -> str | 
 
 Progress = Callable[[str], None]
 
-HOOK_LINK_COMMAND = 'for hook in pre-applypatch post-applypatch; do ln -sf "$PWD/.githooks/$hook" "$(git rev-parse --git-path hooks)/$hook"; done'
-
 
 def silent(message: str) -> None:
     """The default progress report: none."""
 
 
-def preflight(repo: Path, base: str) -> list[str]:
-    """What the replay needs from this machine and does not find, each with the command or setting that fixes it.
-
-    A base without `.githooks/pre-applypatch` needs no hooks. Without them `git am` skips the checks, or fails deep inside a
-    hook, so the problem is named here, before a worktree exists.
-    """
+def preflight(repo: Path) -> list[str]:
+    """What the replay needs from this machine and does not find, each with the command or setting that fixes it."""
     problems = []
-    if git_run(repo, "cat-file", "-e", f"{base}:.githooks/pre-applypatch").returncode == 0:
-        found = git_run(repo, "rev-parse", "--git-path", "hooks")
-        hooks = (repo / git_text(found)) if found.returncode == 0 else repo / ".git" / "hooks"
-        missing = [name for name in ("pre-applypatch", "post-applypatch", "pre-commit") if not os.access(hooks / name, os.X_OK)]
-        if missing:
-            problems.append(f"{', '.join(missing)} not installed in {hooks}: run `pre-commit install`, then `{HOOK_LINK_COMMAND}` from the repository root")
-        if shutil.which("pre-commit") is None:
-            problems.append("`pre-commit` is not on PATH, and the apply hooks call it: run the tool with `uv run`, or install it")
     if git_run(repo, "var", "GIT_COMMITTER_IDENT").returncode != 0:
         problems.append("git has no committer identity, and `git am` needs one: set user.name and user.email, or GIT_COMMITTER_NAME and GIT_COMMITTER_EMAIL")
     return problems
@@ -214,12 +184,10 @@ def preflight(repo: Path, base: str) -> list[str]:
 def _run_tip_check(tree: Path, tip: TipCheck, layer: Layer, pull_base: str, progress: Progress, display: Display) -> None:
     gate, check = tip.gate.at(pull_base), tip.run.at(pull_base)
     if not _gate_is_true(tree, gate, layer):
-        _reset(tree)
         progress(f"commit {layer.id}: `{check}` skipped, CI would not run it for this pull request")
         return
     progress(f"commit {layer.id}: running `{check}` on the pull request's last commit")
     failure = _run_check(tree, check, display, f"commit {layer.id}: `{check}`")
-    _reset(tree)
     if failure is not None:
         raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")
 
@@ -243,7 +211,7 @@ def replay(
 
     Returns what happened to each layer. Raises ReplayError at the first layer that is refused, does not apply or fails a check.
     """
-    if problems := preflight(repo, base):
+    if problems := preflight(repo):
         raise ReplayError("this machine is not ready to replay:\n" + "\n".join(f"- {problem}" for problem in problems))
     landed = landed_in(repo, base)
     for pull in group_pulls(list(layers)):
@@ -261,17 +229,15 @@ def replay(
                 results.append(LayerResult(layer, applied=False))
                 continue
             onto = f"{base}{' plus the layers before it' if results else ''}"
-            stops = stopped_by(changed_paths(tree, layer, onto))
-            if stops and not confirm(layer, stops):
-                raise ReplayError(f"commit {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
             if layer.number != current:
                 current, pull_base = layer.number, git_text(git_run(tree, "rev-parse", "HEAD"))
             progress(f"commit {layer.id}: applying the patch on {onto}")
-            apply_layer(tree, layer, onto)
+            stops = stopped_by(apply_layer(tree, layer, onto))
+            if stops and not confirm(layer, stops):
+                raise ReplayError(f"commit {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
             for check in (check.at(pull_base) for check in checks):
                 progress(f"commit {layer.id}: running `{check}`")
                 failure = _run_check(tree, check, display, f"commit {layer.id}: `{check}`")
-                _reset(tree)
                 if failure is not None:
                     raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")
             if tips[layer.number] == layer.id:

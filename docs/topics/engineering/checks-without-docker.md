@@ -8,7 +8,7 @@ For any environment, whoever works in it, that has no Docker daemon or reaches G
 - The hooks that run a container image (the `-docker` ones) or reach the network (`gitleaks`, `zizmor`) cannot run. Skip them with `SKIP=<id>,<id>` and say which were skipped.
 - The doc tools use Python 3.14 syntax, so the hooks fail when `pre-commit` runs on an older `python3`: pin it with `--python 3.14`, as above. Run a tool by itself with `uv run python -m doc_scripts.<tool>` from `tools/`, and run ruff and `uv run pytest` from there too.
 - Run pre-commit twice: a hook that fixes a file fails the first time.
-- A failed run can leave regenerated files unstaged; reset them before committing anything else.
+- Check a change in a clone with the whole history: `check-moved-files` reads it, and in a shallow clone (`--depth`) it says so and passes, so a mention of a removed file only shows up in a full one.
 
 ## Linters run by hand
 

@@ -238,17 +238,6 @@ def test_a_merged_layers_branch_that_is_checked_out_is_kept_and_reported(
     assert "series/write-two is checked out here, so it was kept" in capsys.readouterr().out
 
 
-def test_the_pushed_commit_is_the_kept_one_with_what_the_apply_hooks_folded_into_it(github: FakeGitHub, repo: Repo, author: Author) -> None:
-    repo.install_hook("post-applypatch", "echo regenerated >> base.txt\ngit add base.txt\ngit commit --amend --no-edit --quiet --no-verify\n")
-    layers = layers_of(("0001a", "write-one", author.patch("docs: write one", {"a.txt": "one\n"})))
-    kept(repo, layers)
-    reviewed = git(repo.path, "rev-parse", "series/write-one")
-    land(repo.path, layers, Reviews(False), sleep=lambda _: None)
-
-    assert git(github.remote, "rev-parse", "write-one") == reviewed
-    assert git(github.remote, "show", "write-one:base.txt").splitlines()[-1] == "regenerated"
-
-
 def test_a_declined_review_leaves_the_pull_request_and_the_kept_branches_in_place(github: FakeGitHub, repo: Repo, author: Author) -> None:
     layers = two_layers(author)
     kept(repo, layers)

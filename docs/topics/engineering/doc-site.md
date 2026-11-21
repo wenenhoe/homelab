@@ -13,10 +13,18 @@ A cell holds the markdown subset the views use: a link, an inline code span, or 
 From `tools/`:
 
 ```sh
-python -m doc_site --out /tmp/site
+python -m doc_site --commit "$(git rev-parse HEAD)" --out /tmp/site
 ```
 
-`--out` must be empty or absent. The site is `index.html`, one `<view>/index.html` for each view, and `assets/`. A build reads the tree and nothing else (no clock, no commit, no network), so building twice gives the same bytes; a test holds that.
+`--out` must be empty or absent. The site is `index.html`, one `<view>/index.html` for each view, and `assets/`. A build reads the tree and the commit it is given and nothing else (no clock, no git state, no network), so building twice from one tree and one commit gives the same bytes; a test holds that. `--commit` takes a full commit id; the command looks up that commit's date and hands both to the build. Without it the footer says "Local build".
+
+## The footer
+
+Every page's footer names the commit it was built from, as a link to that commit, with the commit's date in UTC, and credits Simple.css with a link to its licence. GitHub Pages serves a page for up to about ten minutes after a deployment, so a reader who suspects a page is old compares the commit in the footer with `main`. The workflow and the pull request job both pass `"$GITHUB_SHA"`. The licence is served as `assets/simple-licence.txt`, the text of `vendor/simple.LICENSE`, because the vendored stylesheet carries no notice of its own and the licence asks for one with every copy.
+
+## Asset names
+
+`assets/` names each file by the first ten hex digits of its sha256 (`site.3ba5af8963.css`, `simple.fb06245826.css`, `site.eedc88a706.js`) and every page names the file that goes with it, so a cache that holds an old page is never given the new stylesheet, nor a new page the old one. The second matters for `simple.css`: its `integrity` attribute refuses a stylesheet that is not the file the page was built with. The licence keeps its name; a page and a licence that differ cannot break a layout.
 
 Each page takes its `# Title` and introduction from the view's file in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros) and its sections from the rows. The generator writes the markdown view from the same file and the same rows, so the view and the page say the same. An introduction holds no `##` section: a section written by hand would be dropped from the page, so the build refuses it. The links in an introduction are written for the view's place in `docs/`, and the drift checks read them in the generated view.
 
@@ -44,7 +52,7 @@ The card layout, the menu drawer and the row filter are `assets/site.css` and `a
 python -m doc_site.layout /tmp/site
 ```
 
-The check serves a built site on localhost and opens every page in the installed Google Chrome, headless, at 360, 390, 768 and 844 pixels wide: two portrait phones, a small tablet and a phone in landscape. It needs Chrome and `playwright` (a dev dependency), and downloads nothing; the runner image has Chrome. A page fails when it scrolls sideways, when an element ends past the right edge of the screen, when a block holds text wider than the block (a table cell or a card cell that overflows its box), or when visible text is under 12 pixels. Text hidden for screen readers, such as the table header that the card layout hides, is not on the screen and is not measured. Where the page has a menu button the check also opens the drawer, holds it to the same rules, and fails if the button opens nothing. Every error names the page, the width and the element.
+The check serves a built site on localhost and opens every page in the installed Google Chrome, headless, at 360, 390, 768 and 844 pixels wide and 800 tall (two portrait phones, a small tablet and a wide screen), and at 844 by 390, a phone in landscape. It needs Chrome and `playwright` (a dev dependency), and downloads nothing; the runner image has Chrome. A page fails when it scrolls sideways, when an element ends past the right edge of the screen, when a block holds text wider than the block (a table cell or a card cell that overflows its box), when visible text is under 12 pixels, when a bar that stays on screen (`position: sticky` or `fixed`, a menu drawer aside) takes more than a fifth of the height, or when a link to a heading of the page leaves the heading under such a bar. The header is sticky except on a screen under 30rem tall, where it scrolls away, so that landscape check passes; `html` has a `scroll-padding-top` that keeps a linked heading clear of it. Text hidden for screen readers, such as the table header that the card layout hides, is not on the screen and is not measured. Where the page has a menu button the check also opens the drawer, holds it to the same rules, and fails if the button opens nothing. Every error names the page, the width and the element.
 
 A check on what the page measures cannot see a layout that is readable by the numbers and wrong to the eye, such as words broken in the middle in a narrow column. Reading the page on a phone is still how that is found.
 

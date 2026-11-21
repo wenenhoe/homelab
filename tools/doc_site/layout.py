@@ -1,7 +1,8 @@
 """The layout check: opens every page of a built site in headless Chrome at phone widths and reports what breaks.
 
 A page fails when it scrolls sideways, when an element sticks out past the right edge of the screen, when a block's text is
-wider than the block (a table cell or card cell that overflows its box), or when any visible text is under 12 pixels. At
+wider than the block (a table cell or card cell that overflows its box), when any visible text is under 12 pixels, when a bar
+that stays on screen takes more than a fifth of its height, or when a link to a heading leaves the heading under such a bar. At
 widths where the page has a menu drawer the drawer is opened and held to the same rules. The check serves the directory
 over localhost and uses the Chrome that is installed (`channel="chrome"`), so nothing is downloaded.
 
@@ -21,16 +22,20 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-# Two portrait and two landscape phones, and a tablet in between: 360 and 390 are common Android and iPhone portrait widths,
-# 844 is the iPhone landscape width, 768 a small tablet.
-WIDTHS = (360, 390, 768, 844)
+# Two portrait phones, a tablet and a phone held sideways: 360 and 390 are common Android and iPhone portrait widths, 768 is a
+# small tablet, and 844 by 390 is an iPhone in landscape, where the height is what a bar that stays on screen eats into. The
+# others are 800 tall.
 HEIGHT = 800
+VIEWPORTS = ((360, HEIGHT), (390, HEIGHT), (768, HEIGHT), (844, HEIGHT), (844, 390))
+WIDTHS = tuple(width for width, _ in VIEWPORTS)
+# A bar that stays on screen takes at most this share of the height.
+MAX_BAR_SHARE = 0.2
 MIN_FONT_PX = 12
 # Subpixel rounding makes a box one pixel narrower than the text it holds.
 TOLERANCE_PX = 1
 
 MEASURE = """
-([minFont, tolerance]) => {
+([minFont, tolerance, maxBar]) => {
   const problems = [];
   const name = (el) => {
     const classes = typeof el.className === 'string' ? el.className.trim().split(/\\s+/).filter(Boolean) : [];
@@ -60,6 +65,13 @@ MEASURE = """
       problems.push(`${name(el)} holds ${el.scrollWidth}px of content in a ${el.clientWidth}px box`);
     }
   }
+  for (const el of document.body.querySelectorAll('*')) {
+    const cs = getComputedStyle(el);
+    if ((cs.position === 'sticky' || cs.position === 'fixed') && el.tagName !== 'DIALOG' && visible(el) && el.getBoundingClientRect().top <= 1) {
+      const share = el.getBoundingClientRect().height / window.innerHeight;
+      if (share > maxBar) problems.push(`${name(el)} stays on screen and takes ${Math.round(share * 100)}% of the ${window.innerHeight}px height`);
+    }
+  }
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   const small = new Set();
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -70,6 +82,34 @@ MEASURE = """
   }
   problems.push(...small);
   return [...new Set(problems)];
+}
+"""
+
+
+# The headings the page's own links name, each scrolled to as a link would: its top against the bar that stays on screen.
+ANCHORS = """
+(tolerance) => {
+  const bar = (() => {
+    let bottom = 0;
+    for (const el of document.body.querySelectorAll('*')) {
+      const cs = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      const stays = (cs.position === 'sticky' || cs.position === 'fixed') && el.tagName !== 'DIALOG';
+      if (stays && el.getClientRects().length > 0 && rect.top <= 1 && rect.height < window.innerHeight / 2) bottom = Math.max(bottom, rect.bottom);
+    }
+    return bottom;
+  })();
+  const hidden = [];
+  for (const link of document.querySelectorAll('a[href^="#"]')) {
+    const id = decodeURIComponent(link.getAttribute('href').slice(1));
+    const target = document.getElementById(id);
+    if (!target) { hidden.push(`the link to #${id} names nothing on the page`); continue; }
+    target.scrollIntoView();
+    const top = target.getBoundingClientRect().top;
+    if (top < bar - tolerance) hidden.push(`#${id} lands ${Math.round(bar - top)}px under the bar that stays on screen`);
+  }
+  window.scrollTo(0, 0);
+  return [...new Set(hidden)];
 }
 """
 
@@ -103,14 +143,14 @@ def pages_of(directory: Path) -> list[str]:
 
 
 def measure(page: Page) -> list[str]:
-    return page.evaluate(MEASURE, [MIN_FONT_PX, TOLERANCE_PX])
+    return page.evaluate(MEASURE, [MIN_FONT_PX, TOLERANCE_PX, MAX_BAR_SHARE])
 
 
-def check_page(page: Page, url: str, width: int) -> list[str]:
-    page.set_viewport_size({"width": width, "height": HEIGHT})
+def check_page(page: Page, url: str, viewport: tuple[int, int]) -> list[str]:
+    page.set_viewport_size({"width": viewport[0], "height": viewport[1]})
     page.goto(url)
     page.wait_for_load_state("load")
-    problems = measure(page)
+    problems = measure(page) + page.evaluate(ANCHORS, TOLERANCE_PX)
     button = page.locator(".menu-btn")
     if button.is_visible():
         button.click()
@@ -121,8 +161,10 @@ def check_page(page: Page, url: str, width: int) -> list[str]:
     return problems
 
 
-def check(directory: Path, widths: tuple[int, ...] = WIDTHS) -> list[str]:
-    """Every layout problem on every page of the site in `directory`, each as `<page> at <width>px: <problem>`."""
+def check(directory: Path, viewports: tuple[int | tuple[int, int], ...] = VIEWPORTS) -> list[str]:
+    """Every layout problem on every page of the site in `directory`, each as `<page> at <width>px: <problem>`, or `<width>x<height>px`
+    where the height is not the usual one. A bare width is that width at the usual height."""
+    sizes = [(v, HEIGHT) if isinstance(v, int) else v for v in viewports]
     errors: list[str] = []
     pages = pages_of(directory)
     if not pages:
@@ -132,8 +174,9 @@ def check(directory: Path, widths: tuple[int, ...] = WIDTHS) -> list[str]:
         try:
             page = browser.new_page()
             for path in pages:
-                for width in widths:
-                    errors += [f"{path} at {width}px: {problem}" for problem in check_page(page, base + path, width)]
+                for size in sizes:
+                    label = f"{size[0]}px" if size[1] == HEIGHT else f"{size[0]}x{size[1]}px"
+                    errors += [f"{path} at {label}: {problem}" for problem in check_page(page, base + path, size)]
         finally:
             browser.close()
     return errors
@@ -147,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     for error in errors:
         print(f"error: {error}", file=sys.stderr)
     if not errors:
-        print(f"Layout ok: {len(pages_of(site))} pages at {', '.join(map(str, WIDTHS))}px.")
+        print(f"Layout ok: {len(pages_of(site))} pages at {', '.join(f'{w}x{h}' for w, h in VIEWPORTS)}px.")
     return 1 if errors else 0
 
 

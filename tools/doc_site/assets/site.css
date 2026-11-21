@@ -1,5 +1,6 @@
 :root{--radius:.75rem;--ok:#1a7f37;--info:#0b5cad;--warn:#9a6700;--mute:#59636e;--bad:#b3261e;--shadow:0 1px 2px rgb(0 0 0/.08),0 1px 8px rgb(0 0 0/.04)}
 @media (prefers-color-scheme:dark){:root{--ok:#4ac26b;--info:#6cb0ff;--warn:#e3b341;--mute:#9aa4af;--bad:#ff8a80;--shadow:0 1px 2px rgb(0 0 0/.5)}}
+html{scroll-padding-top:4.5rem}
 body{display:block;grid-template-columns:none;margin:0;font-size:1rem}
 body>*{grid-column:auto}
 main,.bar-in,footer{max-width:72rem;margin-inline:auto;padding-inline:1rem}
@@ -22,6 +23,8 @@ body>header.bar{background:var(--bg);border-bottom:1px solid var(--border);paddi
 .menu-btn{display:none;min-height:44px;min-width:44px;margin:0;padding:.5rem .9rem;background:none;border:1px solid var(--border);color:var(--text);cursor:pointer}
 .js .menu-btn{display:inline-flex;align-items:center;gap:.5rem}
 @media (min-width:62rem){.js .menu-btn{display:none}}
+/* A phone held sideways is about 390px tall: a sticky bar would take a seventh of it, so it scrolls away there. */
+@media (max-height:30rem){body>header.bar{position:static}html{scroll-padding-top:0}}
 @media (max-width:61.99rem){.js .bar nav{display:none}.bar nav{flex-wrap:wrap}}
 
 /* drawer */
@@ -83,3 +86,8 @@ td.title{font-weight:600}
 .home .tile:hover{background:var(--accent-bg)}
 .home .tile span{color:var(--text-light)}
 @media (min-width:62rem){.home{grid-template-columns:repeat(3,1fr)}}
+
+/* footer */
+footer{padding-block:1.5rem 2rem;color:var(--text-light);font-size:.9rem}
+footer p{margin:.25rem 0}
+footer code{font-size:.95em}

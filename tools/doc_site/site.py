@@ -7,6 +7,7 @@ import hashlib
 import posixpath
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT
@@ -14,7 +15,7 @@ from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
 from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from doc_site.markup import Anchors, UnsupportedMarkup, inline, link_resolver, paragraphs
+from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, inline, link_resolver, paragraphs
 
 PACKAGE = Path(__file__).resolve().parent
 
@@ -132,13 +133,53 @@ def integrity(data: bytes) -> str:
     return "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode("ascii")
 
 
-def build(root: Path = ROOT) -> dict[str, bytes]:
-    """Every file of the site, by its path under the site's root. Reads only the tree."""
+@dataclass(frozen=True)
+class Stamp:
+    """The commit a site is built from, for the footer: a reader compares it with `main` to tell a page the CDN has not refreshed."""
+
+    sha: str  # the full 40-hex commit id
+    date: str  # the commit's date, ISO 8601 with an offset
+
+    def __post_init__(self) -> None:
+        if not re.fullmatch(r"[0-9a-f]{40}", self.sha):
+            raise ValueError(f"not a full commit id: {self.sha!r}")
+        datetime.fromisoformat(self.date)
+
+    @property
+    def short(self) -> str:
+        return self.sha[:7]
+
+    @property
+    def url(self) -> str:
+        return f"{REPO_URL}/commit/{self.sha}"
+
+    @property
+    def label(self) -> str:
+        return datetime.fromisoformat(self.date).astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def fingerprinted(name: str, data: bytes) -> str:
+    """`assets/site.css` -> `assets/site.<first ten hex of its sha256>.css`. A page and the file it names change together, so a cache that
+    holds the old page never pairs it with the new file, nor the new page with the old file (which, for the stylesheet, its integrity
+    attribute would refuse)."""
+    stem, dot, extension = name.rpartition(".")
+    return f"assets/{stem}.{hashlib.sha256(data).hexdigest()[:10]}{dot}{extension}"
+
+
+def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
+    """Every file of the site, by its path under the site's root. Reads only the tree and the stamp it is given."""
     env = Environment(loader=FileSystemLoader(PACKAGE / "templates"), autoescape=True, undefined=StrictUndefined, keep_trailing_newline=True)
     generated = generated_blocks(root)
     stylesheet = (PACKAGE / "vendor/simple.min.css").read_bytes()
     sri = integrity(stylesheet)
-    files: dict[str, bytes] = {}
+    assets = {
+        "simple_css": ("simple.css", stylesheet),
+        "site_css": ("site.css", (PACKAGE / "assets/site.css").read_bytes()),
+        "site_js": ("site.js", (PACKAGE / "assets/site.js").read_bytes()),
+    }
+    urls = {key: fingerprinted(name, data) for key, (name, data) in assets.items()}
+    files: dict[str, bytes] = {urls[key]: data for key, (_, data) in assets.items()}
+    files["assets/simple-licence.txt"] = (PACKAGE / "vendor/simple.LICENSE").read_bytes()
 
     def nav(slug: str | None) -> list[dict]:
         pages = _page_addresses(slug)
@@ -166,17 +207,24 @@ def build(root: Path = ROOT) -> dict[str, bytes]:
                 base="../",
                 home="../",
                 sri=sri,
+                assets=urls,
+                stamp=stamp,
             )
             .encode("utf-8")
         )
     files["index.html"] = (
         env.get_template("home.html.j2")
-        .render(views=[{"href": f"{view.slug}/", "label": view.nav, "blurb": view.blurb} for view in VIEWS], nav=nav(None), base="", home="", sri=sri)
+        .render(
+            views=[{"href": f"{view.slug}/", "label": view.nav, "blurb": view.blurb} for view in VIEWS],
+            nav=nav(None),
+            base="",
+            home="",
+            sri=sri,
+            assets=urls,
+            stamp=stamp,
+        )
         .encode("utf-8")
     )
-    files["assets/site.css"] = (PACKAGE / "assets/site.css").read_bytes()
-    files["assets/site.js"] = (PACKAGE / "assets/site.js").read_bytes()
-    files["assets/simple.css"] = stylesheet
     return files
 
 
@@ -187,11 +235,11 @@ def page_anchors(root: Path = ROOT) -> dict[str, set[str]]:
     return {slug: set(re.findall(r'<(?:h[1-6]|section)\b[^>]*? id="([^"]+)"', built[path].decode())) for slug, path in pages.items()}
 
 
-def write(out: Path, root: Path = ROOT) -> list[str]:
+def write(out: Path, root: Path = ROOT, stamp: Stamp | None = None) -> list[str]:
     """Writes the site into `out`, which must be empty or absent. Returns the paths written."""
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty")
-    files = build(root)
+    files = build(root, stamp)
     for relative, data in files.items():
         path = out / posixpath.normpath(relative)
         path.parent.mkdir(parents=True, exist_ok=True)

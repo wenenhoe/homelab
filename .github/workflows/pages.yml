@@ -43,7 +43,7 @@ jobs:
           locked: "true"
 
       - name: Build the site
-        run: uv run --locked python -m doc_site --out "$RUNNER_TEMP/site"
+        run: uv run --locked python -m doc_site --commit "$GITHUB_SHA" --out "$RUNNER_TEMP/site"
         working-directory: tools
 
       # Chrome comes with the runner image. A page that scrolls sideways or sets text under 12px on a phone

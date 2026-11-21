@@ -13,9 +13,9 @@ pytestmark = pytest.mark.skipif(shutil.which("google-chrome") is None, reason="t
 PAGE = '<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><body style="margin:0;font:16px sans-serif">{body}</body>'
 
 
-def problems(tmp_path, body: str, widths=(360,)) -> list[str]:
+def problems(tmp_path, body: str, viewports=(360,)) -> list[str]:
     (tmp_path / "index.html").write_text(PAGE.format(body=body), encoding="utf-8")
-    return layout.check(tmp_path, widths)
+    return layout.check(tmp_path, viewports)
 
 
 def test_a_page_that_fits_has_no_problems(tmp_path):
@@ -59,6 +59,43 @@ def test_every_page_and_width_is_named_in_the_error(tmp_path):
 def test_a_menu_button_that_does_not_open_the_menu_is_reported(tmp_path):
     body = '<button class="menu-btn">Menu</button><dialog class="drawer"></dialog>'
     assert any("does not open the menu" in error for error in problems(tmp_path, body))
+
+
+BAR = '<div style="position:sticky;top:0;height:{height}px;background:#ccc">bar</div>'
+
+
+def test_a_bar_that_takes_a_fifth_of_a_short_screen_is_reported(tmp_path):
+    errors = problems(tmp_path, BAR.format(height=100) + "<p>text</p>" * 80, [(844, 390)])
+    assert errors and "stays on screen and takes 26% of the 390px height" in errors[0] and errors[0].startswith("/ at 844x390px: ")
+
+
+def test_the_same_bar_on_a_tall_screen_passes(tmp_path):
+    assert problems(tmp_path, BAR.format(height=100) + "<p>text</p>" * 80, [(844, 800)]) == []
+
+
+def test_a_bar_that_scrolls_away_is_not_held_to_the_share(tmp_path):
+    assert problems(tmp_path, BAR.format(height=100).replace("sticky", "static"), [(844, 390)]) == []
+
+
+def test_a_heading_a_link_leaves_under_the_bar_is_reported(tmp_path):
+    body = BAR.format(height=60) + '<a href="#h">go</a>' + "<p>text</p>" * 80 + '<h2 id="h">Heading</h2>' + "<p>text</p>" * 80
+    assert any("#h lands" in error and "under the bar" in error for error in problems(tmp_path, body))
+
+
+def test_a_heading_clear_of_the_bar_passes(tmp_path):
+    body = (
+        "<style>html{scroll-padding-top:70px}</style>"
+        + BAR.format(height=60)
+        + '<a href="#h">go</a>'
+        + "<p>text</p>" * 80
+        + '<h2 id="h">Heading</h2>'
+        + "<p>text</p>" * 80
+    )
+    assert problems(tmp_path, body) == []
+
+
+def test_a_link_to_nothing_is_reported(tmp_path):
+    assert any("#gone names nothing" in error for error in problems(tmp_path, '<a href="#gone">x</a>'))
 
 
 def test_a_directory_without_pages_is_reported(tmp_path):

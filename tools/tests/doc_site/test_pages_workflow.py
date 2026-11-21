@@ -16,6 +16,7 @@ PAGES = REPO_ROOT / ".github/workflows/pages.yml"
 PR_CHECKS = REPO_ROOT / ".github/workflows/pr-checks.yml"
 FILTERS = REPO_ROOT / ".github/detect-changes-filters.yml"
 DEPLOY_PERMISSIONS = {"pages": "write", "id-token": "write"}
+BUILD = "python -m doc_site --commit"
 PINNED = re.compile(r"^[\w.-]+/[\w.-]+(/[\w./-]+)?@[0-9a-f]{40}$")
 
 
@@ -107,7 +108,11 @@ class TestDeployJob:
 class TestBuildJob:
     def test_the_layout_is_checked_after_the_build_and_before_the_upload(self, workflow):
         job = workflow["jobs"]["build"]
-        assert step_index(job, "python -m doc_site --out") < step_index(job, "python -m doc_site.layout") < step_index(job, "upload-pages-artifact")
+        assert step_index(job, BUILD) < step_index(job, "python -m doc_site.layout") < step_index(job, "upload-pages-artifact")
+
+    def test_the_site_is_stamped_with_the_commit_it_is_built_from(self, workflow):
+        job = workflow["jobs"]["build"]
+        assert '--commit "$GITHUB_SHA"' in job["steps"][step_index(job, BUILD)]["run"]
 
     def test_the_checkout_leaves_no_credential_behind(self, workflow):
         (checkout,) = [step for step in workflow["jobs"]["build"]["steps"] if step.get("name") == "Checkout"]
@@ -115,7 +120,7 @@ class TestBuildJob:
 
     def test_the_site_that_is_checked_is_the_site_that_is_uploaded(self, workflow):
         job = workflow["jobs"]["build"]
-        built = job["steps"][step_index(job, "python -m doc_site --out")]["run"]
+        built = job["steps"][step_index(job, BUILD)]["run"]
         checked = job["steps"][step_index(job, "python -m doc_site.layout")]["run"]
         uploaded = job["steps"][step_index(job, "upload-pages-artifact")]["with"]["path"]
         assert built.endswith('"$RUNNER_TEMP/site"') and checked.endswith('"$RUNNER_TEMP/site"')

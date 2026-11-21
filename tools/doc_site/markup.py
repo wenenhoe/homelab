@@ -11,6 +11,7 @@ import html
 import posixpath
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 
 REPO_URL = "https://github.com/wenenhoe/homelab"
 SITE_URL = "https://wenenhoe.github.io/homelab/"
@@ -26,6 +27,19 @@ _SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
 _UNSUPPORTED_BLOCK = re.compile(r"^(?:[-*+] |\d+[.)] |>|```|~~~|\||#|<|\s{4})")
 
 Resolver = Callable[[str], str]
+
+
+@dataclass(frozen=True)
+class Heading:
+    level: int
+    id: str
+    text: str
+
+
+def status_key(cell: str) -> str:
+    """`Accepted (revision 1)` -> `accepted`: the word that picks a pill's colour."""
+    first = re.split(r"[ ,(]", re.sub(r"<[^>]+>", "", cell).strip().lower(), maxsplit=1)[0]
+    return re.sub(r"[^a-z]", "", first) or "other"
 
 
 class UnsupportedMarkup(ValueError):

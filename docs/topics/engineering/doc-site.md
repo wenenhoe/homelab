@@ -16,7 +16,7 @@ From `tools/`:
 python -m doc_site --commit "$(git rev-parse HEAD)" --out /tmp/site
 ```
 
-`--out` must be empty or absent. The site is `index.html`, one `<view>/index.html` for each view, and `assets/`. A build reads the tree and the commit it is given and nothing else (no clock, no git state, no network), so building twice from one tree and one commit gives the same bytes; a test holds that. `--commit` takes a full commit id; the command looks up that commit's date and hands both to the build. Without it the footer says "Local build".
+`--out` must be empty or absent. The site is `index.html`, one `<view>/index.html` for each view, one `projects/<name>/index.html` for each project, and `assets/`. A build reads the tree and the commit it is given and nothing else (no clock, no git state, no network), so building twice from one tree and one commit gives the same bytes; a test holds that. `--commit` takes a full commit id; the command looks up that commit's date and hands both to the build. Without it the footer says "Local build".
 
 ## The footer
 
@@ -35,6 +35,17 @@ The planning page and the decision index open with a strip of counts, each linki
 ## Roadmap chips
 
 In the roadmap each project in the In progress, Startable and Waiting columns is a chip, a link named by the project without its `.md`, coloured by its column, with an "unblocks N" badge where the row has one. A cell that is anything other than a comma-separated list of project links (a dash, say) is rendered as text, so a change to the cell's form shows as plain links and loses nothing. No other table has chips.
+
+## Document pages
+
+A document with a page of its own is a markdown file of the repository, shown as it reads on GitHub ([ADR 0119 (Docs as site pages)](../../decisions/0119-reading-the-documentation-tree-away-from-github/revision-000.md)). Only the projects have pages so far; `README.md` and the `TEMPLATE` files in `docs/projects/` have none. `doc_site/documents.py` reads the body with a CommonMark library (`markdown-it-py`), so lists, tables and code blocks follow GitHub's rules, and it refuses what it has no rule for, as `markup.py` does for the views: raw HTML, an image, and a Mermaid block until the site draws those. An HTML comment is dropped, as GitHub does not show it. An error names the file and the line. The `check-doc-drift` hook imports the site to read its anchors, so it pins `markdown-it-py` beside `jinja2` in `.config/.pre-commit-config.yaml`; a new library the renderer imports goes there too.
+
+- The first top-level heading is the page's title, and the front matter is read for a header above the body: the status as a pill, whether the project is blocked, the project it is part of, its decision, the projects it waits on as links to their pages, and its summary as the lede.
+- A heading has the anchor GitHub gives it, and a `##` or `###` heading is in the menu's list of the page.
+- A link to a page of the site goes to it with its anchor kept, and a link to any other file goes to it on GitHub, as in a view. A link from a project to a view or to another project is therefore a link between pages.
+- A list item that starts `[ ]` or `[x]` is a disabled box, so a closing checklist reads as one. The page does not change the file: the box is not a control.
+- A table takes the same card layout as a view on a phone, each cell labelled by its column, and a `Status` cell is a pill. A code block wraps, as the layout check refuses a block that scrolls sideways.
+- Every page links to its file on GitHub, where the document can be edited.
 
 ## Anchors and links
 

@@ -11,12 +11,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from doc_scripts.doc_frontmatter import ROOT
+from doc_scripts.doc_frontmatter import ROOT, docs_in, read_frontmatter
 from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
 from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, blocks, inline, link_resolver
+from doc_site.documents import render
+from doc_site.markup import BRANCH, REPO_URL, Anchors, Heading, UnsupportedMarkup, blocks, inline, link_resolver, status_key
 from doc_site.summary import ROADMAP_COLUMNS, tiles
 
 PACKAGE = Path(__file__).resolve().parent
@@ -62,19 +63,6 @@ def roles_of(headers: tuple[str, ...]) -> list[str]:
         else:
             roles.append("field")
     return roles
-
-
-def status_key(cell: str) -> str:
-    """`Accepted (revision 1)` -> `accepted`: the word that picks a pill's colour."""
-    first = re.split(r"[ ,(]", re.sub(r"<[^>]+>", "", cell).strip().lower(), maxsplit=1)[0]
-    return re.sub(r"[^a-z]", "", first) or "other"
-
-
-@dataclass(frozen=True)
-class Heading:
-    level: int
-    id: str
-    text: str
 
 
 _LINK = r"\[`(?P<name>[^`]+?)(?:\.md)?`\]\((?P<target>[^)\s]+)\)(?: \(unblocks (?P<count>\d+)\))?"
@@ -160,10 +148,46 @@ def split_intro(paragraphs: list[str], headings: list[str]) -> tuple[list[str], 
     return rest[:1], captions, rest[1:]
 
 
-def _page_addresses(from_slug: str | None) -> dict[str, str]:
-    """Each view's address from the page for `from_slug` (None for the home page)."""
-    prefix = "" if from_slug is None else "../"
-    return {view.source: f"{prefix}{view.slug}/" for view in VIEWS}
+@dataclass(frozen=True)
+class Document:
+    source: str  # the markdown file, from the repository root
+    slug: str  # its directory on the site, `projects/<name>`
+    front: dict  # its front matter
+
+
+def _documents(root: Path) -> list[Document]:
+    """The documents with a page of their own. Only the projects so far."""
+    return [Document(f"docs/projects/{path.name}", f"projects/{path.stem}", read_frontmatter(path)) for path in docs_in(root / "docs/projects")]
+
+
+def _page_addresses(targets: dict[str, str], depth: int) -> dict[str, str]:
+    """Each page's address from a page `depth` directories under the site's root; `targets` maps a source path to its directory."""
+    return {source: f"{'../' * depth}{slug}/" for source, slug in targets.items()}
+
+
+def _targets(documents: list[Document]) -> dict[str, str]:
+    return {view.source: view.slug for view in VIEWS} | {document.source: document.slug for document in documents}
+
+
+def _facts(document: Document, documents: list[Document], resolve) -> list[dict]:
+    """The header of a project page, from its front matter: what a reader looks at before the body."""
+    front = document.front
+    by_id = {other.front["id"]: other for other in documents}
+    waits = [by_id[d["project"]] for d in front.get("depends_on", []) if d["project"] in by_id]
+    facts = [{"label": "Status", "html": f'<span class="pill s-{status_key(front["status"])}">{html.escape(front["status"])}</span>'}]
+    if front.get("blocked"):
+        facts.append({"label": "Blocked", "html": "yes"})
+    if front.get("super_project"):
+        facts.append({"label": "Part of", "html": f"<code>{html.escape(front['super_project'])}</code>"})
+    if front.get("decision"):
+        facts.append({"label": "Decision", "html": f"<code>{html.escape(front['decision'])}</code>"})
+    if waits:
+        links = ", ".join(
+            f'<a href="{html.escape(resolve(other.source.removeprefix("docs/projects/")), quote=True)}">{html.escape(Path(other.source).stem)}</a>'
+            for other in waits
+        )
+        facts.append({"label": "Waits on", "html": links})
+    return facts
 
 
 def integrity(data: bytes) -> str:
@@ -219,13 +243,16 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
     files: dict[str, bytes] = {urls[key]: data for key, (_, data) in assets.items()}
     files["assets/simple-licence.txt"] = (PACKAGE / "vendor/simple.LICENSE").read_bytes()
 
-    def nav(slug: str | None) -> list[dict]:
-        pages = _page_addresses(slug)
+    documents = _documents(root)
+    targets = _targets(documents)
+
+    def nav(slug: str | None, depth: int) -> list[dict]:
+        pages = _page_addresses(targets, depth)
         return [{"href": pages[view.source], "label": view.nav, "current": view.slug == slug} for view in VIEWS]
 
     for view in VIEWS:
         title, intro = _title_and_intro((root / intro_path(view.source)).read_text(encoding="utf-8"), intro_path(view.source))
-        resolve = link_resolver(view.source, _page_addresses(view.slug), lambda path: (root / path).is_dir())
+        resolve = link_resolver(view.source, _page_addresses(targets, 1), lambda path: (root / path).is_dir())
         anchors = Anchors()
         headings = [Heading(1, anchors.of(title), title)]
         own = [g for g in generated if g.view == view.source]
@@ -255,9 +282,32 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
                 legend=[inline(paragraph, resolve) for paragraph in legend],
                 sections=sections,
                 headings=headings[1:],
-                nav=nav(view.slug),
+                nav=nav(view.slug, 1),
                 base="../",
                 home="../",
+                sri=sri,
+                assets=urls,
+                stamp=stamp,
+            )
+            .encode("utf-8")
+        )
+    for document in documents:
+        resolve = link_resolver(document.source, _page_addresses(targets, 2), lambda path: (root / path).is_dir())
+        text = (root / document.source).read_text(encoding="utf-8")
+        page = render(text, resolve, document.source)
+        files[f"{document.slug}/index.html"] = (
+            env.get_template("document.html.j2")
+            .render(
+                title=page.title,
+                title_id=page.title_id,
+                summary=document.front.get("summary", ""),
+                facts=_facts(document, documents, resolve),
+                body=page.html,
+                headings=page.headings,
+                source_url=f"{REPO_URL}/blob/{BRANCH}/{document.source}",
+                nav=nav(None, 2),
+                base="../../",
+                home="../../",
                 sri=sri,
                 assets=urls,
                 stamp=stamp,
@@ -268,7 +318,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
         env.get_template("home.html.j2")
         .render(
             views=[{"href": f"{view.slug}/", "label": view.nav, "blurb": view.blurb} for view in VIEWS],
-            nav=nav(None),
+            nav=nav(None, 0),
             base="",
             home="",
             sri=sri,
@@ -282,8 +332,8 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
 
 def page_anchors(root: Path = ROOT) -> dict[str, set[str]]:
     """The heading ids of each page, by its slug (`""` for the home page): what a link to the site can name after the `#`."""
-    pages = {"": "index.html"} | {view.slug: f"{view.slug}/index.html" for view in VIEWS}
     built = build(root)
+    pages = {"": "index.html"} | {path.removesuffix("/index.html"): path for path in built if path.endswith("/index.html")}
     return {slug: set(re.findall(r'<(?:h[1-6]|section)\b[^>]*? id="([^"]+)"', built[path].decode())) for slug, path in pages.items()}
 
 

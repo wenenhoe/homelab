@@ -1,0 +1,10 @@
+{% extends "base.html.j2" %}
+{% block title %}{{ title }} · {% endblock %}
+{% block drawer %}{% if headings %}<h2>On this page</h2>{% for h in headings %}<a href="#{{ h.id }}"{% if h.level == 3 %} class="sub"{% endif %}>{{ h.text }}</a>{% endfor %}{% endif %}{% endblock %}
+{% block main %}<h1 id="{{ title_id }}">{{ title }}</h1>
+{% if summary %}<p class="lede">{{ summary }}</p>
+{% endif %}{% if facts %}<dl class="facts">{% for fact in facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.html | safe }}</dd></div>{% endfor %}</dl>
+{% endif %}<article class="doc">
+{{ body | safe }}</article>
+<p class="source"><a href="{{ source_url }}">View this file on GitHub</a></p>
+{% endblock %}

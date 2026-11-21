@@ -12,7 +12,7 @@ from doc_scripts.generate_doc_indexes import intro_path
 from doc_site import site
 from doc_site.markup import UnsupportedMarkup, github_slug
 
-PAGES = {"index.html", *(f"{view.slug}/index.html" for view in site.VIEWS)}
+PAGES = {"index.html", *(f"{view.slug}/index.html" for view in site.VIEWS), "projects/one/index.html", "projects/two/index.html"}
 STAMP = site.Stamp("0123456789abcdef0123456789abcdef01234567", "2026-11-21T16:12:00+08:00")
 
 
@@ -76,7 +76,7 @@ def test_every_heading_has_the_anchor_github_gives_it(tree):
 
 def test_the_anchors_a_link_can_name_are_those_of_the_headings(tree):
     anchors = site.page_anchors(tree)
-    assert set(anchors) == {"", *(view.slug for view in site.VIEWS)}
+    assert set(anchors) == {"", *(view.slug for view in site.VIEWS), "projects/one", "projects/two"}
     built = site.build(tree)
     for view in site.VIEWS:
         html = built[f"{view.slug}/index.html"].decode()
@@ -285,8 +285,12 @@ class TestRoadmapChips:
 
     def test_the_roadmaps_project_columns_hold_chips_by_state(self, tree):
         roadmap = self.roadmap(tree)
-        assert re.search(r'<td class="field col-in-progress" data-label="In progress"><div class="chips"><a class="chip" href="[^"]*one\.md">one</a>', roadmap)
-        assert re.search(r'<td class="field col-startable" data-label="Startable"><div class="chips"><a class="chip" href="[^"]*two\.md">two</a>', roadmap)
+        assert re.search(
+            r'<td class="field col-in-progress" data-label="In progress"><div class="chips"><a class="chip" href="[^"]*projects/one/">one</a>', roadmap
+        )
+        assert re.search(
+            r'<td class="field col-startable" data-label="Startable"><div class="chips"><a class="chip" href="[^"]*projects/two/">two</a>', roadmap
+        )
 
     def test_an_empty_column_is_still_a_dash(self, tree):
         assert '<td class="field none col-waiting" data-label="Waiting">—</td>' in self.roadmap(tree)

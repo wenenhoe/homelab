@@ -56,12 +56,12 @@ dialog.drawer::backdrop{background:rgb(0 0 0/.45)}
 .filter input{display:block;width:100%;min-height:48px;margin:0;padding:.6rem .9rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--accent-bg);color:var(--text)}
 
 /* tables (desktop) */
-section table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:.95rem}
-section thead th{background:var(--accent-bg);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-light);text-align:left;white-space:nowrap}
-section td,section th{padding:.65rem .85rem;vertical-align:top;border:0;border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
-section tbody tr:last-child td{border-bottom:0}
-section tbody tr:nth-child(even){background:transparent}
-section tbody tr:hover{background:var(--accent-bg)}
+:is(section,.doc) table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;font-size:.95rem}
+:is(section,.doc) thead th{background:var(--accent-bg);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-light);text-align:left;white-space:nowrap}
+:is(section,.doc) td,:is(section,.doc) th{padding:.65rem .85rem;vertical-align:top;border:0;border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
+:is(section,.doc) tbody tr:last-child td{border-bottom:0}
+:is(section,.doc) tbody tr:nth-child(even){background:transparent}
+:is(section,.doc) tbody tr:hover{background:var(--accent-bg)}
 td.title{font-weight:600}
 
 /* status pills */
@@ -83,22 +83,36 @@ td.title{font-weight:600}
 
 /* cards (phones, landscape phones, small tablets) */
 @media (max-width:61.99rem){
- section table,section tbody{display:block;border:0;border-radius:0;overflow:visible}
- section thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
- section tr{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .6rem;margin:0 0 .75rem;padding:.9rem 1rem 1rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);overflow:hidden;box-shadow:inset 4px 0 0 var(--c,transparent),var(--shadow)}
- section tbody tr:hover{background:var(--bg)}
- section td{display:block;border:0;padding:0;width:100%}
- section td.eyebrow{order:1;width:auto;font-size:.85rem;font-weight:600;color:var(--text-light)}
- section td.eyebrow::before{text-transform:uppercase;letter-spacing:.04em;font-size:.75rem;content:attr(data-label);margin-right:.4em;font-weight:400}
- section td.status{order:2;width:auto;margin-left:auto}
- section tr.ne td.title{order:1;width:auto;flex:1 1 11rem;margin-top:0}
- section tr.ne td.status{order:2}
- section td.title{order:3;font-size:1.1rem;line-height:1.35;margin-top:.15rem}
- section td.field{order:4;font-size:.95rem}
- section td.field::before{content:attr(data-label);display:block;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);margin-bottom:.1rem}
- section td.none,section td:empty{display:none}
+ :is(section,.doc) table,:is(section,.doc) tbody{display:block;border:0;border-radius:0;overflow:visible}
+ :is(section,.doc) thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+ :is(section,.doc) tr{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .6rem;margin:0 0 .75rem;padding:.9rem 1rem 1rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);overflow:hidden;box-shadow:inset 4px 0 0 var(--c,transparent),var(--shadow)}
+ :is(section,.doc) tbody tr:hover{background:var(--bg)}
+ :is(section,.doc) td{display:block;border:0;padding:0;width:100%}
+ :is(section,.doc) td.eyebrow{order:1;width:auto;font-size:.85rem;font-weight:600;color:var(--text-light)}
+ :is(section,.doc) td.eyebrow::before{text-transform:uppercase;letter-spacing:.04em;font-size:.75rem;content:attr(data-label);margin-right:.4em;font-weight:400}
+ :is(section,.doc) td.status{order:2;width:auto;margin-left:auto}
+ :is(section,.doc) tr.ne td.title{order:1;width:auto;flex:1 1 11rem;margin-top:0}
+ :is(section,.doc) tr.ne td.status{order:2}
+ :is(section,.doc) td.title{order:3;font-size:1.1rem;line-height:1.35;margin-top:.15rem}
+ :is(section,.doc) td.field{order:4;font-size:.95rem}
+ :is(section,.doc) td.field::before{content:attr(data-label);display:block;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-light);margin-bottom:.1rem}
+ :is(section,.doc) td.none,:is(section,.doc) td:empty{display:none}
 }
 @media (min-width:62rem){td.none{color:var(--text-light)}}
+
+/* a document page */
+.facts{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:1rem 0}
+.facts div{display:flex;flex-direction:column;gap:.1rem}
+.facts dt{font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-light)}
+.facts dd{margin:0}
+.doc{border:0;margin:0;padding:0;max-width:none}
+.doc>:first-child{margin-top:0}
+.doc h2{margin-top:2rem}
+.doc pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.doc ul.tasks{list-style:none;padding-left:0}
+.doc li.task{position:relative;padding-left:1.7rem}
+.doc li.task input{position:absolute;left:0;top:.4em;margin:0}
+.source{margin:2rem 0 0;font-size:.9rem}
 
 /* home */
 .home{display:grid;gap:.75rem;margin:1.5rem 0}

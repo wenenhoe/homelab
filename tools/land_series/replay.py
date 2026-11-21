@@ -144,7 +144,7 @@ def _gate_is_true(tree: Path, gate: Check, layer: Layer) -> bool:
     return lines[-1].endswith("=true")
 
 
-def _run_check(tree: Path, check: Check, display: Display, label: str) -> str | None:
+def run_check(tree: Path, check: Check, display: Display, label: str) -> str | None:
     """The tail of the output when the check fails, else None. The last lines it prints are shown on the display while it runs and erased when it ends."""
     try:
         process = subprocess.Popen(
@@ -187,7 +187,7 @@ def _run_tip_check(tree: Path, tip: TipCheck, layer: Layer, pull_base: str, prog
         progress(f"commit {layer.id}: `{check}` skipped, CI would not run it for this pull request")
         return
     progress(f"commit {layer.id}: running `{check}` on the pull request's last commit")
-    failure = _run_check(tree, check, display, f"commit {layer.id}: `{check}`")
+    failure = run_check(tree, check, display, f"commit {layer.id}: `{check}`")
     if failure is not None:
         raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")
 
@@ -237,7 +237,7 @@ def replay(
                 raise ReplayError(f"commit {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
             for check in (check.at(pull_base) for check in checks):
                 progress(f"commit {layer.id}: running `{check}`")
-                failure = _run_check(tree, check, display, f"commit {layer.id}: `{check}`")
+                failure = run_check(tree, check, display, f"commit {layer.id}: `{check}`")
                 if failure is not None:
                     raise ReplayError(f"commit {layer.id} fails `{check}`:\n{failure}")
             if tips[layer.number] == layer.id:

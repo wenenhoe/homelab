@@ -18,7 +18,15 @@ from land_series import land as land_module
 from land_series.kept import KeptError, keep, leftovers
 from land_series.land import LandError, fetch, land
 from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_series
-from land_series.replay import ReplayError, replay
+from land_series.replay import PULL_BASE, Check, ReplayError, replay
+
+DEFAULT_PUSH_CHECKS = cli.default_push_checks
+
+
+@pytest.fixture(autouse=True)
+def no_pre_commit_on_push(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The command line lands with `pre-commit` hooks, which the throwaway repositories here have no configuration for."""
+    monkeypatch.setattr(cli, "default_push_checks", list)
 
 
 class Reviews:
@@ -64,6 +72,87 @@ def test_each_kept_layer_becomes_a_pull_request_merged_in_order_showing_only_its
     assert github.branches() == ["main"]
     assert git(repo.path, "branch", "--list", "series/*") == ""
     assert reviews.asked == [("0001", "https://example.test/pull/1"), ("0002", "https://example.test/pull/2")]
+
+
+def test_the_push_runs_no_hook_of_the_clone_it_is_run_from(github: FakeGitHub, repo: Repo, author: Author, tmp_path: Path) -> None:
+    marker = tmp_path / "hook-ran"
+    repo.install_hook("pre-push", f"touch {marker}\nexit 1\n")
+    layers = two_layers(author)
+    kept(repo, layers)
+
+    landed = land(repo.path, layers, Reviews(True, True), sleep=lambda _: None)
+
+    assert [item.merged for item in landed] == [True, True]
+    assert not marker.exists()
+    # Control: an ordinary push from the same clone runs the hook, so the marker above would have shown.
+    refused = subprocess.run(["git", "-C", str(repo.path), "push", "-q", "origin", "main:elsewhere"], capture_output=True, check=False)
+    assert refused.returncode != 0
+    assert marker.exists()
+
+
+# Appends "<tip commit>:<the files the pull request changes from its base>" to the log, as run in the worktree the check is given.
+RECORD_PUSH = (
+    "import os, subprocess, sys\n"
+    "def git(*a): return subprocess.run(['git', *a], capture_output=True, text=True).stdout.split()\n"
+    "open(os.environ['LAND_LOG'], 'a').write(git('rev-parse', 'HEAD')[0] + ':' + ','.join(git('diff', '--name-only', sys.argv[1], 'HEAD')) + chr(10))\n"
+)
+
+
+@pytest.fixture
+def push_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    path = tmp_path / "push.log"
+    monkeypatch.setenv("LAND_LOG", str(path))
+    return path
+
+
+def recording_push_check(script: str = RECORD_PUSH) -> Check:
+    return Check((sys.executable, "-c", script, PULL_BASE))
+
+
+def test_the_pre_push_checks_run_on_the_commit_that_is_pushed_against_the_base_the_merges_before_it_made(
+    github: FakeGitHub, repo: Repo, author: Author, push_log: Path
+) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+
+    land(repo.path, layers, Reviews(True, True), sleep=lambda _: None, push_checks=[recording_push_check()])
+
+    first, second = (git(github.remote, "rev-parse", f"main^{{/docs: write {name}}}") for name in ("one", "two"))
+    assert push_log.read_text().splitlines() == [f"{first}:a.txt", f"{second}:b.txt"]
+
+
+def test_a_pre_push_check_that_fails_stops_before_the_push_and_leaves_the_layers_before_it_merged(
+    github: FakeGitHub, repo: Repo, author: Author, tmp_path: Path
+) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    only_the_second = (
+        "import subprocess, sys\nfiles = subprocess.run(['git', 'ls-files'], capture_output=True, text=True).stdout.split()\nsys.exit('b.txt' in files)\n"
+    )
+
+    with pytest.raises(LandError, match=r"(?s)pull request 0002 fails `.*` before its push") as stopped:
+        land(repo.path, layers, Reviews(True, True), sleep=lambda _: None, push_checks=[Check((sys.executable, "-c", only_the_second))])
+
+    assert [item.pull.number for item in stopped.value.landed] == ["0001"]
+    assert github.branches() == ["main"]
+    assert len(github.merges_on_main()) == 1
+
+
+def test_a_remote_branch_already_at_the_commit_runs_no_pre_push_check(github: FakeGitHub, repo: Repo, author: Author, push_log: Path) -> None:
+    layers = two_layers(author)
+    kept(repo, layers)
+    land(repo.path, layers, Reviews(False), sleep=lambda _: None, push_checks=[recording_push_check()])
+    push_log.unlink()
+
+    land(repo.path, layers, Reviews(False), sleep=lambda _: None, push_checks=[recording_push_check()])
+
+    assert not push_log.exists()
+
+
+def test_the_command_line_lands_with_the_pre_push_hooks_as_a_push_check() -> None:
+    (check,) = DEFAULT_PUSH_CHECKS()
+
+    assert check.argv == ("pre-commit", "run", "--hook-stage", "pre-push", "--from-ref", PULL_BASE, "--to-ref", "HEAD")
 
 
 def test_a_checked_out_branch_is_not_rebuilt_and_nothing_else_is_changed(github: FakeGitHub, repo: Repo, author: Author) -> None:

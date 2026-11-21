@@ -5,7 +5,8 @@ apply and pass the local checks, and a branch is pushed only while it is exactly
 a pull request's first commit sits on the last of the one before it, which a merge commit has brought into the base, so its pull
 request shows only its own commits.
 
-Every step goes through `git` and `gh` under the maintainer's own login. Only `refs/heads/<slug>` is ever pushed.
+Every step goes through `git` and `gh` under the maintainer's own login. Only `refs/heads/<slug>` is ever pushed, with every hook off:
+the pre-push hooks run first, on the commit in a scratch worktree, since a hook of this clone would run on its working tree.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from pathlib import Path
 from land_series.kept import KeptError, branch_of, forget, is_ready, kept_tip, rebase
 from land_series.live import Display, check_lines, hidden
 from land_series.manifest import RESERVED_SLUGS, Layer, Pull, group_pulls
-from land_series.replay import Progress, ReplayError, git_run, git_text, landed_in, silent
+from land_series.replay import NO_HOOKS, Check, Progress, ReplayError, git_run, git_text, landed_in, run_check, scratch_worktree, silent
 from land_series.run import CommandError, CommandFailed, Completed, TimedOut, checked, run
 
 CHECKS_INTERVAL_SECONDS = 20
@@ -135,10 +136,35 @@ def _body(repo: Path, pull: Pull, tip: str) -> str:
     return git_run(repo, "log", "-1", "--format=%b", tip).stdout.decode().strip()
 
 
-def _push(repo: Path, pull: Pull, tip: str, base: str, sleep: Callable[[float], None]) -> tuple[str, bool]:
+def _pre_push(repo: Path, pull: Pull, first: str, tip: str, checks: Sequence[Check], display: Display) -> None:
+    """Run what a `git push` would run before it sends anything, on the commit that is sent and not on this clone's working tree.
+
+    `PULL_BASE` in a check is the commit before the pull request's first one, which is the base's tip once the pull requests before it have merged.
+    """
+    if not checks:
+        return
+    pull_base = git_text(git_run(repo, "rev-parse", f"{first}^1"))
+    with scratch_worktree(repo, tip) as tree:
+        for check in (check.at(pull_base) for check in checks):
+            failure = run_check(tree, check, display, f"pull request {pull.number}: `{check}`")
+            if failure is not None:
+                raise LandError(f"pull request {pull.number} fails `{check}` before its push:\n{failure}")
+
+
+def _push(
+    repo: Path,
+    pull: Pull,
+    first: str,
+    tip: str,
+    base: str,
+    sleep: Callable[[float], None],
+    push_checks: Sequence[Check] = (),
+    progress: Progress = silent,
+    display: Display = hidden,
+) -> tuple[str, bool]:
     """Push the kept commits as the pull request's branch; return the pull request body and whether the remote branch changed.
 
-    A remote branch already at that commit is left alone.
+    A remote branch already at that commit is left alone, and the push checks do not run, as a push of nothing runs no hook.
     """
     remote, _, _ = base.partition("/")
     ref = f"refs/heads/{pull.slug}"
@@ -150,7 +176,10 @@ def _push(repo: Path, pull: Pull, tip: str, base: str, sleep: Callable[[float], 
     body = _body(repo, pull, tip)
     if existing == tip:
         return body, False
-    pushed = git_run(repo, "push", "--quiet", f"--force-with-lease={ref}:{existing}", remote, f"{tip}:{ref}", timeout=NETWORK_TIMEOUT_SECONDS)
+    if push_checks:
+        progress(f"pull request {pull.number}: running the pre-push hooks on {tip[:10]}")
+    _pre_push(repo, pull, first, tip, push_checks, display)
+    pushed = git_run(repo, *NO_HOOKS, "push", "--quiet", f"--force-with-lease={ref}:{existing}", remote, f"{tip}:{ref}", timeout=NETWORK_TIMEOUT_SECONDS)
     if pushed.returncode != 0:
         raise LandError(f"cannot push {ref}: {git_text(pushed)}")
     return body, True
@@ -260,8 +289,13 @@ def land(
     sleep: Callable[[float], None] = time.sleep,
     progress: Progress = silent,
     display: Display = hidden,
+    push_checks: Sequence[Check] = (),
 ) -> list[Landed]:
-    """Land the pull requests in the order given; stop, with its pull request left open, at the first one the maintainer does not confirm."""
+    """Land the pull requests in the order given; stop, with its pull request left open, at the first one the maintainer does not confirm.
+
+    `push_checks` run before each push that sends something, on the commit sent. One that fails stops the run there, with the pull
+    requests before it merged, as a failed pre-push hook would stop a `git push`.
+    """
     _, _, branch = base.partition("/")
     results: list[Landed] = []
     try:
@@ -270,7 +304,7 @@ def land(
         raise LandError(str(error)) from error
     fetch(repo, base)
     try:
-        _land_each(repo, layers, review, base, branch, cache(lambda: required_checks(repo, branch, sleep)), sleep, results, progress, display)
+        _land_each(repo, layers, review, base, branch, cache(lambda: required_checks(repo, branch, sleep)), sleep, results, progress, display, push_checks)
     except LandError as error:
         error.landed = results
         raise
@@ -290,6 +324,7 @@ def _land_each(
     results: list[Landed],
     progress: Progress,
     display: Display,
+    push_checks: Sequence[Check] = (),
 ) -> None:
     for pull in group_pulls(list(layers)):
         label = f"pull request {pull.number}"
@@ -313,7 +348,7 @@ def _land_each(
             raise LandError(str(error)) from error
         wanted = required()
         progress(f"{label}: pushing {pull.slug}")
-        body, changed = _push(repo, pull, tip, base, sleep)
+        body, changed = _push(repo, pull, first, tip, base, sleep, push_checks, progress, display)
         progress(f"{label}: opening or updating its pull request into {branch}")
         url = _pull_request(repo, pull, branch, body, changed, sleep)
         progress(f"{label}: waiting for the required checks on {url} (this is CI, it can take several minutes)")

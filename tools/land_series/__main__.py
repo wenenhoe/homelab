@@ -4,8 +4,10 @@ Replay the series in FILE... (several files make one series) on a scratch worktr
 checks after every commit, then keep a local branch per pull request for review (`--dry-run` keeps none). `--land` pushes the
 kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
 confirms every merge). Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
-(the base for the first), and `pre-commit run --all-files`; at each pull request's last commit the Python unit tests run as well, when CI's
-`python_unit_tests` filter is true for the pull request. Hooks to skip are named in SKIP in the environment, which `pre-commit` reads.
+(the base for the first), and `pre-commit run --all-files`, which is what committing runs; at each pull request's last commit the Python
+unit tests run as well, when CI's `python_unit_tests` filter is true for the pull request. `--land` runs the pre-push hooks on each commit
+it is about to push, which is what pushing runs, and then pushes with every hook off. Hooks to skip are named in SKIP in the environment, which
+`pre-commit` reads.
 """
 
 from __future__ import annotations
@@ -33,6 +35,11 @@ def default_checks() -> list[Check]:
         Check(("uv", "run", "python", "-m", "doc_scripts.check_project_scope", "--base", PULL_BASE), cwd="tools"),
         Check(("pre-commit", "run", "--all-files")),
     ]
+
+
+def default_push_checks() -> list[Check]:
+    """What a `git push` would run: the hooks of the pre-push stage over the pull request's own commits, on the commit that is sent."""
+    return [Check(("pre-commit", "run", "--hook-stage", "pre-push", "--from-ref", PULL_BASE, "--to-ref", "HEAD"))]
 
 
 def default_tip_checks() -> list[TipCheck]:
@@ -110,6 +117,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 base=args.base,
                 progress=say,
                 display=display,
+                push_checks=default_push_checks(),
             )
             return report(landed)
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks()

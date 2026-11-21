@@ -20,7 +20,7 @@ A layer's pull request title is the one line `main`'s history keeps for the chan
 
 ## Context
 
-- [`land_series`](../../../tools/land_series) takes the title from the layer's first commit ([ADR 0112](../0112-landing-a-series-of-dependent-changes-on-main/revision-001.md)). The commits of a layer are in dependency order, so the first is often a preparation (a refactor, a data file, a widening) or the first of several steps, and its subject names that step and not the layer.
+- [`land_series`](../../../tools/land_series) takes the title from the layer's first commit ([ADR 0112](../0112-landing-a-series-of-dependent-changes-on-main/revision-002.md)). The commits of a layer are in dependency order, so the first is often a preparation (a refactor, a data file, a widening) or the first of several steps, and its subject names that step and not the layer.
 - Ordering the commits so that the best subject comes first fights the dependency order, and a preparatory subject that is stretched to name the layer runs past the 72 characters a subject may have ([`conventions.md`](../../topics/engineering/conventions.md#commits)).
 - A series file already carries per-file choices as manifest comment lines, such as `# base: develop` ([`landing-a-series.md`](../../topics/engineering/landing-a-series.md#the-input)), so a choice made while writing the series travels with the file the maintainer reviews.
 

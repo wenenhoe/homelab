@@ -7,7 +7,7 @@ short: Landing a patch series
 solution: A maintainer-run tool lands a series one pull request at a time, each from a fresh branch off main, replaying the series first and merging each layer with the admin bypass
 summary: How a series of patches reaches main as pull requests when main refuses any update outside a merged pull request and a pull request based on another branch sees neither main's project docs nor a stable head.
 topic: repository-tooling
-status: working
+status: accepted
 supersedes: 1
 related: [ADR-0076]
 ---
@@ -21,9 +21,9 @@ Work is written as a series of patches, and a project's stages are each meant to
 ## Context
 
 - `main` accepts a change only through a pull request merged with the Admin bypass, and the `main-review` ruleset's `update` rule refuses every other actor ([`branching.md`](../../topics/engineering/branching.md#the-rulesets), [ADR 0076 (Branch separation)](../0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). GitHub's stacked pull requests merge a whole stack as one update, which that rule refuses. Merging one pull request at a time with the bypass works. `gh pr merge --admin --merge` merges a pull request into `main` through that bypass from the command line, and `main` has no "require branches to be up to date" rule.
-- A stacked layer is based on the branch below it. The `pull_request` branch filter lists no `stack/**`, so an upper layer gets no run and its required checks never report. GitHub rebases the remaining layers after each merge, each with a new head SHA and a full run, which for N layers merged one at a time is N(N-1)/2 extra runs. The runs cost waiting, not money, on a public repository's hosted runners.
-- The project scope check judges a pull request against the project docs as they stood on its base, so a layer that needs a widened `allowed_paths` fails until the widening has merged, and a pull request based on another branch does not see a widening that is only there. CI's base for a layer landed after the one before it has the tree of that layer's tip, because the tool pushes a layer only once the one before it has merged and moves it onto the new base with the same trees. The check reads trees only. A check built on `origin/main` for every layer of a run therefore judges the changes of all the layers up to it, which CI never does: it refuses a layer that needs the widening made by the layer just before it, and it can pass a layer whose stray file another layer's project scope excuses.
-- The generated views are not committed ([ADR 0117 (Generated doc views)](../0117-delivering-the-generated-doc-views-to-readers/revision-000.md)), so a series holds no view, `git am` has no hook that regenerates one, and two series that each add a decision or a project do not conflict on a view. A patch applies with a plain `git am`, with every hook off.
+- A stacked layer is based on the branch below it. The `pull_request` branch filter lists no `stack/**`, so an upper layer gets no run and its required checks never report, and GitHub rebases the remaining layers after each merge, each with a new head SHA and a full run: N(N-1)/2 extra runs for N layers.
+- The project scope check judges a pull request against the project docs as they stood on its base, so a layer that needs a widened `allowed_paths` fails until the widening has merged. CI's base for a layer landed after the one before it has that layer's tip tree, because the tool pushes a layer only once the one before it has merged. A check built on `origin/main` for every layer of a run therefore judges the changes of all the layers up to it, which CI never does.
+- The generated views are not committed ([ADR 0117 (Generated doc views)](../0117-delivering-the-generated-doc-views-to-readers/revision-000.md)), so a series holds no view, `git am` has no hook that regenerates one, and two series that each add a decision or a project do not conflict on a view.
 - Series are rare, and most projects' stages are chains. Layers that share no file can still depend on each other, and layers that each flip a row in one project doc conflict when applied independently.
 
 **Threat model.** The asset is `main`, which the CD agent deploys. A tool that applies a series replays patches and runs the checks on the maintainer's machine, so a patch that changes the code the replay runs would execute before CI sees it. A hook installed in the maintainer's clone runs code from that clone's working tree, which is not the commit a push sends. The tool runs under the maintainer's own `gh` login; a session that writes a series never holds a credential for it.
@@ -78,7 +78,7 @@ Each layer waits for its run before the next is opened, so a series of N layers 
 
 ## Validation
 
-The tool's tests cover the manifest, the replay, the skip of a layer already in `main`, the kept branches, the pull request and merge steps against a stand-in `gh` that merges into a real repository, and the review gate; the stop list is a test over the paths that stop it; a landing test runs the pre-push checks on the commit pushed and not the working tree, stops before the push when one fails, and shows a hook installed in the clone does not run on the push where an ordinary push from the same clone runs it. A replay test checks that a scope-style check sees, for each pull request, only that pull request's commits, and the same base for every commit of one pull request.
+The tool's tests cover the manifest, the replay, the skip of a layer already in `main`, the kept branches, the pull request and merge steps against a stand-in `gh` that merges into a real repository, the review gate, the stop list and the pre-push hooks, which run on the commit pushed and not the working tree, stop the push when one fails, and leave a hook installed in the clone unrun. A replay test checks that a scope-style check sees, for each pull request, only that pull request's commits, and the same base for every commit of one pull request.
 
 ## Reconsideration triggers
 

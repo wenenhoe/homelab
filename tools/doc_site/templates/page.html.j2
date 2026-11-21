@@ -3,7 +3,8 @@
 {% block drawer %}<h2>On this page</h2>{% for h in headings %}<a href="#{{ h.id }}"{% if h.level == 3 %} class="sub"{% endif %}>{{ h.text }}</a>{% endfor %}{% endblock %}
 {% block main %}<h1 id="{{ title_id }}">{{ title }}</h1>
 {% for paragraph in lede %}<p class="lede">{{ paragraph | safe }}</p>
-{% endfor %}{% if legend %}<details class="legend"><summary>How to read this page</summary>{% for paragraph in legend %}<p>{{ paragraph | safe }}</p>{% endfor %}</details>
+{% endfor %}{% if tiles %}<nav class="stats" aria-label="At a glance">{% for tile in tiles %}<a class="stat tone-{{ tile.tone }}" href="#{{ tile.anchor }}"><strong>{{ tile.value }}</strong><span>{{ tile.label }}</span>{% if tile.note %}<em>{{ tile.note }}</em>{% endif %}</a>{% endfor %}</nav>
+{% endif %}{% if legend %}<details class="legend"><summary>How to read this page</summary>{% for paragraph in legend %}<p>{{ paragraph | safe }}</p>{% endfor %}</details>
 {% endif %}<div class="filter"><input id="q" type="search" placeholder="Filter rows" aria-label="Filter rows"></div>
 {% for section in sections %}<section id="{{ section.id }}"><h2>{{ section.title }}</h2>
 {% if section.caption %}<p class="caption">{{ section.caption | safe }}</p>

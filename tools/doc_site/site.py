@@ -16,6 +16,7 @@ from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from doc_site.markup import REPO_URL, Anchors, UnsupportedMarkup, blocks, inline, link_resolver
+from doc_site.summary import tiles
 
 PACKAGE = Path(__file__).resolve().parent
 
@@ -211,8 +212,10 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
         own = [g for g in generated if g.view == view.source]
         lede, captions, legend = split_intro(blocks(intro), [g.heading for g in own])
         sections = []
+        counted: dict[str, tuple[str, Block]] = {}
         for item in own:
             anchor = anchors.of(item.heading)
+            counted[item.heading] = (anchor, item.block)
             headings.append(Heading(2, anchor, item.heading))
             caption = inline(captions[item.heading], resolve) if item.heading in captions else ""
             sections.append({"id": anchor, "title": item.heading, "caption": caption, "html": _block(item.block, resolve, anchors, headings)})
@@ -221,6 +224,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None) -> dict[str, bytes]:
             .render(
                 title=title,
                 title_id=headings[0].id,
+                tiles=tiles(view.slug, counted),
                 lede=[inline(paragraph, resolve) for paragraph in lede],
                 legend=[inline(paragraph, resolve) for paragraph in legend],
                 sections=sections,

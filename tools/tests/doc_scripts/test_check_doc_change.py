@@ -141,6 +141,30 @@ class TestChecks:
         monkeypatch.setenv("PRE_COMMIT_TO_REF", repo.git("rev-parse", "pushed").strip())
         assert push(repo)[0] == 1
 
+    def test_a_named_base_replaces_the_default_branch(self, repo, monkeypatch):
+        repo.branch()
+        repo.write("other/b.py", "b = 2\n")
+        repo.write(PROJECT, PROJECT_DOC.format(stage="In progress"))
+        repo.commit("stray")
+        stray = repo.git("rev-parse", "HEAD").strip()
+        repo.write("src/a.py", "a = 2\n")
+        repo.commit("later")
+        # Control: against the default branch the stray file is in the range.
+        assert push(repo)[0] == 1
+        monkeypatch.setenv(cli.BASE_ENV, stray)
+        code, out = push(repo)
+        assert code == 0, out
+        assert f"Checking HEAD against {stray}" in out
+
+    def test_a_named_base_that_is_not_a_commit_fails_and_does_not_skip(self, repo, monkeypatch):
+        repo.branch()
+        repo.write("src/a.py", "a = 2\n")
+        repo.commit("work")
+        monkeypatch.setenv(cli.BASE_ENV, "no-such-ref")
+        code, out = push(repo)
+        assert code == 1
+        assert "no-such-ref" in out
+
     def test_the_base_form_judges_the_range_without_the_push_skips(self, repo):
         repo.branch()
         repo.write("other/b.py", "b = 2\n")

@@ -152,7 +152,18 @@ def test_a_remote_branch_already_at_the_commit_runs_no_pre_push_check(github: Fa
 def test_the_command_line_lands_with_the_pre_push_hooks_as_a_push_check() -> None:
     (check,) = DEFAULT_PUSH_CHECKS()
 
-    assert check.argv == ("pre-commit", "run", "--hook-stage", "pre-push", "--from-ref", PULL_BASE, "--to-ref", "HEAD")
+    assert check.argv == (
+        "env",
+        f"CHECK_DOC_CHANGE_BASE={PULL_BASE}",
+        "pre-commit",
+        "run",
+        "--hook-stage",
+        "pre-push",
+        "--from-ref",
+        PULL_BASE,
+        "--to-ref",
+        "HEAD",
+    )
 
 
 def test_a_checked_out_branch_is_not_rebuilt_and_nothing_else_is_changed(github: FakeGitHub, repo: Repo, author: Author) -> None:

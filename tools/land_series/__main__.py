@@ -38,8 +38,11 @@ def default_checks() -> list[Check]:
 
 
 def default_push_checks() -> list[Check]:
-    """What a `git push` would run: the hooks of the pre-push stage over the pull request's own commits, on the commit that is sent."""
-    return [Check(("pre-commit", "run", "--hook-stage", "pre-push", "--from-ref", PULL_BASE, "--to-ref", "HEAD"))]
+    """What a `git push` would run: the hooks of the pre-push stage over the pull request's own commits, on the commit that is sent.
+
+    `check-doc-change-push` takes its base from the default branch unless told otherwise, which is not the branch of a series that lands on `develop`.
+    """
+    return [Check(("env", f"CHECK_DOC_CHANGE_BASE={PULL_BASE}", "pre-commit", "run", "--hook-stage", "pre-push", "--from-ref", PULL_BASE, "--to-ref", "HEAD"))]
 
 
 def default_tip_checks() -> list[TipCheck]:

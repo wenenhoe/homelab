@@ -8,7 +8,8 @@ import contextlib
 import io
 
 import pytest
-from _doc_fixtures import project, revision
+from _doc_fixtures import project, revision, write_doc
+from doc_scripts import doc_frontmatter as fm_mod
 from doc_scripts import generate_doc_indexes as gen
 from doc_scripts.doc_frontmatter import GENERATED_VIEWS
 
@@ -770,6 +771,67 @@ class TestValidateAdrs:
 
 def test_the_generated_views_are_the_ones_the_generator_writes():
     assert sorted(GENERATED_VIEWS) == sorted({block.view for block in gen.generated_blocks(gen.ROOT)})
+
+
+class TestLineagesLoadedOnce:
+    """The generator asks for the lineages from many blocks; one run reads the tree for them once and says what it said before."""
+
+    BLOCKS = (
+        gen.roadmap_block,
+        gen.initiatives_block,
+        gen.standalone_projects_block,
+        gen.needs_project_block,
+        gen.explorations_block,
+        gen.decisions_by_number_block,
+        gen.lineages_index_block,
+        gen.open_decisions_block,
+        gen.history_block,
+    )
+
+    @pytest.fixture
+    def tree(self, root):
+        revision(root, "0001-a", 0, status="accepted", short="first")
+        revision(root, "0001-a", 1, status="working", short="first", supersedes=0)
+        revision(root, "0002-b", 0, status="approved", relies_on=[{"adr": "ADR-0003", "reason": "Presupposes its boundary."}], related=["ADR-0001"])
+        revision(root, "0003-c", 0, letter="a", status="working", topic="deployment-platform")
+        revision(root, "0003-c", 0, letter="b", status="working", topic="deployment-platform")
+        revision(root, "0004-d", 0, status="superseded", superseded_by=1)
+        revision(root, "0004-d", 1, status="abandoned", supersedes=0)
+        project(root, "p", status="building", decision="ADR-0002/0", super_project="s")
+        project(root, "q", status="not-started", depends_on=[{"project": "PROJ-p", "reason": "needs p"}], super_project="s")
+        write_doc(
+            root,
+            "docs/explorations/open-question.md",
+            {"id": "EXP-open-question", "title": "A question", "type": "exploration", "status": "open", "summary": "s", "topic": "secrets-store"},
+        )
+        project(root, "r", status="done")
+        initiatives(root, "s")
+        return root
+
+    def test_a_run_inside_the_scope_writes_the_same_blocks_as_one_outside_it(self, tree):
+        plain = [block(tree).markdown() for block in self.BLOCKS]
+        with fm_mod.lineages_loaded_once():
+            scoped = [block(tree).markdown() for block in self.BLOCKS]
+        assert scoped == plain
+        assert not [block for block in self.BLOCKS if isinstance(block(tree), gen.Note)], "the tree gives every block rows to render"
+
+    def test_generating_the_views_reads_the_lineages_once(self, monkeypatch):
+        reads = []
+        read = fm_mod._read_lineages
+        monkeypatch.setattr(fm_mod, "_read_lineages", lambda root: reads.append(root) or read(root))
+        gen.generated_blocks(gen.ROOT)
+        assert reads == [gen.ROOT]
+
+    def test_a_revision_that_fails_validation_stops_the_run_and_no_view_is_written(self, root):
+        initiatives(root)
+        revision(root, "0001-a", 0, topic="not-a-topic")
+        intro = root / gen.intro_path(gen.PLANNING_RELATIVE)
+        intro.parent.mkdir(parents=True)
+        intro.write_text("# Planning\n", encoding="utf-8")
+        with pytest.raises(SystemExit, match="not-a-topic"):
+            gen.write_views(root)
+        assert not (root / gen.PLANNING_RELATIVE).exists()
+        assert [path for path in (root / "docs").rglob("*.md") if path.name != "README.md" and "decisions" not in path.parts] == []
 
 
 class TestRenderView:

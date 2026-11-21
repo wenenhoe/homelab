@@ -1,6 +1,6 @@
 # The doc site renderer
 
-`tools/doc_site` turns the three generated views ([`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/), [`decision-index.md`](https://wenenhoe.github.io/homelab/decision-index/) and [`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/)) into a small static site. Its design is [ADR 0117](../../decisions/0117-generated-doc-views/), and the plan for getting the site published is [`views-site.md`](../../projects/views-site.md). Until that plan finishes, the views stay committed, and the site is built and deployed beside them.
+`tools/doc_site` turns the three generated views ([`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/), [`decision-index.md`](https://wenenhoe.github.io/homelab/decision-index/) and [`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/)) into a small static site. Its design is [ADR 0117 (Generated doc views)](../../decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md). The views are not committed: a checkout writes them with the `generate-doc-indexes` hook ([`pre-commit.md`](pre-commit.md)), and the site is built from `main` and deployed on every push.
 
 ## One set of rows, two outputs
 

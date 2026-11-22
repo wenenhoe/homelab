@@ -3,6 +3,7 @@
 {% block drawer %}{% if headings %}<h2>On this page</h2>{% for h in headings %}<a href="#{{ h.id }}"{% if h.level == 3 %} class="sub"{% endif %}>{{ h.text }}</a>{% endfor %}{% endif %}{% endblock %}
 {% block main %}<h1 id="{{ title_id }}">{{ title }}</h1>
 {% if summary %}<p class="lede">{{ summary }}</p>
+{% endif %}{% if notice %}<p class="notice">{{ notice | safe }}</p>
 {% endif %}{% if facts %}<dl class="facts">{% for fact in facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.html | safe }}</dd></div>{% endfor %}</dl>
 {% endif %}<article class="doc">
 {{ body | safe }}</article>

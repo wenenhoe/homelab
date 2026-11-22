@@ -18,6 +18,8 @@ PAGES = {
     "projects/index.html",
     "projects/one/index.html",
     "projects/two/index.html",
+    "decisions/0001-a/revision-000/index.html",
+    "decisions/0002-b/revision-000/index.html",
     "topics/index.html",
     "topics/infra/network/index.html",
 }
@@ -84,7 +86,17 @@ def test_every_heading_has_the_anchor_github_gives_it(tree):
 
 def test_the_anchors_a_link_can_name_are_those_of_the_headings(tree):
     anchors = site.page_anchors(tree)
-    assert set(anchors) == {"", *(view.slug for view in site.VIEWS), "projects", "projects/one", "projects/two", "topics", "topics/infra/network"}
+    assert set(anchors) == {
+        "",
+        *(view.slug for view in site.VIEWS),
+        "projects",
+        "projects/one",
+        "projects/two",
+        "decisions/0001-a/revision-000",
+        "decisions/0002-b/revision-000",
+        "topics",
+        "topics/infra/network",
+    }
     built = site.build(tree)
     for view in site.VIEWS:
         html = built[f"{view.slug}/index.html"].decode()

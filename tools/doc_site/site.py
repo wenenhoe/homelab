@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from doc_scripts.doc_frontmatter import GENERATED_VIEWS, ROOT, docs_in, is_template, read_frontmatter
+from doc_scripts.doc_frontmatter import GENERATED_VIEWS, REVISION_PATH_RE, ROOT, Lineage, docs_in, is_template, load_lineages, read_frontmatter
 from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
 from doc_scripts.view_model import Block, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -55,6 +55,9 @@ NAV = (
     ("docs/topics/README.md", "topics", "Topics"),
     ("docs/topics/disaster-recovery/coverage.md", "dr-coverage", "DR coverage"),
 )
+
+# Pages that belong under another entry of the navigation: the decision pages are under Decisions, whose entry opens the index.
+SECTIONS = {"decision-index": ("decisions",)}
 
 TITLES = ("Project", "Decision", "Problem", "App", "Exploration")
 EYEBROWS = ("ADR", "Revision")
@@ -179,13 +182,15 @@ def _slug(source: str) -> str:
     return path.removesuffix("/README")
 
 
-def _documents(root: Path) -> list[Document]:
-    """The documents with a page of their own: the projects and the topic docs, with the README of each directory that has one."""
+def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
+    """The documents with a page of their own: the projects, the topic docs and the decision revisions, with the README of each directory that has one."""
     projects = [(path, read_frontmatter(path)) for path in docs_in(root / "docs/projects")]
+    decisions = [(revision.path, revision.fm) for lineage in lineages for revision in lineage.revisions]
+    decisions += [(path, {}) for path in sorted((root / "docs/decisions").glob("*.md")) if not is_template(path.name)]
     topics = sorted(
         path for path in (root / "docs/topics").rglob("*.md") if not is_template(path.name) and path.relative_to(root).as_posix() not in GENERATED_VIEWS
     )
-    found = [(path, front) for path, front in projects] + [(path, {}) for path in topics]
+    found = [(path, front) for path, front in projects + decisions] + [(path, {}) for path in topics]
     found += [(root / "docs/projects/README.md", {})]
     documents = []
     for path, front in found:
@@ -208,14 +213,22 @@ def _targets(documents: list[Document]) -> dict[str, str]:
     return {view.source: view.slug for view in VIEWS} | {document.source: document.slug for document in documents}
 
 
-def _facts(document: Document, documents: list[Document], resolve) -> list[dict]:
+def _link(document: Document, source: str, text: str, resolve) -> str:
+    """`text` as a link to the page of the file `source` (a path from the repository root), from the page of `document`."""
+    href = resolve(posixpath.relpath(source, posixpath.dirname(document.source)))
+    return f'<a href="{html.escape(href, quote=True)}">{html.escape(text, quote=False)}</a>'
+
+
+def _pill(status: str) -> str:
+    return f'<span class="pill s-{status_key(status)}">{html.escape(status)}</span>'
+
+
+def _project_facts(document: Document, documents: list[Document], resolve) -> list[dict]:
     """The header of a project page, from its front matter: what a reader looks at before the body."""
     front = document.front
-    if not front:
-        return []
-    by_id = {other.front["id"]: other for other in documents if other.front}
+    by_id = {other.front["id"]: other for other in documents if other.source.startswith("docs/projects/") and other.front}
     waits = [by_id[d["project"]] for d in front.get("depends_on", []) if d["project"] in by_id]
-    facts = [{"label": "Status", "html": f'<span class="pill s-{status_key(front["status"])}">{html.escape(front["status"])}</span>'}]
+    facts = [{"label": "Status", "html": _pill(front["status"])}]
     if front.get("blocked"):
         facts.append({"label": "Blocked", "html": "yes"})
     if front.get("super_project"):
@@ -223,12 +236,62 @@ def _facts(document: Document, documents: list[Document], resolve) -> list[dict]
     if front.get("decision"):
         facts.append({"label": "Decision", "html": f"<code>{html.escape(front['decision'])}</code>"})
     if waits:
-        links = ", ".join(
-            f'<a href="{html.escape(resolve(other.source.removeprefix("docs/projects/")), quote=True)}">{html.escape(Path(other.source).stem)}</a>'
-            for other in waits
-        )
+        links = ", ".join(_link(document, other.source, Path(other.source).stem, resolve) for other in waits)
         facts.append({"label": "Waits on", "html": links})
     return facts
+
+
+def _decision_facts(document: Document, documents: list[Document], lineages: dict[str, Lineage], root: Path, resolve) -> tuple[list[dict], str]:
+    """The header of a decision revision, from its front matter, and the notice a superseded one carries: its state, what it replaces or is
+    replaced by, what it relies on and which projects implement it. A lineage that is not in the tree (a removed one) is named, not linked."""
+    front = document.front
+    lineage = lineages[front["id"]]
+    number = front["id"].removeprefix("ADR-")
+    label = next(revision.label for revision in lineage.revisions if revision.path == root / document.source)
+
+    def revision_link(revision) -> str:
+        text = f"revision {revision.label} ({revision.fm['short']})"
+        return _link(document, revision.path.relative_to(root).as_posix(), text, resolve)
+
+    def lineage_link(adr: str) -> str:
+        other = lineages.get(adr)
+        if other is None:
+            return html.escape(f"ADR {adr.removeprefix('ADR-')}")
+        current = other.current()
+        return _link(document, current.path.relative_to(root).as_posix(), f"ADR {other.number} ({current.fm['short']})", resolve)
+
+    facts = [
+        {"label": "Record", "html": f"ADR {number}, revision {label}"},
+        {"label": "State", "html": _pill(front["status"])},
+    ]
+    if front.get("weight") == "light":
+        facts.append({"label": "Weight", "html": "light"})
+    notice = ""
+    for field, name in (("supersedes", "Supersedes"), ("superseded_by", "Superseded by")):
+        target = lineage.get(front[field]) if field in front else None
+        if target is not None:
+            facts.append({"label": name, "html": revision_link(target)})
+            if field == "superseded_by":
+                notice = f"This revision is superseded by {revision_link(target)}. It is kept as the record of what was decided then."
+    if front.get("narrows"):
+        facts.append({"label": "Narrows", "html": lineage_link(front["narrows"])})
+    if front.get("relies_on"):
+        items = "".join(
+            f'<span class="rely">{lineage_link(r["adr"])}<span class="why">{html.escape(r["reason"], quote=False)}</span></span>' for r in front["relies_on"]
+        )
+        facts.append({"label": "Relies on", "html": items})
+    if front.get("related"):
+        facts.append({"label": "Related", "html": ", ".join(lineage_link(adr) for adr in front["related"])})
+    reference = f"{front['id']}/{label}"
+    implementing = [
+        other
+        for other in documents
+        if other.source.startswith("docs/projects/") and other.front and reference in (other.front.get("decision"), *other.front.get("also_implements", []))
+    ]
+    if implementing:
+        links = ", ".join(_link(document, other.source, Path(other.source).stem, resolve) for other in implementing)
+        facts.append({"label": "Implemented by", "html": links})
+    return facts, notice
 
 
 def integrity(data: bytes) -> str:
@@ -284,13 +347,19 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
     files: dict[str, bytes] = {urls[key]: data for key, (_, data) in assets.items()}
     files["assets/simple-licence.txt"] = (PACKAGE / "vendor/simple.LICENSE").read_bytes()
 
-    documents = _documents(root)
+    lineage_list = load_lineages(root)
+    lineages = {lineage.id: lineage for lineage in lineage_list}
+    documents = _documents(root, lineage_list)
     targets = _targets(documents)
 
     def nav(slug: str | None, depth: int) -> list[dict]:
         pages = _page_addresses(targets, depth)
         return [
-            {"href": pages[source], "label": label, "current": slug is not None and (slug == page or slug.startswith(f"{page}/"))}
+            {
+                "href": pages[source],
+                "label": label,
+                "current": slug is not None and any(slug == own or slug.startswith(f"{own}/") for own in (page, *SECTIONS.get(page, ()))),
+            }
             for source, page, label in NAV
             if source in pages
         ]
@@ -352,6 +421,10 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         for number in range(len(page.diagrams)):
             body = body.replace(MARKER.format(number), _figure(next(drawn)))
         resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
+        if REVISION_PATH_RE.search(document.source):
+            facts, notice = _decision_facts(document, documents, lineages, root, resolve)
+        else:
+            facts, notice = (_project_facts(document, documents, resolve) if document.source.startswith("docs/projects/") and document.front else []), ""
         base = "../" * document.depth
         files[f"{document.slug}/index.html"] = (
             env.get_template("document.html.j2")
@@ -359,7 +432,8 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
                 title=page.title,
                 title_id=page.title_id,
                 summary=document.front.get("summary", ""),
-                facts=_facts(document, documents, resolve),
+                facts=facts,
+                notice=notice,
                 body=body,
                 headings=page.headings,
                 source_url=f"{REPO_URL}/blob/{BRANCH}/{document.source}",

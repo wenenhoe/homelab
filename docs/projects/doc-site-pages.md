@@ -55,7 +55,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | The renderer and the projects | Done | Every project doc has a page with a header from its front matter, its checklists as boxes and a source link; a block the renderer has no rule for fails the build, with a test that does so; the planning view's rows link to the pages; the layout check passes on them |
 | 2 | Topic docs and diagrams | Done | Every topic doc and the topics index has a page, relative links to rendered documents resolve to pages with their anchors and other repository files go to GitHub, and every Mermaid block is drawn at build time in both renderings from a pinned bundle whose hash a test holds; a diagram that fails to render fails the build; the navigation lists Topics and Projects |
-| 3 | Decisions | Not started | Every decision revision has a page whose header names its state, what it supersedes or is superseded by, what it relies on and the projects that implement it; the decision index rows link to the pages; a superseded revision is marked as one |
+| 3 | Decisions | Done | Every decision revision has a page whose header names its state, what it supersedes or is superseded by, what it relies on and the projects that implement it; the decision index rows link to the pages; a superseded revision is marked as one |
 | 4 | The checks that scale | Not started | A pull request that changes a document runs the doc-site job; the layout check covers the views and a sample of document pages for each kind in time bounded by a test on the sample's size; the drift check holds a link to a site page to a page and an anchor that exist |
 
 Stage status is `Not started`, `In progress`, or `Done`.

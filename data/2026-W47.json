@@ -1871,6 +1871,18 @@
    "bot": false,
    "group": "Project: doc-site-pages",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "eab3cdb1a268615745f91d93506bc14962404402",
+   "date": "2026-11-22T16:51:34+08:00",
+   "kind": "pr",
+   "pr": 1020,
+   "title": "publish the decision revisions as pages",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: doc-site-pages",
+   "events": []
   }
  ]
 }

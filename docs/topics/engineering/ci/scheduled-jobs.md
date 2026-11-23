@@ -51,32 +51,9 @@ Report-only Ansible-misconfig and secret scanning, separate from the
 correctness/linting jobs in [CI: PR Checks](pipeline.md#jobs) — see
 [`security-scanning.md`](../security-scanning.md).
 
-## Release checksum check
+## Weekly pin checks
 
-`check-release-checksums.yml` runs weekly and on demand,
-asking each publisher again whether the pinned release hashes are theirs, and
-Docker and Tailscale whether they still serve the apt keys the roles pin. It
-is the same check the `release-checksums` PR job runs when a pin changes; what
-it verifies and how it fails is in
-[CI Release Checksum Check](release-checksum-check.md). GitHub emails a failed scheduled
-run to the person who last changed the schedule.
-
-## Image provenance check
-
-`check-image-provenance.yml` runs weekly and on demand, asking each publisher
-again whether the pinned image digests are theirs. It is the same check the
-`provenance` PR job runs when an image reference changes; what it verifies and how
-it fails is in [CI Image Provenance Check](image-provenance-check.md). GitHub
-emails a failed scheduled run to the person who last changed the schedule.
-
-## Shell test pin check
-
-`check-shell-test-pins.yml` runs weekly and on demand, asking GitHub again
-whether each pinned Bats release tag still points at its pinned commit. It is
-the same check the `shell-tests` PR job runs when the pin file or its tooling
-changes; what it verifies and how it fails is in
-[CI Shell Test Pins](../../testing/shell-test-pins.md#checking-the-pins). GitHub emails a
-failed scheduled run to the person who last changed the schedule.
+The four `check-*.yml` workflows in the table run weekly and on demand. The release checksum, image provenance and shell test pin checks are the ones the `release-checksums`, `provenance` and `shell-tests` PR jobs run when a pin changes, and what each verifies and how it fails is in the page its row links. GitHub emails a failed scheduled run to the person who last changed the schedule.
 
 ## Progress log
 

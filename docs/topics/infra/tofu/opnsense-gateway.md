@@ -75,24 +75,26 @@ Traffic between two hosts on the same VLAN is switched on the bridge and never r
 gateway, so it needs no rule. Only flows that cross a VLAN, reach the gateway itself or leave
 through the WAN are listed.
 
-| # | From | To | Port | Why | Source |
-| :-: | :--- | :--- | :--- | :--- | :--- |
-| 1 | Operator host (VM 401 now, VM 252 later) | The gateway's address | 443 (API and GUI), 22 | The play, and the guard rule that comes first | ADR 0089 invariants |
-| 2 | CD agent (VM 253, `192.168.25.3`) | The gateway's address | 443 | CD workflows apply the gateway's play | Maintainer. Written but off (`opnsense_gateway_cd_agent_management` is false) until the CD agent runs and a revision of ADR 0089 admits it once its conditions are met; owner [`cd-agent.md`](../../../projects/cd-agent.md) |
-| 3 | Operator host | VLAN 20 hosts | 22 | Ansible plays | `inventory.yaml` |
-| 4 | Operator host | `security` | 8200 | AppRole login and secret fetch | `secrets` role, `secrets-and-credentials-flow.md` |
-| 5 | Operator host | `storage` | 443 | Restore discovery | ADR 0058, `backup-and-restore-data-flow.md`. Tofu's state is held on R2, not `storage` ([ADR 0103](../../../decisions/0103-where-tofus-state-is-held/revision-000.md)), so only restore discovery needs it. Written but off (`enabled: false`) until the controller moves; owner [`operator-host-takeover.md`](../../../projects/operator-host-takeover.md), which enables it in that change |
-| 6 | Operator host | VM 253 | 22 | `playbooks/cd-agent.yaml` | `inventory.yaml` |
-| 7 | Operator host | VLAN 30 host | 22 | Provisioning the coding-agent host | ADR 0053. Added to the play by [`coding-agent-network.md`](../../../projects/coding-agent-network.md) |
-| 8 | Operator host | The node's WAN-side address | 8006, 22 | Tofu's API calls, and the first-boot script's SSH. The node is not on any VLAN: it is reached through the gateway's outbound NAT | Maintainer |
-| 9 | CD agent | VLAN 20 hosts | 22 | Deploys | Written but off until the CD agent's approles are settled against ADR 0044; owner [`cd-agent.md`](../../../projects/cd-agent.md) |
-| 10 | CD agent | `security` | 8200 | AppRole login | Written but off, as row 9 |
-| 11 | CD agent | `storage` | 443 | Rotated write key for `redeploy-storage` | `cd-agent-host.md`. Written but off, as row 10; it also waits for the remote state backend's port when the key serves the state bucket |
-| 12 | Tailscale subnet router (VLAN 20) | VLAN 30 host, VM 252 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |
-| 13 | VLANs 20, 40 and 55 (the experimental block with Internet) | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
-| 14 | VLAN 25 | WAN | Any, for now, except direct DNS as in row 13 | ADR 0058 wants only the proxy's allowlist here, and the proxy does not exist yet | ADR 0058, [`coding-agent-egress.md`](../../../projects/coding-agent-egress.md) |
+A flow is known by its name in the first column, which other docs cite by a link to this section, as [`operator-gateway`](#zone-policy) does. The order of the rows carries no meaning, so a flow added or moved leaves every citation of another as it was.
 
-Not on the list, so denied: any flow from VLAN 30 to another zone (ADR 0053), from VLAN 50 (the experimental block without Internet) and VLAN 55 to another zone or, for VLAN 50, to the WAN, and from any zone to the gateway's management ports other than rows 2 and 3.
+| Flow | From | To | Port | Why | Source |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `operator-gateway` | Operator host (VM 401 now, VM 252 later) | The gateway's address | 443 (API and GUI), 22 | The play, and the guard rule that comes first | ADR 0089 invariants |
+| `cd-agent-gateway` | CD agent (VM 253, `192.168.25.3`) | The gateway's address | 443 | CD workflows apply the gateway's play | Maintainer. Written but off (`opnsense_gateway_cd_agent_management` is false) until the CD agent runs and a revision of ADR 0089 admits it once its conditions are met; owner [`cd-agent.md`](../../../projects/cd-agent.md) |
+| `operator-vlan20-ssh` | Operator host | VLAN 20 hosts | 22 | Ansible plays | `inventory.yaml` |
+| `operator-security` | Operator host | `security` | 8200 | AppRole login and secret fetch | `secrets` role, `secrets-and-credentials-flow.md` |
+| `operator-storage` | Operator host | `storage` | 443 | Restore discovery | ADR 0058, `backup-and-restore-data-flow.md`. Tofu's state is held on R2, not `storage` ([ADR 0103](../../../decisions/0103-where-tofus-state-is-held/revision-000.md)), so only restore discovery needs it. Written but off (`enabled: false`) until the controller moves; owner [`operator-host-takeover.md`](../../../projects/operator-host-takeover.md), which enables it in that change |
+| `operator-cd-agent-ssh` | Operator host | VM 253 | 22 | `playbooks/cd-agent.yaml` | `inventory.yaml` |
+| `operator-vlan30-ssh` | Operator host | VLAN 30 host | 22 | Provisioning the coding-agent host | ADR 0053. Added to the play by [`coding-agent-network.md`](../../../projects/coding-agent-network.md) |
+| `operator-node` | Operator host | The node's WAN-side address | 8006, 22 | Tofu's API calls, and the first-boot script's SSH. The node is not on any VLAN: it is reached through the gateway's outbound NAT | Maintainer |
+| `cd-agent-vlan20-ssh` | CD agent | VLAN 20 hosts | 22 | Deploys | Written but off until the CD agent's approles are settled against ADR 0044; owner [`cd-agent.md`](../../../projects/cd-agent.md) |
+| `cd-agent-security` | CD agent | `security` | 8200 | AppRole login | Written but off, as [`cd-agent-vlan20-ssh`](#zone-policy) |
+| `cd-agent-storage` | CD agent | `storage` | 443 | Rotated write key for `redeploy-storage` | `cd-agent-host.md`. Written but off, as [`cd-agent-security`](#zone-policy); it also waits for the remote state backend's port when the key serves the state bucket |
+| `tailscale-vlan30-ssh` | Tailscale subnet router (VLAN 20) | VLAN 30 host, VM 252 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |
+| `internet-wan` | VLANs 20, 40 and 55 (the experimental block with Internet) | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
+| `management-wan` | VLAN 25 | WAN | Any, for now, except direct DNS as in [`internet-wan`](#zone-policy) | ADR 0058 wants only the proxy's allowlist here, and the proxy does not exist yet | ADR 0058, [`coding-agent-egress.md`](../../../projects/coding-agent-egress.md) |
+
+Not on the list, so denied: any flow from VLAN 30 to another zone (ADR 0053), from VLAN 50 (the experimental block without Internet) and VLAN 55 to another zone or, for VLAN 50, to the WAN, and from any zone to the gateway's management ports other than [`operator-gateway`](#zone-policy) and [`cd-agent-gateway`](#zone-policy).
 
 The VLAN scheme gives one VLAN per block of 50 VMIDs ([`vm-provisioning.md`](../vm-provisioning.md#vmid--vlan--ip-scheme)), so the management zone is VMIDs 250 to 299 (VLAN 25, `192.168.25.0/24`), the coding-agent zone is 300 to 349 (VLAN 30, `192.168.30.0/24`) and the experimental block with Internet is 550 to 599 (VLAN 55, `192.168.55.0/24`). VLAN 50 keeps the isolated experimental hosts.
 
@@ -110,8 +112,8 @@ interface by that order. A zone whose project has not landed has its interface a
 rules, until that project adds them to the play. A zone is never built by hand on the live
 gateway: the play is applied to it, so a hand-built zone would be removed as drift.
 
-- [`coding-agent-network.md`](../../../projects/coding-agent-network.md) adds VLAN 30 and rows 7
-  and 12.
+- [`coding-agent-network.md`](../../../projects/coding-agent-network.md) adds VLAN 30 and the [`operator-vlan30-ssh`](#zone-policy)
+  and [`tailscale-vlan30-ssh`](#zone-policy) flows.
 - [`coding-agent-egress.md`](../../../projects/coding-agent-egress.md) adds VLAN 45, the egress
   zone, and generates the two proxies' allowlists from one source in the repo.
 - VLAN 35, the DMZ, is in the play with its interface and the rules every zone gets; the rules for the host it will hold are still [`gatehouse.md`](../../../projects/gatehouse.md)'s to add.

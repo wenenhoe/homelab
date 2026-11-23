@@ -1,0 +1,36 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  vars:
+    # A uid no image gives its own user, so a leftover owned by it is plainly someone else's.
+    openbao_molecule_foreign_uid: "12345"
+  tasks:
+    - name: Reset coverage data from any previous test run
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: reset_coverage_data.yaml
+
+    # What a restored or copied data volume looks like: the top directory is
+    # root's and a subtree below it belongs to another user at 0700, which root
+    # cannot list or chown without CAP_DAC_OVERRIDE. The compose file declares
+    # the volume `external`, so creating it here changes nothing about how the
+    # role finds it.
+    - name: Create the data volume before the role does
+      community.docker.docker_volume:
+        name: openbao_data
+        state: present
+      register: openbao_molecule_data_volume
+
+    - name: Leave a subtree owned by another user at 0700 in it
+      ansible.builtin.file:
+        path: "{{ openbao_molecule_data_volume.volume.Mountpoint }}/{{ item.path }}"
+        state: "{{ item.state }}"
+        owner: "{{ openbao_molecule_foreign_uid }}"
+        group: "{{ openbao_molecule_foreign_uid }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - {path: raft, state: directory, mode: "0700"}
+        - {path: raft/raft.db, state: touch, mode: "0600"}
+      loop_control:
+        label: "{{ item.path }}"

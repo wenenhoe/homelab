@@ -1,0 +1,87 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    step_ca_cert_step_ca_url: https://step-ca-test:9000
+    # main_domain, lan_domain, caddy_domain, server_timezone, step_ca_*,
+    # app_catalog, compose_apps live in
+    # host_vars/openbao-data-chown-instance.yaml, for the reason step_ca_cert's
+    # signal_chown scenario gives for its own.
+  tasks:
+    - name: Resolve compose_apps against the app catalog
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    - name: Start a real, throwaway step-ca instance for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_step_ca_test_target.yaml
+      vars:
+        molecule_helpers_step_ca_network_name: caddy-proxy
+        molecule_helpers_step_ca_password: "{{ step_ca_provisioner_password }}"
+
+    # The role under test. The data volume it finds is root's at the top with
+    # another user's 0700 subtree below it (prepare.yml), so the chown has to
+    # run, and recursively.
+    - name: Deploy openbao over a data volume it does not own
+      ansible.builtin.include_role:
+        name: openbao
+
+    # The guard reads the owner of the volume's top directory and nothing
+    # below it, so a file that turns up root-owned beneath an already-correct
+    # top is left as it is. A second deploy that chowned again would take it,
+    # and `openbao_data_owner` would still say the top is right.
+    - name: Find the data volume
+      community.docker.docker_volume_info:
+        name: openbao_data
+      register: openbao_molecule_data_volume
+
+    - name: Leave a root-owned file beneath the volume's top directory
+      ansible.builtin.copy:
+        content: ""
+        dest: "{{ openbao_molecule_data_volume.volume.Mountpoint }}/stray"
+        owner: root
+        group: root
+        mode: "0600"
+        force: false
+
+    - name: Deploy openbao a second time over a data volume it already owns
+      ansible.builtin.include_role:
+        name: openbao
+
+    - name: Read the stray file's owner after the second deploy
+      ansible.builtin.stat:
+        path: "{{ openbao_molecule_data_volume.volume.Mountpoint }}/stray"
+      register: openbao_molecule_stray
+
+    - name: Confirm the second deploy did not chown a volume that was already right
+      ansible.builtin.assert:
+        that: openbao_molecule_stray.stat.uid == 0
+        fail_msg: >-
+          The stray file is owned by uid {{ openbao_molecule_stray.stat.uid }}: the guard
+          ran the chown on a volume whose top directory was already the openbao user's.
+
+    # The same wiring deploy.yaml's Play 6 uses: step-ca's root cert, then
+    # OpenBao's own cert tasks. Without a cert OpenBao crash-loops, which is
+    # the production bootstrap order.
+    - name: Run step_ca_client
+      ansible.builtin.include_role:
+        name: step_ca_client
+      vars:
+        step_ca_client_container_name: step-ca-test
+
+    - name: Issue OpenBao's cert
+      ansible.builtin.include_role:
+        name: openbao
+        tasks_from: cert.yaml

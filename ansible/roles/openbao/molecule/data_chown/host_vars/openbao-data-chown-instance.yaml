@@ -1,0 +1,44 @@
+---
+# Must live here, not in converge.yml's play `vars:` — same reasoning as
+# default's own host_vars.
+main_domain: molecule.test  # noqa: var-naming[no-role-prefix]
+lan_domain: "lan.{{ main_domain }}"  # noqa: var-naming[no-role-prefix]
+caddy_domain: "sec.{{ lan_domain }}"  # noqa: var-naming[no-role-prefix]
+server_timezone: Asia/Singapore  # noqa: var-naming[no-role-prefix]
+
+# The throwaway step-ca-test instance's own bootstrap password
+# (molecule_helpers_step_ca_password in converge.yml) doubles as its
+# stock DOCKER_STEPCA_INIT_PASSWORD-derived provisioner password, and its
+# default provisioner is named "admin" — matching the official image's
+# own DOCKER_STEPCA_INIT_PROVISIONER_NAME default, not production's
+# "internal-services" (docker/step-ca's own custom-entrypoint bootstrap
+# isn't used here — see molecule_helpers/tasks/start_step_ca_test_target.yaml).
+step_ca_provisioner_password: molecule-test-step-ca-password  # noqa: var-naming[no-role-prefix]
+step_ca_provisioner_name: admin  # noqa: var-naming[no-role-prefix]
+
+# telegram_notify's install.yaml (included from step_ca_cert's own
+# tasks/main.yaml) needs these — see docs/topics/monitoring/telegram-notifications.md.
+telegram_token: molecule-dummy-telegram-token  # noqa: var-naming[no-role-prefix]
+telegram_chat_id: molecule-dummy-chat-id  # noqa: var-naming[no-role-prefix]
+telegram_topic_id_certs: ""  # noqa: var-naming[no-role-prefix]
+
+# Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
+# openbao entry) — extracted via lookup rather than hand-copied, same
+# reasoning as default's own host_vars (see
+# docs/topics/engineering/molecule-fixtures.md): a hand-copied fixture drifts silently, a
+# lookup can't.
+app_catalog: >-  # noqa: var-naming[no-role-prefix]
+  {{
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')
+     | from_yaml).app_catalog
+  }}
+
+compose_apps:  # noqa: var-naming[no-role-prefix]
+  - name: openbao
+
+# gatus_push's install.yaml (included from step_ca_cert's own tasks/main.yaml)
+# asserts the job is in both maps; production builds them from heartbeat_jobs.
+heartbeat_push_urls:  # noqa: var-naming[no-role-prefix]
+  cert-renewer-openbao: https://gatus-test.invalid/api/v1/endpoints/certs_cert-renewer-openbao/external?success=true
+heartbeat_job_tokens:  # noqa: var-naming[no-role-prefix]
+  cert-renewer-openbao: molecule-dummy-gatus-token

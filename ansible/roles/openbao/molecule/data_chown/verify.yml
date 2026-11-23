@@ -1,0 +1,49 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    # By name, not a hardcoded number: read from the real running container, so
+    # this stays right if an image bump changes the number `adduser -S` assigns.
+    - name: Read the openbao image's own non-root UID
+      community.docker.docker_container_exec:
+        container: openbao
+        command: id -u openbao
+      register: openbao_verify_uid
+      changed_when: false
+
+    - name: Find the data volume
+      community.docker.docker_volume_info:
+        name: openbao_data
+      register: openbao_verify_volume
+
+    - name: Stat what prepare.yml left and what the role made
+      ansible.builtin.stat:
+        path: "{{ openbao_verify_volume.volume.Mountpoint }}/{{ item }}"
+      loop: ["", raft, raft/raft.db, stray]
+      loop_control:
+        label: "{{ item | default('/', true) }}"
+      register: openbao_verify_stats
+
+    - name: Assert the chown reached the whole subtree and changed no mode
+      ansible.builtin.assert:
+        that:
+          - "(openbao_verify_stats.results | map(attribute='stat.uid') | list)[0:3] | map('string') | unique | list == [openbao_verify_uid.stdout | trim]"
+          - openbao_verify_stats.results[1].stat.mode == '0700'
+          - openbao_verify_stats.results[2].stat.mode == '0600'
+        fail_msg: >-
+          Expected the data volume's top directory, raft/ and raft/raft.db to
+          belong to uid {{ openbao_verify_uid.stdout | trim }} with their modes
+          kept; got {{ openbao_verify_stats.results | map(attribute='stat') | list }}.
+
+    # converge.yml leaves it root-owned on purpose and checks a second deploy
+    # left it so; checked again here after everything else has run.
+    - name: Assert the stray file is still root's
+      ansible.builtin.assert:
+        that: openbao_verify_stats.results[3].stat.uid == 0
+
+    - name: Confirm openbao reached a running state on the chowned volume
+      community.docker.docker_container_info:
+        name: openbao
+      register: openbao_verify_info
+      failed_when: openbao_verify_info.container.State.Status != 'running'

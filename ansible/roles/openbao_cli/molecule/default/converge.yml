@@ -1,0 +1,64 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    step_ca_cert_step_ca_url: https://step-ca-test:9000
+    # main_domain, lan_domain, caddy_domain, server_timezone, step_ca_*,
+    # app_catalog, compose_apps live in host_vars/openbao-cli-instance.yaml,
+    # for the reason step_ca_cert's signal_chown scenario gives for its own.
+  tasks:
+    - name: Resolve compose_apps against the app catalog
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    - name: Start a real, throwaway step-ca instance for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_step_ca_test_target.yaml
+      vars:
+        molecule_helpers_step_ca_network_name: caddy-proxy
+        molecule_helpers_step_ca_password: "{{ step_ca_provisioner_password }}"
+
+    # The order deploy.yaml's Play 6 runs them in: the real openbao container,
+    # step-ca's root cert, OpenBao's leaf cert from that step-ca, then the CLI,
+    # which needs all three. OpenBao stays sealed and uninitialised, as in the
+    # role's own check (`bao status` exits 2).
+    - name: Deploy openbao
+      ansible.builtin.include_role:
+        name: openbao
+
+    - name: Run step_ca_client
+      ansible.builtin.include_role:
+        name: step_ca_client
+      vars:
+        step_ca_client_container_name: step-ca-test
+
+    - name: Issue OpenBao's cert
+      ansible.builtin.include_role:
+        name: openbao
+        tasks_from: cert.yaml
+
+    # The restart that loads the cert races the CLI's `docker exec` and its TLS
+    # check, which is a wait the production play gets from the tasks between.
+    - name: Wait for OpenBao to answer over TLS
+      ansible.builtin.include_role:
+        name: openbao
+        tasks_from: wait.yaml
+
+    # The real role. The release asset is downloaded from GitHub over the
+    # open internet and checked against the pin in the role's defaults, so a
+    # wrong URL or hash fails here the way it does in production.
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: openbao_cli

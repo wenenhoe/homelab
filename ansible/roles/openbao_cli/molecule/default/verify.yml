@@ -1,0 +1,69 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Read the running server's version
+      community.docker.docker_container_exec:
+        container: openbao
+        command: bao version
+      register: openbao_cli_verify_server
+      changed_when: false
+
+    - name: Read the installed CLI's version
+      ansible.builtin.command: bao version
+      register: openbao_cli_verify_native
+      changed_when: false
+
+    - name: Assert the CLI is the server's version, which the pinned URL's release decides
+      ansible.builtin.assert:
+        that: openbao_cli_verify_native.stdout | trim == openbao_cli_verify_server.stdout | trim
+        fail_msg: "CLI says {{ openbao_cli_verify_native.stdout }}, server says {{ openbao_cli_verify_server.stdout }}"
+
+    - name: Check the CLI's TLS check passes against the server's real name and step-ca's root
+      ansible.builtin.command:
+        argv:
+          - bao
+          - status
+          - -address=https://127.0.0.1:8200
+          - "-tls-server-name=openbao.{{ caddy_domain }}"
+          - -ca-cert=/etc/step-ca/root_ca.crt
+      register: openbao_cli_verify_right_name
+      changed_when: false
+      failed_when: openbao_cli_verify_right_name.rc not in [0, 2]
+
+    # The control: a name the certificate does not carry has to fail, so the
+    # check above is shown to verify the certificate, not to pass whatever it
+    # is given. rc 2 is "sealed", so the failure has to be a different code.
+    - name: Check the CLI refuses a name the certificate does not carry
+      ansible.builtin.command:
+        argv:
+          - bao
+          - status
+          - -address=https://127.0.0.1:8200
+          - -tls-server-name=not-openbao.example.invalid
+          - -ca-cert=/etc/step-ca/root_ca.crt
+      register: openbao_cli_verify_wrong_name
+      changed_when: false
+      failed_when: openbao_cli_verify_wrong_name.rc != 1 or 'certificate' not in (openbao_cli_verify_wrong_name.stderr | lower)
+
+    - name: Read the package's own unit and scaffolding
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: [/opt/openbao, /etc/openbao]
+      register: openbao_cli_verify_scaffold
+
+    - name: Assert the package's standalone-server scaffolding is gone
+      ansible.builtin.assert:
+        that: openbao_cli_verify_scaffold.results | map(attribute='stat.exists') | select | list | length == 0
+
+    - name: Read the package's shipped unit
+      ansible.builtin.systemd_service:
+        name: openbao.service
+      register: openbao_cli_verify_unit
+
+    - name: Assert the shipped unit is masked and not running, so it cannot fight the container for :8200
+      ansible.builtin.assert:
+        that:
+          - openbao_cli_verify_unit.status.LoadState == 'masked'
+          - openbao_cli_verify_unit.status.ActiveState != 'active'

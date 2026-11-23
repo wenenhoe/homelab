@@ -523,12 +523,45 @@ class TestViewLinks:
 
     @pytest.fixture(autouse=True)
     def _site(self, repo, monkeypatch):
-        monkeypatch.setattr(drift, "site_anchors", lambda: {"": set(), "project-planning": {"roadmap"}, "decision-index": {"by-number"}, "dr-coverage": set()})
+        monkeypatch.setattr(
+            drift,
+            "site_anchors",
+            lambda: {
+                "": set(),
+                "project-planning": {"roadmap"},
+                "decision-index": {"by-number"},
+                "dr-coverage": set(),
+                "topics": {"infra"},
+                "topics/infra/network": {"the-network", "part-1"},
+            },
+        )
         for view in ("docs/project-planning.md", "docs/decision-index.md", "docs/topics/disaster-recovery/coverage.md"):
             repo.write(view, "# View\n\nSee [the other](decision-index.md).\n")
 
     def test_a_link_to_a_page_and_an_anchor_that_exist_passes(self, repo):
         repo.write("docs/a.md", f"[x]({self.SITE}project-planning/#roadmap) [y]({self.SITE}dr-coverage/) [z]({self.SITE})\n")
+        drift.check_view_links()
+        assert drift.errors == []
+
+    def test_a_link_to_a_document_page_and_its_anchor_passes(self, repo):
+        repo.write("docs/a.md", f"[x]({self.SITE}topics/infra/network/#part-1) [y]({self.SITE}topics/infra/network) [z]({self.SITE}topics/#infra)\n")
+        drift.check_view_links()
+        assert drift.errors == []
+
+    def test_a_link_to_a_document_page_that_does_not_exist_fails(self, repo):
+        repo.write("docs/a.md", f"[x]({self.SITE}topics/infra/no-such-doc/)\n")
+        drift.check_view_links()
+        assert_one_error(drift.errors, "docs/a.md: links https://wenenhoe.github.io/homelab/topics/infra/no-such-doc/, which is not a page of the site")
+
+    def test_a_link_to_a_missing_anchor_of_a_document_page_fails(self, repo):
+        repo.write("docs/a.md", f"[x]({self.SITE}topics/infra/network/#part-9)\n")
+        drift.check_view_links()
+        assert_one_error(
+            drift.errors, "links https://wenenhoe.github.io/homelab/topics/infra/network/#part-9, but that page has no heading with the anchor 'part-9'"
+        )
+
+    def test_the_end_of_a_sentence_after_a_link_is_not_part_of_it(self, repo):
+        repo.write("docs/a.md", f"See {self.SITE}topics/infra/network/. Or {self.SITE}topics/infra/network/#part-1, then more.\n")
         drift.check_view_links()
         assert drift.errors == []
 

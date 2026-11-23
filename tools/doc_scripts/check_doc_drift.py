@@ -405,15 +405,15 @@ def site_anchors() -> dict[str, set[str]]:
 
 
 def check_view_links() -> None:
-    """A doc links a generated view through its page on the site, never by its file path, and a link to the site names a page
-    that exists and, after the `#`, a heading on it. The pages are built from the tree, so this reads the same headings a
+    """A doc links a generated view through its page on the site, never by its file path, and a link to any page of the site, a view or
+    a document, names a page that exists and, after the `#`, a heading on it. The pages are built from the tree, so this reads the same headings a
     reader's browser will find. The views themselves link each other by path and are left out.
     """
     from doc_site.markup import SITE_URL
     from doc_site.site import VIEWS
 
     view_paths = {(ROOT / view.source).resolve(): view.slug for view in VIEWS}
-    site_link = re.compile(re.escape(SITE_URL) + r"([\w-]*)/?(?:#([\w-]+))?")
+    site_link = re.compile(re.escape(SITE_URL) + r"((?:[\w-]+/)*[\w-]*)(?:#([\w-]+))?")
     path_link = re.compile(r"\]\(([^)\s#]+)(?:#[^)\s]*)?\)")
     anchors: dict[str, set[str]] | None = None
 
@@ -430,7 +430,8 @@ def check_view_links() -> None:
                 if slug:
                     fail(f"{rel_f}: links the generated view {target} by its path; link {SITE_URL}{slug}/ instead")
                     break
-        for slug, anchor in site_link.findall(text):
+        for path, anchor in site_link.findall(text):
+            slug = path.rstrip("/")
             if anchors is None:
                 anchors = site_anchors()
             if slug not in anchors:

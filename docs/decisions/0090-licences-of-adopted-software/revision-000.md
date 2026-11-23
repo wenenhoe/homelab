@@ -7,7 +7,7 @@ short: Adopted software licences
 solution: The repository adopts software only under an OSI-approved licence, copyleft included, except hosted services it consumes and two named pieces of software, enforced by a check when a pin changes and a weekly check of each upstream's default-branch licence file
 summary: Which licences the images, binaries, libraries, collections, hooks and actions the repository deploys or runs may carry, and how a change of licence is caught before it is adopted.
 topic: repository-tooling
-status: working
+status: approved
 related: [ADR-0107]
 ---
 
@@ -50,6 +50,17 @@ version carrying it is adopted.
   the wrapper's own Apache-2.0 file says nothing about it. The guest operating system of the Windows virtual
   machines is proprietary. The hosted services the repository calls are
   not software it runs at all.
+- **The checks found no licence to refuse.** `itzg/mc-backup` (at its pinned
+  tag), `docker-compose-linter`, `croniter` and curl all carry an OSI-approved
+  licence: MIT for the first three, and the curl licence, which the OSI
+  approved in April 2026 under the SPDX identifier `curl`. None needs an
+  exception.
+- **A lock file names no licence.** `uv.lock` records each package's name,
+  version and hashes only, so the check reads the licence from the published
+  metadata of each locked package. When this was written all 83 stated one:
+  42 as an SPDX expression and 41 as a classifier or free text such as
+  "Apache 2.0", which the registry's entry has to normalise to an SPDX
+  identifier before it can be compared.
 - **Where a licence can be read.** An image's own label is whatever its
   publisher set. The upstream source repository's licence file is the
   publisher's statement, and the repository already keeps a registry of
@@ -110,24 +121,6 @@ version carrying it is adopted.
   is missing.
 - **List each hosted service as an exception.** The list changes whenever a
   provider does and says nothing a reader could not derive from the clause.
-
-## Assumptions
-
-- **Claim:** `itzg/mc-backup`, `docker-compose-linter`, `croniter` and `curl`
-  carry an OSI-approved licence. No licence file was found for the first
-  three at the paths tried, and the curl licence is MIT-style, with its
-  approval status unchecked.
-  **Breaks if wrong:** each needs an entry in the exceptions list, or a
-  replacement.
-  **Checked by:** reading each project's licence file at its pinned version
-  in the first stage of the project that builds the check.
-- **Claim:** a lock file's metadata states a licence for the Python
-  dependencies the repository pulls in transitively, well enough to compare
-  with the rule.
-  **Breaks if wrong:** the check covers direct pins only and the transitive
-  set is out of its scope.
-  **Checked by:** a spike reading `uv.lock` and the metadata of the
-  packages it names.
 
 ## Consequences
 

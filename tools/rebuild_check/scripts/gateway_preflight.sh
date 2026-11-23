@@ -11,6 +11,8 @@
 # It prints one line per check, `ok`, `note` (a fact for a person to act on) or `FAIL`, and exits 1 when any
 # check fails.
 # Environment: NODE (ssh target of the Proxmox node), CREDENTIALS (default ~/.config/tofu/credentials.tfvars),
+#   STATE_ENV (default ~/.config/tofu/state-backend.env, sourced when readable: Tofu's state backend and
+#   encryption settings, which any tofu command on the root module needs; the checkout must have had `tofu init`),
 #   SEED (default ~/opnsense-seed/seed.img, create only), VM_ID (default 201), GATEWAY_NAME (default
 #   OPNsense), TOFU_USER (default tofu@pve), DUMP_DIR (default /mnt/vzdump), TOFU (default tofu),
 #   SSH_CONTROL_PATH (socket of an ssh master connection opened by hand, for a node that takes a password).
@@ -41,6 +43,13 @@ archive_dir=$dump_dir/dump
 credentials=${CREDENTIALS:-$HOME/.config/tofu/credentials.tfvars}
 seed=${SEED:-$HOME/opnsense-seed/seed.img}
 tofu=${TOFU:-tofu}
+state_env=${STATE_ENV:-$HOME/.config/tofu/state-backend.env}
+if [ -r "$state_env" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$state_env"
+  set +a
+fi
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -74,7 +83,8 @@ check_plan() {
     plan_args+=(-var "opnsense_seed_image_path=$seed")
   fi
   if ! "$tofu" -chdir="$repo/tofu" plan "${plan_args[@]}" > "$work/plan.log" 2>&1; then
-    bad "plan: tofu plan failed: $(tail -n 5 "$work/plan.log" | tr '\n' ' ')"
+    bad "plan: tofu plan failed; its last lines:"
+    tail -n 15 "$work/plan.log" | sed 's/^[│╷╵ ]*/        /'
     return
   fi
   "$tofu" -chdir="$repo/tofu" show -json "$work/plan" > "$work/plan.json"
@@ -181,18 +191,30 @@ check_dns() {
   fi
 }
 
+# Every other check reads the node, so a node that cannot be reached is said once, with ssh's own error.
+node_reachable=0
+if node_error=$(node true 2>&1); then
+  node_reachable=1
+else
+  bad "node: ssh to $NODE failed: $node_error (a node that takes a password needs SSH_CONTROL_PATH, a master connection opened by hand)"
+fi
+
 check_plan
-if [ -r "$work/plan.json" ]; then
+if [ -r "$work/plan.json" ] && [ "$node_reachable" -eq 1 ]; then
   check_image
+elif [ -r "$work/plan.json" ]; then
+  bad "image: the node is not reachable"
 else
   bad "image: no plan to read the image volume from"
 fi
-check_vm
-if [ "$stage" = before ]; then
-  check_snapshots
+if [ "$node_reachable" -eq 1 ]; then
+  check_vm
+  if [ "$stage" = before ]; then
+    check_snapshots
+  fi
+  check_dump
+  check_grant
 fi
-check_dump
-check_grant
 if [ "$stage" = before ]; then
   check_dns
 fi

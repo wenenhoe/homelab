@@ -236,7 +236,7 @@ Every patch the maintainer applies has one form, whichever repository it is for.
 
 ## Not yet a convention
 
-AppRole naming has only two real instances so far (`controller`,
-`vault-bootstrap`) — not enough to generalize into a rule. Don't infer
-a pattern from them; check the actual OpenBao docs for what exists
-today.
+AppRole naming has six real instances: `controller`, `vault-bootstrap` and the four
+`cd-agent-*` roles of [`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md),
+which are named for the category of work. That is not yet a rule for the next one. Check the
+actual OpenBao docs for what exists today.

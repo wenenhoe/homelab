@@ -103,6 +103,20 @@ def _generation_errors(lineage: Lineage, root: Path) -> list[str]:
     return errors
 
 
+def _approval_errors(lineage: Lineage, root: Path) -> list[str]:
+    """At most one revision of a lineage is `approved`: approval authorizes one design to be built, never two.
+    A later revision waits as `working` beside an approved one, and is approved once the earlier is `accepted`.
+    Two approved candidates of one generation are reported by `_generation_errors`."""
+    approved = [r for r in lineage.revisions if r.status == "approved"]
+    if len({r.number for r in approved}) < 2:
+        return []
+    labels = ", ".join(r.label for r in approved)
+    return [
+        f"{lineage.dir.relative_to(root)}: revisions {labels} are all approved; keep the later one working until the earlier is accepted, "
+        "or fold it into the earlier and delete it"
+    ]
+
+
 def duplicate_lineage_errors(lineages: list[Lineage], root: Path = ROOT) -> list[str]:
     """One error for each lineage directory whose number an earlier one already holds."""
     errors: list[str] = []
@@ -124,6 +138,7 @@ def lineage_errors(root: Path = ROOT) -> list[str]:
     for lineage in lineages:
         rel = lineage.dir.relative_to(root)
         errors.extend(_generation_errors(lineage, root))
+        errors.extend(_approval_errors(lineage, root))
         short = lineage.revisions[0].fm["short"]
         if short_owner.setdefault(short.casefold(), lineage.id) != lineage.id:
             errors.append(f"{rel}: short name '{short}' is already used by {short_owner[short.casefold()]}")

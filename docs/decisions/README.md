@@ -99,7 +99,8 @@ immutable. `approved` is the state before that: authorized to build, not
 yet built.
 
 - Only one revision per lineage is `accepted`. A successor can be
-  `working` or `approved` at the same time; the older revision becomes
+  `working` beside an `approved` or `accepted` revision, or `approved`
+  beside an `accepted` one; the older revision becomes
   `superseded` only once the successor is `accepted`, and the successor
   declares `supersedes:` back. The change that makes the older revision
   `superseded` also cuts it to the sections listed under
@@ -109,6 +110,15 @@ yet built.
   referenced from [`nist-800-53-alignment.md`](../topics/security/policy/nist-800-53-alignment.md),
   re-check the mapping in the same patch; `check_doc_drift.py` fails
   until it is addressed.
+- At most one revision of a lineage is `approved`, since approval
+  authorizes one design to be built, never two. Replacing an `approved`
+  revision is an in-place edit of it ([Editing a
+  revision](#editing-a-revision)), not a new one: the new design stays
+  `working` as a successor until the older revision is `accepted`, or is
+  folded into the older one, whose number it keeps. Folding writes the
+  successor's content into the older revision, deletes the successor, and
+  points every `decision:`, `also_implements:` and link at the older
+  revision. `check_doc_drift.py` fails a lineage with two.
 - Competing candidates in one generation stay `working` until one is
   `approved`; the others are then `abandoned`, because approval
   authorizes one design and never two. Letters record the order the

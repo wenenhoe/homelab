@@ -8,6 +8,7 @@ summary: A dedicated VLAN, default-deny firewall policy and laptop-only Tailscal
 decision: ADR-0053/1
 super_project: coding-agent-host
 allowed_paths:
+  - docs/decisions/0053-network-reach-of-the-coding-agent-host/**
   - docs/topics/infra/coding-agent-network.md
   - docs/topics/infra/tailnet-policy.md
   - docs/topics/infra/network-boundary-checks.md

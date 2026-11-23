@@ -4,9 +4,13 @@
 
 ## One set of rows, two outputs
 
-`doc_scripts/generate_doc_indexes.py` builds each generated section as rows: a `Table`, a `Note` where a table would be empty, or `Groups`, a heading over several tables (`doc_scripts/view_model.py`). `generated_blocks()` returns them all, in the order the views hold them. The markdown written into a view and the HTML on the site are both formatted from those rows, so what a view says has one source, and the generator's markdown is byte-for-byte what it was before the rows existed.
+`doc_scripts/generate_doc_indexes.py` builds each generated section as rows: a `Table`, a `Note` where a table would be empty, `Groups`, a heading over several tables, or a `Grid`, numbers laid out ten to a row (`doc_scripts/view_model.py`). `generated_blocks()` returns them all, in the order the views hold them. The markdown written into a view and the HTML on the site are both formatted from those rows, so what a view says has one source, and the generator's markdown is byte-for-byte what it was before the rows existed.
 
 A cell holds the markdown subset the views use: a link, an inline code span, or bold text, with a `|` escaped. `doc_site/markup.py` renders that subset and refuses anything else (a list, a code fence, a quote, a table, a heading or raw HTML in an introduction) so that a view which gains one fails the build instead of showing wrongly.
+
+The decision index's By number section is a `Grid`: one row for each ten numbers, labelled by the first three digits (`011x`), and one cell for each number. A cell is a link to the lineage's current revision, `0030 → 0104` for a number merged into another (linked to where it went), `0013 demoted` or `dropped` for a number in `removed.md` (linked to the ledger), a dash for a number nothing holds and blank beyond the ends. On the site the grid is a list of cells and not a table, so on a phone each row breaks in two halves of five, and the Decisions count is the cells that hold a lineage. A lineage's name, state and notes are in its row under By topic, which puts the short name in a `Decision` column before the problem and the current solution.
+
+By topic is `Groups`, which the site shows as tabs without a script: each group is a link beside its panel, and a rule in `assets/site.css` shows the panel of the group the address names, or the first when it names none, and hides the rest. Every group shows when the stylesheet is not applied, since the rule is what hides one. The row filter shows every group with a matching row while a filter is typed, so a row is found without knowing its group, and an address with a group's anchor, which is its heading's, opens that group.
 
 ## Building the site
 

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from doc_scripts.doc_frontmatter import GENERATED_VIEWS, REVISION_PATH_RE, ROOT, Lineage, docs_in, is_template, load_lineages, read_frontmatter
 from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
-from doc_scripts.view_model import Block, Groups, Note, Table
+from doc_scripts.view_model import Block, Grid, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from doc_site import diagrams
@@ -148,18 +148,32 @@ def _table(table: Table, resolve, chips: tuple[str, ...] = ()) -> str:
     return f"<table><thead><tr>{head}</tr></thead><tbody>{''.join(body)}</tbody></table>"
 
 
+def _grid(grid: Grid, resolve) -> str:
+    """Numbers ten to a row, each row labelled. A list and not a table, so a narrow screen can break a row in two without
+    a sideways scroll."""
+    rows = []
+    for label, cells in grid.rows:
+        items = "".join(f'<li class="n-{cell.kind}">{inline(cell.markdown, resolve)}</li>' for cell in cells)
+        rows.append(f'<div class="num-row"><span class="num-label">{label}</span><ol>{items}</ol></div>')
+    return f'<div class="numbers">{"".join(rows)}</div>'
+
+
 def _block(block: Block, resolve, anchors: Anchors, headings: list[Heading], chips: tuple[str, ...] = ()) -> str:
     if isinstance(block, Note):
         return f'<p class="note">{inline(block.text, resolve)}</p>'
     if isinstance(block, Table):
         return _table(block, resolve, chips)
+    if isinstance(block, Grid):
+        return _grid(block, resolve)
     if isinstance(block, Groups):
-        parts = []
+        tabs = []
         for title, table in block.items:
             anchor = anchors.of(title)
             headings.append(Heading(3, anchor, title))
-            parts.append(f'<h3 id="{anchor}">{inline(title, resolve)}</h3>{_table(table, resolve)}')
-        return "".join(parts)
+            label = inline(title, resolve)
+            link = f'<a class="tab-link" href="#{anchor}">{label}</a>'
+            tabs.append(f'<div class="tab">{link}<div class="panel"><h3 id="{anchor}">{label}</h3>{_table(table, resolve)}</div></div>')
+        return f'<div class="tabs">{"".join(tabs)}</div>'
     raise TypeError(f"unknown block {block!r}")
 
 

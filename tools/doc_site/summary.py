@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from doc_scripts.view_model import Block, Table
+from doc_scripts.view_model import Block, Grid, Table
 
 # A project in a roadmap cell: a link whose text is its file name in code. A done project is not listed, so every link is a live one.
 PROJECT_LINK = re.compile(r"\[`[^`]+`\]\(")
@@ -32,6 +32,12 @@ def _table(sections: dict[str, tuple[str, Block]], heading: str) -> tuple[str, T
 
 def _rows(table: Table | None) -> int:
     return len(table.rows) if table else 0
+
+
+def _numbers(sections: dict[str, tuple[str, Block]], heading: str) -> tuple[str, int]:
+    """The section's anchor and how many numbers in its grid hold a decision, each counted once."""
+    anchor, block = sections.get(heading, ("", None))
+    return anchor, sum(cell.kind == "live" for _, cells in block.rows for cell in cells) if isinstance(block, Grid) else 0
 
 
 def _approved(table: Table | None) -> int:
@@ -68,12 +74,12 @@ def tiles(slug: str, sections: dict[str, tuple[str, Block]]) -> list[Tile]:
             Tile("Open explorations", _rows(explorations), explorations_anchor, "mute"),
         ]
     if slug == "decision-index":
-        number_anchor, by_number = _table(sections, "By number")
+        number_anchor, numbers = _numbers(sections, "By number")
         open_anchor, open_decisions = _table(sections, "Open decisions")
         history_anchor, history = _table(sections, "History")
         approved = _approved(open_decisions)
         return [
-            Tile("Decisions", _rows(by_number), number_anchor, "mute"),
+            Tile("Decisions", numbers, number_anchor, "mute"),
             Tile("Open", _rows(open_decisions), open_anchor, "warn" if approved else "info", _note(approved)),
             Tile("Superseded or abandoned", _rows(history), history_anchor, "mute"),
         ]

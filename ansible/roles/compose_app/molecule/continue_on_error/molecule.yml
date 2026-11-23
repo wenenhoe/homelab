@@ -6,7 +6,7 @@ driver:
   name: docker
 platforms:
   - name: compose-app-continue-on-error-instance
-    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:af9445cb158a35fdd8cee179bae8fb403c3c0e36d15892fc8d522e07699d3b95
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:3019b41970da7152988f640e46768641d709d62b1e517b04a2ceab71252092de
     privileged: true
     cgroupns_mode: host
     volumes:

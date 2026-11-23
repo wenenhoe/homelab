@@ -34,7 +34,7 @@ Holds every secret the repository generates or caches, in its raft dataset on th
 - A sealed or crashed instance fails its container health check, which Beszel reports as container state ([`beszel.md`](../monitoring/beszel.md)). Alerts on the hub are set by hand in its database ([`beszel.md`](../monitoring/beszel.md#alert-notifications)); the repository declares none and none has fired, so nothing alerts from this.
 - Its certificate renewer pushes a daily heartbeat (`cert-renewer-openbao`) and Gatus alerts to Telegram when it stops ([`gatus.md`](../monitoring/gatus.md)).
 - The rotation read watcher pushes a heartbeat (`rotation-read-watcher`) every 10 minutes, and Gatus alerts when it stops. The heartbeat checks that the watcher service is active. A stopped container or a restart that leaves the store sealed ends the watcher's log follower, its next login fails and the unit restarts every ten seconds, so the heartbeat stops. So does a start that cannot read Telegram's secrets, since the watcher exits rather than run with no way to alert. What the watcher cannot do while down, and why Gatus is the only alert for it, are in [`rotation-read-watcher.md`](../security/openbao/rotation-read-watcher.md#when-the-watcher-is-down).
-- A seal while the container keeps running leaves the watcher running, so its heartbeat does not catch it. Unknown: whether anything else alerts on it. Check the Gatus endpoints.
+- A seal while the container keeps running leaves the watcher running, so its heartbeat does not catch it. Nothing else alerts on it: Gatus holds job heartbeats only, and none probes the store's seal state ([`gatus.md`](../monitoring/gatus.md)), and the hub declares no alert (above).
 
 ## Disaster recovery
 

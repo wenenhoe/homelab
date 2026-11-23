@@ -88,6 +88,20 @@ class TestR2Rotation:
         days_out = (datetime.strptime(expires_on, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC) - datetime.now(UTC)).days
         assert days_out == QUARTERLY_DAYS - 1  # -1: truncated days, not a bug in the code under test
 
+    @pytest.mark.parametrize(("leaf", "group_id"), [pytest.param("write", "grp-write", id="write"), pytest.param("read", "grp-read", id="read")])
+    @patch.object(r2, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
+    def test_each_leaf_is_minted_with_its_own_permission_group(self, _mock_verify, leaf, group_id, vault, session_class):
+        vault.seed(f"cloudflare-r2-{leaf}-access-key", "OLD_TOKEN_ID")
+        session = session_class.return_value
+        session.get.return_value = _permission_groups_response()
+        session.post.return_value = _create_token_response("NEW_TOKEN_ID", "new-token-value")
+        session.delete.return_value = response(json_body={"success": True})
+
+        assert r2.rotate_r2([leaf])
+
+        policy = session.post.call_args.kwargs["json"]["policies"][0]
+        assert policy["permission_groups"] == [{"id": group_id}]
+
     @patch.object(r2, "verify_leaf_via_rclone", return_value=(False, "denied"), autospec=True)
     def test_failed_verification_leaves_old_token_untouched(self, mock_verify, vault, session_class):
         session = session_class.return_value

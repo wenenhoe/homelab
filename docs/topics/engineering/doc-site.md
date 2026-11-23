@@ -12,6 +12,18 @@ The decision index's By number section is a `Grid`: one row for each ten numbers
 
 By topic is `Groups`, which the site shows as tabs without a script: each group is a link beside its panel, and a rule in `assets/site.css` shows the panel of the group the address names, or the first when it names none, and hides the rest. Every group shows when the stylesheet is not applied, since the rule is what hides one. The row filter shows every group with a matching row while a filter is typed, so a row is found without knowing its group, and an address with a group's anchor, which is its heading's, opens that group.
 
+## Design principles
+
+Where a choice about a page is open, these decide it. Each says what the site does and what holds it.
+
+- **Content first, no script needed.** A page is complete without JavaScript and, apart from its layout, without the stylesheet. The script adds the row filter and the menu's open button, and closes the contents list on a narrow screen; nothing a reader needs is reached only through it.
+- **One source, two outputs.** The site adds navigation (menus, breadcrumbs, a contents list, tabs over lists of links) and never content. A page says what its markdown file says, and every page links to the file.
+- **Show where you are.** A page names its place in its section in a breadcrumb, its own entry in the navigation, and its headings in a contents list; a heading of a long page links back to that list.
+- **Orient, don't hide.** Scrolling is reduced by showing the shape of a page, not by folding its narrative away. Only a list of links is ever tabbed, and a rule that names that one page decides it, so no other document is hidden by a guess.
+- **Every state has an address.** A heading, a tab and a section of a view each open from their anchor, so a link reaches them and the drift check holds the link. The text typed in a filter has no address.
+- **Prose at a readable measure, data at full width.** See [the stylesheet](#the-stylesheet).
+- **Targets and contrast.** A link in the menu, the contents list or a set of tabs is at least 44 pixels tall, and the stylesheet's colours come from one set of tokens in a light and a dark scheme. The layout check measures the text's size and not the targets or the contrast, so reading a page on a phone is still how those are found.
+
 ## Building the site
 
 From `tools/`:

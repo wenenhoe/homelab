@@ -21,8 +21,7 @@ The generated views (the decision index, the planning view and the disaster-reco
 
 `git am` commits without running the `pre-commit` hook. A series is replayed with `git am` in a scratch worktree
 ([`landing-a-series.md`](landing-a-series.md)), which runs the checks after each commit, and a change to the tool that does it is applied by hand
-with `git am`, then checked with `pre-commit run --all-files`. The generated views are not committed, so a patch holds only the change to what
-they are written from, and two series that each add a project or a decision never conflict on them. A view's title and introduction are the
+with `git am`, then checked with `pre-commit run --all-files`. A patch holds none of the [generated views](#installing-the-hooks), so two series that each add a project or a decision never conflict on them. A view's title and introduction are the
 files in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros), which travel in a patch like any other file.
 
 Two decision lineages with the same number fail `generate-doc-indexes`, so the checks the replay runs after the commit stop the series;

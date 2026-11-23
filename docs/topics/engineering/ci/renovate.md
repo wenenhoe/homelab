@@ -75,7 +75,7 @@ Renovate stops every pull request while `renovate.json5` is invalid, and only th
 
 ## Checking a run
 
-- A run that opens nothing on a Monday or Thursday is usually the window check's job to explain; its failure names the time the run started.
+- A run that opens nothing on a window day is usually the [window check](scheduled-jobs.md#renovate-schedule-window)'s job to explain; its failure names the time the run started.
 - A `403` or `Resource not accessible by integration` in the log names the permission above that the app's token lacks. `Could not create token` or a `401` from the token step means the Client ID or key is wrong, or the app is not installed on this repository.
 - The Dependency Dashboard issue lists every update Renovate knows of, including those held back by the schedule or by approval.
 - To run it outside the window, dispatch the workflow, then read the log. Pull request creation still waits for the window unless the update is a vulnerability alert.

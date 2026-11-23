@@ -16,6 +16,7 @@ The tests are under [`tools/tests/shell/`](../../../tools/tests/shell), one `.ba
 | `first_boot.bats` | [`tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh`](../../../tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh) |
 | `scratch_gateway.bats` | [`tofu/scratch/opnsense/scratch_gateway.sh`](../../../tofu/scratch/opnsense/scratch_gateway.sh) |
 | `retire_vm.bats` | [`tools/rebuild_check/scripts/retire_vm.sh`](../../../tools/rebuild_check/scripts/retire_vm.sh) |
+| `gateway_preflight.bats` | [`tools/rebuild_check/scripts/gateway_preflight.sh`](../../../tools/rebuild_check/scripts/gateway_preflight.sh) |
 | `stage_image.bats` | [`tofu/scratch/opnsense/stage_image.sh`](../../../tofu/scratch/opnsense/stage_image.sh) |
 | `prepare_image.bats` | [`tofu/modules/proxmox_ubuntu_template/prepare_image.sh`](../../../tofu/modules/proxmox_ubuntu_template/prepare_image.sh) |
 | `acceptance.bats` | [`tofu/scratch/opnsense/acceptance/acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) |

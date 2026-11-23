@@ -14,8 +14,6 @@ A small fleet of Ubuntu hosts running Dockerized services, fully converged by An
 | Backups | SeaweedFS on-site, relayed offsite to Cloudflare R2 · Backblaze B2 · Oracle Cloud (OCI) |
 | Monitoring | Beszel · Gatus |
 
-The production gateway is built from code: Tofu creates the VM from a seed disk and an Ansible play applies the rest of its configuration through its API.
-
 Reviewing this repo? [`reviewing-this-repo.md`](docs/topics/engineering/reviewing-this-repo.md) maps each claim it makes to the doc that explains it and the check that holds it up.
 
 ## Architecture

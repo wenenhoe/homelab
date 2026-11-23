@@ -194,8 +194,7 @@ gateway is down. What it needs:
   untagged LAN for its return (the address `build_seed.sh` takes as `--operator-host`) and its NIC
   moves to `vmbr0`, where it reaches the node without the gateway. Its hosts file maps the node's
   name to the node, because the Proxmox endpoint is addressed by name and the gateway's DNS is
-  down. Whether the host should keep a path of its own is open
-  ([`operator-host-reach-without-the-gateway.md`](../../../explorations/operator-host-reach-without-the-gateway.md)).
+  down. Whether the host should keep a path of its own is an open question.
 - **The router.** The rebuilt gateway carries the MACs the module derives from VMID 201, not the
   old VM's, so the physical router sees a new WAN client. Check before the window whether it
   holds a DHCP reservation or a port forward for the old WAN MAC and move it to the new one.

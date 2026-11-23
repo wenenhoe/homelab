@@ -286,7 +286,7 @@ lists it to read again; update the column when you have.
 | Records | Why they stay separate | Status when read |
 | :--- | :--- | :--- |
 | ADR 0001 and 0002; 0001 and 0057 | The first two have the same shape but decide different things, host configuration through Ansible and proxy configuration through a checked-in Caddyfile, and each is a reason on its own. 0057 is abandoned. | 0001 accepted, 0002 accepted, 0057 abandoned |
-| ADR 0053, 0055, 0056 | Network reach of the coding-agent host, the maintainer's access to it, and the credentials the workstation holds are three boundaries with different owners. 0053 is `working`; 0055 and 0056 are `approved` and cannot merge into an accepted lineage. | 0053 working, 0055 approved, 0056 approved |
+| ADR 0053, 0055, 0056 | Network reach of the coding-agent host, the maintainer's access to it, and the credentials the workstation holds are three boundaries with different owners. 0053, 0055 and 0056 are `approved` and cannot merge into an accepted lineage. | 0053 approved, 0055 approved, 0056 approved |
 | ADR 0056 and 0058 | The credentials the workstation holds, and where operator work runs. 0058 is `working`. | 0056 approved, 0058 working |
 | ADR 0044, 0050, 0058 | How prod automation is triggered, how agent-written changes reach it, and where operator work runs are separate problems that cite one another. None is accepted. | 0044 approved, 0050 approved, 0058 working |
 | ADR 0065 and 0068 | Where an app's definition merges with host intent, and where backup settings meet shared defaults. Each has its own resolver and its own invariants. | 0065 accepted, 0068 accepted |
@@ -294,7 +294,7 @@ lists it to read again; update the column when you have.
 | ADR 0096 and 0108 | Hook pinning is `working` and has open assumptions. Re-read it once accepted. | 0096 working, 0108 accepted |
 | ADR 0018 and 0023 | Unsealing OpenBao after a restart, and how credential code stores its output. 0018 is `working`. | 0018 working, 0023 accepted |
 | ADR 0023, 0109, 0110 | Storage and rotation cadence, expiry, and the R2 admin token. They share a topic and link one another, but each states a different choice with its own triggers. | 0023 accepted, 0109 accepted, 0110 accepted |
-| ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. 0080 is `approved`. | 0037 accepted, 0080 approved, 0082 accepted |
+| ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. | 0037 accepted, 0080 accepted, 0082 accepted |
 
 Nothing is renumbered: a number identifies a problem for good, and git holds
 what a deleted record said.

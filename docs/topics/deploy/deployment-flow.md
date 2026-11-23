@@ -44,13 +44,13 @@ them so that it can read what every host recorded; see
 
 | Play | Hosts | What it does | Why here |
 | :-: | :--- | :--- | :--- |
-| 0 | `localhost` | Resolves every value in `secret_catalog.yaml` ([notes](#play-0-notes), [`secrets.md`](../secrets/secrets.md)). | Every host's `ansible_host` resolves through a secret, and Play 1's fact-gathering needs a live connection. |
+| 0 | `localhost` | Resolves every value in `secret_catalog.yaml` ([notes](#play-0-notes), [`secrets.md`](../security/secrets.md)). | Every host's `ansible_host` resolves through a secret, and Play 1's fact-gathering needs a live connection. |
 | 1 | `managed_hosts` | Installs Docker Engine and the guest agent and creates the stacks directory; no containers start. `compose_apps` is resolved against `app_catalog` where each later play reads `resolved_apps`. | Never `all`: that includes `controller`, which must never get Docker or a container. Lives in `predeploy.yaml`, which `deploy.yaml` imports and which runs on its own ([below](#running-play-1-alone)). |
 | 2 | `managed_hosts` | Renders each host's `Caddyfile`, pulls the custom Caddy image (DigitalOcean DNS plugin, built in CI), starts or restarts it, then installs the certificate-expiry check timer. See [`caddy.md`](../services/caddy.md) and [`telegram-notifications.md`](../monitoring/telegram-notifications.md). | Routing is live before any backend app starts. |
 | 3 | `dns` (`services` only) | Scrapes `dns_zones` from every `app_hosts` member, renders zone files, deploys BIND9 and repoints the host's own resolution at it. See [`bind9.md`](../services/bind9.md). | |
 | 4 | `managed_hosts` | Provisions directories and configs for, and starts, every app except `caddy`/`bind9` (Plays 2–3) and `openbao`, which deploys itself by a task at the start of this play ([`roles/openbao`](../../../ansible/roles/openbao)). | |
 | 5 | `storage` | Creates the `homelab-backups` bucket; SeaweedFS doesn't create one on first `PUT`. See [`backup.md`](../disaster-recovery/backup.md). | After SeaweedFS deploys in Play 4, and before Play 8, or the first upload fails with `NoSuchBucket`. |
-| 6 | `security` | Wires lldap, tinyauth and openbao into step-ca: `step_ca_client` caches the root cert, `step_ca_cert` issues lldap's LDAPS cert and installs its renewal timer, `tinyauth_ca_trust` seeds the CA bundle tinyauth needs, and a second `step_ca_cert` instance issues OpenBao's listener cert ([`openbao.md`](../secrets/openbao.md)). `step` runs via the `smallstep/step-cli` image ([`lldap.md`](../services/lldap.md)). | After lldap, step-ca, tinyauth and openbao deploy in Play 4. |
+| 6 | `security` | Wires lldap, tinyauth and openbao into step-ca: `step_ca_client` caches the root cert, `step_ca_cert` issues lldap's LDAPS cert and installs its renewal timer, `tinyauth_ca_trust` seeds the CA bundle tinyauth needs, and a second `step_ca_cert` instance issues OpenBao's listener cert ([`deployment.md`](../security/openbao/deployment.md)). `step` runs via the `smallstep/step-cli` image ([`lldap.md`](../services/lldap.md)). | After lldap, step-ca, tinyauth and openbao deploy in Play 4. |
 | 7 | `security` | Ensures lldap's `observer` account exists ([`lldap.md`](../services/lldap.md#bootstrapping-the-observer-account)). | After lldap deploys in Play 4; independent of Play 6, since it needs only lldap's web port. |
 | 8 | `managed_hosts` | Deploys the backup agent; each host's schedules come from its `backup_plan` ([`backup.md`](../disaster-recovery/backup.md)). | Last among `managed_hosts` plays: it mounts other apps' named volumes as `external: true`, which needs Play 4's volumes and Play 5's bucket. |
 | 9 | `storage` | Installs `cloud-sync.timer` and `cloud-sync.service`, which relay SeaweedFS archives to R2/B2/OCI ([`backup.md`](../disaster-recovery/backup.md)). | Not a hard dependency on Play 8: it reads every backup host's `backup_plan` through static `hostvars`. It sits after Play 8 as the next backup stage. |
@@ -72,7 +72,7 @@ ansible-playbook playbooks/predeploy.yaml --limit security
 It is the only part of `deploy.yaml` that can run on a rebuilt `security`
 before OpenBao and step-ca exist there: Play 0 logs into OpenBao and reads
 step-ca's root certificate from `security`'s Docker. It is the first step of
-[Rebuilding `security`](../secrets/openbao-backup-restore.md#rebuilding-security).
+[Rebuilding `security`](../security/openbao/backup-restore.md#rebuilding-security).
 
 ## Play 0 notes
 
@@ -123,7 +123,7 @@ Role-by-role reference lives in [`ansible.md`](ansible.md#roles).
 doesn't vary per host: directories, named volumes (see
 [`volumes.md`](volumes.md)), scripts/config templates, and Caddy
 upstream/auth. `no_log: true` on a `configs` entry keeps a real secret
-out of `--diff` output (see [`secrets.md`](../secrets/secrets.md)).
+out of `--diff` output (see [`secrets.md`](../security/secrets.md)).
 
 Each `host_vars/<host>.yaml` then only lists which apps that host runs
 and, for routable apps, the hostname to expose:

@@ -91,7 +91,7 @@ the set of parties exposed.
   rather than on expiry.
 
 R2 master-token setup steps are in
-[`cloud-credentials/scoping.md`](../../topics/secrets/cloud-credentials/scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two).
+[`cloud-credentials/scoping.md`](../../topics/security/cloud-credentials/scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two).
 
 ## Invariants
 

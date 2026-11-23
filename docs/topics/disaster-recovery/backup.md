@@ -12,12 +12,12 @@ already-encrypted objects out of SeaweedFS and copying them onward — see
 for SeaweedFS coverage, and [`cloud-sync.md`](cloud-sync.md) for how the
 cloud leaf works.
 
-S3 credential generation/rotation is covered in [`secrets.md`](../secrets/secrets.md),
+S3 credential generation/rotation is covered in [`secrets.md`](../security/secrets.md),
 not here.
 
 OpenBao's own backup/restore uses a different mechanism entirely (a
 raft snapshot, not this volume-backup pipeline) — see
-[`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md).
+[`backup-restore.md`](../security/openbao/backup-restore.md).
 
 Getting data back is [`restore.md`](restore.md); proving that path works end
 to end is [`fire-drill.md`](fire-drill.md).
@@ -256,7 +256,7 @@ The unit is a oneshot, so the command returns when the run ends and fails
 if any job failed; the jobs' output is in `journalctl -u cloud-sync.service`.
 
 OpenBao is not in this pipeline. Its snapshot is taken as
-[`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#running-a-backup)
+[`backup-restore.md`](../security/openbao/backup-restore.md#running-a-backup)
 describes.
 
 ## S3 endpoint format

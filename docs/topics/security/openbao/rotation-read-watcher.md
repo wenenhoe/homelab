@@ -1,12 +1,12 @@
 # OpenBao's Rotation Read-Watcher
 
 ADR 0110's per-read alert requirement, and the last piece of
-[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-001.md)
+[ADR 0026 (High-value secret read alerts)](../../../decisions/0026-detecting-reads-of-high-value-secrets/revision-001.md)
 that wasn't already live (the audit device and its logging cap were —
-see [`openbao.md`](openbao.md)). Tails `docker logs -f openbao` on
+see [`deployment.md`](deployment.md)). Tails `docker logs -f openbao` on
 `security`, alerts on any read of the three secret-bearing rotation
 credentials, and does nothing else — see
-[`docker/openbao/watcher/rotation_read_watcher.py`](../../../docker/openbao/watcher/rotation_read_watcher.py)'s
+[`docker/openbao/watcher/rotation_read_watcher.py`](../../../../docker/openbao/watcher/rotation_read_watcher.py)'s
 own docstring for the exact matching logic, confirmed against a real
 audit-log capture, not inferred from docs.
 
@@ -48,7 +48,7 @@ token in `check_r2()`, the B2 application key through `b2_rotation_api()`, and
 the OCI client secret through `oci_identity_domains_client()`. Each weekly run
 therefore raises three alerts, one per secret, all naming the role that ran it:
 `controller` today, and `cd-agent-credential-expiry` once the check moves to `cd_agent`
-([ADR 0020 revision 1 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)).
+([ADR 0020 revision 1 (Automation identity scope)](../../../decisions/0020-automation-identity-and-access-scope/revision-001.md)).
 The trio is the accepted weekly signal that the credential expiry check ran. The
 rotation commands read the same paths when they run, which is also expected. An
 alert at any other time, or naming any other role, is not.
@@ -56,10 +56,10 @@ alert at any other time, or naming any other role, is not.
 ## Installing
 
 The watcher's own AppRole (`rotation-read-watcher`) is already provisioned —
-[`openbao-reinit-runbook.md`](openbao-reinit-runbook.md)'s step 6. This
+[`reinit-runbook.md`](reinit-runbook.md)'s step 6. This
 picks up from there. A rebuilt `security` has none of it, so these steps run
 again on the new VM, and `rebuild_check.host security` fails until they have
-([`rebuild-runbook.md`](../disaster-recovery/rebuild-runbook.md#still-done-by-hand)).
+([`rebuild-runbook.md`](../../disaster-recovery/rebuild-runbook.md#still-done-by-hand)).
 
 1. Copy everything over, from `controller`:
 
@@ -128,7 +128,7 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    (`/etc/step-ca/root_ca.crt`, already on `security`). It connects to
    `127.0.0.1` and the leaf has no IP SAN, so the DNS name the certificate
    carries goes in a file beside the credentials, the same name
-   [`openbao-auth.md`](openbao-auth.md) gives `bao` as `-tls-server-name`.
+   [`auth.md`](auth.md) gives `bao` as `-tls-server-name`.
    Write it from `security`, with the name's domain filled in; it is not a secret:
 
    ```sh
@@ -221,6 +221,6 @@ Gatus's missed-heartbeat alert is the only alert for a watcher that has stopped.
 
 The unit has no `OnFailure=` alert because it would never fire. `OnFailure=` runs once a unit reaches systemd's `failed` state, and a service with `Restart=` only gets there once its start limits are exhausted (`systemd.unit(5)`, `OnFailure=`). This unit sets `Restart=always` and `RestartSec=10` with no `StartLimitIntervalSec=` or `StartLimitBurst=` override, so at one failure per 10 seconds it never crosses the default burst threshold and restarts for as long as the cause lasts.
 
-Bounding the restarts to force a `failed` state would give up what the restart policy is for. The usual cause is OpenBao being sealed after a restart or a re-init ([ADR 0018 (Secrets store unsealing)](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)), which clears once someone unseals it. A bounded count would leave the watcher `failed` and silent after that.
+Bounding the restarts to force a `failed` state would give up what the restart policy is for. The usual cause is OpenBao being sealed after a restart or a re-init ([ADR 0018 (Secrets store unsealing)](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)), which clears once someone unseals it. A bounded count would leave the watcher `failed` and silent after that.
 
-A check that counted missed heartbeat ticks and sent the journal tail to Telegram would alert no earlier than Gatus, so it would add only the cause. That would cost a counter file and a second hand-filled `/etc/telegram-notify/` env file, and it would break the convention in `rotation-read-watcher-heartbeat.service`: `OnSuccess=` only, never an explicit failure push, with Gatus as the backstop ([`gatus.md`](../monitoring/gatus.md)). The watcher therefore has no check of its own.
+A check that counted missed heartbeat ticks and sent the journal tail to Telegram would alert no earlier than Gatus, so it would add only the cause. That would cost a counter file and a second hand-filled `/etc/telegram-notify/` env file, and it would break the convention in `rotation-read-watcher-heartbeat.service`: `OnSuccess=` only, never an explicit failure push, with Gatus as the backstop ([`gatus.md`](../../monitoring/gatus.md)). The watcher therefore has no check of its own.

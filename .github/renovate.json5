@@ -529,7 +529,7 @@
     // own ansible role defaults, deploy.yaml's step_ca_cert include_role
     // vars (resolves the image only to read its non-root UID for a
     // post-issuance/renewal chown, never to run the server itself; see
-    // docs/topics/secrets/openbao.md), and — a different datasource, GitHub Releases
+    // docs/topics/security/openbao/deployment.md), and — a different datasource, GitHub Releases
     // rather than the Docker Hub image, but grouped here via the shared
     // depName regardless (see that customManager's own comment) —
     // openbao_cli's native-CLI version pin on `security`. All four need

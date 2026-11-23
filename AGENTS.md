@@ -11,7 +11,7 @@ pointed to instead.
   lifecycle and the stop conditions.
 - [`docs/README.md`](docs/README.md) — where each kind of doc goes, and
   the public-repo rule.
-- [`docs/topics/engineering/data-classification.md`](docs/topics/engineering/data-classification.md)
+- [`docs/topics/security/policy/data-classification.md`](docs/topics/security/policy/data-classification.md)
   — the four classes (Public, Private, Local, Secret) and the questions
   that place a piece of information. Read it before writing anything
   that touches a weakness, a date the lab is unavailable, or a drill or
@@ -27,7 +27,7 @@ pointed to instead.
   replay and the stop list. Read it before delivering a change. Patches
   leave out the generated views; see
   [`pre-commit.md`](docs/topics/engineering/pre-commit.md#applying-patches-with-git-am).
-- [`docs/topics/engineering/security-findings.md`](docs/topics/engineering/security-findings.md#referring-to-findings-from-this-repo)
+- [`docs/topics/security/policy/security-findings.md`](docs/topics/security/policy/security-findings.md#referring-to-findings-from-this-repo)
   and [`docs/topics/testing/mutation-testing.md`](docs/topics/testing/mutation-testing.md#keeping-results-private)
   — what from the private tracker and the private mutation tooling may be
   mentioned in this repo, and where their output goes. Read them before

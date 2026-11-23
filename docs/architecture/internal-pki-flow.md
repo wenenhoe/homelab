@@ -2,7 +2,7 @@
 
 How an app's TLS certificate gets issued by step-ca once and renewed on a timer afterwards — spans
 [`step-ca.md`](../topics/services/step-ca.md), [`lldap.md`](../topics/services/lldap.md) and
-[`openbao.md`](../topics/secrets/openbao.md), which each use the same `step_ca_cert` role and differ only
+[`deployment.md`](../topics/security/openbao/deployment.md), which each use the same `step_ca_cert` role and differ only
 in how the app picks up a renewed certificate.
 
 ## Issuance (once, in `deploy.yaml` Play 6)
@@ -65,4 +65,4 @@ sequenceDiagram
 ```
 
 Which action an app uses is in its own `/etc/cert-renewer/<app>.env`: OpenBao sends `SIGHUP` so a renewal doesn't
-reseal it ([`openbao.md`](../topics/secrets/openbao.md#cert-renewal-uses-sighup-not-a-restart)), and lldap restarts.
+reseal it ([`deployment.md`](../topics/security/openbao/deployment.md#cert-renewal-uses-sighup-not-a-restart)), and lldap restarts.

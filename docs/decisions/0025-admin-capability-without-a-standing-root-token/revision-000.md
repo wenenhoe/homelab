@@ -22,7 +22,7 @@ Creating any new AppRole needs a token with `create`/`update` on
 ([`controller.hcl`](../../../docker/openbao/policies/controller.hcl))
 grants neither, and the only token that ever could -
 the initial root token - was deliberately revoked at the end of
-[`openbao-auth.md`](../../topics/secrets/openbao-auth.md)'s own runbook. No live
+[`openbao-auth.md`](../../topics/security/openbao/auth.md)'s own runbook. No live
 credential in this Vault can currently create a new AppRole.
 
 Four candidates were considered:
@@ -48,7 +48,7 @@ token on that exact endpoint.
 Investigating option 3 surfaced two further findings, neither obvious
 going in:
 
-- A **snapshot restore** (`openbao-backup-restore.md`'s proven drill)
+- A **snapshot restore** (`openbao-backup-restore.md`'s (renamed: `docs/topics/security/openbao/backup-restore.md`) proven drill)
   reproduces the source snapshot's entire barrier/keyring/ACL state,
   including whatever root-token status it was backed up with. Since
   every snapshot taken since root was first revoked was taken with
@@ -87,7 +87,7 @@ admin-capable credential.
 
 1. Full backup first (`dump_vault_to_file_cache.py` (renamed: `dump.py`)) - already run.
 2. Fresh `bao operator init -key-shares=3 -key-threshold=2`
-   ([`openbao.md`](../../topics/secrets/openbao.md)'s existing convention) on `security`,
+   ([`openbao.md`](../../topics/security/openbao/deployment.md)'s existing convention) on `security`,
    discarding the old raft dataset. New Shamir shares and root token,
    handled with the same offline discipline as the original bundle -
    this fully supersedes the old one, which becomes useless the moment
@@ -117,7 +117,7 @@ admin-capable credential.
 8. Revoke root again, same as the original auth/policy setup's last
    step. This time it's
    not a dead end: see
-   [`openbao-vault-bootstrap.md`](../../topics/secrets/openbao-vault-bootstrap.md) for
+   [`openbao-vault-bootstrap.md`](../../topics/security/openbao/vault-bootstrap.md) for
    how `vault-bootstrap` bootstraps a fresh root token on demand if
    ever genuinely needed, without a second re-init.
 
@@ -144,7 +144,7 @@ admin-capable credential.
 - `vault-bootstrap`'s `secret_id` is now this repo's actual
   root-recovery mechanism, not a convenience credential - it needs the
   same offline discipline as the Shamir shares, spelled out in
-  [`openbao-vault-bootstrap.md`](../../topics/secrets/openbao-vault-bootstrap.md) rather
+  [`openbao-vault-bootstrap.md`](../../topics/security/openbao/vault-bootstrap.md) rather
   than treated as another cached AppRole.
 - Every consumer of OpenBao (`controller`, `snapshot-push.sh`,
   `check_freshness.py` (renamed: `check_credential_expiry.py`), `create_leaf_keys.py`/`create_rotation_keys.py`)

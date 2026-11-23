@@ -77,4 +77,4 @@ vulnerability, or an exposure window — including in ADRs, project risks,
 and blockers. If a doc would need those specifics to be useful, leave it
 unwritten and raise it privately. The framework behind the rule, which
 says how to place a kind of information, is
-[`topics/engineering/data-classification.md`](topics/engineering/data-classification.md).
+[`topics/security/policy/data-classification.md`](topics/security/policy/data-classification.md).

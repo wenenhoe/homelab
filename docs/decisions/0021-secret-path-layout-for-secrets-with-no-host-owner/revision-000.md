@@ -82,7 +82,7 @@ doesn't silently relocate a secret in Vault.
 
 - No `controller.hcl` change, no re-review of an Accepted
   artifact — these Vault writes fall entirely inside scope
-  already granted and proven working (`openbao-auth.md`'s
+  already granted and proven working (`openbao-auth.md`'s (renamed: `docs/topics/security/openbao/auth.md`)
   runbook, step 6).
 - If a global secret's consumer ever changes such that it needs
   `cd-agent-rotation`-style access (denied `hosts/*` by design) or any
@@ -107,5 +107,5 @@ doesn't silently relocate a secret in Vault.
   mechanically derivable — flagged in `secrets_registry.yaml`'s own
   header comment.
 - Full current mapping lives in `secrets_registry.yaml` itself (each
-  entry's `vault_scope` field) and in [`secrets.md`](../../topics/secrets/secrets.md) —
+  entry's `vault_scope` field) and in [`secrets.md`](../../topics/security/secrets.md) —
   not duplicated here.

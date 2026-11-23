@@ -165,7 +165,7 @@ def rotation_read_watcher_is_running(run: Runner, expected: Expected) -> Result:
     states = out.split()
     if status == 0 and states == ["active", "active"]:
         return Result(True, "the service and its heartbeat timer are active")
-    return Result(False, f"rotation-read-watcher is {' / '.join(states) or 'not installed'}: it is installed by hand, see openbao-rotation-read-watcher.md")
+    return Result(False, f"rotation-read-watcher is {' / '.join(states) or 'not installed'}: it is installed by hand, see rotation-read-watcher.md")
 
 
 def tinyauth_reaches_ldap(run: Runner, expected: Expected) -> Result:

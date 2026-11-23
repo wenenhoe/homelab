@@ -2,29 +2,29 @@
 
 Gives `controller` its own AppRole so day-to-day operation stops
 depending on the initial root token. See
-[ADR 0020 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-000.md)
+[ADR 0020 (Automation identity scope)](../../../decisions/0020-automation-identity-and-access-scope/revision-000.md)
 for the design this implements.
 
 ## Why a runbook, not an Ansible role
 
 Every command below needs the root token — the only credential that
 exists in a freshly-initialized Vault — as input.
-[`openbao.md`](openbao.md)'s Init runbook already established why that
+[`deployment.md`](deployment.md)'s Init runbook already established why that
 token must never touch a file on `security` or `controller`, or flow
 through Ansible's own result-capture/`--diff` machinery (`no_log:`
 suppresses *output*, not the token *input* an `environment:` var would
 still need to come from somewhere — a new `vars_prompt`, which
-[`secrets.md`](secrets.md) already rules out for this repo). Same
+[`secrets.md`](../secrets.md) already rules out for this repo). Same
 reasoning as init/unseal: SSH to `security` directly and run these by
 hand.
 
 ## The policy
 
 Checked in at
-[`docker/openbao/policies/controller.hcl`](../../../docker/openbao/policies/controller.hcl) —
+[`docker/openbao/policies/controller.hcl`](../../../../docker/openbao/policies/controller.hcl) —
 not under `docker/openbao/configs/`: that directory is seeded into
 OpenBao's own config volume and auto-scanned at boot (see
-[`openbao.md`](openbao.md)), and this is Vault ACL data applied via the
+[`deployment.md`](deployment.md)), and this is Vault ACL data applied via the
 CLI after boot, not server config. Read/write on
 `secret/data/hosts/*` and both
 `secret/data/cloud_credentials/{leaf,rotation}/*`, plus read-only on
@@ -37,7 +37,7 @@ instead of a human-exported root token).
 `openbao.{{ caddy_domain }}` (the SAN on its cert) has no DNS record
 until `host_vars/security.yaml`'s hand-written `extra_records` CNAME
 for it is deployed — bind9 doesn't auto-generate one, since OpenBao
-deliberately has no `caddy:` route (`openbao.md`). Run
+deliberately has no `caddy:` route (`deployment.md`). Run
 `ansible-playbook deploy.yaml --tags infra` (re-renders/reloads DNS
 zone data only, no images touched) before testing a login from any
 host other than `security` itself — the runbook below works without it
@@ -57,11 +57,11 @@ export BAO_CACERT=/etc/step-ca/root_ca.crt
 ```
 
 Native `bao` (`ansible/roles/openbao_cli`), real TLS against step-ca's
-root cert; [`openbao.md`](openbao.md) covers init and unseal, the one
+root cert; [`deployment.md`](deployment.md) covers init and unseal, the one
 place that doesn't use it. `-tls-server-name` is required:
 the leaf cert has no IP SAN, so dialing `127.0.0.1` needs the real SAN
 supplied explicitly (see
-[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md#context)).
+[ADR 0106 (Operator bao CLI access)](../../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md#context)).
 
 1. **Enable the KV v2 engine**, if not already present (`bao secrets
    list` shows nothing at `secret/` on a fresh Vault):
@@ -103,11 +103,11 @@ supplied explicitly (see
      one run doesn't outlive it by much. If a run genuinely needs
      longer, re-authenticate rather than renew — simpler than adding
      a renewal path to a role deleted outright once
-     [its retirement](../../projects/cd-agent-controller-approle-retirement.md) lands.
+     [its retirement](../../../projects/cd-agent-controller-approle-retirement.md) lands.
    - `secret_id_ttl` **2160h (90 days), `secret_id_num_uses=0`
      (unlimited within that window).** Matches this repo's existing
      90-day rotation cadence for every other leaf/rotation credential
-     ([ADR 0109 (Cloud credential expiry)](../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)),
+     ([ADR 0109 (Cloud credential expiry)](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)),
      rather than cd_agent's never-expire shape — that shape is
      justified for an always-on box logging in every 2 minutes
      (0022); `controller` is a laptop with no fixed cadence, and
@@ -189,7 +189,7 @@ supplied explicitly (see
 
 7. **Revoke the root token** — safe once the AppRole is confirmed
    working end-to-end and `vault-bootstrap` exists
-   ([`openbao-reinit-runbook.md`](openbao-reinit-runbook.md) step 4
+   ([`reinit-runbook.md`](reinit-runbook.md) step 4
    creates it): after the revoke it is the only way to write another
    policy or AppRole.
 
@@ -197,9 +197,9 @@ supplied explicitly (see
    bao token revoke -self
    ```
 
-   From this point, the root token from `openbao.md`'s Init runbook no
+   From this point, the root token from `deployment.md`'s Init runbook no
    longer exists. Later admin access goes through `vault-bootstrap` in an
-   `openbao_utils.shell` session ([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)),
+   `openbao_utils.shell` session ([`vault-bootstrap.md`](vault-bootstrap.md)),
    never a standing root credential.
 
 ## Re-issuing the secret ID
@@ -216,7 +216,7 @@ apart.
 
 The root token from the runbook above no longer exists, so this goes
 through the `vault-bootstrap` AppRole
-([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)), from
+([`vault-bootstrap.md`](vault-bootstrap.md)), from
 `controller`. Its `secret_id` is typed at `openbao_utils.shell`'s hidden prompt:
 
 ```sh
@@ -239,7 +239,7 @@ In the shell it spawns:
 
    A missing role or a `role_id` mismatch means the AppRole was rebuilt,
    not that the `secret_id` expired; stop here and follow
-   [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md) step 3
+   [`reinit-runbook.md`](reinit-runbook.md) step 3
    instead. `vault-bootstrap` cannot list a role's `secret_id`
    accessors, so a matching `role_id` plus a failing login is what
    points at the `secret_id`.
@@ -279,7 +279,7 @@ In the shell it spawns:
 
 `snapshot-push.sh` logs in as this AppRole itself (the `role_id` as an
 argument, the `secret_id` from the cached file, else a hidden prompt) and is run by hand; see
-[`openbao-backup-restore.md`](openbao-backup-restore.md).
+[`backup-restore.md`](backup-restore.md).
 
 `ensure_secret.yaml` is what reads
 `openbao-controller-role-id`/`-secret-id` from Ansible's own secrets

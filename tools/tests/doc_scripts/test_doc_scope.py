@@ -198,7 +198,7 @@ class TestScopeErrors:
         found = scope.scope_errors([doc, "docs/topics/links.md", "docs/topics/other.md"], base.get, root, exempt=frozenset({"docs/topics/links.md"}))
         assert len(found) == 1 and "other.md" in found[0]
 
-    NIST = "docs/topics/engineering/nist-800-53-alignment.md"
+    NIST = "docs/topics/security/policy/nist-800-53-alignment.md"
 
     def test_the_nist_page_is_exempt_when_it_links_a_superseded_revision(self, root, base, scoped):
         revision(root, "0001-x", 0)

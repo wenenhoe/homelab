@@ -169,8 +169,8 @@ flowchart LR
 - The CI and Molecule OpenBao targets stay on a one-share Shamir seal, so
   the seal itself is exercised only by the spike and the production
   migration.
-- The topic docs [`openbao.md`](../../topics/secrets/openbao.md) and
-  [`openbao-backup-restore.md`](../../topics/secrets/openbao-backup-restore.md)
+- The topic docs [`deployment.md`](../../topics/security/openbao/deployment.md) and
+  [`backup-restore.md`](../../topics/security/openbao/backup-restore.md)
   change when this is built, to describe the seal, the third
   recovery-critical secret and the restore order with it.
 

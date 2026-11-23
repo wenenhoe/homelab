@@ -59,7 +59,7 @@ implementation this decision was built from, in sequence.
 Every secret this repo manages now depends on OpenBao being reachable
 — a new operational dependency the file cache didn't have, addressed
 by ADR 0111's bootstrap-secret split and
-[`openbao-backup-restore.md`](../../topics/secrets/openbao-backup-restore.md)'s backup
+[`openbao-backup-restore.md`](../../topics/security/openbao/backup-restore.md)'s backup
 mechanism. [0013](revision-000.md)
 is superseded by this decision. Implementation detail —
 bootstrapping, auth, backup/restore, migration — lives in ADRs

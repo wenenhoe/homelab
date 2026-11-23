@@ -52,7 +52,7 @@ question is which of them to ask earlier, and where to write them down.
   [ADR 0035](../decisions/0035-container-orchestration-platform/revision-000.md), and
   projects repeat that the node has limited headroom. Nothing sums the VMs
   against the node. Figures about the lab's own capacity are not a weakness, so
-  [`data-classification.md`](../topics/engineering/data-classification.md)
+  [`data-classification.md`](../topics/security/policy/data-classification.md)
   would place them in the public class; confirm that before writing any.
 
 ## Options

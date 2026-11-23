@@ -157,7 +157,10 @@ def _check_app(name: str, app: dict[str, object]) -> list[Violation]:
     if DOC_KEY in app:
         doc = app[DOC_KEY]
         if not (isinstance(doc, str) and DOC_PATH_RE.fullmatch(doc) and ".." not in doc.split("/")):
-            fail("doc-shape", f"`{DOC_KEY}` must be the repo-relative path of a markdown file under docs/topics/, such as docs/topics/secrets/openbao.md")
+            fail(
+                "doc-shape",
+                f"`{DOC_KEY}` must be the repo-relative path of a markdown file under docs/topics/, such as docs/topics/security/openbao/deployment.md",
+            )
 
     legacy = app.get(LEGACY_ROUTES_KEY)
     if isinstance(legacy, dict) and legacy and all(isinstance(route, dict) for route in legacy.values()):

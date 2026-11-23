@@ -116,13 +116,13 @@ Prompts for every `manual` entry that isn't already set (masked input
 for anything marked `sensitive: true`), skipping entries that already
 have a value. Safe to re-run. Vault-backed entries need OpenBao
 reachable and the controller AppRole already provisioned
-([`openbao-auth.md`](openbao-auth.md)'s runbook) before this script can
+([`auth.md`](openbao/auth.md)'s runbook) before this script can
 do anything with them; it fetches step-ca's root cert fresh each run to
 validate OpenBao's TLS cert, the same mechanism
 [ADR 0022 (Controller TLS trust)](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
 uses from Ansible. A CD agent job, which has no SSH key to `security`, is
 delivered the root instead
-([`openbao-cd-agent-approles.md`](openbao-cd-agent-approles.md)). To set a
+([`openbao-cd-agent-approles.md`](openbao/openbao-cd-agent-approles.md)). To set a
 file-cache-backed value without the script:
 
 ```sh

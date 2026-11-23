@@ -2,11 +2,11 @@
 
 How `controller` reaches OpenBao day-to-day, and how cloud credential
 rotation plus the rotation read-watcher fit together — spans
-[`openbao-auth.md`](../topics/secrets/openbao-auth.md) (`controller`'s AppRole),
-[`cloud-credentials/creation.md`](../topics/secrets/cloud-credentials/creation.md) and
-[`cloud-credentials/rotation.md`](../topics/secrets/cloud-credentials/rotation.md)
+[`auth.md`](../topics/security/openbao/auth.md) (`controller`'s AppRole),
+[`cloud-credentials/creation.md`](../topics/security/cloud-credentials/creation.md) and
+[`cloud-credentials/rotation.md`](../topics/security/cloud-credentials/rotation.md)
 (minting and rotating R2/B2/OCI credentials), and
-[`openbao-rotation-read-watcher.md`](../topics/secrets/openbao-rotation-read-watcher.md) (the
+[`rotation-read-watcher.md`](../topics/security/openbao/rotation-read-watcher.md) (the
 per-read alert on the R2, B2 and OCI rotation credentials), none of which shows the whole
 picture on one page.
 
@@ -96,4 +96,4 @@ Four roles, one per kind of unattended job, each bound to the host's
 address. A role can reach only the paths drawn: none of the four can
 delete, and only `cd-agent-rotation` can update. Policies and the
 creation steps are in
-[`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
+[`openbao-cd-agent-approles.md`](../topics/security/openbao/openbao-cd-agent-approles.md).

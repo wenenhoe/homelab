@@ -55,25 +55,30 @@ Platform services the apps depend on: DNS, ingress, identity, PKI.
 | [`step-ca.md`](services/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
 | [`wastebin.md`](services/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
 
-## secrets/
+## security/
 
-OpenBao and the credentials around it.
+Keeping the lab secure: how information is classed, the scanning and review that watch the repo, and OpenBao and the credentials around it.
 
 | Doc | Covers |
 | :--- | :--- |
-| [`secrets.md`](secrets/secrets.md) | The `secrets` role, `openbao_utils/bootstrap.py`, rotation. |
-| [`secrets-rotation.md`](secrets/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
-| [`cloud-credentials/creation.md`](secrets/cloud-credentials/creation.md) | The scripts that mint, audit and verify the R2/B2/OCI credentials, and how to run them. |
-| [`cloud-credentials/scoping.md`](secrets/cloud-credentials/scoping.md) | What each provider's master credential can be narrowed to, and what the rotation and leaf credentials are scoped to. |
-| [`cloud-credentials/rotation.md`](secrets/cloud-credentials/rotation.md) | How the leaf and rotation credentials rotate, per provider: the `--rotate` flow, its verification, and rotating the rotation credential itself. |
-| [`cloud-credentials/expiry.md`](secrets/cloud-credentials/expiry.md) | The 90-day credential expiry, the weekly credential expiry check, and the Telegram warning ladder. |
-| [`openbao.md`](secrets/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
-| [`openbao-auth.md`](secrets/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
-| [`openbao-cd-agent-approles.md`](secrets/openbao-cd-agent-approles.md) | The four CIDR-bound AppRoles for `cd_agent` (deploy, rotation, credential expiry, snapshot): their policies, how to create them, and handing over a wrapped `secret_id`. |
-| [`openbao-vault-bootstrap.md`](secrets/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
-| [`openbao-backup-restore.md`](secrets/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
-| [`openbao-reinit-runbook.md`](secrets/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
-| [`openbao-rotation-read-watcher.md`](secrets/openbao-rotation-read-watcher.md) | ADR 0026's per-read alert on the three rotation credentials: what it watches, installation, and the still-open gap in alerting when the watcher itself stops running. |
+| [`policy/data-classification.md`](security/policy/data-classification.md) | The classes of information (public, private, local, secret), the questions that place a kind of information in one, and the rules that follow. |
+| [`policy/nist-800-53-alignment.md`](security/policy/nist-800-53-alignment.md) | Selective, narrative NIST SP 800-53 alignment — which existing decisions resemble which control's intent, and one control evaluated and left unmapped. Not a compliance artifact. |
+| [`policy/security-scanning.md`](security/policy/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
+| [`policy/security-findings.md`](security/policy/security-findings.md) | The private `homelab-security` tracker for code-review findings: what it holds, the contract a writer follows, how findings are triaged, and how this repo may refer to them. |
+| [`policy/pr-review.md`](security/policy/pr-review.md) | Asking for a review of a pull request from the private checkout: when a change is worth asking for, the command, what it checks first, and where the output lives, which is a private Issue and nothing in this repo. |
+| [`secrets.md`](security/secrets.md) | The `secrets` role, `openbao_utils/bootstrap.py`, rotation. |
+| [`secrets-rotation.md`](security/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
+| [`openbao/deployment.md`](security/openbao/deployment.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
+| [`openbao/auth.md`](security/openbao/auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
+| [`openbao/openbao-cd-agent-approles.md`](security/openbao/openbao-cd-agent-approles.md) | The four CIDR-bound AppRoles for `cd_agent` (deploy, rotation, credential expiry, snapshot): their policies, how to create them, and handing over a wrapped `secret_id`. |
+| [`openbao/vault-bootstrap.md`](security/openbao/vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
+| [`openbao/backup-restore.md`](security/openbao/backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
+| [`openbao/reinit-runbook.md`](security/openbao/reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
+| [`openbao/rotation-read-watcher.md`](security/openbao/rotation-read-watcher.md) | ADR 0026's per-read alert on the three rotation credentials: what it watches, installation, and the still-open gap in alerting when the watcher itself stops running. |
+| [`cloud-credentials/creation.md`](security/cloud-credentials/creation.md) | The scripts that mint, audit and verify the R2/B2/OCI credentials, and how to run them. |
+| [`cloud-credentials/scoping.md`](security/cloud-credentials/scoping.md) | What each provider's master credential can be narrowed to, and what the rotation and leaf credentials are scoped to. |
+| [`cloud-credentials/rotation.md`](security/cloud-credentials/rotation.md) | How the leaf and rotation credentials rotate, per provider: the `--rotate` flow, its verification, and rotating the rotation credential itself. |
+| [`cloud-credentials/expiry.md`](security/cloud-credentials/expiry.md) | The 90-day credential expiry, the weekly credential expiry check, and the Telegram warning ladder. |
 
 ## disaster-recovery/
 
@@ -154,12 +159,11 @@ How the repo's code is tested: Molecule scenarios and their fixtures, the shell 
 
 ## engineering/
 
-Working on the repo: conventions, CI, review and scanning.
+Working on the repo: conventions, CI, branches, review and dependency updates.
 
 | Doc | Covers |
 | :--- | :--- |
 | [`reviewing-this-repo.md`](engineering/reviewing-this-repo.md) | A reader's map from each claim the repo makes to the doc that explains it and the test or check that holds it up. |
-| [`data-classification.md`](engineering/data-classification.md) | The classes of information (public, private, local, secret), the questions that place a kind of information in one, and the rules that follow. |
 | [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style, shell test style, and the form of a commit: identity, subject, dates and trailer. |
 | [`pre-commit.md`](engineering/pre-commit.md) | The pre-commit hooks and what each checks, which stage runs when, and where each tool's config lives. |
 | [`checks-without-docker.md`](engineering/checks-without-docker.md) | Running the checks in an environment with no Docker or no registry access, such as a hosted sandbox or a restricted host: the hooks to skip, linters run by hand, and testing against a private daemon with an imported rootfs. |
@@ -175,7 +179,3 @@ Working on the repo: conventions, CI, review and scanning.
 | [`branching.md`](engineering/branching.md) | The three long-lived branches: what each holds, the rulesets that protect them, choosing the branch for a change, promoting `maintenance` or `develop` into `main`, realigning `develop` by hand, and a fix that cannot wait. |
 | [`reviewing-renovate-updates.md`](engineering/reviewing-renovate-updates.md) | Reading Renovate's open pull requests into `maintenance` for breaking changes with `tools/renovate_merge`, merging them, and opening the promotion pull request: the summary and its levels, the reviewed-head check, what the merge waits for, and where the tool stops. |
 | [`landing-a-series.md`](engineering/landing-a-series.md) | Landing a series of patches on `main` as pull requests with `tools/land_series`: the `.series` input, the replay and the stop list, the kept branches, and the push, wait, confirm and merge of each pull request. |
-| [`security-scanning.md`](engineering/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
-| [`security-findings.md`](engineering/security-findings.md) | The private `homelab-security` tracker for code-review findings: what it holds, the contract a writer follows, how findings are triaged, and how this repo may refer to them. |
-| [`pr-review.md`](engineering/pr-review.md) | Asking for a review of a pull request from the private checkout: when a change is worth asking for, the command, what it checks first, and where the output lives, which is a private Issue and nothing in this repo. |
-| [`nist-800-53-alignment.md`](engineering/nist-800-53-alignment.md) | Selective, narrative NIST SP 800-53 alignment — which existing decisions resemble which control's intent, and one control evaluated and left unmapped. Not a compliance artifact. |

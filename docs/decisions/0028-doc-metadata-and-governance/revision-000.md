@@ -67,7 +67,7 @@ approach first:
   fact, by someone other than whoever wrote the ADR. A doc that links
   *to* the ADR instead carries that claim without touching it.
 
-[`docs/topics/engineering/nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md) is
+[`docs/topics/engineering/nist-800-53-alignment.md (renamed: docs/topics/security/policy/nist-800-53-alignment.md)`](../../topics/security/policy/nist-800-53-alignment.md) is
 that single doc: a narrow, explicitly-not-compliance narrative — a few
 existing practices genuinely resemble a specific 800-53 control, most
 don't and aren't forced to, and it says so plainly where a mapping was
@@ -152,7 +152,7 @@ not aspirational — see
 [`docs/topics/documentation/doc-checks.md#doc-index-generation`](../../topics/documentation/doc-checks.md#doc-index-generation) and
 [`#docs-drift-check`](../../topics/documentation/doc-checks.md#docs-drift-check) for what actually
 runs and what each check catches, and
-[`docs/topics/engineering/nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md) for the
+[`docs/topics/engineering/nist-800-53-alignment.md`](../../topics/security/policy/nist-800-53-alignment.md) for the
 NIST mapping itself.
 
 A `depends_on`-field-driven Mermaid dependency graph was evaluated and

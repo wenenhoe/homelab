@@ -196,7 +196,7 @@ $R lsl --s3-versions <remote>:<bucket>/<host>-<app>
   remains the manual fallback for any of them if you'd rather
   paste in console-created values — both paths write to the same
   cache files; see
-  [`cloud-credentials/scoping.md`](../secrets/cloud-credentials/scoping.md)
+  [`cloud-credentials/scoping.md`](../security/cloud-credentials/scoping.md)
   for exactly what each credential is scoped to, provider by provider —
   B2 and OCI both fully exclude delete from the write credential, R2
   can't (a platform limitation, not something worth re-chasing; see

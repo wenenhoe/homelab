@@ -6,7 +6,7 @@
 # needs OpenBao for its S3 keys. The loop is broken by starting OpenBao first
 # on a placeholder certificate, restoring its snapshot, and reading step-ca's
 # password back out of it.
-# docs/topics/secrets/openbao-backup-restore.md#rebuilding-security has the
+# docs/topics/security/openbao/backup-restore.md#rebuilding-security has the
 # full procedure, including the steps between stages that are the operator's.
 #
 # Every block carries `never`, so a run names the stage it wants and a bare
@@ -147,7 +147,7 @@
             msg: >-
               OpenBao is up on 127.0.0.1 with a placeholder cert, uninitialised.
               Initialise it, restore the snapshot and unseal it with the
-              original shares, as docs/topics/secrets/openbao-backup-restore.md#rebuilding-security
+              original shares, as docs/topics/security/openbao/backup-restore.md#rebuilding-security
               describes, then run stage 2.
           when: openbao_wait_status.rc == 2
 

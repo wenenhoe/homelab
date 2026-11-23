@@ -43,7 +43,7 @@ class TestCreateB2RotationKey:
 class TestMintRotationKey:
     @patch.object(rotation_b2, "B2Api", autospec=True)
     def test_mints_with_account_wide_key_management_capabilities_only(self, mock_api_cls, b2_api):
-        """The point of docs/topics/secrets/cloud-credentials/scoping.md's B2 section:
+        """The point of docs/topics/security/cloud-credentials/scoping.md's B2 section:
         no bucket_id (rejected outright by B2 for these capabilities),
         and file/bucket-data capabilities excluded entirely - this key
         can only manage other keys."""

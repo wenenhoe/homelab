@@ -32,7 +32,7 @@ This repo has individually reasoned hardening choices, such as non-root containe
 - `lock_root` locks root's password. On managed hosts the maintainer recovers through a VM's console with that host's admin account from the inventory, not root, so this is compatible. The Proxmox node uses root and is not a target of this repo's roles.
 - `automatic_updates` installs `unattended-upgrades`, security-only, with no automatic reboot by default, and touches none of the files above.
 
-Each of these is a separate role, so none has to be included in order to include another. A secondary motive is worth naming: this repo carries a portfolio and compliance-demonstration angle ([`nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md), a narrative alignment doc, not a compliance artifact), and a recognizable CIS-shaped baseline has legibility value distinct from its security value.
+Each of these is a separate role, so none has to be included in order to include another. A secondary motive is worth naming: this repo carries a portfolio and compliance-demonstration angle ([`nist-800-53-alignment.md`](../../topics/security/policy/nist-800-53-alignment.md), a narrative alignment doc, not a compliance artifact), and a recognizable CIS-shaped baseline has legibility value distinct from its security value.
 
 ## Decision
 

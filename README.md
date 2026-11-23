@@ -3,7 +3,7 @@
 [![Renovate enabled](https://img.shields.io/badge/renovate-enabled-brightgreen.svg)](https://renovatebot.com)
 [![Trivy scheduled scan](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml/badge.svg)](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml)
 
-A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. Apart from the few secrets that stay manual ([`secrets.md`](docs/topics/secrets/secrets.md#bootstrapping-manual-secrets)), there is no manual step on a target host beyond running `ansible-playbook`.
+A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. Apart from the few secrets that stay manual ([`secrets.md`](docs/topics/security/secrets.md#bootstrapping-manual-secrets)), there is no manual step on a target host beyond running `ansible-playbook`.
 
 | Concern | Stack |
 | :--- | :--- |
@@ -20,7 +20,7 @@ Reviewing this repo? [`reviewing-this-repo.md`](docs/topics/engineering/reviewin
 
 ## Architecture
 
-Four app hosts, `services`, `play`, `security` and `storage`, each run Docker Compose stacks behind their own Caddy instance, which terminates TLS for the host's own subdomain of `lan.{{ main_domain }}`. `tailscale` (a subnet router) and `cd-agent` (the pull-based CD jobs) sit outside the app group. Routes sit behind Tinyauth forward-auth with LLDAP as the directory unless a route opts out. Every image is pinned by digest and Renovate proposes each change as a pull request ([ADR 0108](docs/decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)). Each app host's named volumes are backed up nightly as encrypted archives to SeaweedFS on `storage` and relayed offsite ([`backup.md`](docs/topics/disaster-recovery/backup.md)), and nearly every secret is generated, cached and rotated through OpenBao on `security` ([`openbao.md`](docs/topics/secrets/openbao.md)).
+Four app hosts, `services`, `play`, `security` and `storage`, each run Docker Compose stacks behind their own Caddy instance, which terminates TLS for the host's own subdomain of `lan.{{ main_domain }}`. `tailscale` (a subnet router) and `cd-agent` (the pull-based CD jobs) sit outside the app group. Routes sit behind Tinyauth forward-auth with LLDAP as the directory unless a route opts out. Every image is pinned by digest and Renovate proposes each change as a pull request ([ADR 0108](docs/decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)). Each app host's named volumes are backed up nightly as encrypted archives to SeaweedFS on `storage` and relayed offsite ([`backup.md`](docs/topics/disaster-recovery/backup.md)), and nearly every secret is generated, cached and rotated through OpenBao on `security` ([`deployment.md`](docs/topics/security/openbao/deployment.md)).
 
 [`system-overview.md`](docs/architecture/system-overview.md) shows which host runs what; the other diagrams under [`docs/architecture/`](docs/architecture/README.md) follow DNS, auth, secrets and backups.
 
@@ -67,7 +67,7 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 | | Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
 | | Provision a VM with OpenTofu | [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) |
 | | Rebuild a host from the repo and its backups | [`rebuild-runbook.md`](docs/topics/disaster-recovery/rebuild-runbook.md) |
-| | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
+| | Work with secrets | [`secrets.md`](docs/topics/security/secrets.md) · [`secrets-rotation.md`](docs/topics/security/secrets-rotation.md) |
 | Develop | Run or write tests | [`molecule-testing.md`](docs/topics/testing/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
 | | Know what the pre-commit hooks check | [`pre-commit.md`](docs/topics/engineering/pre-commit.md) |
 | | Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
@@ -78,7 +78,7 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 | Contribute | See what is planned or in flight | [`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/) · [how projects work](docs/projects/README.md) |
 | | Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
 | | Start as an agent | [`AGENTS.md`](AGENTS.md) |
-| Browse | Topic docs ([all](docs/topics/README.md)), by area | [deploy](docs/topics/README.md#deploy) · [infra](docs/topics/README.md#infra) · [services](docs/topics/README.md#services) · [secrets](docs/topics/README.md#secrets) · [disaster recovery](docs/topics/README.md#disaster-recovery) · [monitoring](docs/topics/README.md#monitoring) · [engineering](docs/topics/README.md#engineering) |
+| Browse | Topic docs ([all](docs/topics/README.md)), by area | [deploy](docs/topics/README.md#deploy) · [infra](docs/topics/README.md#infra) · [services](docs/topics/README.md#services) · [security](docs/topics/README.md#security) · [disaster recovery](docs/topics/README.md#disaster-recovery) · [monitoring](docs/topics/README.md#monitoring) · [engineering](docs/topics/README.md#engineering) |
 | | Decisions ([all](https://wenenhoe.github.io/homelab/decision-index/)), by area | [Deployment & platform](https://wenenhoe.github.io/homelab/decision-index/#deployment--platform) · [Ingress, TLS & PKI](https://wenenhoe.github.io/homelab/decision-index/#ingress-tls--pki) · [Secrets store](https://wenenhoe.github.io/homelab/decision-index/#secrets-store) · [Cloud credentials](https://wenenhoe.github.io/homelab/decision-index/#cloud-credentials) · [Backup & recovery](https://wenenhoe.github.io/homelab/decision-index/#backup--recovery) · [Monitoring & alerting](https://wenenhoe.github.io/homelab/decision-index/#monitoring--alerting) · [Repository & tooling](https://wenenhoe.github.io/homelab/decision-index/#repository--tooling) · [Security & hardening](https://wenenhoe.github.io/homelab/decision-index/#security--hardening) · [Documentation & process](https://wenenhoe.github.io/homelab/decision-index/#documentation--process) |
 
 ## License

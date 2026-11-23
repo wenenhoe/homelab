@@ -1,26 +1,26 @@
 # OpenBao Backup and Restore
 
-A different mechanism from [`backup.md`](../disaster-recovery/backup.md)'s
+A different mechanism from [`backup.md`](../../disaster-recovery/backup.md)'s
 generic volume-backup pipeline — `docker/openbao/compose.yaml.j2` has no
-`backup:` entry, and [`openbao.md`](openbao.md) explains why: stopping
+`backup:` entry, and [`deployment.md`](deployment.md) explains why: stopping
 OpenBao to tar its data volume means sealing it, which needs a manual
-unseal ([0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup
+unseal ([0018](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup
 cycle. `bao operator raft snapshot save` is the backup mechanism here
 instead, pushed independently to R2/B2 — see
-[0111](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md) for why the
+[0111](../../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md) for why the
 push itself also stays out of `backup_agent`/`cloud_sync` rather than
 reusing that pipeline.
 
 ## Why manual, not a systemd timer
 
 A scheduled job needs a Vault token on disk to authenticate with.
-[`openbao-auth.md`](openbao-auth.md)'s policy for `controller`'s
+[`auth.md`](auth.md)'s policy for `controller`'s
 AppRole grants read-only on `sys/storage/raft/snapshot` specifically
 for this. What's still missing is somewhere unattended to run it from:
 `controller` is the operator's own machine, never a `managed_hosts`
 member, and isn't meant to run scheduled jobs at all. That's the
-[CD agent project](../../projects/cd-agent.md)'s `cd_agent` host's job
-([decision](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)),
+[CD agent project](../../../projects/cd-agent.md)'s `cd_agent` host's job
+([decision](../../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)),
 not built yet — for now, this proves the mechanism with a
 human running it interactively, authenticating as `controller`'s
 AppRole rather than the root token (see "Running a backup" below).
@@ -32,16 +32,16 @@ installed or enabled as a systemd unit anywhere.
 `tools/cloud_credentials/create_snapshot_write_keys.py` mints a
 standing, quarterly-rotating, no-delete write leaf on both R2 and B2,
 scoped to the `openbao-snapshots` bucket — a different credential from
-[0111](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s break-glass
+[0111](../../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s break-glass
 **read-only** restore key, which stays reserved for actual disaster
 recovery and is never cached to disk. See
-[`cloud-credentials/creation.md`](cloud-credentials/creation.md) for how
+[`cloud-credentials/creation.md`](../cloud-credentials/creation.md) for how
 it's minted and rotated.
 
 ## Before first use
 
 Create the `openbao-snapshots` bucket by hand on **both** R2 and B2 —
-same as [`cloud-sync.md`](../disaster-recovery/cloud-sync.md)'s own bucket, none of this is
+same as [`cloud-sync.md`](../../disaster-recovery/cloud-sync.md)'s own bucket, none of this is
 Ansible-managed. Do this before minting either credential above, not
 after: `create_snapshot_readonly_keys.py`'s own failure message already
 assumes the bucket exists first.
@@ -67,14 +67,14 @@ tools/openbao_utils/scripts/snapshot-push.sh "$(cat ansible/files/secrets/openba
 ```
 
 From `controller`, using the same `controller` AppRole `role_id`
-cached per [`openbao-auth.md`](openbao-auth.md)'s runbook. It reads
+cached per [`auth.md`](auth.md)'s runbook. It reads
 `secret_id` from the cached `openbao-controller-secret-id` file in the
 secrets directory (`HOMELAB_SECRETS_DIR`, else `ansible/files/secrets`),
 and falls back to a hidden prompt when that file is missing or empty. The
 script never takes it as an argument. One
 process end to end: logs in over real TLS, saves the snapshot,
 GPG-encrypts it (same public key as
-[`backup.md`](../disaster-recovery/backup.md)'s
+[`backup.md`](../../disaster-recovery/backup.md)'s
 `backup-gpg-public-key.asc`, independently of Vault's own encryption),
 pushes it to both R2 and B2, and revokes the token — all from one
 `mktemp -d` scratch directory removed when the script exits, nothing
@@ -98,11 +98,11 @@ inherits it the same way any other native `bao` invocation does.
 by running the drill end to end, on `openbao/openbao:2.7.1`.
 `docker/openbao/compose.yaml.j2` pins the release the server runs now,
 which can be newer. The `snapshot_restore` Molecule scenario
-([`molecule-testing.md`](../testing/molecule-testing.md))
+([`molecule-testing.md`](../../testing/molecule-testing.md))
 runs it again on whatever image the Molecule helper pins, on every bump
 of that pin. Newer releases can change behavior: `generate-root`'s
 authenticated-endpoint behavior changed (see
-[ADR 0025 (Admin without root token)](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
+[ADR 0025 (Admin without root token)](../../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
 Context). When that scenario fails, this section and the drill below
 are what to revisit.
 
@@ -131,7 +131,7 @@ Confirmed against a real running instance, not inferred from docs:
   also stops working once the restore completes; `controller`'s
   AppRole (part of the restored data itself) is what's valid against
   the restored data, not a root token — see
-  `openbao-vault-bootstrap.md` if a step ever needs more than
+  `vault-bootstrap.md` if a step ever needs more than
   `controller`'s own read access.
 
 ## Pulling a snapshot
@@ -150,7 +150,7 @@ argument or in the environment:
 - The credential's secret half, read with echo off and written to a mode-0600
   `rclone.conf` in a scratch directory. The credential is the break-glass
   read-only one
-  ([`create_snapshot_readonly_keys.py`](../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)),
+  ([`create_snapshot_readonly_keys.py`](../../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)),
   from the password manager, not anything in OpenBao.
 - The path of the exported private key. The script imports it into a throwaway
   keyring in the scratch directory, so it never joins yours, and `gpg` asks for
@@ -175,10 +175,10 @@ On a throwaway host — burn it afterward, don't reuse it:
 2. Fetch the latest snapshot from R2 or B2
    ([`snapshot-pull.sh`](#pulling-a-snapshot) does steps 2 and 3) using the break-glass
    **read-only** credential
-   ([`create_snapshot_readonly_keys.py`](../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
+   ([`create_snapshot_readonly_keys.py`](../../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
    not the write leaf above, which can't read.
 3. Decrypt it with the offline GPG private key
-   ([`backup.md`](../disaster-recovery/backup.md#encryption)).
+   ([`backup.md`](../../disaster-recovery/backup.md#encryption)).
 4. Authenticate with the throwaway host's own root token (from step 1)
    and run `bao operator raft snapshot restore -force <path>` — a
    token is required even against a target with nothing real on it
@@ -203,9 +203,9 @@ A rebuilt `security` cannot be brought back with `deploy.yaml` or
 step-ca's root certificate from `security`'s Docker, and a new VM has neither.
 OpenBao needs a certificate from step-ca, step-ca needs a password that is
 stored in OpenBao, and `restore.yaml` needs OpenBao for its S3 keys.
-[`bootstrap-security.yaml`](../../../ansible/playbooks/bootstrap-security.yaml)
+[`bootstrap-security.yaml`](../../../../ansible/playbooks/bootstrap-security.yaml)
 breaks the loop in three stages, with the steps that handle key shares left
-to the operator ([ADR 0099 (Rebuilding security from nothing)](../../decisions/0099-rebuilding-security-from-nothing/revision-000.md)).
+to the operator ([ADR 0099 (Rebuilding security from nothing)](../../../decisions/0099-rebuilding-security-from-nothing/revision-000.md)).
 It is for `security` only: a rebuilt `services`, `storage` or `tailscale`
 passes Play 0 as soon as `security` is healthy.
 
@@ -215,7 +215,7 @@ What you need before starting, none of it on the new VM:
   [`snapshot-pull.sh`](#pulling-a-snapshot).
 - The original unseal shares (the password manager entry).
 - The latest `security-step-ca-*` archive, fetched and decrypted into a
-  plain `.tar.gz` as [`restore.md`](../disaster-recovery/restore.md#manual-steps-first)
+  plain `.tar.gz` as [`restore.md`](../../disaster-recovery/restore.md#manual-steps-first)
   describes.
 - The controller AppRole's `openbao-controller-role-id` and
   `openbao-controller-secret-id` in the file cache, and `main-domain`. The
@@ -305,9 +305,9 @@ refuses the connection.
    ```
 
 9. Play 0 now passes. Continue with the
-   [rebuild cycle](../disaster-recovery/rebuild-runbook.md#the-cycle): `deploy.yaml
+   [rebuild cycle](../../disaster-recovery/rebuild-runbook.md#the-cycle): `deploy.yaml
    --limit security,localhost`, then `restore.yaml` for the remaining apps, and
-   the Beszel fingerprint ([`beszel.md`](../monitoring/beszel.md#rebuilding-a-host)).
+   the Beszel fingerprint ([`beszel.md`](../../monitoring/beszel.md#rebuilding-a-host)).
 
 ### If init's output was lost
 

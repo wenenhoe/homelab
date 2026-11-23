@@ -11,7 +11,7 @@ related: [ADR-0020, ADR-0026, ADR-0072, ADR-0111]
 # The question
 
 Today a snapshot reaches R2 and B2 only when a person runs
-`snapshot-push.sh` ([`openbao-backup-restore.md`](../topics/secrets/openbao-backup-restore.md)).
+`snapshot-push.sh` ([`backup-restore.md`](../topics/security/openbao/backup-restore.md)).
 The CD agent's snapshot job ([ADR 0020](../decisions/0020-automation-identity-and-access-scope/revision-001.md))
 would run it unattended, but nothing yet decides *when*. A clock gives a worst
 case of one interval of lost changes however quiet the store was, and pushes an
@@ -26,7 +26,7 @@ follow the change, without one push per secret when a rotation touches six?
   new values of several credentials within minutes, then nothing for weeks.
 - OpenBao's audit device writes to the container's stdout
   ([`openbao.hcl.j2`](../../docker/openbao/configs/openbao.hcl.j2)), and the
-  [rotation read-watcher](../topics/secrets/openbao-rotation-read-watcher.md)
+  [rotation read-watcher](../topics/security/openbao/rotation-read-watcher.md)
   already follows `docker logs -f openbao` on `security` and matches
   `request`-type lines by path and operation. A write should be visible the same
   way, with a different operation; the operation names a write carries in a real

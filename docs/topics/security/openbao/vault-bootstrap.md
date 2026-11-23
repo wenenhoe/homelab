@@ -2,13 +2,13 @@
 
 The standing answer to "how does this repo create a new Vault
 policy/AppRole, now that the initial root token is revoked." See
-[ADR 0025 (Admin without root token)](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
+[ADR 0025 (Admin without root token)](../../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
 for why this exists instead of a permanent root token or a repeat
 re-init every time a new identity is needed.
 
 ## What it can and can't do
 
-Policy: [`vault-bootstrap.hcl`](../../../docker/openbao/policies/vault-bootstrap.hcl) -
+Policy: [`vault-bootstrap.hcl`](../../../../docker/openbao/policies/vault-bootstrap.hcl) -
 `create`/`update` on `sys/policies/acl/*` and `auth/approle/role/*`
 only. It cannot read a single application secret (`secret/data/*` is
 untouched by its policy), cannot seal/unseal, cannot enable a secrets
@@ -19,7 +19,7 @@ That said, policy-write is inherently self-escalating in Vault/OpenBao
 ACLs - a token that can write policy can always author itself a wider
 one. `vault-bootstrap` doesn't eliminate that; it turns "instant
 god-mode" into a two-step, audit-logged action (the audit device from
-[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+[ADR 0026 (High-value secret read alerts)](../../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 is live, so a policy edit followed by a login is visible, not silent).
 Treat its `secret_id` with the same offline discipline as the Shamir
 shares - never a casual `ansible/files/secrets/` entry - since it is,
@@ -29,7 +29,7 @@ functionally, this repo's root-recovery mechanism now.
 
 From the day the shell moves there, the role is bound to the operator host
 (VM 252, `192.168.25.2`, see
-[ADR 0058 (Operator work host)](../../decisions/0058-where-operator-work-runs/revision-000.md)),
+[ADR 0058 (Operator work host)](../../../decisions/0058-where-operator-work-runs/revision-000.md)),
 the one machine `openbao_utils.shell` runs from. `secret_id_bound_cidrs`
 refuses a `secret_id` presented from any other address, and
 `token_bound_cidrs` refuses a token used from one. The `secret_id` itself
@@ -38,7 +38,7 @@ hand, and the bind is what limits where a copy of it is any use.
 
 The role is not created by this repo's automation, so the bind is set by hand
 from a `vault-bootstrap` session, after a first login from the operator host
-has succeeded ([`operator-host-takeover.md`](../../projects/operator-host-takeover.md)
+has succeeded ([`operator-host-takeover.md`](../../../projects/operator-host-takeover.md)
 lists it as the last step of moving the controller).
 A role write on this backend merges into the stored role, so these two fields
 are all it needs:
@@ -56,7 +56,7 @@ A session started from any other address is refused after this, including one
 from a laptop or from the machine the shell ran on before the move. Rebuild a
 lost operator host at the same address; moving the role to another address
 needs a login from the old one first, or a re-init
-([`openbao-reinit-runbook.md`](openbao-reinit-runbook.md)).
+([`reinit-runbook.md`](reinit-runbook.md)).
 
 ## Day-to-day use: minting a new AppRole
 
@@ -85,10 +85,10 @@ exit   # revokes the vault-bootstrap token
 
 The shell starts in `tools/` on `controller`, so the policy is read from
 the checkout, where every policy is checked in under
-[`docker/openbao/policies/`](../../../docker/openbao/policies), not
+[`docker/openbao/policies/`](../../../../docker/openbao/policies), not
 copied to `security`.
 
-Same parameter-choice discipline as `openbao-auth.md`'s `controller`
+Same parameter-choice discipline as `auth.md`'s `controller`
 role: pick TTLs/CIDR-binds appropriate to the new identity's own job,
 don't copy `controller`'s or `vault-bootstrap`'s own values by default.
 
@@ -154,7 +154,7 @@ you out - only a full re-init does. Back it up accordingly.
 ## Re-init runbook
 
 For when OpenBao's raft dataset needs to be discarded and rebuilt from
-scratch, see [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md) -
+scratch, see [`reinit-runbook.md`](reinit-runbook.md) -
 kept as its own doc rather than a section here, since it's a separate,
 rare procedure that merely *uses* this AppRole, not part of its
 day-to-day behavior.

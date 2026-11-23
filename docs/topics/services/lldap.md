@@ -10,7 +10,7 @@ current by two host-level Ansible roles rather than a sidecar container.
 | Component | Type | Purpose |
 | :--- | :--- | :--- |
 | `lldap` | Container | The directory itself. Serves LDAPS on `6360` (reachable only on the `caddy-proxy` network, under the certificate's name) and a web UI on `17170` (routed through Caddy, `auth: false` — it's the identity provider, so it can't sit behind its own auth check). |
-| `step_ca_cert` | Role (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6, called once for lldap and once for openbao — see [`openbao.md`](../secrets/openbao.md)) | For lldap's instance: issues the initial cert via `step ca certificate` (once, on a fresh `certs` volume) and installs a systemd `cert-renewer@lldap.timer` for every renewal after that. |
+| `step_ca_cert` | Role (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6, called once for lldap and once for openbao — see [`deployment.md`](../security/openbao/deployment.md)) | For lldap's instance: issues the initial cert via `step ca certificate` (once, on a fresh `certs` volume) and installs a systemd `cert-renewer@lldap.timer` for every renewal after that. |
 | `step_ca_client` | Role (`ansible/roles/step_ca_client/`) | Shared prerequisite: caches step-ca's root cert on the host at `/etc/step-ca/root_ca.crt`, bind-mounted (read-only) into whichever `step` invocation needs it. Also used by `tinyauth_ca_trust` (below). |
 
 Renewal runs on the host: `step_ca_cert`'s systemd unit runs as `root` and
@@ -33,10 +33,10 @@ representing a Docker Compose service here, so it runs
 `docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i`
 instead (or sends `SIGHUP` instead of restarting, for an instance whose
 own env file sets `RENEW_ACTION=signal` — see
-[`openbao.md`](../secrets/openbao.md)). That generalizes to any
+[`deployment.md`](../security/openbao/deployment.md)). That generalizes to any
 `compose_deploy_dir/<app>/compose.yaml`-shaped step-ca consumer, not
 just lldap — openbao's own instance already uses it (see
-[`openbao.md`](../secrets/openbao.md)), and every app in this repo already follows
+[`deployment.md`](../security/openbao/deployment.md)), and every app in this repo already follows
 that layout (see [`adding-an-app.md`](../deploy/adding-an-app.md)).
 
 An instance can also list apps in `RENEW_RESTARTS_AFTER`, which are restarted
@@ -143,7 +143,7 @@ succeed without it, but every login check afterwards would silently
 fail). `deploy.yaml`'s Play 7 runs it right after lldap's own deploy,
 using the same `tinyauth-ldap-observer-password` secret `config.yaml.j2`
 already renders — see
-[`secrets.md`](../secrets/secrets.md#syncing-the-ldap-observer-account-password).
+[`secrets.md`](../security/secrets.md#syncing-the-ldap-observer-account-password).
 
 DO_CLEANUP=false, so it only ever touches the `observer` account. Safe
 to re-run: `bootstrap.sh` updates the existing account in place instead
@@ -161,6 +161,6 @@ account. It stays root, which reads the `0600` config because it owns it.
 `LLDAP_LDAP_USER_PASS` (the initial admin password) from
 `lan_domain`/`lldap_ldap_user_pass`, and `LLDAP_JWT_SECRET`/`LLDAP_KEY_SEED`
 for its own token signing — all three generated once by the `secrets`
-role. See [`secrets.md`](../secrets/secrets.md) for the generation mechanism and
+role. See [`secrets.md`](../security/secrets.md) for the generation mechanism and
 [`volumes.md`](../deploy/volumes.md) for why `data`/`certs` are named volumes
 rather than bind mounts.

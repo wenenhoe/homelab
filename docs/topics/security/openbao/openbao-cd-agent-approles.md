@@ -2,23 +2,23 @@
 
 Four AppRoles, one per category of unattended work on `cd_agent`, each
 bound to that host's fixed address. See
-[ADR 0020 revision 1 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)
+[ADR 0020 revision 1 (Automation identity scope)](../../../decisions/0020-automation-identity-and-access-scope/revision-001.md)
 for why there are four and what each is meant to be unable to reach.
 
 The policies are checked in under
-[`docker/openbao/policies/`](../../../docker/openbao/policies). The roles
+[`docker/openbao/policies/`](../../../../docker/openbao/policies). The roles
 are created by hand through `vault-bootstrap` (below), the same way
-[`openbao-auth.md`](openbao-auth.md) creates `controller`'s role: nothing
+[`auth.md`](auth.md) creates `controller`'s role: nothing
 in Ansible creates them.
 
 ## The policies
 
 | Role | Policy | Can | Cannot |
 | :--- | :--- | :--- | :--- |
-| `cd-agent-deploy` | [`cd-agent-deploy.hcl`](../../../docker/openbao/policies/cd-agent-deploy.hcl) | Read `hosts/*` and `cloud_credentials/leaf/*`; create a `hosts/*` path that does not exist yet. | Update an existing `hosts/*` path; touch `cloud_credentials/rotation/*`; write any leaf. |
-| `cd-agent-rotation` | [`cd-agent-rotation.hcl`](../../../docker/openbao/policies/cd-agent-rotation.hcl) | Read, create and update `cloud_credentials/leaf/*` and `cloud_credentials/rotation/*`. | Read or write anything under `hosts/*`. |
-| `cd-agent-credential-expiry` | [`cd-agent-credential-expiry.hcl`](../../../docker/openbao/policies/cd-agent-credential-expiry.hcl) | Read `cloud_credentials/leaf/*`, `cloud_credentials/rotation/*` and `hosts/all/telegram/*`. | Create or update any path. |
-| `cd-agent-snapshot` | [`cd-agent-snapshot.hcl`](../../../docker/openbao/policies/cd-agent-snapshot.hcl) | Save a raft snapshot; read the six leaf paths `snapshot-push.sh` reads. | Read any other leaf, any rotation-tier path, or anything under `hosts/*`; write any path. |
+| `cd-agent-deploy` | [`cd-agent-deploy.hcl`](../../../../docker/openbao/policies/cd-agent-deploy.hcl) | Read `hosts/*` and `cloud_credentials/leaf/*`; create a `hosts/*` path that does not exist yet. | Update an existing `hosts/*` path; touch `cloud_credentials/rotation/*`; write any leaf. |
+| `cd-agent-rotation` | [`cd-agent-rotation.hcl`](../../../../docker/openbao/policies/cd-agent-rotation.hcl) | Read, create and update `cloud_credentials/leaf/*` and `cloud_credentials/rotation/*`. | Read or write anything under `hosts/*`. |
+| `cd-agent-credential-expiry` | [`cd-agent-credential-expiry.hcl`](../../../../docker/openbao/policies/cd-agent-credential-expiry.hcl) | Read `cloud_credentials/leaf/*`, `cloud_credentials/rotation/*` and `hosts/all/telegram/*`. | Create or update any path. |
+| `cd-agent-snapshot` | [`cd-agent-snapshot.hcl`](../../../../docker/openbao/policies/cd-agent-snapshot.hcl) | Save a raft snapshot; read the six leaf paths `snapshot-push.sh` reads. | Read any other leaf, any rotation-tier path, or anything under `hosts/*`; write any path. |
 
 All paths are KV v2 data paths under `secret/data/`. Every `Cannot` above
 was confirmed against a real OpenBao instance with these exact policy files.
@@ -27,7 +27,7 @@ was confirmed against a real OpenBao instance with these exact policy files.
 
 `cd_agent` needs its fixed address first: it is the value of both CIDR
 binds. From a `vault-bootstrap` session
-([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)), which starts
+([`vault-bootstrap.md`](vault-bootstrap.md)), which starts
 in `tools/` on `controller` and reads the four checked-in `.hcl` files from
 the checkout:
 
@@ -46,7 +46,7 @@ done
 
 - **`token_ttl`/`token_max_ttl` 1h, non-renewable.** The agent's default
   job timeout is `1h` (`cd_agent_default_timeout`,
-  [`cd-agent-host.md`](../deploy/cd-agent-host.md)), so a token outlives a
+  [`cd-agent-host.md`](../../deploy/cd-agent-host.md)), so a token outlives a
   run that finishes in time and no longer. Each job logs in fresh per
   invocation. A job given a longer `timeout` needs its role's TTL raised
   to match.
@@ -78,7 +78,7 @@ bao write -wrap-ttl=5m -f -field=wrapping_token \
 ```
 
 The wrapping token is sent to `cd_agent` as a remote command's stdin, never
-as an argument ([ADR 0047 (First-credential bootstrap)](../../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)),
+as an argument ([ADR 0047 (First-credential bootstrap)](../../../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)),
 and unwrapped once there. `bao unwrap` with no token argument uses
 `BAO_TOKEN` as the wrapping token, so the token is read from stdin into a
 child shell's environment:
@@ -94,7 +94,7 @@ so an intercepted token shows up as a failure, not a quietly reusable
 credential. The value lands in the job's credentials directory,
 `/etc/cd-agent/credentials/<job>/`, as `openbao-controller-secret-id`, a
 `0400` file owned by the job's user `cd-agent-<job>`; the role creates that
-directory and no file in it ([`cd-agent-host.md`](../deploy/cd-agent-host.md)).
+directory and no file in it ([`cd-agent-host.md`](../../deploy/cd-agent-host.md)).
 
 ## What a job reads from its credentials directory
 
@@ -111,7 +111,7 @@ sits beside the `secret_id` so one directory holds everything a login needs.
 
 A job holds no SSH key to `security`, so it cannot fetch step-ca's root cert
 the way an operator's run does ([ADR 0022
-revision 1 (Controller TLS trust)](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md)).
+revision 1 (Controller TLS trust)](../../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md)).
 The root is public, so it is delivered as a plain file, `step-ca-root.crt`,
 next to the AppRole files in each job's credentials directory, with the same
 owner and no wrapped handoff. Read it from `security`:
@@ -136,7 +136,7 @@ copies it holds match.
 
 A role holds any number of independent `secret_id`s, each unwrapped to its
 own file. `redeploy-storage`, the rotation job's successor
-([ADR 0074 (Job chaining)](../../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),
+([ADR 0074 (Job chaining)](../../../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),
 runs as its own user with a second `secret_id` of `cd-agent-deploy`, so
 that role needs no extra policy for it: request one more wrapped
 `secret_id` for it the same way.
@@ -147,7 +147,7 @@ The secrets play writes a generated secret with `cas=0`, which OpenBao
 authorizes as `create` only while the path does not exist. If another writer
 creates the same path first, the second write is an update, and
 `cd-agent-deploy` has no `update`: OpenBao answers **403**, not the 400 that
-[`ensure_vault_secret`](../../../ansible/module_utils/openbao_kv.py)
+[`ensure_vault_secret`](../../../../ansible/module_utils/openbao_kv.py)
 treats as "lost the race, re-read". The run fails; the next run reads the
 value that now exists and proceeds. Accepting 403 there would also swallow
 real permission errors, so the play is left as it is.

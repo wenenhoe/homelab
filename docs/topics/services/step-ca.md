@@ -4,7 +4,7 @@
 service-to-service TLS — signing certs for the lab's own `.{{ lan_domain
 }}`-style names, not proving control to a public CA. `step_ca_cert` and
 `tinyauth_ca_trust` (see [`lldap.md`](lldap.md) and
-[`openbao.md`](../secrets/openbao.md)) are its real consumers: lldap's LDAPS cert
+[`deployment.md`](../security/openbao/deployment.md)) are its real consumers: lldap's LDAPS cert
 and OpenBao's TLS listener cert both come from here via `step_ca_cert`
 (one role, two per-app instances — see `ansible/roles/step_ca_cert`),
 and tinyauth trusts the root via `tinyauth_ca_trust`.
@@ -53,7 +53,7 @@ web app is.
 
 No host-level access needed: every consumer of this CA, including
 `step_ca_cert`'s own systemd renewal unit and one-time issuance task
-(see [`lldap.md`](lldap.md) and [`openbao.md`](../secrets/openbao.md)), runs `step`
+(see [`lldap.md`](lldap.md) and [`deployment.md`](../security/openbao/deployment.md)), runs `step`
 via the official `smallstep/step-cli`
 image rather than a host-installed binary — a container on `caddy-proxy`
 that reaches this one by its real container name, the same way any
@@ -80,7 +80,7 @@ step ca bootstrap --ca-url https://step-ca:9000 --fingerprint <fingerprint>
 
 # Issue a cert — prompts for STEP_CA_PROVISIONER_PASSWORD (auto-generated,
 # Vault-backed at secret/data/hosts/all/step-ca/step-ca-provisioner-password
-# — docs/topics/secrets/openbao-auth.md shows the shell.py kv get pattern for
+# — docs/topics/security/openbao/auth.md shows the shell.py kv get pattern for
 # reading a value like this back out).
 step ca certificate test-client.{{ lan_domain }} test.crt test.key \
   --provisioner internal-services
@@ -106,7 +106,7 @@ with an existing cert, the role reads that cert's names with
 container, like the renewal unit's `needs-renewal` check) and **fails
 loudly if they differ from the requested ones**, printing both sets. It
 never reissues by itself, since a reissue restarts the app (and leaves
-OpenBao sealed, see [`openbao.md`](../secrets/openbao.md)).
+OpenBao sealed, see [`deployment.md`](../security/openbao/deployment.md)).
 
 To reissue on purpose, remove the cert file and re-run the deploy; the
 failure message prints this command filled in for the app and host:
@@ -126,8 +126,8 @@ The names compared are the cert's DNS and IP SANs, as reported by
 
 `step-ca-password` and `step-ca-provisioner-password`
 (`secret_catalog.yaml`, both `hex`/32) are Ansible-generated and
-cached like any other secret — see [`secrets.md`](../secrets/secrets.md). Neither
+cached like any other secret — see [`secrets.md`](../security/secrets.md). Neither
 is externally issued, so neither needs `source: manual`.
 Neither is rotated with `rotate-secret.yaml`: they encrypt the CA's keys at
 `step ca init` and a changed value locks step-ca out of them, as
-[`secrets-rotation.md`](../secrets/secrets-rotation.md) explains.
+[`secrets-rotation.md`](../security/secrets-rotation.md) explains.

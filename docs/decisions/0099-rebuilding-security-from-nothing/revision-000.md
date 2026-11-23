@@ -71,7 +71,7 @@ steps stay manual.
    stack adopts it later.
 2. **Operator steps.** The operator initialises the node with throwaway keys,
    restores the decrypted snapshot with `-force`, and unseals it with the original
-   shares, as the [restore drill](../../topics/secrets/openbao-backup-restore.md#restore-drill)
+   shares, as the [restore drill](../../topics/security/openbao/backup-restore.md#restore-drill)
    describes.
 3. **Stage 2.** The play logs in as `controller` inside the container, with the
    `secret_id` on stdin, reads step-ca's two passwords, revokes the token, and
@@ -120,7 +120,7 @@ flowchart TD
 - Another host's rebuild needs none of this, since Play 0 passes once `security`
   is healthy.
 - The procedure is in
-  [`openbao-backup-restore.md`](../../topics/secrets/openbao-backup-restore.md#rebuilding-security).
+  [`openbao-backup-restore.md`](../../topics/security/openbao/backup-restore.md#rebuilding-security).
 
 ## Invariants
 

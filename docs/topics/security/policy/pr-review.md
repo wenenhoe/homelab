@@ -1,6 +1,6 @@
 # Pull Request Review
 
-A pull request in this repo is reviewed when the maintainer asks for one. The review runs in `homelab-security`'s CI with a coding agent and its output is a private Issue there; this repo receives nothing from it. The decision is [ADR 0061 revision 1 (Automated code review)](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md), and the rule that keeps output off this repo's surfaces is [`docs/README.md#public-repo`](../../README.md#public-repo).
+A pull request in this repo is reviewed when the maintainer asks for one. The review runs in `homelab-security`'s CI with a coding agent and its output is a private Issue there; this repo receives nothing from it. The decision is [ADR 0061 revision 1 (Automated code review)](../../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-001.md), and the rule that keeps output off this repo's surfaces is [`docs/README.md#public-repo`](../../../README.md#public-repo).
 
 ## Requesting a review
 
@@ -12,13 +12,13 @@ python -m agent_review.request review <pr>
 
 `<pr>` is the number of a pull request in this repo. The command reads the pull request here, checks it against the private repo's limits and, if it passes, starts the review workflow there. `--dry-run` does the reading and the checking and starts nothing. The limits and the rest of the command are in the private repo's own docs, and this doc does not copy them.
 
-A request waits for a pull request that is a draft or whose required checks are not all passing, and is refused for one from a fork, a closed one and one that is too large; the private repo also limits how often a pull request, and the repo as a whole, is reviewed. The required checks are the ones this repo's branch ruleset names ([`branching.md`](branching.md#the-rulesets)), read at each request.
+A request waits for a pull request that is a draft or whose required checks are not all passing, and is refused for one from a fork, a closed one and one that is too large; the private repo also limits how often a pull request, and the repo as a whole, is reviewed. The required checks are the ones this repo's branch ruleset names ([`branching.md`](../../engineering/branching.md#the-rulesets)), read at each request.
 
 So keep a pull request a draft until it is ready, and ask for the review once its checks are green.
 
 ## When it is worth asking
 
-[`tools/review_criteria`](../../../tools/review_criteria/criteria.py) decides from the diff alone whether a change is worth a review, so the answer does not depend on anyone's judgment of the day. [`land_series`](landing-a-series.md#advice-on-a-review) prints it for each pull request it replays, and again before it asks to merge one. Run it by hand from `tools/` with `python -m review_criteria BASE HEAD --repo ..`. It is advice and blocks nothing.
+[`tools/review_criteria`](../../../../tools/review_criteria/criteria.py) decides from the diff alone whether a change is worth a review, so the answer does not depend on anyone's judgment of the day. [`land_series`](../../engineering/landing-a-series.md#advice-on-a-review) prints it for each pull request it replays, and again before it asks to merge one. Run it by hand from `tools/` with `python -m review_criteria BASE HEAD --repo ..`. It is advice and blocks nothing.
 
 Any one major criterion recommends a review. The two minor ones recommend it only together.
 

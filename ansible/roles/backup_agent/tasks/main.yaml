@@ -114,7 +114,7 @@
     group: "{{ ansible_user }}"
     mode: "0600"
   # Now carries NOTIFICATION_URLS (embeds telegram_token) — same
-  # no_log rule as any other secret-bearing config, see docs/topics/secrets/secrets.md.
+  # no_log rule as any other secret-bearing config, see docs/topics/security/secrets.md.
   no_log: true
 
 - name: Render one conf.d schedule per app

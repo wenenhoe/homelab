@@ -85,7 +85,7 @@ and bash. `verify.py` and `restore_all.py` stay on it, and `boto3` is not added 
 `pyproject.toml`. Two reasons decide it. Verification must follow production's
 client, since a key could pass a boto3 check and still fail under rclone. And
 rclone needs one configuration for all three providers, recorded once in
-[`rotation.md`](../../topics/secrets/cloud-credentials/rotation.md), where boto3
+[`rotation.md`](../../topics/security/cloud-credentials/rotation.md), where boto3
 would add a per-provider checksum setting and, for B2, a hook that removes a header
 botocore adds by default.
 
@@ -117,9 +117,9 @@ botocore adds by default.
   one level up.
 - `verify.py` keeps its status-string retry gate (`StatusCode: 401` or `403` in
   rclone's stderr) and its timeout handling.
-- Behaviour is described in [`rotation.md`](../../topics/secrets/cloud-credentials/rotation.md),
-  [`scoping.md`](../../topics/secrets/cloud-credentials/scoping.md) and
-  [`creation.md`](../../topics/secrets/cloud-credentials/creation.md).
+- Behaviour is described in [`rotation.md`](../../topics/security/cloud-credentials/rotation.md),
+  [`scoping.md`](../../topics/security/cloud-credentials/scoping.md) and
+  [`creation.md`](../../topics/security/cloud-credentials/creation.md).
 
 ## Non-goals
 

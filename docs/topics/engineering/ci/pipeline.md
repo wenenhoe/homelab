@@ -165,7 +165,7 @@ flowchart TD
 type in the repo, so scoping it would defeat the point. `trivy-scan`
 also always runs as a job, but reads `detect-changes`' output to decide
 internally whether to run its Ansible-misconfig sub-check — see
-[security-scanning.md](../security-scanning.md). `warm-uv-cache`,
+[security-scanning.md](../../security/policy/security-scanning.md). `warm-uv-cache`,
 `warm-galaxy-cache`, and `warm-pre-commit-cache` are dashed for the
 same reason: unconditional, independent of `detect-changes`, so a cold
 or evicted cache self-heals on any PR rather than only ones the diff

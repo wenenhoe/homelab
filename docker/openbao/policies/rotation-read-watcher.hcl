@@ -1,4 +1,4 @@
-# rotation-read-watcher's policy (ADR 0026, docs/topics/secrets/openbao-vault-bootstrap.md).
+# rotation-read-watcher's policy (ADR 0026, docs/topics/security/openbao/vault-bootstrap.md).
 # Applied by hand via vault-bootstrap, same convention as
 # controller.hcl/vault-bootstrap.hcl's own header comments - not
 # seeded via docker/openbao/configs/, not written by Ansible.

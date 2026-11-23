@@ -1,5 +1,5 @@
 # cd-agent-snapshot's policy (ADR 0020 revision 1,
-# docs/topics/secrets/openbao-cd-agent-approles.md). Applied by hand via
+# docs/topics/security/openbao/openbao-cd-agent-approles.md). Applied by hand via
 # vault-bootstrap, same convention as controller.hcl's header comment.
 #
 # The six leaf paths are the ones snapshot-push.sh reads. Each is named

@@ -45,7 +45,7 @@ def _vault_login(client: hvac.Client) -> None:
     if not role_id or not secret_id:
         print(
             "openbao-controller-role-id/-secret-id aren't set yet - run "
-            "docs/topics/secrets/openbao-auth.md's runbook before using "
+            "docs/topics/security/openbao/auth.md's runbook before using "
             "any part of cloud_credentials.",
             file=sys.stderr,
         )

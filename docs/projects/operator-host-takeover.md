@@ -43,7 +43,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - [ ] Every operation the controller performs today succeeds from the operator host.
 - [ ] Outbound from VLAN 25 reaches only the allowlisted destinations.
-- [ ] `vault-bootstrap` accepts a login only from this host's address, set after the first login from it succeeds ([`openbao-vault-bootstrap.md`](../topics/secrets/openbao-vault-bootstrap.md)), and a login from the workstation is refused.
+- [ ] `vault-bootstrap` accepts a login only from this host's address, set after the first login from it succeeds ([`vault-bootstrap.md`](../topics/security/openbao/vault-bootstrap.md)), and a login from the workstation is refused.
 - [ ] The lldap web route accepts requests only from this host's address, through a Caddy `remote_ip` matcher on that route. The address is one variable, shared with the `vault-bootstrap` bind, so the migration changes it once. A request from the workstation is refused.
 - [ ] The resulting behavior, including the restore procedure, is described in `docs/topics/infra/operator-host.md`.
 
@@ -51,7 +51,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
 - **Must not change:** other hosts' inventory entries, the `all.vars` SSH key, existing OpenBao policies.
-- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (the `controller` group), `docs/topics/secrets/openbao-auth.md` (issuing a new AppRole secret), `docs/topics/infra/network-infra.md`.
+- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (the `controller` group), `docs/topics/security/openbao/auth.md` (issuing a new AppRole secret), `docs/topics/infra/network-infra.md`.
 - **Required checks:** `pre-commit run --all-files`.
 
 ## Risks

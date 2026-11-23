@@ -36,13 +36,13 @@ flowchart TB
 | :-: | :--- | :--- | :-: |
 | 1 | Every app of the host has a recent backup on some source | `python3 ansible/scripts/restore_all.py --check --host <host>` | yes |
 | 2 | Take an on-demand backup of the host's apps and confirm each archive is in SeaweedFS | [`backup.md`](backup.md#running-a-backup-now) | partly |
-| 3 | `security` only: take the OpenBao snapshot. It is not part of the app backup pipeline; the script exits 0 only once R2 and B2 both hold it | `tools/openbao_utils/scripts/snapshot-push.sh <role_id>` ([`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#running-a-backup)) | yes |
+| 3 | `security` only: take the OpenBao snapshot. It is not part of the app backup pipeline; the script exits 0 only once R2 and B2 both hold it | `tools/openbao_utils/scripts/snapshot-push.sh <role_id>` ([`backup-restore.md`](../security/openbao/backup-restore.md#running-a-backup)) | yes |
 | 4 | Copy Tofu's state to B2 | `tools/tofu_state/state-copy-push.sh` ([State copy](../infra/tofu/state-and-credentials.md#state-copy)) | yes |
 | 5 | Prepare and stage the Ubuntu image if the pin or `timezone` changed | [`prepare_image.sh`](../infra/tofu/ubuntu-vms.md#prepared-image), then `scp` to the node | partly |
 | 6 | Dump the stopped VM and destroy it, then delete its Kea reservation and lease on the live gateway | [`retire_vm.sh`](rebuild-tools.md#retire_vmsh) `dump` and `destroy`; the reservation by hand | partly |
 | 7 | Declare the VM, apply, run the inventory generator | [`vm-provisioning.md`](../infra/vm-provisioning.md#tofu--ansible-handoff) | yes |
 | 8 | Remove the old SSH host key from `known_hosts` for the host's name and address | `cd tools && python3 -m rebuild_check.known_hosts <host>` | yes |
-| 9 | Deploy | `deploy.yaml --limit <host>,localhost`; `security` first needs [the bootstrap](../secrets/openbao-backup-restore.md#rebuilding-security) | yes |
+| 9 | Deploy | `deploy.yaml --limit <host>,localhost`; `security` first needs [the bootstrap](../security/openbao/backup-restore.md#rebuilding-security) | yes |
 | 10 | Restore the host's apps | `python3 ansible/scripts/restore_all.py --host <host>` (`--skip step-ca` on `security`) | yes |
 | 11 | Set the host's new Beszel agent fingerprint in the hub | [`beszel.md`](../monitoring/beszel.md#rebuilding-a-host) | no |
 | 12 | Check the host, then that both DNS servers agree on it | `cd tools && python3 -m rebuild_check.host <host>`; `python3 -m rebuild_check.dns <host>` ([what they check](rebuild-tools.md#what-the-checks-look-at)) | yes |
@@ -71,7 +71,7 @@ Why the order inside the cycle:
 | :--- | :-: | :--- |
 | `play` | 204 | Nothing. A leaf host, so the one to prove the cycle on |
 | `storage` | 206 | Built beside the old VM and its buckets copied across: [`rebuild-storage.md`](rebuild-storage.md) |
-| `security` | 205 | OpenBao is restored first, from the step 3 snapshot, because the playbooks read their secrets from it. `deploy.yaml` cannot run until OpenBao and step-ca exist on the new VM, so [its own procedure](../secrets/openbao-backup-restore.md#rebuilding-security) replaces step 9: `predeploy.yaml`, then `bootstrap-security.yaml` in three stages with the operator's steps between them, then `deploy.yaml`. `restore_all.py` skips `step-ca`, which the bootstrap restored |
+| `security` | 205 | OpenBao is restored first, from the step 3 snapshot, because the playbooks read their secrets from it. `deploy.yaml` cannot run until OpenBao and step-ca exist on the new VM, so [its own procedure](../security/openbao/backup-restore.md#rebuilding-security) replaces step 9: `predeploy.yaml`, then `bootstrap-security.yaml` in three stages with the operator's steps between them, then `deploy.yaml`. `restore_all.py` skips `step-ca`, which the bootstrap restored |
 | `services` | 203 | The DNS primary. See [below](#services) |
 | `tailscale` | 202 | No Docker and no apps. See [below](#tailscale) |
 
@@ -135,6 +135,6 @@ console for the run ([`network-infra.md`](../infra/network-infra.md#tailscale-no
 | The gateway's Kea reservation and lease, and any alias, rule or forward that names the old address | Step 6 |
 | The Beszel fingerprint | [`beszel.md`](../monitoring/beszel.md#rebuilding-a-host) |
 | Creating the dump storage, once | [Dump storage](rebuild-tools.md#dump-storage) |
-| OpenBao's unseal after any restart of it | [`openbao.md`](../secrets/openbao.md) |
-| `rotation-read-watcher` on `security`: its AppRole's `role_id` and `secret_id` can be read and minted only by the `vault-bootstrap` identity, never by the `controller` identity Ansible runs as. `rebuild_check.host security` fails until it is installed | [`openbao-rotation-read-watcher.md`](../secrets/openbao-rotation-read-watcher.md#installing) |
-| Fetching and decrypting the step-ca archive for the `security` bootstrap, needed before any secret is reachable | [`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#rebuilding-security) |
+| OpenBao's unseal after any restart of it | [`deployment.md`](../security/openbao/deployment.md) |
+| `rotation-read-watcher` on `security`: its AppRole's `role_id` and `secret_id` can be read and minted only by the `vault-bootstrap` identity, never by the `controller` identity Ansible runs as. `rebuild_check.host security` fails until it is installed | [`rotation-read-watcher.md`](../security/openbao/rotation-read-watcher.md#installing) |
+| Fetching and decrypting the step-ca archive for the `security` bootstrap, needed before any secret is reachable | [`backup-restore.md`](../security/openbao/backup-restore.md#rebuilding-security) |

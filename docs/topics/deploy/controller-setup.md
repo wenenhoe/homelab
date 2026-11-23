@@ -49,7 +49,7 @@ The version and checksum are read out of the `openbao_cli` role's own defaults, 
 
 ## Before the first deploy
 
-Fill in every value Ansible can't generate itself. The list, and how each is stored, is in [`secrets.md`](../secrets/secrets.md#bootstrapping-manual-secrets).
+Fill in every value Ansible can't generate itself. The list, and how each is stored, is in [`secrets.md`](../security/secrets.md#bootstrapping-manual-secrets).
 
 ```sh
 cd tools && python3 -m openbao_utils.bootstrap

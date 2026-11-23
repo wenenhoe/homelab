@@ -775,7 +775,7 @@ jobs:
           "${{ github.event.pull_request.head.sha }}"
         working-directory: tools
 
-  # See docs/topics/engineering/security-scanning.md#trivy-security-scans.
+  # See docs/topics/security/policy/security-scanning.md#trivy-security-scans.
   trivy-scan:
     needs: detect-changes
     permissions:

@@ -14,7 +14,7 @@ same path - matching on `type == "request"` alone is sufficient and
 avoids double-alerting on one real read.
 
 Runs as a persistent systemd service on `security` - see
-docs/topics/secrets/openbao-rotation-read-watcher.md for installation. Logs in once at
+docs/topics/security/openbao/rotation-read-watcher.md for installation. Logs in once at
 startup to fetch Telegram's secrets, then never touches Vault again
 for the rest of the process's life; alerting itself is a direct
 Telegram Bot API call, not a Vault operation.
@@ -70,9 +70,9 @@ WATCHED_PATHS = frozenset(
         "_rotation-key-oci-client-secret",
     )
 )
-OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/topics/secrets/openbao-rotation-read-watcher.md
+OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/topics/security/openbao/rotation-read-watcher.md
 # The certificate is for OpenBao's DNS name, not 127.0.0.1, so the name to check it against is
-# read from a file beside the AppRole credentials (docs/topics/secrets/openbao-rotation-read-watcher.md).
+# read from a file beside the AppRole credentials (docs/topics/security/openbao/rotation-read-watcher.md).
 SERVER_NAME_PATH = "/etc/rotation-read-watcher/server_name"
 ROOT_CA_PATH = "/etc/step-ca/root_ca.crt"
 ROLE_ID_PATH = "/etc/rotation-read-watcher/role_id"

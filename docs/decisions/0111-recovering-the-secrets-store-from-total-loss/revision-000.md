@@ -95,8 +95,8 @@ in front of the operator, does not have.
   `security`, the shape `cloud_sync` already is, and not an integration with the existing pipeline.
 - Proving the backup and restore loop before any secret's authoritative copy moves into OpenBao is the
   actual test of this split, as described in
-  [`openbao-backup-restore.md`](../../topics/secrets/openbao-backup-restore.md). Setup is in
-  [`openbao.md`](../../topics/secrets/openbao.md).
+  [`openbao-backup-restore.md`](../../topics/security/openbao/backup-restore.md). Setup is in
+  [`openbao.md`](../../topics/security/openbao/deployment.md).
 
 ## Invariants
 

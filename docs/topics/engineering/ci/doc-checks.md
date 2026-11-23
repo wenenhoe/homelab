@@ -160,6 +160,11 @@ these narrow, structural things:
   link relative to the file, apart from the generated `project-planning.md`, since an
   exploration is deleted when it ends. See
   [`docs/explorations/README.md`](../../../explorations/README.md).
+- No doc or comment outside `docs/projects/`, `docs/decisions/` and `docs/explorations/` names
+  a project's stage, phase or track ([`doc_stage_words.py`](../../../../tools/doc_scripts/doc_stage_words.py)).
+  A stage word alone is allowed, since a playbook has stages of its own; the check fires when
+  one paragraph, list item or table row also links a project doc or names a `PROJ-` id.
+  `AGENTS.md` gives the reason: the vocabulary is deleted with the project.
 - Relative links (`./`, `../`) from a `.md` file to a config, script, or
   data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
   way `.md` links do.

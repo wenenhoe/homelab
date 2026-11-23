@@ -96,63 +96,41 @@ these narrow, structural things:
   break any link. Doesn't check whether an *accepted* ADR's reasoning
   drifted, or whether a new ADR should be added there — that's still
   on whoever's making the change, per that page's own notes.
-- Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`):
-  generations (`revision-NNN`) run 000..NNN with no gaps; competing
-  candidates in one generation are lettered a, b, c… with none missing,
-  and once one is `approved` or beyond the rest are `abandoned`; at most one revision is
-  `accepted`; a `superseded` revision names a later `accepted` (or
-  itself superseded) successor that declares `supersedes` back;
-  `title`, `short` and `topic` are identical across a lineage's revisions,
-  and `short` is unique across lineages (ignoring case);
-  `narrows`, `related`, and `former_ids` reference real lineages, and a
-  `former_ids` entry is never a live lineage. Each lineage directory is
-  linked from `decision-index.md`. An `approved` or `accepted`
-  revision has no open `Assumptions` entry — the hard gate in
-  [`docs/decisions/README.md#assumptions`](../../decisions/README.md#assumptions).
-  Presence-of-a-bullet only, not whether the claim is genuinely
-  resolved; that judgment call is still on whoever sets the status.
-- A decision revision's heading and state: an unlettered revision 0
-  opens with `# NNNN. <title>` (its lineage number and `title:`), and
-  no revision carries a `**Status:**` body line, since the frontmatter
-  `status` is the one record. Later and lettered revisions name their
-  own solution in their heading, so only revision 0 is checked.
+- Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`) follow
+  [Lineages and revisions](../../decisions/README.md#lineages-and-revisions) and
+  [Revision states](../../decisions/README.md#revision-states): generations and
+  candidate letters with none missing, at most one `accepted` revision, and a
+  `superseded` one that names its `accepted` successor, which declares `supersedes`
+  back. `title`, `short` and `topic` are identical across a lineage's revisions, and
+  `short` is unique across lineages (ignoring case); `narrows`, `related`, and
+  `former_ids` reference real lineages, and a `former_ids` entry is never a live
+  lineage. Each lineage directory is linked from `decision-index.md`. An `approved`
+  or `accepted` revision has no open `Assumptions` entry
+  ([the gate](../../decisions/README.md#assumptions)): the check sees a bullet, not
+  whether the claim is genuinely resolved.
+- A decision revision's heading and state: an unlettered revision 0 opens with
+  `# NNNN. <title>`, and no revision carries a `**Status:**` body line.
 - A markdown link written `[ADR 0044 (CD agent trigger)]`, or with a
   revision after the number, carries that lineage's `short:` name
   exactly, so renaming a lineage can't leave links using the old name.
   A link with only the number is not checked: the name is never
   required. See
   [`docs/decisions/README.md#citing-a-decision`](../../decisions/README.md#citing-a-decision).
-- A project's `decision:` revision must be in the state its status
-  requires: `not-started` → `working` or `approved`, `de-risking` →
-  `working`, `building` → `approved`, `done` → `accepted`. A revision
-  dropping back to `working` therefore fails the check for any project
-  that is `building` on it. Projects without a `decision:` are never
-  gated. `depends_on` entries name existing project docs, never
-  themselves, and form no cycle.
-- A project's status must agree with its stage table: `not-started` and
-  `de-risking` fail with a stage `In progress` or `Done`, and `building` fails
-  with every stage `Not started`. A doc with no stage rows is not judged.
-- A stage whose title starts as a spike, an assumption (resolve, settle,
-  verify, de-risk), a decision (write, decide), an acceptance, a docs-only
-  change or an operational run (roll out, drill, production migration) fails
-  unless it is `Done`: assumptions and decisions are settled under the
-  decision, acceptance is the closing checklist, docs travel with the change,
-  and a run is an acceptance criterion
-  ([ADR 0037 revision 5](../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md)).
-  The patterns are `STAGE_KINDS` in `doc_scope.py`. A finished one stays as
-  history.
-- A project whose `decision:` revision is `working` must carry `plan: draft`.
-  `plan` is `draft` or `confirmed`; absent counts as confirmed.
-- A `superseded` revision keeps only the frozen sections (Problem, Decision,
-  Invariants, Non-goals, Reconsideration triggers): any other `##` section
-  fails, naming it. `check_doc_drift --fix` cuts the revision to those
-  sections first and then runs the checks; the cut cannot change a frozen
-  section, so the accepted-records check sees no change. See
-  [`docs/decisions/README.md#superseded-revisions`](../../decisions/README.md#superseded-revisions).
-- A revision's `weight` is `full` or `light`. A `light` revision has no
-  `Invariants`, `Non-goals` or `Validation` section and a body of at most
-  `LIGHT_MAX_WORDS` words (`doc_graph.py`); a full one is not limited. See
-  [`docs/decisions/README.md#weights`](../../decisions/README.md#weights).
+- A project's `decision:` revision is in the state its status requires, and its
+  status agrees with its stage table ([Lifecycle](../../projects/README.md#lifecycle)).
+  Projects without a `decision:` are never gated. `depends_on` entries name existing
+  project docs, never themselves, and form no cycle.
+- A stage that is not a build change fails unless it is `Done`
+  ([What a stage is](../../projects/README.md#what-a-stage-is),
+  [ADR 0037 revision 5](../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md)).
+  The patterns are `STAGE_KINDS` in `doc_scope.py`. A finished one stays as history.
+- A project whose `decision:` revision is `working` carries `plan: draft`.
+- A `superseded` revision keeps only its frozen sections, and any other `##` section
+  fails, naming it. `check_doc_drift --fix` cuts the revision to them first, then runs
+  the checks ([Superseded revisions](../../decisions/README.md#superseded-revisions)).
+- A revision's `weight` is `full` or `light`; a `light` one has no forbidden section
+  and a body of at most `LIGHT_MAX_WORDS` words (`doc_graph.py`)
+  ([Weights](../../decisions/README.md#weights)).
 - Explorations (`docs/explorations/<slug>.md`): the frontmatter has
   `type: exploration`, `status: open`, a `topic`, and an `id` of `EXP-` plus
   the file name; `related` entries name real lineages. No file outside

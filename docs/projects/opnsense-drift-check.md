@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: "A scheduled --check --diff run of the gateway's play from the operator host that reports drift through a heartbeat, and a way to show what the check cannot see."
 decision: ADR-0089/0
+super_project: network-boundary
 depends_on:
   - project: PROJ-operator-host
     reason: "The scheduled run needs the host that runs it, which that project builds."

@@ -7,6 +7,7 @@ blocked: false
 summary: Move the tailnet's policy from hand edits in the console to OpenTofu through the tailscale/tailscale provider, with its private values supplied at apply time, as ADR 0059 decides.
 decision: ADR-0059/0
 plan: draft
+super_project: network-boundary
 allowed_paths:
   - tofu/modules/tailscale_policy/**
   - tofu/main.tf

@@ -3,7 +3,7 @@ name: Progress log
 # Once a day, and on demand. Reads what has been merged to main since the last
 # run and adds it to the weekly and monthly record on the progress-log branch —
 # see docs/decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md
-# and docs/topics/engineering/progress-log.md.
+# and docs/topics/documentation/progress-log.md.
 #
 # The publish job alone holds `contents: write`, and it pushes to progress-log
 # and nowhere else: a plain push (never forced) to a branch that must already

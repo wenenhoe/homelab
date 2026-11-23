@@ -1,6 +1,6 @@
 # Progress Log
 
-A weekly and monthly record of what was merged to `main`, written by a scheduled job to the `progress-log` branch. It answers "what did I work on this week, and this month". Why it is a generated branch and not files on `main` is in [ADR 0095 (Progress log)](../../decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md); when the job fires is in [`ci/scheduled-jobs.md`](ci/scheduled-jobs.md#progress-log).
+A weekly and monthly record of what was merged to `main`, written by a scheduled job to the `progress-log` branch. It answers "what did I work on this week, and this month". Why it is a generated branch and not files on `main` is in [ADR 0095 (Progress log)](../../decisions/0095-recording-what-was-worked-on-each-week-and-month/revision-000.md); when the job fires is in [`ci/scheduled-jobs.md`](../engineering/ci/scheduled-jobs.md#progress-log).
 
 ## Reading it
 

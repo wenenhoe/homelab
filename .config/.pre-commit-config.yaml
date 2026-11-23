@@ -32,7 +32,7 @@ repos:
         # ansible/ansible-lint manifest, not assumed).
         always_run: false
         # Same file set as pr-checks.yml's ansible_lint path-filter —
-        # see docs/topics/engineering/ci/doc-checks.md#docs-drift-check and that workflow's own
+        # see docs/topics/documentation/doc-checks.md#docs-drift-check and that workflow's own
         # comment on why pyproject.toml/uv.lock aren't included here.
         files: ^(ansible/|\.config/\.ansible-lint$|\.config/\.pre-commit-config\.yaml$)
         # Overrides upstream's own `entry: python3 -m ansiblelint -v

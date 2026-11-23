@@ -124,7 +124,7 @@ depending, and a lineage never relies on itself. Adding it to an `accepted`
 revision is a metadata change. The docs check reads declared reliance only,
 never `related:` or links in prose, and warns about one whose target is not
 settled yet; see
-[`doc-checks.md`](../topics/engineering/ci/doc-checks.md#docs-drift-check).
+[`doc-checks.md`](../topics/documentation/doc-checks.md#docs-drift-check).
 
 ## Assumptions
 
@@ -200,7 +200,7 @@ state, `accepted` and `superseded` included.
 - **It renders.** The `mermaid-check` job renders every diagram on a pull
   request that changes markdown, and `python3 -m doc_scripts.check_mermaid`
   from `tools/` does the same by hand with Docker
-  ([Mermaid render check](../topics/engineering/ci/doc-checks.md#mermaid-render-check)).
+  ([Mermaid render check](../topics/documentation/doc-checks.md#mermaid-render-check)).
   It fails a diagram that does not render; it says nothing of layout or of
   the Mermaid version GitHub draws with, so look at a new or changed diagram
   rendered too. Write a numbered edge label as `1 .`, not `1.`: a label that

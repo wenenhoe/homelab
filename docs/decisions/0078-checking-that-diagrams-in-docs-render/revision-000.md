@@ -59,7 +59,7 @@ A `check_mermaid` module under `tools/doc_scripts/` and a `mermaid-check` job in
 - The image is a third party's, pinned by tag as the repo's other external images are, so a publisher that moves a tag changes what runs. It is given only the text of a block, with no network and no capabilities, and the job holds a read-only token.
 - A bump of the image can change what renders, and shows as a failing job on the bump's own pull request.
 - A diagram can pass the check and still be hard to read, or fail on GitHub's Mermaid version, so the manual look stays for layout.
-- The decisions README's rule about rendering points to the check, which [`doc-checks.md`](../../topics/engineering/ci/doc-checks.md#mermaid-render-check) and [`pipeline.md`](../../topics/engineering/ci/pipeline.md#jobs) describe.
+- The decisions README's rule about rendering points to the check, which [`doc-checks.md`](../../topics/documentation/doc-checks.md#mermaid-render-check) and [`pipeline.md`](../../topics/engineering/ci/pipeline.md#jobs) describe.
 
 ## Invariants
 

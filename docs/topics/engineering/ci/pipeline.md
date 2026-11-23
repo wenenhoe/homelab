@@ -12,7 +12,7 @@ isolation, this pipeline tests the parts Molecule can't (linting the
 whole tree, a real compose stack booting, and the actual
 `deploy.yaml`/`restore.yaml` ordering).
 
-How a change picks which jobs run is in [CI Change Scoping](change-scoping.md); the checks it runs are documented by kind, alongside this page: [CI Gates](gates.md) for the regression checks and gates over one kind of change, [CI Doc Checks](doc-checks.md) for index generation, drift and project records, and [CI Scheduled Jobs](scheduled-jobs.md) for the Renovate window and Trivy.
+How a change picks which jobs run is in [CI Change Scoping](change-scoping.md); the checks it runs are documented by kind, alongside this page: [CI Gates](gates.md) for the regression checks and gates over one kind of change, [CI Doc Checks](../../documentation/doc-checks.md) for index generation, drift and project records, and [CI Scheduled Jobs](scheduled-jobs.md) for the Renovate window and Trivy.
 
 ## Where the CI logic lives
 
@@ -54,14 +54,14 @@ them as `bash -c 'cd tools && python3 -m doc_scripts.<module>'`, in the
 hook's own environment with PyYAML, and the `project-checks` job runs
 them through `uv run`. They read `docs/` from the
 repository root, not the working directory. `check_mermaid`, the
-[Mermaid render check](doc-checks.md#mermaid-render-check) of
+[Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check) of
 [ADR 0078 (Diagram render check)](../../../decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md),
 has no hook: the `mermaid-check` job runs it on the runner's own `python3`.
 `suggest_project_scope` and `suggest_adr_consolidation` are no checks and run
 nowhere in CI: the first prints what a project's `allowed_paths` is missing, as
-[Scope suggestions](doc-checks.md#scope-suggestions) describes, and the second
+[Scope suggestions](../../documentation/doc-checks.md#scope-suggestions) describes, and the second
 lists decision records worth condensing, merging or demoting, as
-[Consolidation suggestions](doc-checks.md#consolidation-suggestions) describes.
+[Consolidation suggestions](../../documentation/doc-checks.md#consolidation-suggestions) describes.
 
 What stays in workflow YAML or `.github/scripts/` is what needs Actions
 (`uses:` steps, caches, registry login) or is a plain command sequence
@@ -86,7 +86,7 @@ parse on an older Python than the repo's own. The rest run through
 | `warm-galaxy-cache` | always | Populates the shared Ansible Galaxy collections cache. See [Cache warming](#cache-warming). |
 | `warm-pre-commit-cache` | always | Populates the shared pre-commit hook-environment cache. See [Cache warming](#cache-warming). |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except the push-stage `ansible-lint` and `check-doc-change-push`) against every file, then gitleaks over the PR's commits (the hook itself is skipped here: it only scans staged changes). |
-| `project-checks` | always | One step, `check_doc_change`, over the PR's merge-base diff: the project scope, close and start checks and the accepted records check. What each rule enforces is in [doc-checks.md](doc-checks.md#the-four-project-and-record-checks-as-one-command). |
+| `project-checks` | always | One step, `check_doc_change`, over the PR's merge-base diff: the project scope, close and start checks and the accepted records check. What each rule enforces is in [doc-checks.md](../../documentation/doc-checks.md#the-four-project-and-record-checks-as-one-command). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The push-stage hook that lints — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/`, spread over the runner's cores by `pytest-xdist` (`-n auto --dist worksteal`) — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
@@ -96,9 +96,9 @@ parse on an older Python than the repo's own. The rest run through
 | `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash or apt key fingerprint (`cd_agent`'s, `openbao_cli`'s, `docker`'s and `tailscale_node`'s `defaults/main.yaml`), changed | Each pinned release checksum is the one its publisher signed, attested or lists, and each pinned apt key is the one its vendor serves — see [Release checksum check](release-checksum-check.md). |
 | `provenance` | `tools/ci/provenance/**`, or a file that can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the scripts, workflow and Python constant a Renovate manager tracks), changed | Each pinned image digest is one its publisher signed or attested — see [Image provenance check](image-provenance-check.md). |
 | `shell-tests` | the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Fetches the pinned Bats clones and runs the shell tests on them, with the project's locked Python environment for the templates — see [Shell tests](shell-tests.md). A change to the pin file or the tooling beside it also checks each pinned tag — see [Shell test pins](shell-test-pins.md). |
-| `mermaid-check` | the `mermaid_check` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](doc-checks.md#mermaid-render-check). |
+| `mermaid-check` | the `mermaid_check` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check). |
 | `renovate-config-check` | the `renovate_config` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | `.github/renovate.json5` is a valid Renovate repo config under the pinned Renovate image — see [Validating the config](renovate.md#validating-the-config). |
-| `doc-site` | the `doc_site` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Builds the documentation site and checks its layout at phone widths, the two steps `pages.yml` runs before it deploys — see [The doc site renderer](../doc-site.md#publishing). |
+| `doc-site` | the `doc_site` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Builds the documentation site and checks its layout at phone widths, the two steps `pages.yml` runs before it deploys — see [The doc site renderer](../../documentation/doc-site.md#publishing). |
 | `tofu-checks` | anything under `tofu/` changed | In `tofu/`: `tofu fmt -check -recursive`, `tofu init -backend=false -lockfile=readonly`, `tofu validate` and `tofu test`, on the OpenTofu version the job pins, and the same init and validate again in `tofu/scratch/opnsense` and `tofu/scratch/ubuntu`, two more roots that share the first one's lock file. Needs no state, credentials or Proxmox: the tests mock the provider. |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |

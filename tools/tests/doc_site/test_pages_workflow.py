@@ -182,7 +182,7 @@ class TestFilter:
             "tools/doc_scripts/generate_doc_indexes.py",
             "docs/decisions/0117-x/revision-000.md",
             "docs/README.md",
-            "docs/topics/engineering/doc-site.md",
+            "docs/topics/documentation/doc-site.md",
             "docs/projects/doc-site-pages.md",
             "docs/architecture/alerting-and-heartbeat-flow.md",
             "ansible/inventory/group_vars/all/app_catalog.yaml",

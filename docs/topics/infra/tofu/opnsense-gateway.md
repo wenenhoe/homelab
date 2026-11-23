@@ -75,7 +75,7 @@ Traffic between two hosts on the same VLAN is switched on the bridge and never r
 gateway, so it needs no rule. Only flows that cross a VLAN, reach the gateway itself or leave
 through the WAN are listed.
 
-A flow is known by its name in the first column, which other docs cite by a link to this section, as [`operator-gateway`](#zone-policy) does. The order of the rows carries no meaning, so a flow added or moved leaves every citation of another as it was. [The drift check](../../engineering/ci/doc-checks.md#docs-drift-check) refuses a citation by number, and a linked name that is not in the table.
+A flow is known by its name in the first column, which other docs cite by a link to this section, as [`operator-gateway`](#zone-policy) does. The order of the rows carries no meaning, so a flow added or moved leaves every citation of another as it was. [The drift check](../../documentation/doc-checks.md#docs-drift-check) refuses a citation by number, and a linked name that is not in the table.
 
 | Flow | From | To | Port | Why | Source |
 | :--- | :--- | :--- | :--- | :--- | :--- |

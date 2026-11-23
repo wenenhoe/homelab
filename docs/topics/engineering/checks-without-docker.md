@@ -14,7 +14,7 @@ For any environment, whoever works in it, that has no Docker daemon or reaches G
 
 - **`ansible-lint`** runs only at `pre-push`. Clone each needed collection from GitHub at its pinned version, then `ANSIBLE_COLLECTIONS_PATH=<dir> uv run --with ansible-lint ansible-lint --offline`. A module from a collection that cannot be cloned fails `syntax-check` on an untouched base as well; say so rather than working around it.
 - **Compose files** lint with `npx -y dclint@<the version the hook pins> --config .config/.dclintrc FILE`. It cannot read a Jinja template, so lint the rendered output.
-- **Mermaid** is rendered by [`check_mermaid`](ci/doc-checks.md#mermaid-render-check), which needs Docker. Without it, render with `mmdc` against a locally installed Chromium, using a Puppeteer config of `{"executablePath": "<chromium>", "args": ["--no-sandbox"]}`: `mmdc -p cfg.json -i d.mmd -o d.png -s 2`. Open the PNG, since a pass proves the block renders and not that it reads well.
+- **Mermaid** is rendered by [`check_mermaid`](../documentation/doc-checks.md#mermaid-render-check), which needs Docker. Without it, render with `mmdc` against a locally installed Chromium, using a Puppeteer config of `{"executablePath": "<chromium>", "args": ["--no-sandbox"]}`: `mmdc -p cfg.json -i d.mmd -o d.png -s 2`. Open the PNG, since a pass proves the block renders and not that it reads well.
 
 ## Verifying a series before delivery
 

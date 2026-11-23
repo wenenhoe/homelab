@@ -20,7 +20,7 @@ Nothing is listed by hand. It collects references from:
   script, step-cli and step-ca in variable defaults and a CI script, the
   OpenBao image, the Renovate execution image, the images the Molecule
   playbooks run directly (`molecule_helpers/vars/images/*.yml`), and the
-  mermaid-cli image the [diagram render check](doc-checks.md#mermaid-render-check)
+  mermaid-cli image the [diagram render check](../../documentation/doc-checks.md#mermaid-render-check)
   runs, a constant in `tools/doc_scripts/check_mermaid.py`. A manager that no longer
   matches any file, or a file that no longer matches its manager, fails the
   run: the pin moved, and this check would otherwise stop seeing it silently.

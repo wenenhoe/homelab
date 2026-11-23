@@ -231,7 +231,7 @@ jobs:
         uses: ./.github/actions/setup-uv-ansible
 
       # The scope, close, start and accepted-records checks over the PR - see
-      # docs/topics/engineering/ci/doc-checks.md.
+      # docs/topics/documentation/doc-checks.md.
       - name: Check the PR's changes to projects and accepted decisions
         run: >-
           uv run python -m doc_scripts.check_doc_change
@@ -563,7 +563,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   # Renders every Mermaid block in the repo's markdown with the pinned
-  # mermaid-cli image (ADR 0078) — see docs/topics/engineering/ci/doc-checks.md#mermaid-render-check.
+  # mermaid-cli image (ADR 0078) — see docs/topics/documentation/doc-checks.md#mermaid-render-check.
   # Not a matrix job, so it can be required directly: a PR that changes no
   # markdown reports it skipped.
   mermaid-check:
@@ -607,7 +607,7 @@ jobs:
   # Builds the documentation site and checks the layout of a sample of its pages
   # and of the pages of the documents the PR changes, at phone widths; a change to
   # the renderer is checked against every page. pages.yml runs the same two steps
-  # over every page before it deploys — see docs/topics/engineering/doc-site.md.
+  # over every page before it deploys — see docs/topics/documentation/doc-site.md.
   # Deploys nothing and holds no credential.
   # Not a matrix job, so it can be required directly: a PR that changes neither
   # the site's code nor what it is built from reports it skipped.

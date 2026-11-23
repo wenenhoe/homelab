@@ -128,6 +128,16 @@ Service records: for each integrated system, what it depends on, holds, exposes,
 | [`wastebin.md`](records/wastebin.md) | The paste service. |
 | [`minecraft.md`](records/minecraft.md) | The game server, map viewer and backup container. |
 
+## documentation/
+
+How the documentation is generated, checked and published.
+
+| Doc | Covers |
+| :--- | :--- |
+| [`doc-checks.md`](documentation/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
+| [`doc-site.md`](documentation/doc-site.md) | The renderer that turns the generated views into a static site: the rows both outputs are built from, building the site, the anchors, the pinned stylesheet and its integrity attribute, the layout check, and the workflow that deploys it. |
+| [`progress-log.md`](documentation/progress-log.md) | The weekly and monthly record of what was merged to `main`, generated daily onto the `progress-log` branch: how to read it, what it decides by rule, how notes survive, and how to rebuild it. |
+
 ## engineering/
 
 Working on the repo: conventions, tests, CI, review and scanning.
@@ -149,14 +159,11 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/image-provenance-check.md`](engineering/ci/image-provenance-check.md) | The check that each pinned image digest is one its publisher signed or attested, the signer fixed in the repository, on pull requests and weekly. |
 | [`ci/shell-tests.md`](engineering/ci/shell-tests.md) | The Bats tests for the repo's shell scripts: where they live, how to run them on the pinned clones, the harness that fails on any tool a test did not stub, and what each file asserts. |
 | [`ci/shell-test-pins.md`](engineering/ci/shell-test-pins.md) | The Bats runner and libraries the shell tests run on, pinned by commit: the pin file, fetching the clones, and the check that each pinned tag still points at its commit. |
-| [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | When each scheduled workflow fires, the Renovate window check and Trivy scanning. |
 | [`ci/renovate.md`](engineering/ci/renovate.md) | How self-hosted Renovate runs, its schedule, and the GitHub App it authenticates as: permissions, key rotation, how `maintenance` is realigned before each run, and checking a run. |
 | [`branching.md`](engineering/branching.md) | The three long-lived branches: what each holds, the rulesets that protect them, choosing the branch for a change, promoting `maintenance` or `develop` into `main`, realigning `develop` by hand, and a fix that cannot wait. |
 | [`reviewing-renovate-updates.md`](engineering/reviewing-renovate-updates.md) | Reading Renovate's open pull requests into `maintenance` for breaking changes with `tools/renovate_merge`, merging them, and opening the promotion pull request: the summary and its levels, the reviewed-head check, what the merge waits for, and where the tool stops. |
 | [`landing-a-series.md`](engineering/landing-a-series.md) | Landing a series of patches on `main` as pull requests with `tools/land_series`: the `.series` input, the replay and the stop list, the kept branches, and the push, wait, confirm and merge of each pull request. |
-| [`progress-log.md`](engineering/progress-log.md) | The weekly and monthly record of what was merged to `main`, generated daily onto the `progress-log` branch: how to read it, what it decides by rule, how notes survive, and how to rebuild it. |
-| [`doc-site.md`](engineering/doc-site.md) | The renderer that turns the generated views into a static site: the rows both outputs are built from, building the site, the anchors, the pinned stylesheet and its integrity attribute, the layout check, and the workflow that deploys it. |
 | [`mutation-testing.md`](engineering/mutation-testing.md) | When a mutation run is worth making on the credential tooling, how to read a survivor, and why its output stays off public surfaces. |
 | [`molecule-testing.md`](engineering/molecule-testing.md) | Molecule scenario matrix and how to add one. |
 | [`molecule-fixtures.md`](engineering/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_catalog` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |

@@ -161,7 +161,7 @@ Size is a warning and a review, never a failure. The drift check warns on:
   `depends_on` the other. There are no stage-level dependencies.
 
 How and where the warnings run is in
-[`docs/topics/engineering/ci/doc-checks.md#project-size-warnings`](../topics/engineering/ci/doc-checks.md#project-size-warnings).
+[`docs/topics/documentation/doc-checks.md#project-size-warnings`](../topics/documentation/doc-checks.md#project-size-warnings).
 
 ## What goes in one
 
@@ -256,7 +256,7 @@ No building project is exempt, since all work here is agent work. It is path-lev
 can't tell whether an edit inside an allowed file is the permitted one,
 and a change that never touches its project doc isn't bounded. How and
 where it runs is in
-[`docs/topics/engineering/ci/doc-checks.md#project-scope-check`](../topics/engineering/ci/doc-checks.md#project-scope-check).
+[`docs/topics/documentation/doc-checks.md#project-scope-check`](../topics/documentation/doc-checks.md#project-scope-check).
 
 ### Choosing the scope
 
@@ -284,7 +284,7 @@ from memory of where the work lives:
    inside a component the project already changes: the next file in that
    directory is the next widening.
 
-[`suggest_project_scope`](../topics/engineering/ci/doc-checks.md#scope-suggestions)
+[`suggest_project_scope`](../topics/documentation/doc-checks.md#scope-suggestions)
 runs the searches behind steps 1 and 2 and prints the entries that are
 missing. What a hit means is still the author's call, but the check that
 moves a project to `building` runs the same searches and fails on a path the
@@ -325,7 +325,7 @@ with different unaccepted decisions keeps one in `decision:` and lists the other
 in `also_implements:`.
 [`check_project_close.py`](../../tools/doc_scripts/check_project_close.py)
 fails a PR that deletes a project doc and does neither; see
-[`docs/topics/engineering/ci/doc-checks.md#project-close-check`](../topics/engineering/ci/doc-checks.md#project-close-check), and
+[`docs/topics/documentation/doc-checks.md#project-close-check`](../topics/documentation/doc-checks.md#project-close-check), and
 [ADR 0037 revision 3 (Decision and project workflow)](../decisions/0037-decision-and-project-documentation-workflow/revision-003.md)
 for the reasoning.
 

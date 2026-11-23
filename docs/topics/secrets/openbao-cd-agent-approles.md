@@ -6,7 +6,7 @@ bound to that host's fixed address. See
 for why there are four and what each is meant to be unable to reach.
 
 The policies are checked in under
-[`docker/openbao/policies/`](../../../docker/openbao/policies/). The roles
+[`docker/openbao/policies/`](../../../docker/openbao/policies). The roles
 are created by hand through `vault-bootstrap` (below), the same way
 [`openbao-auth.md`](openbao-auth.md) creates `controller`'s role: nothing
 in Ansible creates them.

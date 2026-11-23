@@ -44,6 +44,7 @@ HOME = {
     "projects": "How projects work, and where each stage of a project stands.",
     "decision-index": "Every decision by number and by topic, the open ones and the superseded ones.",
     "topics": "How each part of the homelab is built, run and recovered.",
+    "architecture": "Diagrams of the system as it runs: the fleet, DNS, authentication, secrets, backups and alerting.",
     "dr-coverage": "What each app has: where it runs, what is backed up, its record and its recovery tier.",
 }
 
@@ -53,11 +54,38 @@ NAV = (
     ("docs/projects/README.md", "projects", "Projects"),
     ("docs/decision-index.md", "decision-index", "Decisions"),
     ("docs/topics/README.md", "topics", "Topics"),
+    ("docs/architecture/README.md", "architecture", "Architecture"),
     ("docs/topics/disaster-recovery/coverage.md", "dr-coverage", "DR coverage"),
 )
 
 # Pages that belong under another entry of the navigation: the decision pages are under Decisions, whose entry opens the index.
 SECTIONS = {"decision-index": ("decisions",)}
+
+
+@dataclass(frozen=True)
+class Section:
+    """A part of the site that opens on a list and has a README that says how it works: every page of it shows where it is in that part."""
+
+    name: str
+    prefix: str  # the slug that begins the pages of its documents
+    landing: str  # the slug of the page that lists it, which its first crumb links to
+    guide: str | None = None  # the address of its README from the site's root, when that is not the landing
+    guide_label: str = ""
+
+
+SECTION_LIST = (
+    Section("Projects", "projects", "projects", "projects/#guide", "Guide to projects"),
+    Section("Decisions", "decisions", "decision-index", "decisions/", "Guide to decisions"),
+    Section("Topics", "topics", "topics"),
+    Section("Architecture", "architecture", "architecture"),
+)
+PROJECT_ORDER = ("building", "de-risking", "not-started", "done")
+PROJECT_STATUS = {"building": "Building", "de-risking": "De-risking", "not-started": "Not started", "done": "Done"}
+
+
+def section_of(slug: str) -> Section | None:
+    return next((s for s in SECTION_LIST if slug in (s.landing, s.prefix) or slug.startswith(f"{s.prefix}/")), None)
+
 
 TITLES = ("Project", "Decision", "Problem", "App", "Exploration")
 EYEBROWS = ("ADR", "Revision")
@@ -173,17 +201,20 @@ class Document:
 
     @property
     def depth(self) -> int:
-        return self.slug.count("/") + 1
+        """How many directories under the site's root its page is: none for the home page, which `docs/README.md` is."""
+        return self.slug.count("/") + 1 if self.slug else 0
 
 
 def _slug(source: str) -> str:
-    """A document's directory on the site: its path under `docs/` without `.md`, and a README is its directory's page."""
+    """A document's directory on the site: its path under `docs/` without `.md`, and a README is its directory's page, so
+    `docs/README.md` is the home page and its slug is empty."""
     path = source.removeprefix("docs/").removesuffix(".md")
-    return path.removesuffix("/README")
+    return "" if path == "README" else path.removesuffix("/README")
 
 
 def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
-    """The documents with a page of their own: the projects, the topic docs and the decision revisions, with the README of each directory that has one."""
+    """The documents with a page of their own: the projects, the topic docs, the decision revisions and the architecture docs, with the README of
+    each directory that has one and the README of `docs/`, which is the home page."""
     projects = [(path, read_frontmatter(path)) for path in docs_in(root / "docs/projects")]
     decisions = [(revision.path, revision.fm) for lineage in lineages for revision in lineage.revisions]
     decisions += [(path, {}) for path in sorted((root / "docs/decisions").glob("*.md")) if not is_template(path.name)]
@@ -191,7 +222,8 @@ def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
         path for path in (root / "docs/topics").rglob("*.md") if not is_template(path.name) and path.relative_to(root).as_posix() not in GENERATED_VIEWS
     )
     found = [(path, front) for path, front in projects + decisions] + [(path, {}) for path in topics]
-    found += [(root / "docs/projects/README.md", {})]
+    found += [(path, {}) for path in sorted((root / "docs/architecture").glob("*.md")) if not is_template(path.name)]
+    found += [(root / "docs/projects/README.md", {}), (root / "docs/README.md", {})]
     documents = []
     for path, front in found:
         source = path.relative_to(root).as_posix()
@@ -201,7 +233,7 @@ def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
 
 def _page_addresses(targets: dict[str, str], depth: int) -> dict[str, str]:
     """Each page's address from a page `depth` directories under the site's root; `targets` maps a source path to its directory."""
-    return {source: f"{'../' * depth}{slug}/" for source, slug in targets.items()}
+    return {source: f"{'../' * depth}{slug}/" if slug else "../" * depth or "./" for source, slug in targets.items()}
 
 
 def _figure(drawn: Drawn) -> str:
@@ -221,6 +253,37 @@ def _link(document: Document, source: str, text: str, resolve) -> str:
 
 def _pill(status: str) -> str:
     return f'<span class="pill s-{status_key(status)}">{html.escape(status)}</span>'
+
+
+def _lineage_strip(document: Document, lineages: dict[str, Lineage], root: Path, resolve) -> str:
+    """Every revision of the lineage of a decision page, in order, each with its state, the current one and the one being read marked. A
+    lineage of one revision has no strip."""
+    lineage = lineages[document.front["id"]]
+    if len(lineage.revisions) < 2:
+        return ""
+    current, here = lineage.current(), root / document.source
+    items = []
+    for revision in lineage.revisions:
+        text = f"revision {revision.label} ({revision.fm['short']})"
+        classes = " ".join(name for name, on in (("here", revision.path == here), ("current", revision is current)) if on)
+        body = html.escape(text) if revision.path == here else _link(document, revision.path.relative_to(root).as_posix(), text, resolve)
+        marks = "".join(f'<span class="mark">{mark}</span>' for mark, on in (("current", revision is current), ("this page", revision.path == here)) if on)
+        items.append(f'<li class="{classes}">{body}{_pill(revision.fm["status"])}{marks}</li>')
+    return f'<nav class="lineage" aria-label="Revisions of this decision"><h2>Revisions</h2><ol>{"".join(items)}</ol></nav>\n'
+
+
+def _pager(document: Document, lineage_list: list[Lineage], root: Path, resolve) -> str:
+    """Links to the decisions before and after this one by number, each at its current revision."""
+    ordered = sorted(lineage_list, key=lambda lineage: lineage.number)
+    index = next(i for i, lineage in enumerate(ordered) if lineage.id == document.front["id"])
+    links = []
+    for side, other in (("prev", ordered[index - 1] if index else None), ("next", ordered[index + 1] if index + 1 < len(ordered) else None)):
+        if other is not None:
+            current = other.current()
+            arrow = f"\u2190 ADR {other.number}" if side == "prev" else f"ADR {other.number} \u2192"
+            link = _link(document, current.path.relative_to(root).as_posix(), arrow, resolve)
+            links.append(f'<span class="{side}">{link}<span class="name">{html.escape(current.fm["short"])}</span></span>')
+    return f'<nav class="pager" aria-label="Neighbouring decisions">{"".join(links)}</nav>\n' if links else ""
 
 
 def _project_facts(document: Document, documents: list[Document], resolve) -> list[dict]:
@@ -292,6 +355,56 @@ def _decision_facts(document: Document, documents: list[Document], lineages: dic
         links = ", ".join(_link(document, other.source, Path(other.source).stem, resolve) for other in implementing)
         facts.append({"label": "Implemented by", "html": links})
     return facts, notice
+
+
+def _cell(text: str) -> str:
+    """`text` as a cell of a table that `_table` reads: its `|` escaped."""
+    return text.replace("|", "\\|")
+
+
+def _project_list(documents: list[Document]) -> Table:
+    """The projects as rows, the building ones first: what a reader of the projects section looks for before the rules."""
+    projects = sorted(
+        (d for d in documents if d.source.startswith("docs/projects/") and d.front),
+        key=lambda d: (PROJECT_ORDER.index(d.front["status"]), d.source),
+    )
+    rows = tuple(
+        (
+            f"[`{Path(d.source).stem}`]({Path(d.source).name})",
+            PROJECT_STATUS[d.front["status"]],
+            d.front.get("super_project", "(no initiative)"),
+            _cell(d.front.get("summary", "")),
+        )
+        for d in projects
+    )
+    return Table(("Project", "Status", "Initiative", "Summary"), (":---",) * 4, rows)
+
+
+def _crumbs(document: Document, title: str, base: str, lineages: dict[str, Lineage], root: Path, topic_groups: set[str]) -> dict | None:
+    """Where a document's page is in its section: the section, what holds the page, the page, and the link to the section's README."""
+    section = section_of(document.slug)
+    if section is None:
+        return None
+    landing = f"{base}{section.landing}/"
+    source = document.source
+    if document.slug == section.landing:
+        tail: list[tuple[str, str | None]] = []
+    elif source == "docs/decisions/README.md":
+        tail = [("Guide", None)]
+    elif REVISION_PATH_RE.search(source):
+        lineage = lineages[document.front["id"]]
+        label = next(r.label for r in lineage.revisions if r.path == root / source)
+        tail = [(f"ADR {lineage.number}", None), (f"revision {label}", None)]
+    elif section.name == "Projects":
+        tail = [(Path(source).stem, None)]
+    elif section.name == "Topics" and source.count("/") >= 3:
+        group = source.split("/")[2]
+        tail = [(group, f"{base}topics/#{group}" if group in topic_groups else None), (title, None)]
+    else:
+        tail = [(title, None)]
+    items = [{"label": section.name, "href": landing if tail else None}] + [{"label": label, "href": href} for label, href in tail]
+    guide = section.guide and f"{base}{section.guide}" if source != "docs/decisions/README.md" else None
+    return {"trail": items, "guide": guide, "guide_label": section.guide_label}
 
 
 def integrity(data: bytes) -> str:
@@ -396,6 +509,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
                 legend=[inline(paragraph, resolve) for paragraph in legend],
                 sections=sections,
                 headings=headings[1:],
+                crumbs=_crumbs(Document(view.source, view.slug, {}), title, "../", lineages, root, set()),
                 nav=nav(view.slug, 1),
                 base="../",
                 home="../",
@@ -406,9 +520,11 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
             .encode("utf-8")
         )
     pages: list[tuple[Document, Rendered]] = []
+    readme: dict | None = None
     for document in documents:
         resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
         pages.append((document, render((root / document.source).read_text(encoding="utf-8"), resolve, document.source)))
+    topic_groups = {h.id for document, page in pages if document.source == "docs/topics/README.md" for h in page.headings}
     sources = [(document, diagram) for document, page in pages for diagram in page.diagrams]
     try:
         drawn = iter(draw([diagram.code for _, diagram in sources]))
@@ -421,11 +537,30 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         for number in range(len(page.diagrams)):
             body = body.replace(MARKER.format(number), _figure(next(drawn)))
         resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
-        if REVISION_PATH_RE.search(document.source):
+        revision_page = bool(REVISION_PATH_RE.search(document.source))
+        if revision_page:
             facts, notice = _decision_facts(document, documents, lineages, root, resolve)
         else:
             facts, notice = (_project_facts(document, documents, resolve) if document.source.startswith("docs/projects/") and document.front else []), ""
         base = "../" * document.depth
+        lead, pager, headings = "", "", page.headings
+        if revision_page:
+            lead, pager = _lineage_strip(document, lineages, root, resolve), _pager(document, lineage_list, root, resolve)
+        if document.source == "docs/projects/README.md":
+            if {"project-list", "guide"} & {h.id for h in page.headings}:
+                raise ValueError(f"{document.source} has a heading with the anchor of the project list or of the guide")
+            table = _table(_project_list(documents), resolve)
+            lead = f'<section id="project-list"><h2>The projects</h2>{table}</section>\n<h2 id="guide">Guide to projects</h2>\n'
+            headings = (Heading(2, "project-list", "The projects"), Heading(2, "guide", "Guide to projects"), *page.headings)
+        if not document.slug:
+            readme = {
+                "title": page.title,
+                "id": page.title_id,
+                "body": body,
+                "headings": page.headings,
+                "source_url": f"{REPO_URL}/blob/{BRANCH}/{document.source}",
+            }
+            continue
         files[f"{document.slug}/index.html"] = (
             env.get_template("document.html.j2")
             .render(
@@ -434,8 +569,11 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
                 summary=document.front.get("summary", ""),
                 facts=facts,
                 notice=notice,
+                lead=lead,
+                pager=pager,
+                crumbs=_crumbs(document, page.title, base, lineages, root, topic_groups),
                 body=body,
-                headings=page.headings,
+                headings=headings,
                 source_url=f"{REPO_URL}/blob/{BRANCH}/{document.source}",
                 nav=nav(document.slug, document.depth),
                 base=base,
@@ -450,6 +588,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         env.get_template("home.html.j2")
         .render(
             views=[{"href": f"{slug}/", "label": label, "blurb": HOME[slug]} for source, slug, label in NAV if source in targets],
+            readme=readme,
             nav=nav(None, 0),
             base="",
             home="",

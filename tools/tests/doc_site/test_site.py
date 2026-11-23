@@ -22,6 +22,8 @@ PAGES = {
     "decisions/0002-b/revision-000/index.html",
     "topics/index.html",
     "topics/infra/network/index.html",
+    "architecture/index.html",
+    "architecture/flow/index.html",
 }
 STAMP = site.Stamp("0123456789abcdef0123456789abcdef01234567", "2026-11-21T16:12:00+08:00")
 
@@ -60,6 +62,12 @@ def test_the_stylesheet_is_the_vendored_file(tree):
     assert files[asset(files, "simple", "css")] == (site.PACKAGE / "vendor/simple.min.css").read_bytes()
 
 
+def test_a_view_has_no_reading_measure_and_a_document_has_one_for_its_prose():
+    css = (site.PACKAGE / "assets/site.css").read_text(encoding="utf-8")
+    assert "max-width:70ch" not in css
+    assert ".doc>:is(p,ul,ol,blockquote,dl,h1,h2,h3,h4,h5,h6){max-width:72ch}" in css
+
+
 def test_the_licence_served_is_the_vendored_one(tree):
     assert site.build(tree)["assets/simple-licence.txt"] == (site.PACKAGE / "vendor/simple.LICENSE").read_bytes()
 
@@ -96,6 +104,8 @@ def test_the_anchors_a_link_can_name_are_those_of_the_headings(tree):
         "decisions/0002-b/revision-000",
         "topics",
         "topics/infra/network",
+        "architecture",
+        "architecture/flow",
     }
     built = site.build(tree)
     for view in site.VIEWS:

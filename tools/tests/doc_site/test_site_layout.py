@@ -113,3 +113,16 @@ def test_the_pages_of_a_site_are_its_urls(tmp_path):
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_text("x", encoding="utf-8")
     assert layout.pages_of(tmp_path) == ["/", "/a/", "/b/c/"]
+
+
+def test_a_width_that_changes_the_page_is_judged_after_the_page_is_resized(tmp_path):
+    body = "<style>@media (max-width:400px){p{font-size:9px}}</style><p>x</p>"
+    assert [error.split(": ")[0] for error in problems(tmp_path, body, (360, 768))] == ["/ at 360px"]
+
+
+def test_pages_shared_among_browsers_are_reported_in_the_order_of_the_pages_and_widths(tmp_path):
+    for name in "abcde":
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "index.html").write_text(PAGE.format(body='<p style="font-size:9px">x</p>'), encoding="utf-8")
+    errors = layout.check(tmp_path, (390, 360), workers=3)
+    assert [error.split(": ")[0] for error in errors] == [f"/{name}/ at {width}px" for name in "abcde" for width in (390, 360)]

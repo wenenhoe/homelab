@@ -1,4 +1,4 @@
-// Row filter and the menu drawer. Without scripts the pages are complete: the links show as a plain navigation.
+// Row filter, the menu drawer and the contents list, which is open in the markup and closed here on a narrow screen. Without scripts the pages are complete: the links show as a plain navigation.
 (function () {
   var q = document.getElementById('q');
   if (q) {
@@ -14,6 +14,13 @@
         });
       });
     });
+  }
+  var list = document.querySelector('.toc details');
+  if (list && window.matchMedia) {
+    var wide = window.matchMedia('(min-width: 1100px)');
+    var sync = function () { list.open = wide.matches; };
+    sync();
+    wide.addEventListener('change', sync);
   }
   var d = document.getElementById('drawer');
   var b = document.querySelector('.menu-btn');

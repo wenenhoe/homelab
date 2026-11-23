@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import shutil
 
 import pytest
@@ -208,3 +210,63 @@ def test_check_opens_only_the_pages_it_is_given(tmp_path):
         (tmp_path / name).mkdir()
         (tmp_path / name / "index.html").write_text(PAGE.format(body='<p style="font-size:9px">x</p>'), encoding="utf-8")
     assert [e.split(": ")[0] for e in layout.check(tmp_path, (390,), pages=["/b/"])] == ["/b/ at 390px"]
+
+
+@pytest.mark.parametrize(
+    ("path", "page"),
+    [
+        ("docs/topics/deploy/ansible.md", "/topics/deploy/ansible/"),
+        ("docs/topics/README.md", "/topics/"),
+        ("docs/README.md", "/"),
+        ("docs/decisions/0001-a/revision-001.md", "/decisions/0001-a/revision-001/"),
+        ("docs/projects/doc-site-pages.md", "/projects/doc-site-pages/"),
+        ("tools/doc_site/layout.py", None),
+        ("docs/diagram.png", None),
+        ("README.md", None),
+    ],
+)
+def test_a_changed_document_is_the_page_the_site_builds_for_it(path, page):
+    assert layout.page_of_document(path) == page
+    if page is not None:
+        assert page.strip("/") == site._slug(path)
+
+
+def test_the_sample_adds_the_page_of_each_changed_document_that_has_one(tmp_path):
+    a_site(tmp_path, 5)
+    sample = layout.sample_of(tmp_path, ["docs/topics/doc-004.md", "docs/decisions/doc-003.md", "docs/topics/gone.md", "tools/x.py"])
+    assert {"/topics/doc-004/", "/decisions/doc-003/"} <= set(sample)
+    assert "/topics/gone/" not in sample and len(sample) == len(layout.sample_of(tmp_path)) + 2
+
+
+def test_a_changed_page_already_in_the_sample_is_not_added_twice(tmp_path):
+    a_site(tmp_path, 5)
+    assert layout.sample_of(tmp_path, ["docs/topics/doc-000.md", "docs/topics/README.md"]) == layout.sample_of(tmp_path)
+
+
+def run_main(tmp_path, changed: list[str], *flags: str) -> str:
+    listing = tmp_path / "changed.txt"
+    listing.write_text("\n".join(changed) + "\n", encoding="utf-8")
+    site_dir = tmp_path / "site"
+    a_site(site_dir, 5)
+    (site_dir / "topics/doc-004/index.html").write_text(PAGE.format(body='<p style="font-size:9px">x</p>'), encoding="utf-8")
+    buffer = io.StringIO()
+    with contextlib.redirect_stderr(buffer):
+        layout.main([*flags, "--changed", str(listing), str(site_dir)])
+    return buffer.getvalue()
+
+
+def test_a_fault_on_a_changed_document_fails_the_sample(tmp_path):
+    assert "/topics/doc-004/ at 360px" in run_main(tmp_path, ["docs/topics/doc-004.md"], "--sample")
+
+
+def test_a_fault_on_a_page_nothing_changed_passes_the_sample(tmp_path):
+    assert run_main(tmp_path, ["docs/topics/doc-001.md"], "--sample") == ""
+
+
+def test_a_change_to_the_renderer_checks_every_page(tmp_path):
+    assert "/topics/doc-004/ at 360px" in run_main(tmp_path, ["tools/doc_site/site.py"], "--sample")
+
+
+def test_changed_without_sample_is_refused(tmp_path):
+    with pytest.raises(SystemExit):
+        run_main(tmp_path, [])

@@ -141,13 +141,24 @@ class TestPullRequestJob:
     def test_detect_changes_passes_the_filters_verdict_on(self, pr_checks):
         assert pr_checks["jobs"]["detect-changes"]["outputs"]["doc_site"] == "${{ steps.filter.outputs.doc_site }}"
 
-    def test_it_builds_as_the_deploy_does_and_checks_a_sample_of_the_pages_where_the_deploy_checks_all(self, pr_checks, workflow):
+    def test_it_builds_as_the_deploy_does_and_checks_a_sample_where_the_deploy_checks_all(self, pr_checks, workflow):
         pr, deploy = pr_checks["jobs"]["doc-site"], workflow["jobs"]["build"]
         commands = lambda job: [step["run"] for step in job["steps"] if "doc_site" in step.get("run", "")]  # noqa: E731
         (pr_build, pr_layout), (deploy_build, deploy_layout) = commands(pr), commands(deploy)
         assert pr_build == deploy_build
-        assert pr_layout == deploy_layout.replace("doc_site.layout ", "doc_site.layout --sample ")
+        assert pr_layout.startswith("uv run --locked python -m doc_site.layout --sample ") and pr_layout.endswith('"$RUNNER_TEMP/site"')
         assert "--sample" not in deploy_layout
+
+    def test_the_sample_also_covers_the_documents_the_pull_request_changes(self, pr_checks):
+        job = pr_checks["jobs"]["doc-site"]
+        (checkout,) = [step for step in job["steps"] if step.get("name") == "Checkout"]
+        diff = job["steps"][step_index(job, "git diff --name-only")]
+        layout = job["steps"][step_index(job, "python -m doc_site.layout")]
+        assert checkout["with"]["fetch-depth"] == 0
+        assert diff["env"] == {"BASE": "${{ github.event.pull_request.base.sha }}", "HEAD": "${{ github.event.pull_request.head.sha }}"}
+        assert step_index(job, "git diff --name-only") < step_index(job, "python -m doc_site.layout")
+        changed = re.search(r'> "(\$RUNNER_TEMP/[^"]+)"', diff["run"])[1]
+        assert f'--changed "{changed}"' in layout["run"]
 
     def test_it_deploys_nothing_and_holds_no_write_permission(self, pr_checks):
         job = pr_checks["jobs"]["doc-site"]

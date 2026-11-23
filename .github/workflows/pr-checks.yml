@@ -605,9 +605,10 @@ jobs:
         working-directory: tools
 
   # Builds the documentation site and checks the layout of a sample of its pages
-  # at phone widths. pages.yml runs the same two steps over every page before it
-  # deploys, which is too slow for a pull request — see
-  # docs/topics/engineering/doc-site.md. Deploys nothing and holds no credential.
+  # and of the pages of the documents the PR changes, at phone widths; a change to
+  # the renderer is checked against every page. pages.yml runs the same two steps
+  # over every page before it deploys — see docs/topics/engineering/doc-site.md.
+  # Deploys nothing and holds no credential.
   # Not a matrix job, so it can be required directly: a PR that changes neither
   # the site's code nor what it is built from reports it skipped.
   doc-site:
@@ -619,6 +620,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # the diff needs both the base and head commits
           persist-credentials: false
 
       - name: Setup uv
@@ -630,9 +632,15 @@ jobs:
         run: uv run --locked python -m doc_site --commit "$GITHUB_SHA" --out "$RUNNER_TEMP/site"
         working-directory: tools
 
+      - name: List the paths the PR changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: git diff --name-only "$BASE" "$HEAD" > "$RUNNER_TEMP/changed.txt"
+
       # Chrome comes with the runner image.
-      - name: Check the layout of a sample of pages at phone widths
-        run: uv run --locked python -m doc_site.layout --sample "$RUNNER_TEMP/site"
+      - name: Check the layout of a sample of pages and of the changed documents at phone widths
+        run: uv run --locked python -m doc_site.layout --sample --changed "$RUNNER_TEMP/changed.txt" "$RUNNER_TEMP/site"
         working-directory: tools
 
   # Formatting, validation and the mocked-provider tests of the root module in

@@ -109,6 +109,8 @@ The check serves a built site on localhost and opens every page in the installed
 
 `python -m doc_site.layout --sample /tmp/site` opens a fixed set instead of every page: the home page, every page one directory deep (the three views and the landing of each section, the Topics index among them), the first page of each of Projects, Decisions, Topics and Architecture, and the page with a contents list that has the most markup, which is the longest document. It takes about seven seconds where the full run takes about a minute. The set does not grow with the number of pages, and `layout.MAX_SAMPLE` bounds it, which a test holds with a site of hundreds of pages, so a new view or section that pushes the sample past it fails there and not as a slow pull request.
 
+`--changed FILE`, with `--sample`, reads the paths a change touches, one to a line, and adds the page of each document among them: `docs/topics/a/b.md` is `topics/a/b/`, a README is its directory's page and the README of `docs/` is the home page. A document's layout comes from its own text and the renderer, so a fault a change makes in a document is found on the pages the change names. A path under `tools/doc_site/` can break any page, so it checks every page, as a run without `--sample` does. The pages a change names are the most a sample can grow by, and every page is the most a run can open.
+
 A check on what the page measures cannot see a layout that is readable by the numbers and wrong to the eye, such as words broken in the middle in a narrow column. Reading the page on a phone is still how that is found.
 
 ## Publishing
@@ -122,7 +124,7 @@ One run goes at a time and one waits, and a newer waiting run replaces an older 
 
 Two settings are the maintainer's and live on GitHub: the repository's Pages source is GitHub Actions, and the `github-pages` environment accepts a deployment from `main` only. The workflow sets neither, and a deployment from another branch is refused by the environment, not by this file.
 
-The `doc-site` job in `pr-checks.yml` runs the same build on a pull request that changes the renderer, the generator or what they read, which includes every document under `docs/` ([change scoping](ci/change-scoping.md)), and checks the layout of the sample above, where the deploy checks every page. It deploys nothing and has no write permission. A layout fault on a page the sample leaves out is found by the deploy's run, before that deployment.
+The `doc-site` job in `pr-checks.yml` runs the same build on a pull request that changes the renderer, the generator or what they read, which includes every document under `docs/` ([change scoping](ci/change-scoping.md)), and checks the layout of the sample above with the pages of the documents the pull request changes, or of every page when it changes the renderer, where the deploy checks every page. It lists the changed paths with `git diff` between the pull request's base and head commits, so its checkout has the whole history. It deploys nothing and has no write permission. A layout fault the pull request does not cause in a page it does not name is found by the deploy's run, before that deployment.
 
 ## Subresource integrity
 

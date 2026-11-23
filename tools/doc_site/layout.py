@@ -12,6 +12,8 @@ Usage (from tools/): python -m doc_site.layout [--sample] SITE_DIR
 
 `--sample` opens a fixed set of pages instead of all of them: the home page, every view and section landing, one page of each section
 and the longest page with a contents list. The set does not grow with the number of pages, so a pull request's run takes a bounded time.
+`--changed FILE` names the paths a change touches, one to a line: the sample then also opens the page of each document among them, and
+every page is opened when one is under `tools/doc_site/`, since the renderer shapes them all.
 """
 
 from __future__ import annotations
@@ -42,6 +44,8 @@ SECTIONS = ("projects", "decisions", "topics", "architecture")
 # The most pages `sample_of` may return, however many the site has: the home page, the views and the landings, a page of each section
 # and a long one, with room for a view or two. A test holds the sample to it.
 MAX_SAMPLE = 16
+# A change under this directory can break any page, so it is checked against all of them.
+RENDERER = "tools/doc_site/"
 # What marks such a page.
 ORIENTED = "() => document.querySelector('nav.toc, .tabs') !== null"
 # Two frames: a change of width reaches a script's media query listener on the next one, before the page is measured.
@@ -165,11 +169,22 @@ def pages_of(directory: Path) -> list[str]:
     return sorted(paths)
 
 
-def sample_of(directory: Path) -> list[str]:
+def page_of_document(path: str) -> str | None:
+    """The address of the page of the repository file `path`, or None when it is not a markdown file under `docs/`. A README is the page
+    of its directory and the README of `docs/` is the home page, as in `doc_site.site`."""
+    if not (path.startswith("docs/") and path.endswith(".md")):
+        return None
+    slug = path.removeprefix("docs/").removesuffix(".md")
+    slug = "" if slug == "README" else slug.removesuffix("/README")
+    return f"/{slug}/" if slug else "/"
+
+
+def sample_of(directory: Path, changed: Sequence[str] = ()) -> list[str]:
     """A fixed set of the pages of the site in `directory`, in the order of `pages_of`: the home page, every page one directory deep (the
     views and the landings of the sections, the Topics index among them), the first page in each section, and the page with a contents
-    list that has the most markup, which is the longest document. Every kind of page is in it once at least, and its size does not depend
-    on how many pages the site has."""
+    list that has the most markup, which is the longest document, and the page of each document in `changed`, the paths a change touches,
+    that has one. Every kind of page is in it once at least, and its size does not depend on how many pages the site has, only on how many
+    the change names."""
     pages = pages_of(directory)
     chosen = {path for path in pages if path.count("/") <= 2}
     for section in SECTIONS:
@@ -177,6 +192,7 @@ def sample_of(directory: Path) -> list[str]:
     long = [path for path in pages if 'class="toc"' in (directory / path.strip("/") / "index.html").read_text(encoding="utf-8")]
     if long:
         chosen.add(max(long, key=lambda path: ((directory / path.strip("/") / "index.html").stat().st_size, path)))
+    chosen.update(path for path in map(page_of_document, changed) if path in pages)
     return [path for path in pages if path in chosen]
 
 
@@ -262,15 +278,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("site", type=Path, help="a built site's directory")
     parser.add_argument("--sample", action="store_true", help="open a fixed set of pages instead of every page")
+    parser.add_argument("--changed", type=Path, help="with --sample, a file of the paths a change touches, one to a line")
     args = parser.parse_args(argv)
-    pages = sample_of(args.site) if args.sample else pages_of(args.site)
+    if args.changed and not args.sample:
+        parser.error("--changed goes with --sample")
+    changed = args.changed.read_text(encoding="utf-8").splitlines() if args.changed else []
+    everything = not args.sample or any(path.startswith(RENDERER) for path in changed)
+    pages = pages_of(args.site) if everything else sample_of(args.site, changed)
     errors = check(args.site, pages=pages)
     for error in errors:
         print(f"error: {error}", file=sys.stderr)
     if not errors:
         phones = ", ".join(f"{w}x{h}" for w, h in VIEWPORTS)
         wide = f"{WIDE_VIEWPORT[0]}x{WIDE_VIEWPORT[1]}"
-        which = f"{len(pages)} of {len(pages_of(args.site))} pages" if args.sample else f"{len(pages)} pages"
+        which = f"{len(pages)} pages" if everything else f"{len(pages)} of {len(pages_of(args.site))} pages"
         print(f"Layout ok: {which} at {phones}px, and at {wide}px where a page has a list or tabs.")
     return 1 if errors else 0
 

@@ -196,31 +196,21 @@ and how to run them and what the harness does is in
   `.bats` file per script, named for it with underscores
   (`run_restore.sh` is `run_restore.bats`).
 - **Setup.** Setup stays in `setup`, never at file level: Bats evaluates a
-  test file more than once. `setup` loads `test_helper/harness`, calls
-  `harness_setup` and installs the script under test with `install_script`;
-  `teardown` calls `harness_teardown`, which fails a test that ran a tool it
-  did not stub.
-- **Stubs.** The harness stubs every external tool a script under test
-  calls so that it fails; a test replaces the ones it needs with `stub`,
-  and the body it gives decides the exit status. A tool a script starts to
-  call is added to `HARNESS_EXTERNAL_TOOLS`. A stub logs its arguments, so
-  a test that asserts on a call asserts the whole line, not that the call
-  happened. A test varies a stub's behaviour with an environment variable
-  set for one `run`, not with a second stub.
+  test file more than once. `setup` loads `test_helper/harness` and calls
+  `harness_setup`; `teardown` calls `harness_teardown`, which fails a test
+  that ran a tool it did not stub
+  ([the harness](../testing/shell-tests.md#the-harness)).
+- **Stubs.** A test replaces the stubs it needs with `stub`, and varies one's
+  behaviour with an environment variable set for one `run`, not with a second
+  stub. A tool a script starts to call is added to `HARNESS_EXTERNAL_TOOLS`.
+  A test that asserts on a call asserts the whole logged line, not that the
+  call happened.
 - **Assertions.** A test ends in an assertion on an outcome the script
   decides: an exit status (`run -N`), an output line, a file or directory
   that exists or does not, or the order of calls in the stub log. A negated
   check is `run !`, never a bare `!`, which does not fail a Bats test;
   `shellcheck` flags it. A test for a side effect asserts the side effect
   happened, as in the Python tests above.
-- **Templates.** A `.sh.j2` template is rendered with `render_template`
-  and the variables the test gives it, and the rendered file is the script
-  under test. The render fails on a variable the test leaves out, so a test
-  gives every variable the template uses.
-- **Isolation.** A test writes only under its own temporary directory.
-  The harness points `TMPDIR` and `HOME` there and copies the script under
-  test into it, so what the script finds relative to itself is the test's
-  directory.
 - **Lint.** The `shellcheck` hook reads the `.bats` files and the harness
   as it reads the scripts; no other hook is involved.
 

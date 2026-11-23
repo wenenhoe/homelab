@@ -28,7 +28,7 @@ Every entry is at the *listed* tier of [ADR 0107 (Pinned artifact provenance)](.
 
 The `shell-tests` job of `pr-checks.yml` fetches the clones on every pull request it runs for ([CI Shell Tests](shell-tests.md#in-ci)), and checks the pins when the pin file or the tooling beside it changed.
 
-`check-shell-test-pins.yml` runs the same check once a week and on demand, so a tag the publisher moves or deletes is noticed when no pin changed ([scheduled jobs](../engineering/ci/scheduled-jobs.md#shell-test-pin-check)). It needs no token: the repositories are public and the workflow reads nothing else.
+`check-shell-test-pins.yml` runs the same check once a week and on demand, so a tag the publisher moves or deletes is noticed when no pin changed ([scheduled jobs](../engineering/ci/scheduled-jobs.md#weekly-pin-checks)). It needs no token: the repositories are public and the workflow reads nothing else.
 
 ## Bumps
 

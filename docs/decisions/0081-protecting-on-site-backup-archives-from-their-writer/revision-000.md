@@ -177,16 +177,20 @@ flags and the same identity shapes as production:
   against a target created the way production will be.
 - **Claim:** a stopped or failing worker is noticed before the disk fills.
   **Breaks if wrong:** lifecycle stops silently and the bucket grows.
-  **Checked by:** naming the signal before approval, such as a check that fails
-  when noncurrent versions older than the lock window plus two days exist, and
-  testing that it fires with the worker stopped.
+  **Checked by:** a check on `storage` that pushes its heartbeat to Gatus only
+  while no noncurrent version older than the lock window plus two days exists,
+  so a stopped worker shows as silence
+  ([ADR 0072 (Job heartbeats)](../0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)),
+  and a Molecule scenario that stops the worker and shows the heartbeat
+  withheld.
 - **Claim:** the data volume has room for the retention window plus two days of
   the largest app's archives, with the rest of the host's use on top.
   **Breaks if wrong:** the disk fills, and a locked archive cannot be removed over
   S3 to make room.
   **Checked by:** the volume's free space against the largest app's archive size,
-  before the conversion, and a signal on the volume's free space afterwards, named
-  before approval like the one above and tested the same way.
+  before the conversion, and afterwards a heartbeat check of the same kind on the
+  volume's free space, withheld below a threshold kept in the repository and
+  tested the same way.
 
 ## Consequences
 

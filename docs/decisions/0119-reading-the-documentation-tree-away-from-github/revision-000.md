@@ -23,11 +23,11 @@ A reader who follows a row of a generated view, or reads on a phone, has to leav
 ## Context
 
 - [ADR 0117 (Generated doc views)](../0117-delivering-the-generated-doc-views-to-readers/revision-000.md) publishes the three generated views and lists topic docs, decisions and projects as non-goals. Every project and decision a row names is a link to GitHub, and the views are the pages readers arrive on.
-- **What there is to render.** About 300 markdown files under `docs/`: 105 topic docs, 34 projects, 128 decision revisions, the architecture diagrams, the READMEs and the explorations. They hold paragraphs, lists (about 200 task-list items), tables, fenced blocks, one blockquote and one HTML comment. Nothing uses a GitHub alert, a footnote or raw HTML apart from the comment.
-- **The renderer reads them.** markdown-it-py, already in the lock file through another package, parses every one of those files under its CommonMark rules with tables enabled, and no block type appears that the list above does not cover. The doc site's own renderer, which handles a link, a code span and bold text, refuses anything else, and that refusal is what keeps a view from showing markup wrongly.
-- **The diagrams render at build time.** 48 Mermaid blocks in 44 files render to SVG, with no failure, in one headless Chrome page in about ten seconds, from the single bundle `mermaid.min.js` of Mermaid 11 (about 3.5 MB). The runner has Chrome and `playwright` is a dev dependency. The rendered SVG totals about 1.8 MB and the largest is about 240 KB. A diagram's colours are fixed in its SVG, so a dark page needs a second rendering.
+- **What there is to render.** About 300 markdown files under `docs/`: topic docs, projects, decision revisions, the architecture diagrams, the READMEs and the explorations. They hold paragraphs, lists with task-list items, tables, fenced blocks, one blockquote and one HTML comment, and nothing uses a GitHub alert, a footnote or raw HTML.
+- **The renderer reads them.** markdown-it-py, already in the lock file through another package, parses every one of those files under its CommonMark rules with tables enabled. The doc site's own renderer, which handles a link, a code span and bold text, refuses anything else, and that refusal is what keeps a view from showing markup wrongly.
+- **The diagrams render at build time.** Every Mermaid block renders to SVG in one headless Chrome page in about ten seconds, from the single bundle `mermaid.min.js` of Mermaid 11 (about 3.5 MB). The runner has Chrome and `playwright` is a dev dependency. A diagram's colours are fixed in its SVG, so a dark page needs a second rendering.
 - **Anchors.** Docs and the drift check use the anchor GitHub gives a heading ([`doc-site.md`](../../topics/engineering/doc-site.md#anchors-and-links)); the site already computes it.
-- **Limits.** A Pages site is limited to 1 GB and a deployment times out after 10 minutes. About 300 pages and the diagrams are small against both. The layout check opens every page at five sizes, so its time grows with the page count.
+- **Limits.** A Pages site is limited to 1 GB and a deployment times out after 10 minutes. About 300 pages and the diagrams are small against both. The layout check opens every page at several sizes, so its time grows with the page count.
 - **Explorations.** Nothing durable may point at an exploration, because it is deleted when it ends.
 
 ## Decision
@@ -41,7 +41,6 @@ The doc site publishes the documentation tree as pages, built by the renderer it
 - **Diagrams.** A Mermaid block is drawn to SVG during the build in headless Chrome, from a bundle committed and pinned as the stylesheet is, in a light and a dark rendering that the page chooses between by `prefers-color-scheme`. No script reaches the reader. A diagram that fails to render fails the build.
 - **Navigation.** The site gains Topics, Projects, Decisions and Architecture alongside the three views, which keep the build that makes them and their card layout on a phone. A generated view's rows link to the pages. The home page carries `docs/README.md`, and each section opens on its list, with its README one link away from every page of the section.
 - **Reading aids.** A decision page links every revision of its lineage and the neighbouring ADRs by number, and a page's prose has one reading measure. The decision index may lay its rows out for finding a decision, with its numbers ten to a row and its topic groups as tabs, in the markdown view and on the site, provided every row's content stays in the view, a group stays reachable by its anchor and by the filter, and every group shows when the stylesheet is not applied. A document page with several headings lists them on the page, beside the prose on a wide screen and above it on a phone, and the index of topics shows its groups as tabs on the site with a filter over its links, on the same terms. These aids are made from a page's own headings and links, so no source document carries markup for them, and they hide nothing from a reader without the stylesheet.
-- **Order.** Projects first, since the planning view links to them and they hold the least markup; then topic docs with their diagrams; then decisions; then the reading aids, the contents of a long page last of them; then the checks that scale with the page count.
 
 ```mermaid
 flowchart LR
@@ -76,8 +75,8 @@ The diagram shows the design as this revision decided it, not what runs now.
 - A page can differ from GitHub's in small ways, such as spacing, so each page links to its source.
 - A contents list takes width from a table beside it, and the layout check, which stops at phone and tablet widths, gains a wide size for the pages that have one.
 - The decision index's markdown view changes with its page, so a reader of either finds a decision the same way, and the grid has to stay readable on GitHub.
-- The deployed site grows by about 1 MB of HTML and about 3.5 MB of SVG for the two renderings.
-- [`doc-site.md`](../../topics/engineering/doc-site.md) describes the behaviour as each stage lands.
+- The deployed site grows by the HTML of every document and the SVG of every diagram in two renderings, a few megabytes in all.
+- [`doc-site.md`](../../topics/engineering/doc-site.md) describes the behaviour.
 
 ## Invariants
 

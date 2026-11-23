@@ -74,3 +74,75 @@ def test_scan_reports_a_line_once_for_each_category_it_matches() -> None:
 )
 def test_level(changes: list[Update], found: list[Flag], expected: str) -> None:
     assert flags.level(changes, found) == expected
+
+
+BENTOPDF_NOTES = """### [`v2.8.12`](https://example.test/releases/tag/v2.8.12): Sort and nginx fix - v2.8.12
+
+> \\[!WARNING]
+> Docker images now ship nginx 1.31.9, which fixes the ten nginx CVEs published on Nov 18 (including CVE-2026-123007).
+> **All users are strongly advised to upgrade to v2.8.12 immediately.**
+
+#### New
+
+- Sort your file lists by name, modified date or size.
+
+#### Fixes
+
+- Workflows: pages with JPEG2000 images no longer render blank, and the Remove Blank Pages node works again.
+- Polish is now detected correctly as a language.
+"""
+
+
+def test_scan_reads_a_github_alert_and_a_cve_and_not_a_fix_that_says_no_longer() -> None:
+    found = flags.scan(BENTOPDF_NOTES)
+
+    assert [(flag.category, flag.line[:40]) for flag in found] == [
+        ("warning", "> \\[!WARNING]"),
+        ("security", "> Docker images now ship nginx 1.31.9, w"),
+    ]
+    assert flags.level([], found) == flags.LEVEL_BREAKING
+
+
+@pytest.mark.parametrize("heading", ["#### Fixes", "##### 🦋 Bug Fixes", "### Fixed", "## Bugfixes"])
+def test_scan_leaves_the_weaker_words_alone_under_a_heading_of_fixes(heading: str) -> None:
+    assert flags.scan(f"{heading}\n\n- Pages no longer render blank\n- Removed a stray warning") == []
+
+
+def test_scan_reads_the_weaker_words_again_under_the_next_heading() -> None:
+    found = flags.scan("#### Fixes\n\n- Pages no longer render blank\n\n#### Changes\n\n- Docker is no longer required")
+
+    assert [(flag.category, flag.line) for flag in found] == [("removal", "- Docker is no longer required")]
+
+
+def test_scan_does_not_take_a_release_title_that_says_fix_for_a_section_of_fixes() -> None:
+    found = flags.scan("### [v2.8.12](https://example.test): Sort and nginx fix\n\n- Docker is no longer required")
+
+    assert [flag.category for flag in found] == ["removal"]
+
+
+def test_scan_still_reads_a_breaking_change_under_a_heading_of_fixes() -> None:
+    assert [flag.category for flag in flags.scan("#### Fixes\n\n- BREAKING: the flag was changed")] == ["breaking"]
+
+
+@pytest.mark.parametrize("empty", ["* *Nothing*", "- None", "* n/a", "- No changes."])
+@pytest.mark.parametrize("heading", ["##### Deprecated", "##### Removed", "#### 🗑 Removals", "### Deprecations"])
+def test_scan_ignores_a_removed_or_deprecated_heading_with_nothing_under_it(heading: str, empty: str) -> None:
+    assert flags.scan(f"{heading}\n\n{empty}\n\n##### Fixed\n\n* A fix") == []
+
+
+def test_scan_ignores_a_removed_heading_followed_directly_by_the_next_heading() -> None:
+    assert flags.scan("##### Removed\n\n##### Fixed\n\n* A fix") == []
+
+
+def test_scan_ignores_a_removed_heading_at_the_end_of_the_text() -> None:
+    assert flags.scan("- A change\n\n##### Removed") == []
+
+
+def test_scan_reports_a_removed_heading_with_an_entry_under_it() -> None:
+    found = flags.scan("##### Removed\n\n* The `--legacy` option\n\n* Python 3.9 support")
+
+    assert [(flag.category, flag.line) for flag in found] == [("removal", "##### Removed")]
+
+
+def test_scan_reports_a_deprecated_heading_with_an_entry_under_it() -> None:
+    assert [(flag.category, flag.line) for flag in flags.scan("##### Deprecated\n\n* `--old` will go in 3.0")] == [("deprecation", "##### Deprecated")]

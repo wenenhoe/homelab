@@ -8,13 +8,15 @@ from dataclasses import dataclass
 CHANGE_RE = re.compile(r"`([^`]+)`\s*(?:→|->|➔)\s*`([^`]+)`")
 FIRST_LINK_TEXT_RE = re.compile(r"\[([^\]]+)\]")
 # A number that runs straight into letters is a digest, not a version: `4e2425f` is not version 4.
-VERSION_RE = re.compile(r"v?(\d+)(?:\.(\d+))?(?![0-9A-Za-z])")
+VERSION_RE = re.compile(r"[=~^<>!v ]*(\d+)(?:\.(\d+))?(?![0-9A-Za-z])")
 NOTES_HEADING_RE = re.compile(r"^#{2,4}[ \t]*Release Notes[ \t]*$", re.MULTILINE)
 CONFIGURATION_HEADING_RE = re.compile(r"^#{2,4}[ \t]*Configuration[ \t]*$", re.MULTILINE)
 COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 SUMMARY_RE = re.compile(r"<summary>\s*(.*?)\s*</summary>", re.DOTALL)
 DETAILS_RE = re.compile(r"</?details>")
 BLANK_RUN_RE = re.compile(r"\n{3,}")
+# Renovate writes an invisible character after each `@` and `#` in copied notes so that they notify nobody; read as text it is noise.
+ZERO_WIDTH_ENTITY = "&#8203;"
 
 MAJOR = "major"
 PRE_1_0_MINOR = "pre-1.0 minor"
@@ -79,5 +81,6 @@ def notes(body: str) -> str:
     section = COMMENT_RE.sub("", section)
     section = SUMMARY_RE.sub(lambda found: f"**{' '.join(found.group(1).split())}**", section)
     section = DETAILS_RE.sub("", section)
+    section = section.replace(ZERO_WIDTH_ENTITY, "")
     section = BLANK_RUN_RE.sub("\n\n", section).strip()
     return section.removesuffix("---").strip()

@@ -13,6 +13,8 @@ from renovate_merge.flags import LEVEL_ORDER
 DEFAULT_NOTES_CHARACTERS = 3000
 MAX_FLAGGED_LINES = 12
 BACKTICK_RUN_RE = re.compile(r"`+")
+# Each package of a grouped pull request starts with its name in bold on a line of its own, which `changelog.notes` writes from Renovate's `<summary>`.
+PACKAGE_START_RE = re.compile(r"^(?=\*\*[^*\n]+\*\*$)", re.MULTILINE)
 
 
 def fence(text: str) -> str:
@@ -25,6 +27,15 @@ def cell(text: str) -> str:
     return " ".join(text.split()).replace("|", "\\|")
 
 
+def clip(notes: str, limit: int) -> tuple[str, bool]:
+    """The notes with each package cut to `limit` characters, so a long first package cannot push the others out of the summary; and whether any was cut."""
+    blocks = [block.strip() for block in PACKAGE_START_RE.split(notes) if block.strip()]
+    shown = [
+        block if len(block) <= limit else f"{block[:limit].rstrip()}\n… [{len(block) - limit} more characters of this package's notes]" for block in blocks
+    ]
+    return "\n\n".join(shown), any(len(block) > limit for block in blocks)
+
+
 def _section(pull: Pull, limit: int) -> str:
     lines = [f"## #{pull.number} {cell(pull.title)}", "", f"{pull.url} · level `{pull.level}` · head `{pull.head_sha[:7]}`", ""]
     lines += [f"- {cell(update.name)}: `{update.old}` → `{update.new}` ({update.kind})" for update in pull.updates] or ["- no version change in the table"]
@@ -35,9 +46,9 @@ def _section(pull: Pull, limit: int) -> str:
     if not pull.notes:
         lines += ["", "No release notes in the description (a pin, a digest or a lockfile update)."]
     else:
-        clipped = len(pull.notes) > limit
-        heading = f"Release notes, the first {limit} of {len(pull.notes)} characters:" if clipped else "Release notes:"
-        lines += ["", heading, "", fence(pull.notes[:limit])]
+        text, clipped = clip(pull.notes, limit)
+        heading = f"Release notes, each package cut to its first {limit} characters:" if clipped else "Release notes:"
+        lines += ["", heading, "", fence(text)]
     return "\n".join(lines)
 
 

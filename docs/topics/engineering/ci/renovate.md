@@ -24,7 +24,7 @@ Self-hosted [Renovate](https://docs.renovatebot.com) opens the dependency update
 
 It never rewrites and never forces: every push is a plain push of a commit that has the old tip as an ancestor, so the remote refuses it if `maintenance` moved during the run. History is only added to because Renovate treats a pull request branch as edited when other authors' commits sit under it. `main` is only read.
 
-A failed realignment fails the job before the Renovate step, which has no condition that would let it run anyway. To clear a conflict, merge `main` into `maintenance` locally, resolve it and push that merge; the next run finds the branch current. The push uses the app's token, passed to git as a header for that one command, because the job's own `GITHUB_TOKEN` is refused on `maintenance`. `tools/tests/ci/branches/test_realign.py` runs each case on temporary repositories, and `test_renovate_workflow.py` asserts the step order and that nothing can skip the check.
+A failed realignment fails the job before the Renovate step, which has no condition that would let it run anyway. To clear a conflict, merge `main` into `maintenance` by hand as [Dependency updates](../branching.md#dependency-updates) shows; the next run finds the branch current. The push uses the app's token, passed to git as a header for that one command, because the job's own `GITHUB_TOKEN` is refused on `maintenance`. `tools/tests/ci/branches/test_realign.py` runs each case on temporary repositories, and `test_renovate_workflow.py` asserts the step order and that nothing can skip the check.
 
 ## Image digests
 

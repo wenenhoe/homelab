@@ -18,6 +18,7 @@ allowed_paths:
   - ansible/tests/test_cd_agent_*.py
   - docs/topics/deploy/cd-agent-host.md
   - docs/topics/secrets/cloud-credentials/rotation.md
+  - docs/topics/security/cloud-credentials/rotation.md
 ---
 
 # CD Agent Chained Jobs, Rotation and Job SSH Keys

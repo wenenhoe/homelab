@@ -65,6 +65,13 @@ class TestSerials:
         result = dns.zones_have_one_serial(dig_from(answers), PLAN)
         assert (result.ok, f"{SECONDARY} did not answer" in result.detail) == (False, True)
 
+    @pytest.mark.parametrize("silent", [PRIMARY, SECONDARY], ids=["primary", "secondary"])
+    def test_a_silent_server_is_reported_by_name_without_a_crash(self, silent):
+        answers = healthy()
+        answers[(silent, HOST_ZONE, "SOA")] = (9, "")
+        result = dns.zones_have_one_serial(dig_from(answers), PLAN)
+        assert (result.ok, f"{silent} did not answer" in result.detail) == (False, True)
+
     def test_a_server_with_no_soa_for_the_zone_fails(self):
         answers = healthy()
         answers[(SECONDARY, HOST_ZONE, "SOA")] = (0, "")

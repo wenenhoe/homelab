@@ -23,8 +23,8 @@ question is which of them to ask earlier, and where to write them down.
   [ADR 0100](../decisions/0100-recording-how-a-system-is-integrated/revision-001.md)
   are acceptance criteria in the
   [project template](../projects/TEMPLATE.md), and the drift check requires them
-  once a catalog app exists. The [exploration template](TEMPLATE.md) asks nothing
-  about a system, so the questions first meet the work after its design is chosen.
+  once a catalog app exists. The [exploration template](TEMPLATE.md) asks about a system only in an optional
+  section, so a question that leaves it out meets these after its design is chosen.
 - **No section asks for the zone.** `Exposure` asks what reaches the system and
   what it reaches, but not which VLAN it is in or which zones must be admitted. The
   [`bind9` record](../topics/records/bind9.md) shows the result: its `Exposure`
@@ -57,12 +57,6 @@ question is which of them to ask earlier, and where to write them down.
 
 ## Options
 
-- **Put the questions in the exploration template.** An optional section for a
-  question that introduces a system: zone and why, flows in and out as
-  `flows.yaml` entries, shared services used or provided, resources against the
-  node, and exposure. Costs one template section and nothing to maintain. It
-  moves the questions earlier and checks nothing, so it works only while it is
-  read.
 - **Add a `Placement` section to the service record.** The zone, the flows it
   needs and the shared services it uses, between `Dependencies` and `Data`. The
   record is an accepted decision's output, so a new section is a new revision of
@@ -70,27 +64,15 @@ question is which of them to ask earlier, and where to write them down.
   entry on the exemption list. It would have made the `bind9` unknown a failure
   instead of a sentence. A cheaper form widens `Exposure` to name the zone and the
   flows, with the same revision and no new section.
-- **Make the flow list part of a project's required checks.** A project that adds a
-  zone or a cross-zone flow carries the `flows.yaml` entries in the same change,
-  as one line in the project template's acceptance criteria. Costs a line, and
-  catches the missing flow at the project, not at the next probe run.
 - **A shared-services table.** One topic doc listing each shared service, its home
   zone and its consumers. A hand-kept table drifts, as every count does here
   ([`docs/README.md`](../README.md)); the alternative is to require that a shared
   service's own record list its consumers under `Dependencies`, which adds no doc
   and reaches only what has a record.
-- **A capacity table.** A topic doc with the node's resources and each VM's
-  sizing, written by hand or generated from the Tofu module calls so it cannot
-  drift. A generated one needs a small generator and a ceiling the maintainer sets;
-  a hand-written one is the same remark as today in a table. Without a ceiling a
-  check has nothing to compare against.
 
 ## Leaning
 
-Start with the three that cost a line each: the exploration template's optional
-section, the `flows.yaml` line in the project template, and `Exposure` widened to
-name the zone and the flows, which is one revision of ADR 0100. Leave the
-shared-services table until a second shared service exists to show whether
-`Dependencies` is enough. The capacity table is the one most likely to be skipped
-and the only answer to the sizing gap, so it deserves its own exploration once
-the node's figures are written down.
+Widen `Exposure` to name the zone and the flows, which is one revision of ADR 0100.
+Leave the shared-services table until a second shared service exists to show whether
+`Dependencies` is enough. The capacity table is its own question, in
+[`node-capacity.md`](node-capacity.md).

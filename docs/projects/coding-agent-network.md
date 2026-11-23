@@ -5,7 +5,7 @@ type: project
 status: building
 blocked: false
 summary: A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host.
-decision: ADR-0053/1
+decision: ADR-0053/0
 super_project: coding-agent-host
 allowed_paths:
   - docs/decisions/0053-network-reach-of-the-coding-agent-host/**
@@ -40,7 +40,7 @@ Not in: `tofu/tests/proxmox_ubuntu_vm.tftest.hcl` and `tools/tests/scratch_run/t
 
 ## Decision
 
-Implements [ADR 0053 revision 1 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-001.md), and builds only while that revision is `approved`. The proxy the zone reaches the Internet through is [ADR 0116 (Egress for default-deny zones)](../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), built by [`coding-agent-egress.md`](coding-agent-egress.md), which names this revision in `also_implements:`; it closes last and accepts it.
+Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), and builds only while that revision is `approved`. The proxy the zone reaches the Internet through is [ADR 0116 (Egress for default-deny zones)](../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), built by [`coding-agent-egress.md`](coding-agent-egress.md), which names this revision in `also_implements:`; it closes last and accepts it.
 
 ## Execution plan
 

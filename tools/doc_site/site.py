@@ -255,6 +255,37 @@ def _pill(status: str) -> str:
     return f'<span class="pill s-{status_key(status)}">{html.escape(status)}</span>'
 
 
+def _lineage_strip(document: Document, lineages: dict[str, Lineage], root: Path, resolve) -> str:
+    """Every revision of the lineage of a decision page, in order, each with its state, the current one and the one being read marked. A
+    lineage of one revision has no strip."""
+    lineage = lineages[document.front["id"]]
+    if len(lineage.revisions) < 2:
+        return ""
+    current, here = lineage.current(), root / document.source
+    items = []
+    for revision in lineage.revisions:
+        text = f"revision {revision.label} ({revision.fm['short']})"
+        classes = " ".join(name for name, on in (("here", revision.path == here), ("current", revision is current)) if on)
+        body = html.escape(text) if revision.path == here else _link(document, revision.path.relative_to(root).as_posix(), text, resolve)
+        marks = "".join(f'<span class="mark">{mark}</span>' for mark, on in (("current", revision is current), ("this page", revision.path == here)) if on)
+        items.append(f'<li class="{classes}">{body}{_pill(revision.fm["status"])}{marks}</li>')
+    return f'<nav class="lineage" aria-label="Revisions of this decision"><h2>Revisions</h2><ol>{"".join(items)}</ol></nav>\n'
+
+
+def _pager(document: Document, lineage_list: list[Lineage], root: Path, resolve) -> str:
+    """Links to the decisions before and after this one by number, each at its current revision."""
+    ordered = sorted(lineage_list, key=lambda lineage: lineage.number)
+    index = next(i for i, lineage in enumerate(ordered) if lineage.id == document.front["id"])
+    links = []
+    for side, other in (("prev", ordered[index - 1] if index else None), ("next", ordered[index + 1] if index + 1 < len(ordered) else None)):
+        if other is not None:
+            current = other.current()
+            arrow = f"\u2190 ADR {other.number}" if side == "prev" else f"ADR {other.number} \u2192"
+            link = _link(document, current.path.relative_to(root).as_posix(), arrow, resolve)
+            links.append(f'<span class="{side}">{link}<span class="name">{html.escape(current.fm["short"])}</span></span>')
+    return f'<nav class="pager" aria-label="Neighbouring decisions">{"".join(links)}</nav>\n' if links else ""
+
+
 def _project_facts(document: Document, documents: list[Document], resolve) -> list[dict]:
     """The header of a project page, from its front matter: what a reader looks at before the body."""
     front = document.front
@@ -506,12 +537,15 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         for number in range(len(page.diagrams)):
             body = body.replace(MARKER.format(number), _figure(next(drawn)))
         resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
-        if REVISION_PATH_RE.search(document.source):
+        revision_page = bool(REVISION_PATH_RE.search(document.source))
+        if revision_page:
             facts, notice = _decision_facts(document, documents, lineages, root, resolve)
         else:
             facts, notice = (_project_facts(document, documents, resolve) if document.source.startswith("docs/projects/") and document.front else []), ""
         base = "../" * document.depth
-        lead, headings = "", page.headings
+        lead, pager, headings = "", "", page.headings
+        if revision_page:
+            lead, pager = _lineage_strip(document, lineages, root, resolve), _pager(document, lineage_list, root, resolve)
         if document.source == "docs/projects/README.md":
             if {"project-list", "guide"} & {h.id for h in page.headings}:
                 raise ValueError(f"{document.source} has a heading with the anchor of the project list or of the guide")
@@ -536,6 +570,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
                 facts=facts,
                 notice=notice,
                 lead=lead,
+                pager=pager,
                 crumbs=_crumbs(document, page.title, base, lineages, root, topic_groups),
                 body=body,
                 headings=headings,

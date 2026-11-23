@@ -108,6 +108,18 @@ td.title{font-weight:600}
 .crumbs [aria-current]{color:var(--text)}
 .crumbs .guide{font-weight:600}
 
+/* the revisions of a decision, and its neighbours */
+.lineage{margin:1rem 0}
+.lineage h2{font-size:1rem;margin:0 0 .4rem}
+.lineage ol{display:flex;flex-wrap:wrap;gap:.4rem;list-style:none;margin:0;padding:0}
+.lineage li{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:.4rem}
+.lineage li.here{border-color:var(--accent);font-weight:600}
+.lineage .mark{font-size:.8rem;color:var(--text-light)}
+.pager{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem 1rem;margin:2rem 0 .5rem}
+.pager span{display:flex;flex-direction:column}
+.pager .next{margin-left:auto;text-align:right}
+.pager .name{font-size:.85rem;color:var(--text-light)}
+
 /* a document page */
 .facts{display:flex;flex-wrap:wrap;gap:.5rem 1.5rem;margin:1rem 0}
 .facts div{display:flex;flex-direction:column;gap:.1rem}

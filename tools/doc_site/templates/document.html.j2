@@ -7,5 +7,5 @@
 {% endif %}{% if facts %}<dl class="facts">{% for fact in facts %}<div><dt>{{ fact.label }}</dt><dd>{{ fact.html | safe }}</dd></div>{% endfor %}</dl>
 {% endif %}{{ lead | safe }}<article class="doc">
 {{ body | safe }}</article>
-<p class="source"><a href="{{ source_url }}">View this file on GitHub</a></p>
+{{ pager | safe }}<p class="source"><a href="{{ source_url }}">View this file on GitHub</a></p>
 {% endblock %}

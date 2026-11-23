@@ -7,6 +7,7 @@ import hashlib
 import html
 import posixpath
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -175,6 +176,40 @@ def _block(block: Block, resolve, anchors: Anchors, headings: list[Heading], chi
             tabs.append(f'<div class="tab">{link}<div class="panel"><h3 id="{anchor}">{label}</h3>{_table(table, resolve)}</div></div>')
         return f'<div class="tabs">{"".join(tabs)}</div>'
     raise TypeError(f"unknown block {block!r}")
+
+
+# A document page with this many headings in its menu lists them on the page.
+CONTENTS_MIN = 4
+CONTENTS_ID = "on-this-page"
+# The documents whose `##` groups are tabs over a list of links. A rule names each, so no other document is ever tabbed by inference.
+TABBED_DOCUMENTS = frozenset({"docs/topics/README.md"})
+H2 = re.compile(r'<h2 id="([^"]+)">(.*?)</h2>', re.DOTALL)
+
+
+def _contents(headings: Sequence[Heading]) -> str:
+    """The list of a page's headings, shown on the page. It is open in the markup so that it needs no script, which closes it on a narrow screen."""
+    sub = ' class="sub"'
+    items = "".join(f'<li><a href="#{h.id}"{sub if h.level == 3 else ""}>{html.escape(h.text)}</a></li>' for h in headings)
+    return f'<nav class="toc" id="{CONTENTS_ID}" aria-label="On this page"><details open><summary>On this page</summary><ol>{items}</ol></details></nav>'
+
+
+def _links_back(html: str) -> str:
+    """Each `##` heading of `html` with a link back to the contents list."""
+    return H2.sub(lambda m: f'<h2 id="{m[1]}">{m[2]} <a class="up" href="#{CONTENTS_ID}">&#8593; On this page</a></h2>', html)
+
+
+def _tabbed(html: str) -> str:
+    """The `##` groups of `html` as tabs, each a link beside its panel, under a filter. What comes before the first group stays above
+    them, and a page with no group is returned as it is."""
+    parts = re.split(r"(?=<h2 id=)", html)
+    if len(parts) < 2:
+        return html
+    tabs = []
+    for part in parts[1:]:
+        heading = H2.match(part)
+        tabs.append(f'<div class="tab"><a class="tab-link" href="#{heading[1]}">{heading[2]}</a><div class="panel">{part}</div></div>')
+    box = '<div class="filter"><input id="q" type="search" placeholder="Filter links" aria-label="Filter links"></div>\n'
+    return f'{parts[0]}{box}<div class="tabs">{"".join(tabs)}</div>\n'
 
 
 def _title_and_intro(text: str, view: str) -> tuple[str, str]:
@@ -566,6 +601,13 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
             table = _table(_project_list(documents), resolve)
             lead = f'<section id="project-list"><h2>The projects</h2>{table}</section>\n<h2 id="guide">Guide to projects</h2>\n'
             headings = (Heading(2, "project-list", "The projects"), Heading(2, "guide", "Guide to projects"), *page.headings)
+        contents = ""
+        if document.source in TABBED_DOCUMENTS:
+            body = _tabbed(body)
+        elif document.slug and len(headings) >= CONTENTS_MIN:
+            if CONTENTS_ID in {h.id for h in headings}:
+                raise ValueError(f"{document.source} has a heading with the anchor of the list of headings")
+            contents, lead, body = _contents(headings), _links_back(lead), _links_back(body)
         if not document.slug:
             readme = {
                 "title": page.title,
@@ -587,6 +629,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
                 pager=pager,
                 crumbs=_crumbs(document, page.title, base, lineages, root, topic_groups),
                 body=body,
+                contents=contents,
                 headings=headings,
                 source_url=f"{REPO_URL}/blob/{BRANCH}/{document.source}",
                 nav=nav(document.slug, document.depth),

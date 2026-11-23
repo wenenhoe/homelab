@@ -1,0 +1,16 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the missing-container guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/openbao_cli_not_running_halt_marker
+      register: openbao_cli_not_running_marker
+      failed_when: not openbao_cli_not_running_marker.stat.exists
+
+    - name: Confirm the role stopped before it installed anything
+      ansible.builtin.stat:
+        path: /usr/bin/bao
+      register: openbao_cli_not_running_binary
+      failed_when: openbao_cli_not_running_binary.stat.exists

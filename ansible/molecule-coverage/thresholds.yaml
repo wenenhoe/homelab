@@ -14,7 +14,7 @@ docker: 100.0
 host_hardening: 100.0
 lldap_bootstrap: 100.0
 openbao: 91.7
-openbao_cli: 83.3
+openbao_cli: 91.7
 qemu_guest_agent: 100.0
 restore: 94.4
 restore_discovery: 100.0

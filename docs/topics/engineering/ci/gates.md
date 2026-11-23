@@ -176,9 +176,9 @@ for the current values):
 - `openbao` - the failure task of the wait for OpenBao to answer needs an
   OpenBao that never does, and the role's 20 retries 5 seconds apart cannot be
   shortened from a scenario, so it would cost over 100 seconds.
-- `openbao_cli` - the two failure tasks: no running `openbao` container, and a
-  native CLI whose version differs from the server's. Both are skipped in the
-  one scenario, which runs a healthy install.
+- `openbao_cli` - the failure task for a native CLI whose version differs from
+  the server's needs a server at a version other than the one the role
+  installs, which no scenario runs.
 - `restore` - the interactive confirmation prompt is bypassed on
   purpose in every scenario, to test the rest of the role
   non-interactively.

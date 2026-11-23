@@ -62,6 +62,12 @@ def test_the_stylesheet_is_the_vendored_file(tree):
     assert files[asset(files, "simple", "css")] == (site.PACKAGE / "vendor/simple.min.css").read_bytes()
 
 
+def test_a_view_has_no_reading_measure_and_a_document_has_one_for_its_prose():
+    css = (site.PACKAGE / "assets/site.css").read_text(encoding="utf-8")
+    assert "max-width:70ch" not in css
+    assert ".doc>:is(p,ul,ol,blockquote,dl,h1,h2,h3,h4,h5,h6){max-width:72ch}" in css
+
+
 def test_the_licence_served_is_the_vendored_one(tree):
     assert site.build(tree)["assets/simple-licence.txt"] == (site.PACKAGE / "vendor/simple.LICENSE").read_bytes()
 

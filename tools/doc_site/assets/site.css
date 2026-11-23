@@ -8,9 +8,9 @@ main{min-width:0;overflow-wrap:break-word;padding-block:1rem 3rem}
 main>section{border:0;margin:0;padding:0}
 main h1{margin:1rem 0 .25rem;font-size:1.75rem}
 main h2{margin:2.25rem 0 .75rem;font-size:1.3rem}
-.lede,.caption{color:var(--text-light);margin:.25rem 0 1rem;max-width:70ch}
+.lede,.caption{color:var(--text-light);margin:.25rem 0 1rem}
 .caption{margin-top:-.25rem}
-details.legend{margin:0 0 1rem;max-width:70ch}
+details.legend{margin:0 0 1rem}
 details.legend summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;color:var(--accent)}
 details.legend p{color:var(--text-light);margin:.5rem 0}
 code{font-size:1em;overflow-wrap:anywhere;color:var(--text);background:var(--accent-bg);padding:.1em .35em;border-radius:.3em}
@@ -128,6 +128,8 @@ td.title{font-weight:600}
 .facts .rely{display:block}.facts .why{display:block;font-size:.85rem;color:var(--text-light)}
 .notice{margin:1rem 0;padding:.6rem 1rem;border-left:4px solid var(--mute);background:color-mix(in srgb,var(--mute) 12%,transparent);border-radius:0 .4rem .4rem 0}
 .doc{border:0;margin:0;padding:0;max-width:none}
+/* prose of a document keeps one reading measure; tables, code and figures use the width */
+main:has(.doc) .lede,main:has(.doc) .notice,.doc>:is(p,ul,ol,blockquote,dl,h1,h2,h3,h4,h5,h6){max-width:72ch}
 .doc>:first-child{margin-top:0}
 .doc h2{margin-top:2rem}
 .doc pre,.doc pre code{white-space:break-spaces;overflow-wrap:anywhere}

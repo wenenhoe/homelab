@@ -79,6 +79,8 @@ Renovate moves only the `version` line of either pin, because it has no digest f
 
 The card layout, the menu drawer and the row filter are `assets/site.css` and `assets/site.js`, which belong to this repository. The page works without JavaScript; the script only adds the filter and the drawer's open button.
 
+A document page sets its prose (paragraphs, lists, quotes, headings, the lede and the notice) to one reading measure, and lets its tables, code blocks and figures use the width of the page. A view sets no measure on its lede, caption or legend, so they run as wide as the table and the filter under them.
+
 ## The layout check
 
 ```sh

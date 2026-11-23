@@ -100,17 +100,12 @@ without writing anything.
 ## Project close check
 
 [`tools/doc_scripts/check_project_close.py`](../../../tools/doc_scripts/check_project_close.py) enforces the closing rule in
-[ADR 0037 revision 3 (Decision and project workflow)](../../decisions/0037-decision-and-project-documentation-workflow/revision-003.md):
-deleting a finished project's doc must not leave a revision it names
-unaccepted with no project naming it. A deleted doc passes when each
-revision it named on the base, in `decision:` or `also_implements:`, is
-`accepted` afterwards, or another project doc that remains names it in
-either field (`also_implements:` still gates no project's status). So the
-last project to close either accepts the revision or leaves a
-`not-started` successor naming it for whatever is unfinished. A doc that
-names only `working` revisions is withdrawn rather than closed and may be
-deleted: it has built nothing, and the revision shows in
-[Decisions awaiting a project](https://wenenhoe.github.io/homelab/project-planning/#decisions-awaiting-a-project).
+[ADR 0037 revision 3 (Decision and project workflow)](../../decisions/0037-decision-and-project-documentation-workflow/revision-003.md),
+as [When a project finishes](../../projects/README.md#when-a-project-finishes) describes it:
+each revision a deleted doc named on the base, in `decision:` or
+`also_implements:`, must be `accepted` afterwards or named in either field by a
+project doc that remains (`also_implements:` still gates no project's status).
+A doc that names only `working` revisions is withdrawn and may be deleted.
 A change that deletes no project doc isn't checked.
 
 It runs in the same two places as the scope check, with the same
@@ -139,19 +134,12 @@ view lists it, so the gap is visible but not blocked.
 
 [`tools/doc_scripts/check_project_start.py`](../../../tools/doc_scripts/check_project_start.py) enforces the start rules in
 [ADR 0037 revision 4 (Decision and project workflow)](../../decisions/0037-decision-and-project-documentation-workflow/revision-004.md)
-and [revision 5](../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md).
-A project doc that a change adds is `not-started` only when its `decision:`
-revision is `approved`, or it names none, or it is a draft plan (`plan: draft`).
-A project on a `working` revision is a draft for sizing and the roadmap. The rule reads
-only the docs the change adds (a rename counts as one), so a project that was
-already waiting on a `working` revision is not re-judged.
+and [revision 5](../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md),
+which [the lifecycle](../../projects/README.md#lifecycle) states: the decision revision a
+new project may name, and what a change that sets a project `building` must carry. A rename
+counts as an added doc.
 
-A change that moves a project to `building` fails unless its plan is no longer a
-draft and `allowed_paths` is set, the scope being set once, as building starts.
-A plan that was a draft must also show it was read again against the approved
-decision: the Execution plan changes in the same change, or a commit of the
-change carries a `Plan-Confirmed: <project doc path>` trailer when the table
-needed no change. The trailers are read from the commits between the merge-base
+The `Plan-Confirmed:` trailers are read from the commits between the merge-base
 and the head, as the `Editorial-Fix:` trailer is, so a pull request merged with
 a merge commit is judged by its own commits. The scope must
 also be complete: the named-file and `sweep_terms` passes of the scope
@@ -182,12 +170,10 @@ described for the maintainer in
 It enforces two rules:
 
 - **Frozen sections.** A revision that was `accepted` or `superseded` on the
-  base keeps its `title`, its `solution`, and its Problem, Decision,
-  Invariants, Non-goals and Reconsideration triggers sections. Link targets,
-  moved-file notes and short names in link text are ignored, and whitespace is
-  collapsed, so the editorial edits the decisions README allows are not
-  changes. A commit of the pull request with an `Editorial-Fix: <path>` trailer
-  excuses that file.
+  base keeps the parts the [Condense bullet](../../decisions/README.md#compacting-accepted-records)
+  names frozen, and that bullet says what is not a change and which
+  `Editorial-Fix: <path>` trailer excuses a file. Whitespace is collapsed
+  before the comparison.
 - **Removed lineages.** A lineage that held an `accepted` or `superseded`
   revision on the base and is gone afterwards must be a `former_ids` entry of
   a lineage that remains, or be listed in

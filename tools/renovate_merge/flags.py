@@ -17,7 +17,10 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"(?i:breaking[ -]change|backwards?[- ]incompatib|not backwards?[- ]compatible|incompatible change)|\bBREAKING\b|\b[a-z]+(?:\([^)\n]*\))?!:"
         ),
     ),
-    ("warning", re.compile("⚠")),
+    # `⚠` is Renovate's own mark. `[!WARNING]` and `[!CAUTION]` are GitHub's alert blocks, which Renovate escapes as `\[!WARNING]`; authors
+    # use them for what a user must know.
+    ("warning", re.compile(r"⚠|\\?\[!(?:WARNING|CAUTION)\]")),
+    ("security", re.compile(r"(?i:\bCVE-\d{4}-\d+|\bGHSA-[0-9a-z]{4}|\bsecurity (?:fix|advisory|vulnerabilit))")),
     ("removal", re.compile(r"(?i:\bremov(?:e|ed|es|ing|al)\b|\bdrop(?:s|ped|ping)? (?:support|the)\b|\bno longer\b)")),
     ("deprecation", re.compile(r"(?i:deprecat)")),
     (
@@ -34,6 +37,14 @@ BREAKING_CATEGORIES = frozenset({"breaking", "warning"})
 # inside the project, not what a user must do; the weaker words in it are left alone. The stronger categories are never skipped.
 ROUTINE_ENTRY_RE = re.compile(r"^\W*(?:\[`?[0-9a-f]{7,}`?\]\([^)]*\)\s*)?\W*(?:fix|refactor|chore|docs?|test|ci|build|perf|style)\b", re.IGNORECASE)
 
+HEADING_RE = re.compile(r"^#{1,6}\s+(.*)$")
+# A section of fixes says what stopped going wrong (`no longer render blank`), the opposite of what the weaker words look for.
+FIX_HEADING_RE = re.compile(r"^\W*(?:bug ?fix(?:es)?|fix(?:es|ed)?)\W*$", re.IGNORECASE)
+# A `Removed` or `Deprecated` heading is a template some projects print in every release, with `Nothing` under it; it counts only when something is.
+LISTING_HEADINGS = {"removed": "removal", "removal": "removal", "removals": "removal", "deprecated": "deprecation", "deprecations": "deprecation"}
+LISTING_HEADING_RE = re.compile(r"^\W*(removed|removals?|deprecated|deprecations)\W*$", re.IGNORECASE)
+EMPTY_ENTRY_RE = re.compile(r"^[\W_]*(?:nothing|none|n/a|no changes)[\W_]*$", re.IGNORECASE)
+
 LEVEL_BREAKING = "breaking"
 LEVEL_NOTABLE = "notable"
 LEVEL_NONE = "none"
@@ -49,13 +60,29 @@ class Flag:
 def scan(text: str) -> list[Flag]:
     """Each line of `text` once per category it matches, cut to a readable length."""
     found: list[Flag] = []
+    pending: Flag | None = None  # a `Removed` or `Deprecated` heading waiting to see whether anything is listed under it
+    in_fixes = False
     for raw in text.splitlines():
         line = " ".join(raw.split())
         if not line:
             continue
-        routine = ROUTINE_ENTRY_RE.match(line) is not None
+        heading = HEADING_RE.match(line)
+        if heading:
+            pending = None
+            in_fixes = FIX_HEADING_RE.match(heading.group(1)) is not None
+            listing = LISTING_HEADING_RE.match(heading.group(1))
+            if listing:
+                pending = Flag(LISTING_HEADINGS[listing.group(1).lower()], line)
+                continue
+        elif pending is not None:
+            if EMPTY_ENTRY_RE.match(line):
+                pending = None
+                continue
+            found.append(pending)
+            pending = None
+        weak_skipped = in_fixes or ROUTINE_ENTRY_RE.match(line) is not None
         for category, pattern in PATTERNS:
-            if pattern.search(line) and not (routine and category not in BREAKING_CATEGORIES):
+            if pattern.search(line) and not (weak_skipped and category not in BREAKING_CATEGORIES):
                 found.append(Flag(category, line if len(line) <= MAX_LINE else f"{line[: MAX_LINE - 1]}…"))
     return found
 

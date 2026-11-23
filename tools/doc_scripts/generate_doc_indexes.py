@@ -33,8 +33,8 @@ from doc_scripts.doc_explorations import load_explorations
 from doc_scripts.doc_frontmatter import DECISION_INDEX, PLANNING_VIEW, ROOT, TOPICS, Lineage, docs_in, lineages_loaded_once, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import duplicate_lineage_errors
 from doc_scripts.doc_reliance import unmet_reliances
-from doc_scripts.doc_removed import LEDGER
-from doc_scripts.view_model import Block, Generated, Groups, Note, Table
+from doc_scripts.doc_removed import LEDGER, ledger_numbers
+from doc_scripts.view_model import Block, Generated, Grid, GridCell, Groups, Note, Table
 
 # Project status -> display text for the regenerated table.
 STATUS_DISPLAY = {
@@ -402,22 +402,36 @@ def _pending_notes(lineage: Lineage) -> list[str]:
     return [f"Revision {r.label} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
 
 
+GRID_WIDTH = 10
+
+
+def _grid_cells(root: Path, prefix: str, lineages: list[Lineage]) -> dict[int, GridCell]:
+    """What each number up to the highest stands for: a lineage links to its current revision, a number merged into another
+    says where it went and links to that lineage, a removed number says what became of it and links to the ledger, and a number
+    nothing holds is a dash."""
+    cells: dict[int, GridCell] = {}
+    for lineage in lineages:
+        cells[int(lineage.number)] = GridCell(_adr_solution_cells(lineage, prefix)[0], "live")
+        for former in sorted({f for rev in lineage.revisions for f in rev.fm.get("former_ids", [])}):
+            number = former.removeprefix("ADR-")
+            cells[int(number)] = GridCell(f"{number} \u2192 {_lineage_link(lineage, prefix)}", "merged")
+    for number, (fate, _) in ledger_numbers(root).items():
+        cells[int(number)] = GridCell(f"{number} [{fate}]({prefix}{LEDGER})", "removed")
+    return cells
+
+
 def decisions_by_number_block(root: Path = ROOT, prefix: str = "decisions/") -> Block:
-    """Every lineage in number order, one short row each, for finding an ADR by the number
-    something else cites. A merged lineage's old number is in its Notes. `prefix` is the path
+    """Every number in a grid ten to a row, for finding an ADR by the number something else cites. `prefix` is the path
     from the file this renders into to docs/decisions/."""
     lineages = load_lineages(root)
     if not lineages:
         return Note("No decision lineages yet.")
-    by_id = {lineage.id: lineage for lineage in lineages}
+    cells = _grid_cells(root, prefix, lineages)
     rows = []
-    for lineage in lineages:
-        current = lineage.current()
-        adr_cell, _, status = _adr_solution_cells(lineage, prefix)
-        notes = "; ".join([*_pending_notes(lineage), *_relies_note(lineage, by_id, prefix), *_former_note(lineage)])
-        topic = TOPICS.get(current.fm["topic"], current.fm["topic"])
-        rows.append((adr_cell, _cell(current.fm["short"]), status, topic, _cell(notes) or "—"))
-    return Table(("ADR", "Decision", "Status", "Topic", "Notes"), (":---",) * 5, tuple(rows))
+    for start in range(0, max(cells) + 1, GRID_WIDTH):
+        row = tuple(cells.get(n, GridCell("\u2014", "gap") if 0 < n < max(cells) else GridCell("", "none")) for n in range(start, start + GRID_WIDTH))
+        rows.append((f"{start // GRID_WIDTH:03d}x", row))
+    return Grid(GRID_WIDTH, tuple(rows))
 
 
 def lineages_index_block(root: Path = ROOT, prefix: str = "decisions/") -> Block:
@@ -452,11 +466,10 @@ def lineages_index_block(root: Path = ROOT, prefix: str = "decisions/") -> Block
             if lineage.id in related:
                 notes.append("Related: " + ", ".join(_lineage_link(by_id[i], prefix) for i in sorted(related[lineage.id])))
             notes.extend(_former_note(lineage))
-            rows.append(
-                (adr_cell, f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}", _cell(solution), status, _cell("; ".join(notes)) or "—")
-            )
+            problem = f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}"
+            rows.append((adr_cell, _cell(current.fm["short"]), problem, _cell(solution), status, _cell("; ".join(notes)) or "—"))
         if rows:
-            sections.append((topic_title, Table(("ADR", "Problem", "Current solution", "Status", "Notes"), (":---",) * 5, tuple(rows))))
+            sections.append((topic_title, Table(("ADR", "Decision", "Problem", "Current solution", "Status", "Notes"), (":---",) * 6, tuple(rows))))
     return Groups(tuple(sections))
 
 

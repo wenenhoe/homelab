@@ -7,6 +7,12 @@
       document.querySelectorAll('tbody tr').forEach(function (r) {
         r.hidden = v && r.textContent.toLowerCase().indexOf(v) < 0;
       });
+      document.querySelectorAll('.tabs').forEach(function (t) {
+        t.classList.toggle('filtering', !!v);
+        t.querySelectorAll('.panel').forEach(function (p) {
+          p.hidden = !!v && !p.querySelector('tbody tr:not([hidden])');
+        });
+      });
     });
   }
   var d = document.getElementById('drawer');

@@ -564,7 +564,7 @@ class TestLineagesIndex:
         assert out.index("0001-host-config") < out.index("0004-docker-api-access")
         assert (
             "| [0004](decisions/0004-docker-api-access/revision-000.md) "
-            "| **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |" in out
+            "| 0004-docker-api-access | **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |" in out
         )
 
     def test_multi_revision_lineage_shows_current_and_pending(self, root):
@@ -651,7 +651,6 @@ class TestLineagesIndex:
         rows = {line.split("|")[1].strip()[1:5]: line for line in out.splitlines() if line.startswith("| [")}
         assert "Relies on [0002](decisions/0002-b/revision-000.md) (working)" in rows["0001"]
         assert "Relies on" not in rows["0002"]
-        assert "Relies on [0002](decisions/0002-b/revision-000.md) (working)" in gen.render_decisions_by_number(root).splitlines()[2]
 
     def test_the_note_follows_the_target_once_it_is_settled(self, root):
         revision(root, "0001-a", 0, status="approved", title="A", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
@@ -664,39 +663,74 @@ class TestLineagesIndex:
 
 
 class TestDecisionsByNumber:
+    @staticmethod
+    def cells(root, **kwargs) -> dict[int, str]:
+        """Every cell of the grid by its number, the row's label and the column read together."""
+        rows = gen.render_decisions_by_number(root, **kwargs).splitlines()[2:]
+        cells = {}
+        for row in rows:
+            label, *row_cells = (cell.strip() for cell in row.strip("|").split("|"))
+            for column, cell in enumerate(row_cells):
+                cells[int(label[:3]) * 10 + column] = cell
+        return cells
+
     def test_empty(self, root):
         assert gen.render_decisions_by_number(root) == "No decision lineages yet."
 
-    def test_one_short_row_per_lineage_in_number_order_whatever_the_topic(self, root):
-        revision(root, "0017-store-recovery", 0, short="Store recovery", topic="secrets-store", status="accepted")
-        revision(root, "0004-docker-api-access", 0, short="Docker API access", topic="deployment-platform", status="accepted")
-        revision(root, "0011-alerts", 0, short="Alert routing", topic="monitoring-alerting", status="accepted")
-        assert gen.render_decisions_by_number(root).splitlines()[2:] == [
-            "| [0004](decisions/0004-docker-api-access/revision-000.md) | Docker API access | Accepted | Deployment & platform | — |",
-            "| [0011](decisions/0011-alerts/revision-000.md) | Alert routing | Accepted | Monitoring & alerting | — |",
-            "| [0017](decisions/0017-store-recovery/revision-000.md) | Store recovery | Accepted | Secrets store | — |",
-        ]
+    def test_the_header_counts_the_columns_and_each_row_is_labelled_by_its_first_digits(self, root):
+        revision(root, "0017-store-recovery", 0, status="accepted")
+        lines = gen.render_decisions_by_number(root).splitlines()
+        assert lines[0] == "| | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |"
+        assert [line.split("|")[1].strip() for line in lines[2:]] == ["000x", "001x"]
+        assert all(line.count("|") == 12 for line in lines)
+
+    def test_a_lineage_is_a_link_in_the_cell_of_its_number_whatever_its_topic(self, root):
+        revision(root, "0017-store-recovery", 0, topic="secrets-store", status="accepted")
+        revision(root, "0004-docker-api-access", 0, topic="deployment-platform", status="accepted")
+        cells = self.cells(root)
+        assert cells[4] == "[0004](decisions/0004-docker-api-access/revision-000.md)"
+        assert cells[17] == "[0017](decisions/0017-store-recovery/revision-000.md)"
 
     def test_the_link_goes_to_the_revision_that_answers_the_problem(self, root):
         revision(root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
         revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0)
-        assert "| [0013](decisions/0013-secret-storage/revision-001.md) |" in gen.render_decisions_by_number(root)
+        assert self.cells(root)[13] == "[0013](decisions/0013-secret-storage/revision-001.md)"
 
-    def test_a_merged_lineages_old_number_and_a_pending_revision_are_in_the_notes(self, root):
-        revision(root, "0013-secret-storage", 0, status="accepted", former_ids=["ADR-0027", "ADR-0029"])
-        revision(root, "0013-secret-storage", 1, status="working")
-        row = gen.render_decisions_by_number(root).splitlines()[2]
-        assert row.endswith("| Accepted (original) | Secrets store | Revision 1 working; Formerly ADR-0027, ADR-0029 |")
+    def test_a_merged_number_says_where_it_went_and_links_there(self, root):
+        revision(root, "0013-secret-storage", 0, status="accepted", former_ids=["ADR-0007", "ADR-0009"])
+        cells = self.cells(root)
+        assert cells[7] == "0007 \u2192 [0013](decisions/0013-secret-storage/revision-000.md)"
+        assert cells[9] == "0009 \u2192 [0013](decisions/0013-secret-storage/revision-000.md)"
 
-    def test_competing_candidates_are_undecided_with_no_note_repeating_it(self, root):
+    def test_a_removed_number_says_its_fate_and_links_to_the_ledger(self, root):
+        revision(root, "0013-secret-storage", 0, status="accepted")
+        (root / "docs/decisions/removed.md").write_text(
+            "# Removed\n\n| ADR | Fate | Where it went |\n| :--- | :--- | :--- |\n| 0005 | demoted | a topic doc |\n", encoding="utf-8"
+        )
+        assert self.cells(root)[5] == "0005 [demoted](decisions/removed.md)"
+
+    def test_a_number_nothing_holds_is_a_dash_and_the_places_around_the_ends_are_blank(self, root):
+        revision(root, "0013-secret-storage", 0, status="accepted")
+        revision(root, "0012-other", 0, status="accepted")
+        revision(root, "0016-more", 0, status="accepted")
+        cells = self.cells(root)
+        assert cells[0] == "" and cells[14] == "\u2014" and cells[15] == "\u2014"
+        assert cells[19] == ""
+
+    def test_every_lineage_is_one_cell(self, root):
+        for number in ("0001-a", "0002-b", "0012-c", "0023-d"):
+            revision(root, number, 0, status="accepted")
+        cells = [cell for cell in self.cells(root).values() if cell.startswith("[")]
+        assert len(cells) == 4
+
+    def test_competing_candidates_link_to_the_first_open_one(self, root):
         revision(root, "0044-trigger", 0, letter="a", status="working")
         revision(root, "0044-trigger", 0, letter="b", status="working")
-        row = gen.render_decisions_by_number(root).splitlines()[2]
-        assert "| Working (000-a), Working (000-b) | Secrets store | — |" in row
+        assert self.cells(root)[44] == "[0044](decisions/0044-trigger/revision-000-a.md)"
 
     def test_a_link_prefix_follows_the_file_rendered_into(self, root):
         revision(root, "0001-a", 0, status="accepted")
-        assert "[0001](../decisions/0001-a/revision-000.md)" in gen.render_decisions_by_number(root, prefix="../decisions/")
+        assert self.cells(root, prefix="../decisions/")[1] == "[0001](../decisions/0001-a/revision-000.md)"
 
 
 class TestOpenDecisions:

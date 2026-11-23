@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from doc_scripts.view_model import Note, Table
+from doc_scripts.view_model import Grid, GridCell, Note, Table
 from doc_site import site
 from doc_site.summary import Tile, tiles
 
@@ -61,7 +61,13 @@ def test_the_decision_index_counts_its_tables():
         ("ADR", "Revision", "Decision", "Status", "Implemented by"), (":---",) * 5, (("1", "0", "d", "Approved", "—"), ("2", "0", "d", "Working", "—"))
     )
     history = Table(("ADR", "Revision", "Decision", "Status", "Replaced by"), (":---",) * 5, (("3", "0", "d", "Superseded", "1"),))
-    by_number = Table(("ADR", "Decision", "Status", "Topic", "Notes"), (":---",) * 5, tuple((str(n), "d", "Accepted", "t", "—") for n in range(5)))
+    cells = (
+        *(GridCell(str(n), "live") for n in range(1, 6)),
+        GridCell("6 \u2192 1", "merged"),
+        GridCell("\u2014", "gap"),
+        *(GridCell("", "none") for _ in range(3)),
+    )
+    by_number = Grid(10, (("000x", cells),))
     strip = {t.label: t for t in tiles("decision-index", sections(**{"By number": by_number, "Open decisions": open_decisions, "History": history}))}
     assert (strip["Decisions"].value, strip["Open"].value, strip["Open"].note, strip["Superseded or abandoned"].value) == (5, 2, "1 approved", 1)
 

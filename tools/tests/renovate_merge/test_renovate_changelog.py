@@ -58,3 +58,24 @@ def test_notes_drops_a_trailing_separator_when_no_configuration_follows() -> Non
 
 def test_notes_keeps_a_breaking_section_whole() -> None:
     assert "- The `--legacy` flag was removed; use `--compat` instead" in changelog.notes(body("example/tool", "1.9.9", "2.0.0", BREAKING_NOTES))
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "kind"),
+    [
+        pytest.param("==6.0.3", "==7.0.0", MAJOR, id="pinned-with-double-equals"),
+        pytest.param("==6.0.3", "==6.0.4", OTHER, id="pinned-patch"),
+        pytest.param("^1.2.3", "^2.0.0", MAJOR, id="caret"),
+        pytest.param("~=0.4.1", "~=0.5.0", PRE_1_0_MINOR, id="compatible-release-pre-1"),
+        pytest.param(">=3.1", ">=4.0", MAJOR, id="lower-bound"),
+    ],
+)
+def test_classify_reads_a_version_after_a_range_operator(old: str, new: str, kind: str) -> None:
+    assert changelog.classify(old, new) == kind
+
+
+def test_notes_drop_the_invisible_entity_renovate_writes_after_an_at_sign() -> None:
+    text = changelog.notes(body("example/tool", "1.4.2", "1.4.3", "Thanks [@&#8203;someone](https://example.test) for [#&#8203;12](https://example.test/12)"))
+
+    assert "[@someone](https://example.test) for [#12](https://example.test/12)" in text
+    assert "&#8203;" not in text

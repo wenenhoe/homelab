@@ -104,7 +104,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     summary.add_argument("--repo", type=Path, default=Path())
     summary.add_argument("--base", default=DEFAULT_BASE)
     summary.add_argument("--out", type=Path, default=None)
-    summary.add_argument("--notes-characters", type=int, default=report.DEFAULT_NOTES_CHARACTERS, help="how much of each pull request's release notes to print")
+    summary.add_argument("--notes-characters", type=int, default=report.DEFAULT_NOTES_CHARACTERS, help="how much of each package's release notes to print")
     merging_parser = commands.add_parser("merge", help="merge the pull requests of a summary")
     merging_parser.add_argument("summary", type=Path, help="the summary.json written by `summary`")
     merging_parser.add_argument(

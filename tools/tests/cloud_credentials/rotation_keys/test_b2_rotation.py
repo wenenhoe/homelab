@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from _b2_objects import full_application_key, stubbed_b2_api
+from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.rotation_keys import b2 as rotation_b2
 
 
@@ -58,6 +59,16 @@ class TestMintRotationKey:
         assert "bucket_id" not in sent
         assert minted["key_id"] == "NEW_ID"
         assert minted["app_key"] == "NEW_KEY"
+
+    @patch.object(rotation_b2, "B2Api", autospec=True)
+    def test_mints_with_the_quarterly_native_expiry(self, mock_api_cls, b2_api):
+        """Every rotation key carries a native expiry (ADR 0109), which the expiry check reads back from B2."""
+        api = mock_api_cls.return_value = b2_api
+        api.create_key.return_value = full_application_key("NEW_ID", "NEW_KEY")
+
+        rotation_b2._mint_rotation_key("masterKeyId", "masterKey")
+
+        assert api.create_key.call_args.kwargs["valid_duration_seconds"] == QUARTERLY_SECONDS
 
 
 class TestRotateB2RotationKey:

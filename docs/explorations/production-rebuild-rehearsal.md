@@ -3,14 +3,14 @@ id: EXP-production-rebuild-rehearsal
 title: "What would rehearse a production rebuild of the gateway before the window?"
 type: exploration
 status: open
-summary: "The scratch gateway rehearses the module and the play, not the root module, the live token's rights or the order of the window; what would, and at what cost."
+summary: "The scratch gateway rehearses the module and the play, and the preflight reads the root module and the live token's rights, but nothing yet runs the order of the window; what would, and at what cost."
 topic: deployment-platform
 related: [ADR-0089, ADR-0094]
 ---
 
 # What would rehearse a production rebuild of the gateway before the window?
 
-A rebuild of the production gateway is a sequence: dump, destroy, create, first boot, update, snapshot, apply, check. The scratch runs prove the module and the play on an isolated bridge. Which of the sequence's other parts a rehearsal should cover, and how, is not decided.
+A rebuild of the production gateway is a sequence: dump, destroy, create, first boot, update, snapshot, apply, check. The scratch runs prove the module and the play on an isolated bridge. A read-only preflight ([`gateway_preflight.sh`](../topics/disaster-recovery/rebuild-tools.md#gateway_preflightsh)) reads what the window needs before anything is stopped and before the create: the root module's plan, the image, the dump, the snapshot route and the grant. It does not run the sequence. Which of the sequence's other parts a rehearsal should cover, and how, is not decided.
 
 ## What bears on it
 
@@ -26,11 +26,10 @@ Still to check: whether the root module can take a scratch VMID without a copy o
 
 ## Options
 
-- **A preflight for the window.** A read-only script that checks what a rebuild needs before anything is stopped: the plan shows one addition and no change, the image is on the node, the grant state, the snapshot route, the hosts behind the gateway answer. It is cheap and catches the privilege and the image. It does not run the sequence.
 - **A rebuild spec for `scratch_run`.** New step kinds (dump, destroy, create, update, snapshot) let a scratch gateway stand in for the production one and run the whole sequence and its checks. It proves the order and the script together. It stands in for the production values and does not exercise the root module or the live token.
 - **A scratch apply of the root module.** The root takes the gateway's VMID and bridges as variables for a rehearsal, with state of its own. It would exercise the root's declaration and the role. It risks a plan that names the production hosts, and the state has to be kept apart from the real one.
 - **A runbook generated from the steps.** The window's commands come from the same list the rehearsal runs, so a step cannot be in one and not the other. It does not prove anything by itself.
 
 ## Leaning
 
-A preflight first, as it is the cheapest and covers the checks a rehearsal on the isolated bridge cannot. A rebuild spec follows if rebuilds recur, with the runbook generated from its steps. A scratch apply of the root is weighed again if the root grows further declarations of its own.
+A rebuild spec, if rebuilds recur, with the runbook generated from its steps; the preflight already covers the checks a rehearsal on the isolated bridge cannot. A scratch apply of the root is weighed again if the root grows further declarations of its own.

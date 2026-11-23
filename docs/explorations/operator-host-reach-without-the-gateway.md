@@ -10,7 +10,7 @@ related: [ADR-0058, ADR-0089, ADR-0103]
 
 # How does the operator host reach the node while the gateway is down?
 
-Rebuilding or repairing the gateway stops it, and the operator host runs behind it. Whatever the work needs from the node has to come over some path that does not cross the gateway for as long as it is down, or the work waits for the gateway to return. The one rebuild so far moved the operator host's NIC to the physical bridge for the window. Whether that stays the way, or the host keeps a standing path, is not decided.
+Rebuilding or repairing the gateway stops it, and the operator host runs behind it. Whatever the work needs from the node has to come over some path that does not cross the gateway for as long as it is down, or the work waits for the gateway to return. The rebuild's procedure moves the operator host's NIC to the physical bridge for the window, with the move scripted ([`move_vm_nic.sh`](../topics/disaster-recovery/rebuild-tools.md#move_vm_nicsh)). Whether that stays the way, or the host keeps a standing path, is not decided.
 
 ## What bears on it
 
@@ -25,11 +25,11 @@ Still to check: whether the node's firewall is on and what it would hold for a s
 
 ## Options
 
-- **Keep the detour, written as a procedure.** The host's NIC moves to the physical bridge for the window, with a hosts entry for the node's name and a fixed address for its return. No new standing path and nothing to maintain, and it was shown to work. It stays manual, needs a person at the node's console to move the NIC, and gives the host the Internet and the physical network for the window.
+- **Keep the detour.** The host's NIC moves to the physical bridge for the window ([the procedure](../topics/infra/tofu/opnsense-vm.md#rebuilding-the-production-gateway)), with a hosts entry for the node's name and a fixed address for its return. No new standing path and nothing to maintain, and it was shown to work. The host's own address and hosts entry stay manual, a person has to run the NIC move from another machine, and the host has the Internet and the physical network for the window.
 - **A bridge with no uplink for the operator host.** A second NIC on a bridge with no physical port, and an address for the node on it. The host reaches the node's SSH and API without the Internet or the physical network. The Tofu steps then have no route to the state bucket, so they would need another answer (a local state for the window, or a relay on the node), and the node's own network configuration changes. The path bypasses the gateway's rules, so the node's firewall would have to admit only the operator host's address on it.
 - **The same bridge with the node forwarding out.** The node would NAT the operator host to the Internet. It restores the Tofu steps, but it makes the node a second gateway for one host, which contradicts the reason for the isolated bridge, so it is kept only as the variant that fails.
 - **Work from a device on the physical network.** A laptop on the physical network runs the window's steps. It needs the credentials and the state backend there, which widens where they are held ([ADR 0058](../decisions/0058-where-operator-work-runs/revision-000.md) is about where the work runs).
 
 ## Leaning
 
-The detour, written down and scripted, while rebuilds are rare. An isolated bridge becomes worth its cost if the gateway has to be stopped often, or if the operator host's Internet during a rebuild turns out to matter; it first needs an answer for the state bucket. Finding that the node's address on a new bridge cannot be firewalled to one host would remove it.
+The detour, as it is written and scripted now, while rebuilds are rare. An isolated bridge becomes worth its cost if the gateway has to be stopped often, or if the operator host's Internet during a rebuild turns out to matter; it first needs an answer for the state bucket. Finding that the node's address on a new bridge cannot be firewalled to one host would remove it.

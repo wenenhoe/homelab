@@ -78,6 +78,29 @@ class TestErrors:
             (root / rel).write_text("# see docs/explorations/where-state-lives.md\n", encoding="utf-8")
         assert len(explorations.exploration_errors(root)) == 4
 
+    def test_a_link_by_relative_path_is_naming_one(self, root):
+        exploration(root)
+        for rel, link in (
+            ("docs/topics/infra/a.md", "../../explorations/where-state-lives.md"),
+            ("docs/topics/infra/tofu/b.md", "../../../explorations/where-state-lives.md#options"),
+            ("docs/c.md", "explorations/where-state-lives.md"),
+        ):
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(f"See [it]({link}).\n", encoding="utf-8")
+        errors = explorations.exploration_errors(root)
+        assert len(errors) == 3
+        assert all("explorations/where-state-lives.md" in error for error in errors)
+
+    def test_a_relative_link_to_the_readme_or_template_or_a_look_alike_directory_is_not_naming_one(self, root):
+        exploration(root)
+        (root / "docs/topics").mkdir(parents=True)
+        (root / "docs/topics/a.md").write_text(
+            "[readme](../explorations/README.md) [template](../explorations/TEMPLATE.md) "
+            "[other](../other-explorations/where-state-lives.md) [scratch](tofu/scratch/explorations/where-state-lives.md)\n",
+            encoding="utf-8",
+        )
+        assert explorations.exploration_errors(root) == []
+
     def test_the_planning_view_and_the_explorations_themselves_may_name_one(self, root):
         exploration(root)
         exploration(root, slug="second")

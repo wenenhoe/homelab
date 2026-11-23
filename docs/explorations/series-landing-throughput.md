@@ -18,7 +18,7 @@ related: [ADR-0112, ADR-0114]
 - A check result belongs to a commit. The tool moves a layer onto the new tip with the same tree and a new commit id (`kept.rebase`), which keeps `main` on one line and is why a rebased layer has no CI result of its own.
 - The `main` ruleset requires the 17 checks and has no bypass; `main-review` is the one the Admin role bypasses, for pull requests only ([`branching.md`](../topics/engineering/branching.md#the-rulesets)). The tool cannot vouch for a check that has not reported. The tool counts a skipped required job as passed.
 - The jobs of [`pr-checks.yml`](../../.github/workflows/pr-checks.yml) scope themselves from `pull_request.base.sha` to `pull_request.head.sha`. They read no repository secret and run with the read-only `github.token`, apart from the scan that uploads its results. Fifteen workflows already take `workflow_dispatch`, among them Renovate and the image builds.
-- The Python unit tests run only as the `python-unit-tests` job. No pre-commit or pre-push hook runs them, and the replay runs the project scope check and `pre-commit run --all-files`. `--land` runs the pre-push hooks on the commit in a scratch worktree before each push and then pushes with hooks off, as the remote-landing console does.
+- The replay runs the Python unit tests once per pull request, at its last commit, when CI would start the `python-unit-tests` job, besides the project scope check and `pre-commit run --all-files`. No pre-commit or pre-push hook runs them. `--land` runs the pre-push hooks on the commit in a scratch worktree before each push and then pushes with hooks off, as the remote-landing console does.
 - The replay does not run the heavy jobs (Molecule, the compose boot test, the Dockerfile builds, the deploy-ordering check): the first three need Docker and the last needs the Ansible Galaxy collections, which an environment without registry access cannot fetch ([`checks-without-docker.md`](../topics/engineering/checks-without-docker.md)).
 - A rebuilt layer is not always byte-identical to the first build: the planning view's table of explorations dates each by its newest commit, and a change not yet committed counts as today. A layer that adds or edits an exploration therefore differs between two replays.
 - A review is asked for by hand on a pull request once its required checks pass, and `land_series` advises on it from each layer's own commits ([`pr-review.md`](../topics/security/policy/pr-review.md)). A review is recorded against one pull request number, so a layer's proof and its real pull request are two different subjects.
@@ -26,7 +26,6 @@ related: [ADR-0112, ADR-0114]
 
 ## Options
 
-- **Keep the order and shift checks left.** Run the unit tests at each pull request's tip in the replay, scoped by the same filter CI uses, so the cheapest CI failure is found before anything is pushed. Costs a tip-only check in the replay. It does not overlap any wait.
 - **Reuse the layers below a fix.** Record each layer that passed and reuse its commit when its patch and the tree under it are unchanged, so a re-issued series skips what already passed. Saves replay time only, and a failed replay currently keeps nothing. Needed by the proof option below unless proofs are keyed another way.
 - **Cumulative heads on `main`.** Push every layer at once as a pull request into `main` whose head holds the layers below it, and merge in order. Each run tests exactly what will merge. The graph becomes a ladder (the first-parent history and one-layer reverts are unchanged), a pull request shows its ancestors until they merge, the scope check judges the cumulative diff and refuses a layer that needs an earlier layer's widening, a layer's commits belong to two pull requests, a failure low in the series voids every run above it, and the window in which `main` can move spans the whole series. A required up-to-date rule would break it.
 - **Merge file-disjoint layers in parallel.** The merged tree is a merge nobody tested, the generated views conflict, and it still needs the author to declare independence. Lost.
@@ -52,7 +51,7 @@ A flaky job is rerun in place: the commit and trees are unchanged, so no replay 
 
 ## Leaning
 
-The unit-test check at each tip and the reuse of unchanged layers are worth doing on their own. The proof option keeps the serial, clean landing the series has now and moves only the waiting, so it is the one to try, with stacked proofs first because they change no workflow. Gating the proofs above a CI-only layer and queuing series as one chain are refinements of it, to be added once the plain version holds. Cumulative heads are the fallback if it does not hold.
+The reuse of unchanged layers is worth doing on its own. The proof option keeps the serial, clean landing the series has now and moves only the waiting, so it is the one to try, with stacked proofs first because they change no workflow. Gating the proofs above a CI-only layer and queuing series as one chain are refinements of it, to be added once the plain version holds. Cumulative heads are the fallback if it does not hold.
 
 ## What has to be checked first
 

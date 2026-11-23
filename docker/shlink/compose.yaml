@@ -2,7 +2,7 @@ name: shlink
 
 services:
   shlink:
-    image: ghcr.io/shlinkio/shlink:5.1.8@sha256:68a722f7677008a50ccf3a9e570966bc37d7627fe6a870b86be28c5dcf9085ee
+    image: ghcr.io/shlinkio/shlink:5.1.9@sha256:248d38c8d7fdba90d9e0c3c7ea9e73ef73ec9f54f7f46faf8f369153cc889aab
     container_name: shlink
     environment:
       DEFAULT_DOMAIN: ${APP_URL}
@@ -30,7 +30,7 @@ services:
     security_opt:
       - no-new-privileges:true
   shlink-web-client:
-    image: ghcr.io/shlinkio/shlink-web-client:4.9.0@sha256:9ea53f612d361de240555036065e2b8ea0cd0411b0125afaf2f7d39f2a928f18
+    image: ghcr.io/shlinkio/shlink-web-client:4.9.1@sha256:732c291bcc099d6ff51038bcfba374be87494fa2916683a44d3135ea57cbe935
     container_name: shlink-web-client
     environment:
       SHLINK_SERVER_URL: https://${APP_URL}

@@ -64,10 +64,10 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - A licence file that is not one of the common texts is read as unrecognised, so an approved project can fail the check until its entry records the text it carries.
 - The check needs the upstream's source repository for every pin, and a few pins name a registry image without a source label.
 - Reading a licence file from GitHub depends on its availability and rate limits.
+- A lock file names no licence, so the check reads each locked package's published metadata, and some of it is free text that has to be normalised to an SPDX identifier.
 
 ## Open items
 
-- Whether the check descends into lock files for transitive dependencies, which the decision's assumptions settle.
 - Where the weekly run's failure is reported, which follows whatever the other weekly checks do.
 
 ## Closing checklist

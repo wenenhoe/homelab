@@ -29,7 +29,7 @@ where each one is set:
 
 | Tier | What the check does | Pins today |
 | :--- | :--- | :--- |
-| Signed | Fetches the publisher's manifest and its signature, verifies them against the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys/), and requires the pin to equal the manifest's line for the artifact. An OpenPGP signature is verified with `gpg` in a throwaway keyring holding only that key; an RSA signature is verified with `openssl dgst -sha256 -verify` against the committed PEM public key. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`), the OPNsense image (a BSD-style checksum file and its detached base64 RSA `.sig`) |
+| Signed | Fetches the publisher's manifest and its signature, verifies them against the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys), and requires the pin to equal the manifest's line for the artifact. An OpenPGP signature is verified with `gpg` in a throwaway keyring holding only that key; an RSA signature is verified with `openssl dgst -sha256 -verify` against the committed PEM public key. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`), the OPNsense image (a BSD-style checksum file and its detached base64 RSA `.sig`) |
 | Attested | Downloads the artifact, requires it to hash to the pin, then requires `gh attestation verify` to pass for the publisher's repository. | uv |
 | Listed | Requires the pin to equal the publisher's manifest line. The manifest is unsigned, so this catches a hash copied wrongly, not a publisher that served a bad artifact. | none |
 | None | The entry says why nothing can be checked. | none |

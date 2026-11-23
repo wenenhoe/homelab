@@ -148,7 +148,7 @@ Four constraints shape the design.
 - A rebuild adds a commit instead of rewriting the branch, so the branch
   only grows.
 - The behaviour is described in
-  [Progress Log](../../topics/engineering/progress-log.md).
+  [Progress Log](../../topics/documentation/progress-log.md).
 
 ## Invariants
 

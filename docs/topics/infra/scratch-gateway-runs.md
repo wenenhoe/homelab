@@ -104,7 +104,7 @@ The accelerator is KVM, which needs `/dev/kvm` readable and writable, unless `SC
 
 #### Bumping the pinned image
 
-The pin file holds three values that have to agree: `version`, a `url` whose file name is `OPNsense-<version>-nano-amd64.img.bz2`, and `sha256` of that file. The weekly release-checksum check and the pull request job fetch the release's signed checksum file for `version`, verify its RSA signature against the key committed in [`tools/ci/checksums/keys/`](../../../tools/ci/checksums/keys/), and require `sha256` to equal its line for the file ([the check](../engineering/ci/release-checksum-check.md)); a `sha256` copied from anywhere else, or a wrong one, fails it. To bump within the series (26.1.x):
+The pin file holds three values that have to agree: `version`, a `url` whose file name is `OPNsense-<version>-nano-amd64.img.bz2`, and `sha256` of that file. The weekly release-checksum check and the pull request job fetch the release's signed checksum file for `version`, verify its RSA signature against the key committed in [`tools/ci/checksums/keys/`](../../../tools/ci/checksums/keys), and require `sha256` to equal its line for the file ([the check](../engineering/ci/release-checksum-check.md)); a `sha256` copied from anywhere else, or a wrong one, fails it. To bump within the series (26.1.x):
 
 1. Fetch `OPNsense-<version>-checksums-amd64.sha256` and its `.sig` from `https://pkg.opnsense.org/releases/26.1/`.
 2. Verify them yourself with the committed key: `openssl base64 -d -in OPNsense-<version>-checksums-amd64.sha256.sig -out sig.bin`, then `openssl dgst -sha256 -verify tools/ci/checksums/keys/opnsense-26.1.pem -signature sig.bin OPNsense-<version>-checksums-amd64.sha256`, which prints `Verified OK`.

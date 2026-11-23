@@ -26,7 +26,7 @@ A reader who follows a row of a generated view, or reads on a phone, has to leav
 - **What there is to render.** About 300 markdown files under `docs/`: topic docs, projects, decision revisions, the architecture diagrams, the READMEs and the explorations. They hold paragraphs, lists with task-list items, tables, fenced blocks, one blockquote and one HTML comment, and nothing uses a GitHub alert, a footnote or raw HTML.
 - **The renderer reads them.** markdown-it-py, already in the lock file through another package, parses every one of those files under its CommonMark rules with tables enabled. The doc site's own renderer, which handles a link, a code span and bold text, refuses anything else, and that refusal is what keeps a view from showing markup wrongly.
 - **The diagrams render at build time.** Every Mermaid block renders to SVG in one headless Chrome page in about ten seconds, from the single bundle `mermaid.min.js` of Mermaid 11 (about 3.5 MB). The runner has Chrome and `playwright` is a dev dependency. A diagram's colours are fixed in its SVG, so a dark page needs a second rendering.
-- **Anchors.** Docs and the drift check use the anchor GitHub gives a heading ([`doc-site.md`](../../topics/engineering/doc-site.md#anchors-and-links)); the site already computes it.
+- **Anchors.** Docs and the drift check use the anchor GitHub gives a heading ([`doc-site.md`](../../topics/documentation/doc-site.md#anchors-and-links)); the site already computes it.
 - **Limits.** A Pages site is limited to 1 GB and a deployment times out after 10 minutes. About 300 pages and the diagrams are small against both. The layout check opens every page at several sizes, so its time grows with the page count.
 - **Explorations.** Nothing durable may point at an exploration, because it is deleted when it ends.
 
@@ -76,7 +76,7 @@ The diagram shows the design as this revision decided it, not what runs now.
 - A contents list takes width from a table beside it, and the layout check, which stops at phone and tablet widths, gains a wide size for the pages that have one.
 - The decision index's markdown view changes with its page, so a reader of either finds a decision the same way, and the grid has to stay readable on GitHub.
 - The deployed site grows by the HTML of every document and the SVG of every diagram in two renderings, a few megabytes in all.
-- [`doc-site.md`](../../topics/engineering/doc-site.md) describes the behaviour.
+- [`doc-site.md`](../../topics/documentation/doc-site.md) describes the behaviour.
 
 ## Invariants
 

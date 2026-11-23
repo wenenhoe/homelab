@@ -5,7 +5,7 @@ cross-doc link can't silently drift out of sync with what documents it.
 
 Narrow presence/shape checks only, deliberately not content-equality —
 see each check's docstring for what it does and doesn't catch, and
-docs/topics/engineering/ci/doc-checks.md#docs-drift-check for the summary.
+docs/topics/documentation/doc-checks.md#docs-drift-check for the summary.
 """
 
 from __future__ import annotations

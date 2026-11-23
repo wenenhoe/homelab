@@ -85,7 +85,7 @@ exit   # revokes the vault-bootstrap token
 
 The shell starts in `tools/` on `controller`, so the policy is read from
 the checkout, where every policy is checked in under
-[`docker/openbao/policies/`](../../../docker/openbao/policies/), not
+[`docker/openbao/policies/`](../../../docker/openbao/policies), not
 copied to `security`.
 
 Same parameter-choice discipline as `openbao-auth.md`'s `controller`

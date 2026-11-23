@@ -62,7 +62,7 @@ fails on it in prose, a comment or the text of a link.
 **Every doc's source of truth is the code/config it describes.**
 [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py) checks mechanically the
 places that can be, and
-[`topics/engineering/ci/doc-checks.md`](topics/engineering/ci/doc-checks.md#docs-drift-check)
+[`topics/documentation/doc-checks.md`](topics/documentation/doc-checks.md#docs-drift-check)
 lists them. What a change to a project or an accepted decision may do is checked separately,
 by [`check_doc_change.py`](../tools/doc_scripts/check_doc_change.py). Nothing enforces the
 rest by tooling: that is on whoever is making the change to keep current in the same PR, the

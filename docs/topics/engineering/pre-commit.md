@@ -26,7 +26,7 @@ they are written from, and two series that each add a project or a decision neve
 files in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros), which travel in a patch like any other file.
 
 Two decision lineages with the same number fail `generate-doc-indexes`, so the checks the replay runs after the commit stop the series;
-rewrite the patches with the [renumber helper](ci/doc-checks.md#renumbering-a-patch-series-lineages) and apply the copies.
+rewrite the patches with the [renumber helper](../documentation/doc-checks.md#renumbering-a-patch-series-lineages) and apply the copies.
 
 Plain patches (a change to `tools/land_series`, and the security series) are named with a letter on every
 one (`0001a`, `0001b`, `0002a`): a follow-up to `0001a` is `0001b`, and plain `ls` and `git am *.patch`
@@ -38,7 +38,7 @@ a series file mean something else: a number is a pull request and each letter a 
 
 `.config/.pre-commit-config.yaml` wires up:
 
-- `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene; `end-of-file-fixer` skips `tools/doc_site/vendor/`, whose stylesheet is kept as published so its pinned hash holds ([`doc-site.md`](doc-site.md#the-stylesheet))
+- `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene; `end-of-file-fixer` skips `tools/doc_site/vendor/`, whose stylesheet is kept as published so its pinned hash holds ([`doc-site.md`](../documentation/doc-site.md#the-stylesheet))
 - [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning of what is staged; CI skips the hook and scans the PR's commits instead, see [Secret scanning on pull requests](security-scanning.md#secret-scanning-on-pull-requests)
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
@@ -51,7 +51,7 @@ a series file mean something else: a number is a pull request and each letter a 
 - `check-doc-drift` (local) — keeps `ansible.md`, `molecule-testing.md`, `deployment-flow.md` and `ci/pipeline.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`tools/doc_scripts/check_doc_drift.py`](../../../tools/doc_scripts/check_doc_drift.py)
 - `check-moved-files` (local) — no file names a file that git history shows was renamed or removed, except the noted first mention in a decision revision; it reads the whole history and the whole tree, so it needs a full clone — see [`tools/doc_scripts/check_moved_files.py`](../../../tools/doc_scripts/check_moved_files.py)
 - `check-retired-numbers` (local) — no file names a decision number that was merged into another lineage or listed in `removed.md`, as `ADR NNNN` in prose or a comment, or as the visible number of a link to another record; it reads the whole tree and needs no history — see [`tools/doc_scripts/check_retired_numbers.py`](../../../tools/doc_scripts/check_retired_numbers.py)
-- `check-doc-change` (local) — the project scope, close and start checks and the accepted-records check, on what is staged; CI runs the same over the whole PR. The rules are in [the doc checks](ci/doc-checks.md#the-four-project-and-record-checks-as-one-command) — see [`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
+- `check-doc-change` (local) — the project scope, close and start checks and the accepted-records check, on what is staged; CI runs the same over the whole PR. The rules are in [the doc checks](../documentation/doc-checks.md#the-four-project-and-record-checks-as-one-command) — see [`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
 - `check-doc-change-push` (local, push time) — the same four checks over the commits being pushed, against the default branch as the `project-checks` job does, so a stray file in an earlier commit or a missing `Editorial-Fix:` trailer shows before CI; it skips and says so when the clone has no default branch or shares no history with it — see [`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 

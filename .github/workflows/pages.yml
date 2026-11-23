@@ -3,7 +3,7 @@ name: Documentation site
 # On every push to main, and on demand. Builds the three generated views as a static site,
 # checks the site's layout at phone widths, and deploys it to GitHub Pages — see
 # docs/decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md and
-# docs/topics/engineering/doc-site.md.
+# docs/topics/documentation/doc-site.md.
 #
 # Two jobs, so that what builds does not hold what deploys. `build` runs the repository's own Python
 # with a read-only token and hands the site on as an artifact. `deploy` runs no repository code: it

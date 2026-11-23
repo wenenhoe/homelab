@@ -2,7 +2,7 @@
 
 The scripts the [rebuild runbook](rebuild-runbook.md) calls: what each does,
 what it refuses, and the dump storage they depend on. They live in
-[`tools/rebuild_check/`](../../../tools/rebuild_check/).
+[`tools/rebuild_check/`](../../../tools/rebuild_check).
 
 | Tool | Runs on | Used at step | Does |
 | :--- | :--- | :-: | :--- |

@@ -2,7 +2,7 @@
 
 Bats tests for the shell scripts that decide an outcome worth protecting: what a failed run leaves running or stopped, what is cleaned up on every exit path, what a prompt must be answered with. The decision is [ADR 0086 (Shell script tests)](../../../decisions/0086-testing-the-control-flow-of-shell-scripts/revision-000.md). The runner and its libraries are the pinned clones described in [CI Shell Test Pins](shell-test-pins.md).
 
-The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one `.bats` file per script:
+The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell), one `.bats` file per script:
 
 | Test file | Script |
 | :--- | :--- |

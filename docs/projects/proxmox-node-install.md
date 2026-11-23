@@ -17,7 +17,7 @@ allowed_paths:
   - docs/topics/infra/proxmox-node.md
   - docs/topics/infra/vm-provisioning.md
   - docs/topics/infra/tofu/**
-  - docs/topics/engineering/molecule-testing.md
+  - docs/topics/testing/molecule-testing.md
   - docs/topics/README.md
 ---
 

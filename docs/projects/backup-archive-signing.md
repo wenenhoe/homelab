@@ -20,7 +20,7 @@ allowed_paths:
   - tools/tests/shell/check_freshness.bats
   - docs/topics/disaster-recovery/**
   - docs/topics/monitoring/gatus.md
-  - docs/topics/engineering/molecule-testing.md
+  - docs/topics/testing/molecule-testing.md
   - docs/architecture/backup-and-restore-data-flow.md
 ---
 

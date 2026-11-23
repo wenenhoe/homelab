@@ -23,7 +23,7 @@ allowed_paths:
   - docs/topics/services/step-ca.md
   - docs/topics/secrets/openbao.md
   - docs/topics/disaster-recovery/backup.md
-  - docs/topics/engineering/molecule-testing.md
+  - docs/topics/testing/molecule-testing.md
 ---
 
 # Bind-Mounted Config Files

@@ -23,6 +23,12 @@ still has to be checked.
 Each option and what it would cost or risk. Keep the ones that lost, with the
 reason, since they move to the decision's Alternatives.
 
+## A new system
+
+Only when the question adds a system. Where it runs and why that zone; the
+flows in and out, as `flows.yaml` entries; the shared services it uses or
+provides; what it adds to the node's memory and cores; and what reaches it.
+
 ## Leaning
 
 Optional. Where this is heading and what would change it.

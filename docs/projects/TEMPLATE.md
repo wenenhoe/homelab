@@ -52,6 +52,7 @@ below only for a stage that needs more than its row to orient someone.
 Observable conditions that mean this project is done.
 
 - [ ] ...
+- [ ] A project that adds a zone or a flow between zones carries the `flows.yaml` entries in the same change.
 
 A project that introduces a system (an app, a service a role deploys, or an
 external dependency) adds one line per section of its service record

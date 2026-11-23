@@ -28,6 +28,7 @@ from doc_scripts.doc_graph import (
     superseded_structure_errors,
     weight_errors,
 )
+from doc_scripts.doc_policy_flows import policy_flow_errors
 from doc_scripts.doc_records import record_errors
 from doc_scripts.doc_reliance import reliance_warnings
 from doc_scripts.doc_removed import ledger_errors
@@ -469,6 +470,7 @@ def main(argv: list[str] | None = None) -> int:
     errors.extend(project_errors(ROOT))
     errors.extend(exploration_errors(ROOT))
     errors.extend(stage_word_errors(ROOT))
+    errors.extend(policy_flow_errors(ROOT))
     errors.extend(record_errors(ROOT))
     errors.extend(ledger_errors(ROOT))
 

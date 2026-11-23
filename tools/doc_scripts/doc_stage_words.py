@@ -27,7 +27,7 @@ SCAN_SKIP_DIRS = {".git", "node_modules", ".venv", "vendor"}
 _BLOCK_START_RE = re.compile(r"\s*(?:[-*+]\s|\d+[.)]\s|\|)")
 
 
-def _units(text: str) -> list[tuple[int, str]]:
+def split_units(text: str) -> list[tuple[int, str]]:
     """(first line number, text) of each paragraph, list item and table row."""
     units: list[tuple[int, list[str]]] = []
     for number, line in enumerate(text.splitlines(), 1):
@@ -51,7 +51,7 @@ def stage_word_errors(root: Path = ROOT) -> list[str]:
         text = f.read_text(encoding="utf-8", errors="replace")
         if not (STAGE_WORD_RE.search(text) and PROJECT_NAME_RE.search(text)):
             continue
-        for number, unit in _units(text):
+        for number, unit in split_units(text):
             if STAGE_WORD_RE.search(unit) and PROJECT_NAME_RE.search(unit):
                 errors.append(
                     f"{rel}:{number}: names a project and one of its stages. Stage, phase and track vocabulary belongs to "

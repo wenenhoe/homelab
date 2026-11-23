@@ -165,6 +165,12 @@ these narrow, structural things:
   A stage word alone is allowed, since a playbook has stages of its own; the check fires when
   one paragraph, list item or table row also links a project doc or names a `PROJ-` id.
   `AGENTS.md` gives the reason: the vocabulary is deleted with the project.
+- The zone policy in [`opnsense-gateway.md`](../../infra/tofu/opnsense-gateway.md#zone-policy)
+  names each flow in the first cell of its row, as a code span of lowercase words joined by hyphens, and
+  uses no name twice ([`doc_policy_flows.py`](../../../../tools/doc_scripts/doc_policy_flows.py)). A link
+  to that section whose text is such a name must name a flow in the table, and a doc that links the
+  gateway doc, or is it, does not cite a row by its number (the word `row` or `rows` followed by one). A number changes
+  when a row is added or moved, a name does not. The decisions are frozen and keep the numbers they have.
 - Relative links (`./`, `../`) from a `.md` file to a config, script, or
   data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
   way `.md` links do.

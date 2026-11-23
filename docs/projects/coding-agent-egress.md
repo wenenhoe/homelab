@@ -6,7 +6,7 @@ status: not-started
 blocked: false
 summary: The two filtering forward proxies in VLAN 45 that give the management, coding-agent and DMZ zones their only way to the Internet, the per-VM address filter that keys them, and canary probes that check the coding-agent boundary from outside the host.
 decision: ADR-0116/0
-also_implements: [ADR-0053/1]
+also_implements: [ADR-0053/0]
 super_project: coding-agent-host
 allowed_paths:
   - docs/topics/infra/coding-agent-network.md
@@ -48,7 +48,7 @@ VLAN 45 and its interface rules, the trusted-tier and untrusted-tier proxy VMs w
 
 ## Decision
 
-Implements [ADR 0116 (Egress for default-deny zones)](../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), `approved`, which gates this project. It also carries out [ADR 0053 revision 1 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-001.md), `approved`, named in `also_implements:`: the coding-agent zone's outbound path and resolver are the untrusted tier and its VM. [`coding-agent-network.md`](coding-agent-network.md) builds that revision's zone and this project closes last, so it accepts that revision when it closes. Closing needs both revisions `accepted`, or named by a project that remains. [`operator-host-takeover.md`](operator-host-takeover.md) names ADR 0116 in `also_implements:`, so that record stays `approved` until the trusted tier has its consumer.
+Implements [ADR 0116 (Egress for default-deny zones)](../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md), `approved`, which gates this project. It also carries out [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), `approved`, named in `also_implements:`: the coding-agent zone's outbound path and resolver are the untrusted tier and its VM. [`coding-agent-network.md`](coding-agent-network.md) builds that revision's zone and this project closes last, so it accepts that revision when it closes. Closing needs both revisions `accepted`, or named by a project that remains. [`operator-host-takeover.md`](operator-host-takeover.md) names ADR 0116 in `also_implements:`, so that record stays `approved` until the trusted tier has its consumer.
 
 ## Execution plan
 

@@ -92,6 +92,21 @@ class TestLineageErrors:
         revision(root, "0001-a", 0, letter="b", status="retired")
         assert any("more than one decided" in e for e in graph.lineage_errors(root))
 
+    def test_a_later_revision_stays_working_beside_an_approved_one(self, root):
+        revision(root, "0001-a", 0, status="approved")
+        revision(root, "0001-a", 1, status="working", supersedes=0)
+        assert graph.lineage_errors(root) == []
+
+    def test_two_revisions_of_different_generations_are_never_both_approved(self, root):
+        revision(root, "0001-a", 0, status="approved")
+        revision(root, "0001-a", 1, status="approved", supersedes=0)
+        assert_one_error(graph.lineage_errors(root), "revisions 0, 1 are all approved")
+
+    def test_an_approved_successor_beside_an_accepted_revision_is_valid(self, root):
+        revision(root, "0001-a", 0, status="accepted")
+        revision(root, "0001-a", 1, status="approved", supersedes=0)
+        assert graph.lineage_errors(root) == []
+
     def test_supersession_names_the_winning_candidate(self, root):
         revision(root, "0001-a", 0, letter="a", status="superseded", superseded_by=1)
         revision(root, "0001-a", 0, letter="b", status="abandoned")

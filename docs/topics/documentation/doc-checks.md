@@ -99,7 +99,7 @@ these narrow, structural things:
 - Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`) follow
   [Lineages and revisions](../../decisions/README.md#lineages-and-revisions) and
   [Revision states](../../decisions/README.md#revision-states): generations and
-  candidate letters with none missing, at most one `accepted` revision, and a
+  candidate letters with none missing, at most one `accepted` and one `approved` revision, and a
   `superseded` one that names its `accepted` successor, which declares `supersedes`
   back. `title`, `short` and `topic` are identical across a lineage's revisions, and
   `short` is unique across lineages (ignoring case); `narrows`, `related`, and

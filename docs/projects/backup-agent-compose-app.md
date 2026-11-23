@@ -23,7 +23,7 @@ allowed_paths:
   - docs/topics/deploy/**
   - docs/topics/disaster-recovery/backup.md
   - docs/topics/engineering/conventions.md
-  - docs/topics/engineering/molecule-testing.md
+  - docs/topics/testing/molecule-testing.md
   - docs/topics/engineering/ci/gates.md
 ---
 

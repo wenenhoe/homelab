@@ -16,7 +16,7 @@ allowed_paths:
   - ansible/tests/test_backup_plan.py
   - .config/.trivyignore
   - docs/topics/disaster-recovery/**
-  - docs/topics/engineering/molecule-testing.md
+  - docs/topics/testing/molecule-testing.md
 ---
 
 # Backup Archive Retention Lock

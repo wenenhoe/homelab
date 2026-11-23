@@ -11,7 +11,7 @@ allowed_paths:
   - ansible/inventory/group_vars/all/app_catalog.yaml
   - docs/topics/monitoring/beszel.md
   - docs/topics/deploy/adding-an-app.md
-  - docs/topics/engineering/molecule-testing.md
+  - docs/topics/testing/molecule-testing.md
 ---
 
 # Beszel Agent Docker API Rules

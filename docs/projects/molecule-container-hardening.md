@@ -9,8 +9,8 @@ allowed_paths:
   - ansible/roles/molecule_helpers/**
   - ansible/roles/*/molecule/**
   - ansible/tests/test_molecule_container_hardening.py
-  - docs/topics/engineering/molecule-testing.md
-  - docs/topics/engineering/molecule-fixtures.md
+  - docs/topics/testing/molecule-testing.md
+  - docs/topics/testing/molecule-fixtures.md
   - docs/topics/deploy/container-hardening.md
 ---
 

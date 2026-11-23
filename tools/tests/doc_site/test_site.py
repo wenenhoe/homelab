@@ -22,6 +22,8 @@ PAGES = {
     "decisions/0002-b/revision-000/index.html",
     "topics/index.html",
     "topics/infra/network/index.html",
+    "architecture/index.html",
+    "architecture/flow/index.html",
 }
 STAMP = site.Stamp("0123456789abcdef0123456789abcdef01234567", "2026-11-21T16:12:00+08:00")
 
@@ -96,6 +98,8 @@ def test_the_anchors_a_link_can_name_are_those_of_the_headings(tree):
         "decisions/0002-b/revision-000",
         "topics",
         "topics/infra/network",
+        "architecture",
+        "architecture/flow",
     }
     built = site.build(tree)
     for view in site.VIEWS:

@@ -44,6 +44,7 @@ HOME = {
     "projects": "How projects work, and where each stage of a project stands.",
     "decision-index": "Every decision by number and by topic, the open ones and the superseded ones.",
     "topics": "How each part of the homelab is built, run and recovered.",
+    "architecture": "Diagrams of the system as it runs: the fleet, DNS, authentication, secrets, backups and alerting.",
     "dr-coverage": "What each app has: where it runs, what is backed up, its record and its recovery tier.",
 }
 
@@ -53,6 +54,7 @@ NAV = (
     ("docs/projects/README.md", "projects", "Projects"),
     ("docs/decision-index.md", "decision-index", "Decisions"),
     ("docs/topics/README.md", "topics", "Topics"),
+    ("docs/architecture/README.md", "architecture", "Architecture"),
     ("docs/topics/disaster-recovery/coverage.md", "dr-coverage", "DR coverage"),
 )
 
@@ -173,17 +175,20 @@ class Document:
 
     @property
     def depth(self) -> int:
-        return self.slug.count("/") + 1
+        """How many directories under the site's root its page is: none for the home page, which `docs/README.md` is."""
+        return self.slug.count("/") + 1 if self.slug else 0
 
 
 def _slug(source: str) -> str:
-    """A document's directory on the site: its path under `docs/` without `.md`, and a README is its directory's page."""
+    """A document's directory on the site: its path under `docs/` without `.md`, and a README is its directory's page, so
+    `docs/README.md` is the home page and its slug is empty."""
     path = source.removeprefix("docs/").removesuffix(".md")
-    return path.removesuffix("/README")
+    return "" if path == "README" else path.removesuffix("/README")
 
 
 def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
-    """The documents with a page of their own: the projects, the topic docs and the decision revisions, with the README of each directory that has one."""
+    """The documents with a page of their own: the projects, the topic docs, the decision revisions and the architecture docs, with the README of
+    each directory that has one and the README of `docs/`, which is the home page."""
     projects = [(path, read_frontmatter(path)) for path in docs_in(root / "docs/projects")]
     decisions = [(revision.path, revision.fm) for lineage in lineages for revision in lineage.revisions]
     decisions += [(path, {}) for path in sorted((root / "docs/decisions").glob("*.md")) if not is_template(path.name)]
@@ -191,7 +196,8 @@ def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
         path for path in (root / "docs/topics").rglob("*.md") if not is_template(path.name) and path.relative_to(root).as_posix() not in GENERATED_VIEWS
     )
     found = [(path, front) for path, front in projects + decisions] + [(path, {}) for path in topics]
-    found += [(root / "docs/projects/README.md", {})]
+    found += [(path, {}) for path in sorted((root / "docs/architecture").glob("*.md")) if not is_template(path.name)]
+    found += [(root / "docs/projects/README.md", {}), (root / "docs/README.md", {})]
     documents = []
     for path, front in found:
         source = path.relative_to(root).as_posix()
@@ -201,7 +207,7 @@ def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
 
 def _page_addresses(targets: dict[str, str], depth: int) -> dict[str, str]:
     """Each page's address from a page `depth` directories under the site's root; `targets` maps a source path to its directory."""
-    return {source: f"{'../' * depth}{slug}/" for source, slug in targets.items()}
+    return {source: f"{'../' * depth}{slug}/" if slug else "../" * depth or "./" for source, slug in targets.items()}
 
 
 def _figure(drawn: Drawn) -> str:
@@ -406,6 +412,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
             .encode("utf-8")
         )
     pages: list[tuple[Document, Rendered]] = []
+    readme: dict | None = None
     for document in documents:
         resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
         pages.append((document, render((root / document.source).read_text(encoding="utf-8"), resolve, document.source)))
@@ -426,6 +433,15 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         else:
             facts, notice = (_project_facts(document, documents, resolve) if document.source.startswith("docs/projects/") and document.front else []), ""
         base = "../" * document.depth
+        if not document.slug:
+            readme = {
+                "title": page.title,
+                "id": page.title_id,
+                "body": body,
+                "headings": page.headings,
+                "source_url": f"{REPO_URL}/blob/{BRANCH}/{document.source}",
+            }
+            continue
         files[f"{document.slug}/index.html"] = (
             env.get_template("document.html.j2")
             .render(
@@ -450,6 +466,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         env.get_template("home.html.j2")
         .render(
             views=[{"href": f"{slug}/", "label": label, "blurb": HOME[slug]} for source, slug, label in NAV if source in targets],
+            readme=readme,
             nav=nav(None, 0),
             base="",
             home="",

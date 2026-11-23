@@ -21,7 +21,7 @@ allowed_paths:
   - docs/topics/deploy/**
   - docs/topics/services/caddy.md
   - docs/topics/services/step-ca.md
-  - docs/topics/secrets/openbao.md
+  - docs/topics/security/openbao/deployment.md
   - docs/topics/disaster-recovery/backup.md
   - docs/topics/testing/molecule-testing.md
 ---

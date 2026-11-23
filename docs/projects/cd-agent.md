@@ -33,6 +33,7 @@ allowed_paths:
   - docs/topics/deploy/cd-agent-runner.md
   - docs/topics/infra/host-hardening.md
   - docs/topics/secrets/cloud-credentials/rotation.md
+  - docs/topics/security/cloud-credentials/rotation.md
   - docker/openbao/policies/cd-agent-*.hcl
   - docker/openbao/policies/vault-bootstrap.hcl
   - ansible/roles/secrets/**
@@ -41,6 +42,7 @@ allowed_paths:
   - tools/cloud_credentials/**
   - tools/tests/cloud_credentials/**
   - docs/topics/secrets/openbao-cd-agent-approles.md
+  - docs/topics/security/openbao/openbao-cd-agent-approles.md
 ---
 
 # CD Agent Host and Credentials

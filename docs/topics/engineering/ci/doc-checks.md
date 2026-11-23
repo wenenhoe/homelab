@@ -80,7 +80,7 @@ these narrow, structural things:
   a heading that actually slugs to that anchor; same for same-file
   `#anchor` links. Catches the class of bug a file move/rename/split
   leaves behind.
-- No markdown file links a generated view by its file path: the decision index, the planning view and the coverage table are linked through their pages on the site, and every link to the site names a page that exists and, after a `#`, a heading on it. The headings are those of the pages built from the tree ([`doc-site.md`](../doc-site.md#linking-a-view)). The views link each other by path, and are not checked.
+- No markdown file links a generated view by its file path: the decision index, the planning view and the coverage table are linked through their pages on the site, and every link to the site, to a view's page or a document's, names a page that exists and, after a `#`, a heading, section or list of headings on it. The headings are those of the pages built from the tree ([`doc-site.md`](../doc-site.md#linking-a-view)). The views link each other by path, and are not checked.
 - Every path under `docs/decisions/` or `docs/projects/` ending in `.md`
   that is written in any docs, code, or config file (`.md`, `.py`,
   `.yaml`, `.sh`, `.toml`, …) exists — comments included. This is what

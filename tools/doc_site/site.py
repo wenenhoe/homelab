@@ -659,10 +659,11 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
 
 
 def page_anchors(root: Path = ROOT) -> dict[str, set[str]]:
-    """The heading ids of each page, by its slug (`""` for the home page): what a link to the site can name after the `#`."""
+    """The ids of each page's headings, its sections and its list of headings, by its slug (`""` for the home page): what a link to the site can
+    name after the `#`."""
     built = build(root, draw=diagrams.skip)
     pages = {"": "index.html"} | {path.removesuffix("/index.html"): path for path in built if path.endswith("/index.html")}
-    return {slug: set(re.findall(r'<(?:h[1-6]|section)\b[^>]*? id="([^"]+)"', built[path].decode())) for slug, path in pages.items()}
+    return {slug: set(re.findall(r'<(?:h[1-6]|section|nav)\b[^>]*? id="([^"]+)"', built[path].decode())) for slug, path in pages.items()}
 
 
 def write(out: Path, root: Path = ROOT, stamp: Stamp | None = None) -> list[str]:

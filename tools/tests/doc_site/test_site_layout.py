@@ -126,3 +126,23 @@ def test_pages_shared_among_browsers_are_reported_in_the_order_of_the_pages_and_
         (tmp_path / name / "index.html").write_text(PAGE.format(body='<p style="font-size:9px">x</p>'), encoding="utf-8")
     errors = layout.check(tmp_path, (390, 360), workers=3)
     assert [error.split(": ")[0] for error in errors] == [f"/{name}/ at {width}px" for name in "abcde" for width in (390, 360)]
+
+
+ORIENTED_PAGE = '<nav class="toc"></nav><div style="width:{width}px">wide</div>'
+
+
+def sizes_reported(tmp_path, body: str) -> set[str]:
+    return {error.split(": ")[0] for error in problems(tmp_path, body, (1400,))}
+
+
+def test_a_page_with_a_list_is_also_opened_at_the_wide_size(tmp_path):
+    assert sizes_reported(tmp_path, ORIENTED_PAGE.format(width=1000)) == set()
+    assert sizes_reported(tmp_path, ORIENTED_PAGE.format(width=1500)) == {"/ at 1400px", "/ at 1280px"}
+
+
+def test_a_page_without_a_list_or_tabs_is_not_opened_at_the_wide_size(tmp_path):
+    assert sizes_reported(tmp_path, '<div style="width:1500px">wide</div>') == {"/ at 1400px"}
+
+
+def test_a_page_with_tabs_is_opened_at_the_wide_size(tmp_path):
+    assert "/ at 1280px" in sizes_reported(tmp_path, '<div class="tabs"></div><div style="width:1500px">wide</div>')

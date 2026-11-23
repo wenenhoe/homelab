@@ -114,7 +114,7 @@ gateway: the play is applied to it, so a hand-built zone would be removed as dri
   and 12.
 - [`coding-agent-egress.md`](../../../projects/coding-agent-egress.md) adds VLAN 45, the egress
   zone, and generates the two proxies' allowlists from one source in the repo.
-- [`gatehouse.md`](../../../projects/gatehouse.md) added VLAN 35, the DMZ, with its rules.
+- VLAN 35, the DMZ, is in the play with its interface and the rules every zone gets; the rules for the host it will hold are still [`gatehouse.md`](../../../projects/gatehouse.md)'s to add.
 
 ## What a clean check means
 
@@ -132,8 +132,8 @@ reports changed), and a run converged each.
 - Package locks, anything set through the collection's generic call and a user password set to
   `always` were not exercised, so the play leaves such objects out of the check.
 - A rule with no description stops the play instead of being removed, since it cannot be named.
-  If descriptions stop being enough, the options are in
-  [`opnsense-rule-drift-read.md`](../../../explorations/opnsense-rule-drift-read.md).
+  How the play would tell a rule it writes from one it must remove, if descriptions stop being
+  enough, is an open question.
 
 ## What the check cannot see
 

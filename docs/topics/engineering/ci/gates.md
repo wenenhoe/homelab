@@ -173,9 +173,9 @@ for the current values):
   isolation Docker-based Molecule doesn't provide, such as a real VM.
 - `bind9` - the resolv.conf-upstream task needs a pre-existing
   non-upstream resolv.conf to be worth simulating.
-- `openbao` - the wait for OpenBao to answer and its failure task are in no
-  scenario of the role, and the cert issuance without renewal units, which
-  `bootstrap-security.yaml` uses, is skipped in the one that exists.
+- `openbao` - the failure task of the wait for OpenBao to answer needs an
+  OpenBao that never does, and the role's 20 retries 5 seconds apart cannot be
+  shortened from a scenario, so it would cost over 100 seconds.
 - `openbao_cli` - the two failure tasks: no running `openbao` container, and a
   native CLI whose version differs from the server's. Both are skipped in the
   one scenario, which runs a healthy install.

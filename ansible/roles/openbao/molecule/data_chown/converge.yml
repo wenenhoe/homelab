@@ -85,3 +85,18 @@
       ansible.builtin.include_role:
         name: openbao
         tasks_from: cert.yaml
+
+    - name: Wait for OpenBao to answer
+      ansible.builtin.include_role:
+        name: openbao
+        tasks_from: wait.yaml
+
+    # What bootstrap-security.yaml runs before OpenBao is up: the issuance
+    # alone, with no renewal units. The cert is already there, so this one
+    # finds it and changes nothing.
+    - name: Issue OpenBao's cert again, as the bootstrap playbook does
+      ansible.builtin.include_role:
+        name: openbao
+        tasks_from: cert.yaml
+      vars:
+        openbao_cert_issue_only: true

@@ -5,6 +5,7 @@ A self-hosted PDF toolbox on `services`. The catalog's facts are in the [coverag
 ## Dependencies
 
 - Needs the `caddy-proxy` network and its Caddy route. It has no volume, secret or database.
+- The route is reachable only while three other services are up: the internal DNS that resolves its host name ([`bind9.md`](../services/bind9.md)), Caddy ([`caddy.md`](../services/caddy.md)), and Tinyauth, which Caddy asks about every request because the route does not set `auth: false` ([`caddy.md`](../services/caddy.md#caddyfile-generation)).
 - Needed by nothing.
 
 ## Data
@@ -18,11 +19,12 @@ A self-hosted PDF toolbox on `services`. The catalog's facts are in the [coverag
 
 ## Threat model
 
-- Uploaded documents may be sensitive and a malformed PDF may exploit the converter. The route is behind Tinyauth and the container has no volume to write to. Unknown: whether the root filesystem is read-only; check the compose file.
+- Uploaded documents may be sensitive and a malformed PDF may exploit the converter. The route is behind Tinyauth and the container has no volume to write to. The root filesystem is writable, since the compose file sets no `read_only`, so a compromised converter can write to the container's own layer until it is recreated.
 
 ## Observability
 
-- Its container health state is reported by Beszel ([`beszel.md`](../monitoring/beszel.md)). Nothing else watches it, and nothing depends on it.
+- The container health check marks it unhealthy and Beszel shows that state ([`beszel.md`](../monitoring/beszel.md)). Gatus has no endpoint for it.
+- Alerts on the hub are set by hand in its database ([`beszel.md`](../monitoring/beszel.md#alert-notifications)); the repository declares none, so nothing alerts on an unhealthy container. Nothing depends on it.
 
 ## Disaster recovery
 

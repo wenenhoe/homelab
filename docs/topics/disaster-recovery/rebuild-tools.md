@@ -8,6 +8,7 @@ what it refuses, and the dump storage they depend on. They live in
 | :--- | :--- | :-: | :--- |
 | [`retire_vm.sh`](#retire_vmsh) | The Proxmox node, as root, piped over SSH | 6, 13, rollback | Dumps, destroys and restores a VM; drops its dump |
 | [`gateway_preflight.sh`](#gateway_preflightsh) | The operator host, over SSH to the node | [Gateway rebuild](../infra/tofu/opnsense-vm.md#rebuilding-the-production-gateway) | Reads what a rebuild of the gateway needs, before the window and before the create |
+| [`move_vm_nic.sh`](#move_vm_nicsh) | The Proxmox node, as root, piped over SSH | [Gateway rebuild](../infra/tofu/opnsense-vm.md#rebuilding-the-production-gateway) | Moves one NIC of a VM to another bridge and tag |
 | [`bucket_copy.py`](#bucket_copypy) | The rebuilt `storage`, as root, piped over SSH | [`rebuild-storage.md`](rebuild-storage.md) | Copies the backup bucket from another S3 endpoint and proves the copy whole |
 | [`rebuild_check.known_hosts`](../../../tools/rebuild_check/known_hosts.py) | The operator's machine | 8 | Removes a host's old SSH host key |
 | [`rebuild_check.host`](#rebuild_checkhost) | The operator's machine, over SSH | 12 | Checks one rebuilt host |
@@ -106,6 +107,20 @@ override what the script assumes. The plan is read by
 JSON and runs nothing. It does not run the rebuild's sequence, the root module's apply or the play:
 the [rehearsal](../infra/tofu/opnsense-vm.md#rebuilding-the-production-gateway) on a scratch gateway
 covers the play.
+
+## move_vm_nic.sh
+
+```sh
+ssh root@<node> 'bash -s -- 401 <name> net0 vmbr0 none' < tools/rebuild_check/scripts/move_vm_nic.sh
+ssh root@<node> 'bash -s -- 401 <name> net0 vmbr1 25' < tools/rebuild_check/scripts/move_vm_nic.sh
+```
+
+Moves one NIC of a VM to a bridge and VLAN tag (`none` for untagged) and keeps its model, MAC address
+and other options. The VMID is followed by the VM's name in Proxmox, which has to match, then the NIC
+(`net0` is the first). It refuses a VM that is not found, a NIC the VM lacks or one that names no
+bridge, before it changes anything, and prints the NIC's line before and after so the way back is
+on the screen. The change applies to a running VM at once and drops any connection the NIC carries,
+so run it from a machine whose own session does not cross that NIC.
 
 ## bucket_copy.py
 

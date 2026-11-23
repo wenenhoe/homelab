@@ -141,10 +141,13 @@ class TestPullRequestJob:
     def test_detect_changes_passes_the_filters_verdict_on(self, pr_checks):
         assert pr_checks["jobs"]["detect-changes"]["outputs"]["doc_site"] == "${{ steps.filter.outputs.doc_site }}"
 
-    def test_it_builds_and_checks_the_layout_as_the_deploy_does(self, pr_checks, workflow):
+    def test_it_builds_as_the_deploy_does_and_checks_a_sample_of_the_pages_where_the_deploy_checks_all(self, pr_checks, workflow):
         pr, deploy = pr_checks["jobs"]["doc-site"], workflow["jobs"]["build"]
         commands = lambda job: [step["run"] for step in job["steps"] if "doc_site" in step.get("run", "")]  # noqa: E731
-        assert commands(pr) == commands(deploy)
+        (pr_build, pr_layout), (deploy_build, deploy_layout) = commands(pr), commands(deploy)
+        assert pr_build == deploy_build
+        assert pr_layout == deploy_layout.replace("doc_site.layout ", "doc_site.layout --sample ")
+        assert "--sample" not in deploy_layout
 
     def test_it_deploys_nothing_and_holds_no_write_permission(self, pr_checks):
         job = pr_checks["jobs"]["doc-site"]
@@ -167,6 +170,10 @@ class TestFilter:
             "tools/doc_site/layout.py",
             "tools/doc_scripts/generate_doc_indexes.py",
             "docs/decisions/0117-x/revision-000.md",
+            "docs/README.md",
+            "docs/topics/engineering/doc-site.md",
+            "docs/projects/doc-site-pages.md",
+            "docs/architecture/alerting-and-heartbeat-flow.md",
             "ansible/inventory/group_vars/all/app_catalog.yaml",
             ".github/workflows/pages.yml",
             "uv.lock",

@@ -604,8 +604,9 @@ jobs:
         run: python3 -m ci.gates.renovate_config
         working-directory: tools
 
-  # Builds the documentation site and checks its layout at phone widths, the
-  # two steps pages.yml runs before it deploys — see
+  # Builds the documentation site and checks the layout of a sample of its pages
+  # at phone widths. pages.yml runs the same two steps over every page before it
+  # deploys, which is too slow for a pull request — see
   # docs/topics/engineering/doc-site.md. Deploys nothing and holds no credential.
   # Not a matrix job, so it can be required directly: a PR that changes neither
   # the site's code nor what it is built from reports it skipped.
@@ -630,8 +631,8 @@ jobs:
         working-directory: tools
 
       # Chrome comes with the runner image.
-      - name: Check the layout at phone widths
-        run: uv run --locked python -m doc_site.layout "$RUNNER_TEMP/site"
+      - name: Check the layout of a sample of pages at phone widths
+        run: uv run --locked python -m doc_site.layout --sample "$RUNNER_TEMP/site"
         working-directory: tools
 
   # Formatting, validation and the mocked-provider tests of the root module in

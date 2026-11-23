@@ -122,7 +122,7 @@ One run goes at a time and one waits, and a newer waiting run replaces an older 
 
 Two settings are the maintainer's and live on GitHub: the repository's Pages source is GitHub Actions, and the `github-pages` environment accepts a deployment from `main` only. The workflow sets neither, and a deployment from another branch is refused by the environment, not by this file.
 
-The `doc-site` job in `pr-checks.yml` runs the same build and layout check on a pull request that changes the renderer, the generator or what they read ([change scoping](ci/change-scoping.md)). It deploys nothing and has no write permission.
+The `doc-site` job in `pr-checks.yml` runs the same build on a pull request that changes the renderer, the generator or what they read, which includes every document under `docs/` ([change scoping](ci/change-scoping.md)), and checks the layout of the sample above, where the deploy checks every page. It deploys nothing and has no write permission. A layout fault on a page the sample leaves out is found by the deploy's run, before that deployment.
 
 ## Subresource integrity
 

@@ -295,6 +295,7 @@ lists it to read again; update the column when you have.
 | ADR 0018 and 0023 | Unsealing OpenBao after a restart, and how credential code stores its output. 0018 is `working`. | 0018 working, 0023 accepted |
 | ADR 0023, 0109, 0110 | Storage and rotation cadence, expiry, and the R2 admin token. They share a topic and link one another, but each states a different choice with its own triggers. | 0023 accepted, 0109 accepted, 0110 accepted |
 | ADR 0037, 0080, 0082 | The documentation workflow, how an approved decision's reliance on an unfinished one is recorded, and how the next project is chosen. | 0037 accepted, 0080 accepted, 0082 accepted |
+| ADR 0060, 0061, 0062 | Where the results of automated review are tracked, where it runs and what it may write, and which credential the audit agent uses are three problems. Each could be replaced alone: a new tracker with the same runner, or a new credential under the same runner and tracker. They link one another because they describe one system, not because one solution answers all three. | 0060 accepted, 0061 accepted, 0062 accepted |
 
 Nothing is renumbered: a number identifies a problem for good, and git holds
 what a deleted record said.

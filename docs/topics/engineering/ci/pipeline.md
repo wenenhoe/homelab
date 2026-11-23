@@ -12,7 +12,7 @@ isolation, this pipeline tests the parts Molecule can't (linting the
 whole tree, a real compose stack booting, and the actual
 `deploy.yaml`/`restore.yaml` ordering).
 
-How a change picks which jobs run is in [CI Change Scoping](change-scoping.md); the checks it runs are documented by kind, alongside this page: [CI Gates](gates.md) for the regression checks and gates over one kind of change, [CI Doc Checks](../../documentation/doc-checks.md) for index generation, drift and project records, and [CI Scheduled Jobs](scheduled-jobs.md) for the Renovate window and Trivy.
+How a change picks which jobs run is in [CI Change Scoping](change-scoping.md); the checks it runs are documented by kind, alongside this page: [CI Gates](gates.md) for the regression checks and gates over one kind of change, [Doc Checks](../../documentation/doc-checks.md) for index generation and drift and [Project and Record Checks](../../documentation/project-checks.md) for project and decision records, and [CI Scheduled Jobs](scheduled-jobs.md) for the Renovate window and Trivy.
 
 ## Where the CI logic lives
 
@@ -59,9 +59,9 @@ repository root, not the working directory. `check_mermaid`, the
 has no hook: the `mermaid-check` job runs it on the runner's own `python3`.
 `suggest_project_scope` and `suggest_adr_consolidation` are no checks and run
 nowhere in CI: the first prints what a project's `allowed_paths` is missing, as
-[Scope suggestions](../../documentation/doc-checks.md#scope-suggestions) describes, and the second
+[Scope suggestions](../../documentation/project-checks.md#scope-suggestions) describes, and the second
 lists decision records worth condensing, merging or demoting, as
-[Consolidation suggestions](../../documentation/doc-checks.md#consolidation-suggestions) describes.
+[Consolidation suggestions](../../documentation/project-checks.md#consolidation-suggestions) describes.
 
 What stays in workflow YAML or `.github/scripts/` is what needs Actions
 (`uses:` steps, caches, registry login) or is a plain command sequence
@@ -86,7 +86,7 @@ parse on an older Python than the repo's own. The rest run through
 | `warm-galaxy-cache` | always | Populates the shared Ansible Galaxy collections cache. See [Cache warming](#cache-warming). |
 | `warm-pre-commit-cache` | always | Populates the shared pre-commit hook-environment cache. See [Cache warming](#cache-warming). |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except the push-stage `ansible-lint` and `check-doc-change-push`) against every file, then gitleaks over the PR's commits (the hook itself is skipped here: it only scans staged changes). |
-| `project-checks` | always | One step, `check_doc_change`, over the PR's merge-base diff: the project scope, close and start checks and the accepted records check. What each rule enforces is in [doc-checks.md](../../documentation/doc-checks.md#the-four-project-and-record-checks-as-one-command). |
+| `project-checks` | always | One step, `check_doc_change`, over the PR's merge-base diff: the project scope, close and start checks and the accepted records check. What each rule enforces is in [doc-checks.md](../../documentation/project-checks.md#the-four-project-and-record-checks-as-one-command). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The push-stage hook that lints — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/`, spread over the runner's cores by `pytest-xdist` (`-n auto --dist worksteal`) — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |

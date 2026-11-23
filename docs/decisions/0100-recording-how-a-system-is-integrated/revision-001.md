@@ -48,7 +48,7 @@ back.
   say what is unknown.
 - **Drill results are private.** What an exercise restored, when, and what it
   found is how the practice was exercised, and
-  [`data-classification.md`](../../topics/engineering/data-classification.md)
+  [`data-classification.md`](../../topics/security/policy/data-classification.md)
   keeps that out of this repository. A check kept with the private record joins those results to
   the catalog and reports each system's newest restoring drill against the cadence
   of [ADR 0101 (DR exercise cadence)](../0101-exercising-disaster-recovery/revision-000.md).

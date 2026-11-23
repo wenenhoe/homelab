@@ -17,7 +17,7 @@ Every `hex`/`uuid4` entry is required to have `store: openbao` (see
 a fresh value written in place with `cas=<current version>` — an
 update, not a delete, since `controller`'s AppRole policy grants no
 `delete` on `secret/data/hosts/*` by design
-([`openbao-auth.md`](openbao-auth.md)'s runbook proves this).
+([`auth.md`](openbao/auth.md)'s runbook proves this).
 There's no file-cache-backed rotation path any more — no `hex`/`uuid4`
 entry had ever actually used it.
 Either way this does **not** redeploy anything itself — check the table

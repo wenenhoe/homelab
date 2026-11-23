@@ -5,7 +5,7 @@ Description=Warn before a cloud_credentials leaf or rotation credential expires
 Type=oneshot
 # CHANGE-ME-path-to-this-repo is replaced with this clone's path when the unit
 # is installed - not templated, since this runs on the operator's own machine,
-# not through Ansible. See docs/topics/secrets/cloud-credentials/expiry.md's
+# not through Ansible. See docs/topics/security/cloud-credentials/expiry.md's
 # Scheduling section. The interpreter is the clone's .venv, which holds the
 # dependencies; the system python3 does not.
 WorkingDirectory=CHANGE-ME-path-to-this-repo/tools

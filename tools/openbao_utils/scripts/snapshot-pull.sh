@@ -1,6 +1,6 @@
 #!/bin/sh
 # Fetch the newest OpenBao raft snapshot from R2 (then B2) and decrypt it, for
-# the restore drill's steps 2 and 3 (docs/topics/secrets/openbao-backup-restore.md).
+# the restore drill's steps 2 and 3 (docs/topics/security/openbao/backup-restore.md).
 # snapshot-push.sh is its counterpart. Nothing here reads OpenBao or the file
 # cache: the credential is the break-glass read-only one that
 # tools/cloud_credentials/create_snapshot_readonly_keys.py prints once, and the

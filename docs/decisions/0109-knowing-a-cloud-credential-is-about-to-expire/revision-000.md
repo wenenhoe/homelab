@@ -116,7 +116,7 @@ the one place a check can read it without moving secret material or timestamps a
   unrelated to this record.
 
 Setup and verification steps are in
-[`cloud-credentials/expiry.md`](../../topics/secrets/cloud-credentials/expiry.md#credential-expiry).
+[`cloud-credentials/expiry.md`](../../topics/security/cloud-credentials/expiry.md#credential-expiry).
 
 ## Invariants
 

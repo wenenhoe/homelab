@@ -19,7 +19,7 @@ The images this repo deploys carry known vulnerabilities, and they change withou
 
 ## Context
 
-Image CVE scanning in this repo's CI was removed earlier because most findings were third-party images waiting on an upstream rebuild, which nothing here can act on ([`security-scanning.md`](../../topics/engineering/security-scanning.md#why-no-image-cve-scanning)). That verdict was reached over a subset: the scan listed images with a `compose*.yaml` glob, which skips every templated compose file, and it ignored images pinned in Ansible variables and scripts. The conclusion is worth testing again over a complete inventory rather than assuming.
+Image CVE scanning in this repo's CI was removed earlier because most findings were third-party images waiting on an upstream rebuild, which nothing here can act on ([`security-scanning.md`](../../topics/security/policy/security-scanning.md#why-no-image-cve-scanning)). That verdict was reached over a subset: the scan listed images with a `compose*.yaml` glob, which skips every templated compose file, and it ignored images pinned in Ansible variables and scripts. The conclusion is worth testing again over a complete inventory rather than assuming.
 
 **Where results can live.** A scan result names an image, a fixable vulnerability and, once ranked, how reachable that image is. That is the content [`docs/README.md#public-repo`](../../README.md#public-repo) keeps out of git history, and Actions logs on a public repository are public as well ([ADR 0060 (Review findings tracker)](../0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md), [ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)). The run therefore has to be defined in, and triggered from, `homelab-security`, which reads this repo by a plain clone.
 
@@ -69,7 +69,7 @@ flowchart LR
 
 ## Consequences
 
-A second job class runs from `homelab-security`'s CI, on its Actions minutes. The consequence levels are a hand-maintained file and can drift from the apps that exist; the top-band default for unclassified images makes drift loud, not silent. The reachability derivation reads this repo's app catalog and host variables, so a change to their shape appears as unclassified images, not as silence. Image results depend on upstream rebuilds this repo cannot hasten. A fixed package version does not mean a fixed image has been published, so a finding can count as fixable while no published image fixes it; the dashboard says so, and comparing against the newest published tag is a later refinement. The resulting behavior is described in [`security-scanning.md`](../../topics/engineering/security-scanning.md).
+A second job class runs from `homelab-security`'s CI, on its Actions minutes. The consequence levels are a hand-maintained file and can drift from the apps that exist; the top-band default for unclassified images makes drift loud, not silent. The reachability derivation reads this repo's app catalog and host variables, so a change to their shape appears as unclassified images, not as silence. Image results depend on upstream rebuilds this repo cannot hasten. A fixed package version does not mean a fixed image has been published, so a finding can count as fixable while no published image fixes it; the dashboard says so, and comparing against the newest published tag is a later refinement. The resulting behavior is described in [`security-scanning.md`](../../topics/security/policy/security-scanning.md).
 
 ## Invariants
 

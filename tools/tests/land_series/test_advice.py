@@ -18,7 +18,7 @@ ADVICE = [
     "Worth asking for a review:",
     "  R1: automation or a tool that holds credentials or deploys: workflows, git hooks, dependencies, "
     "the deploy and credential tools (.github/workflows/x.yml)",
-    "  How to ask: docs/topics/engineering/pr-review.md",
+    "  How to ask: docs/topics/security/policy/pr-review.md",
 ]
 
 

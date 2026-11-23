@@ -8,10 +8,10 @@ from nothing can't live in it, and the file cache holds only the
 controller's own bootstrap secrets. Instead this script prints
 the credential once and exits — the operator copies it straight into
 the password manager entry that already holds the Shamir unseal shares
-(see docs/topics/secrets/openbao.md), same offline handling this repo already gives
+(see docs/topics/security/openbao/deployment.md), same offline handling this repo already gives
 the backup GPG key (docs/topics/disaster-recovery/backup.md).
 
-Two providers, not one — R2 and B2, per docs/topics/secrets/openbao.md — so recovery
+Two providers, not one — R2 and B2, per docs/topics/security/openbao/deployment.md — so recovery
 doesn't depend on a single cloud vendor being reachable. Both point at a
 bucket dedicated to OpenBao's own snapshots (openbao-snapshots on both
 providers — B2 bucket names are globally unique across every B2
@@ -106,7 +106,7 @@ def mint_r2() -> bool:
     # Same rclone S3-compatible path production would actually use to
     # fetch a snapshot — proving the API accepted the token isn't the
     # same claim as proving it can list this specific bucket (see
-    # docs/topics/secrets/cloud-credentials/rotation.md's own reasoning for why
+    # docs/topics/security/cloud-credentials/rotation.md's own reasoning for why
     # create_leaf_keys.py --rotate does this same check before trusting
     # a leaf). "auto" region: confirmed in leaf_keys/r2.py's rotate_r2.
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://{account_id}.r2.cloudflarestorage.com", "auto", SNAPSHOT_BUCKET_R2, "read")

@@ -28,7 +28,7 @@ either over-scope `controller` permanently or under-scope it for what
 it actually has to do right now.
 
 One more consumer surfaced once this was actually
-built: `openbao-backup-restore.md`'s snapshot-push script currently
+built: `openbao-backup-restore.md`'s (renamed: `docs/topics/security/openbao/backup-restore.md`) snapshot-push script currently
 needs a human to export the root token by hand
 ([0111](../0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s "Why manual"
 section explains what eventually fixes that), but that script runs on
@@ -38,7 +38,7 @@ mean a third identity solely for one read-only path — the Decision
 below folds it into `controller`'s policy instead. This does mean
 `controller`'s `secret_id` ends up cached on two hosts (the operator's
 laptop and `security`) rather than one; see
-[`openbao-auth.md`](../../topics/secrets/openbao-auth.md) for the runbook.
+[`openbao-auth.md`](../../topics/security/openbao/auth.md) for the runbook.
 
 `cd_agent` has a fixed LAN IP; `controller` doesn't (laptop, DHCP) —
 confirmed directly rather than assumed. That asymmetry is the other

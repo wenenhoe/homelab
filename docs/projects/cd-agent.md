@@ -53,7 +53,7 @@ OpenBao+CD-agent migration this repo originally scoped together —
 OpenBao itself is done; see ADRs
 [0111](../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md) and 0018 through
 [0026](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
-and the `openbao-*.md` docs for that half.
+and the `security/openbao/` docs for that half.
 
 This is the first of two projects in the `pull-based-cd` initiative; [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) retires `controller`'s standing AppRole once the agent runs the jobs. The host and its AppRoles are one project because the host cannot run a job before its credentials are delivered, and the credentials are delivered to a host that exists.
 
@@ -121,7 +121,7 @@ to write any, and the snapshot job shouldn't be able to read any other
 leaf.
 
 The four policies and the role-creation runbook are in
-[`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
+[`openbao-cd-agent-approles.md`](../topics/security/openbao/openbao-cd-agent-approles.md).
 What remains needs the running host: creating the roles with `cd_agent`'s fixed
 address (`192.168.25.3`) as both CIDR binds. Delivering each job's files, and
 the `secret_id` rotation cadence, are Stage 6.
@@ -136,7 +136,7 @@ absolute path set in the job's unit to its credentials directory
 the checkout, so operator runs are unchanged. The delivered files keep the
 names the readers already use: `main-domain`, `openbao-controller-role-id`
 and `openbao-controller-secret-id`. See
-[`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
+[`openbao-cd-agent-approles.md`](../topics/security/openbao/openbao-cd-agent-approles.md).
 
 ### Stage 4 — Root cert trust
 
@@ -162,7 +162,7 @@ it. A job's second `secret_id`, such as `cd-agent-deploy`'s for
 `redeploy-storage` ([ADR 0074 (Job chaining)](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),
 is the same command for another job's directory. The files and their names
 are in
-[`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
+[`openbao-cd-agent-approles.md`](../topics/security/openbao/openbao-cd-agent-approles.md).
 
 An AppRole holds several `secret_id`s at once, so a rotation adds the new one,
 confirms a login with it, then destroys the old one by its accessor.
@@ -222,3 +222,5 @@ credentials change, on any suspected exposure, and every 90 days. The
 ## Closing checklist
 
 Before deleting this doc, work through the [closing checklist](README.md#closing-checklist). It is the only copy.
+
+The AppRoles doc, `docs/topics/security/openbao/openbao-cd-agent-approles.md`, keeps the `openbao-` prefix its sibling docs dropped, because this scope names it and a building scope only widens. Rename it to drop the prefix in the pull request that closes this project, and update every link to it.

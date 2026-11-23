@@ -4,11 +4,11 @@ Code-review findings about this repo live in a separate private
 repository, `homelab-security`, never here. This is a tracker, not a
 mirror: it holds no code from this repo, and this repo holds no finding.
 The reasoning is in
-[ADR 0060 (Review findings tracker)](../../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-001.md);
+[ADR 0060 (Review findings tracker)](../../../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-001.md);
 where the review itself runs, and what it may write, is
-[ADR 0061 (Automated code review)](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md).
+[ADR 0061 (Automated code review)](../../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md).
 The rule that keeps findings out of this repo is
-[`docs/README.md#public-repo`](../../README.md#public-repo).
+[`docs/README.md#public-repo`](../../../README.md#public-repo).
 
 ## What the tracker holds
 
@@ -45,9 +45,9 @@ opened with `GITHUB_TOKEN` starts only after someone approves the run.
 ## The agent audit
 
 A scheduled `homelab-security` workflow audits this repo with a coding
-agent ([ADR 0061 (Automated code review)](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md);
+agent ([ADR 0061 (Automated code review)](../../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md);
 the agent's credential is
-[ADR 0062 (Reviewer identity)](../../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)).
+[ADR 0062 (Reviewer identity)](../../../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)).
 It runs twice a week. Each run audits one group of the repo's paths, so a
 run is small enough to read in full, and the groups take turns until the
 whole repo has been covered.

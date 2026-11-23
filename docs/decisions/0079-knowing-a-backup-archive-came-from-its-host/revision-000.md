@@ -178,7 +178,7 @@ already have `ssh-keygen`. Checked with OpenSSH 9.6 on a throwaway key pair:
 - Rollback to an older genuine archive by deleting newer ones.
 - Confidentiality of archives, which the GPG encryption provides.
 - The OpenBao raft snapshot, which is restored by hand from the operator's own
-  copy ([`openbao-backup-restore.md`](../../topics/secrets/openbao-backup-restore.md)).
+  copy ([`backup-restore.md`](../../topics/security/openbao/backup-restore.md)).
 
 ## Validation
 

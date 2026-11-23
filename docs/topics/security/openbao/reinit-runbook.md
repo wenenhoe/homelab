@@ -1,16 +1,16 @@
 # OpenBao re-init runbook
 
 For when OpenBao's raft dataset needs to be discarded and rebuilt from
-scratch - not the [restore drill](openbao-backup-restore.md), which
+scratch - not the [restore drill](backup-restore.md), which
 deliberately preserves the original cluster's keys and data. See
-[`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md) for what
+[`vault-bootstrap.md`](vault-bootstrap.md) for what
 the AppRole this runbook creates in step 4 actually is and how it's
 used afterward; this doc is just the one-time procedure.
 
-See [ADR 0025 (Admin without root token)](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
+See [ADR 0025 (Admin without root token)](../../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
 for why this was necessary the first time. It shouldn't be needed
 again for *that* reason - once `vault-bootstrap` exists, regaining
-root is a policy edit away (see `openbao-vault-bootstrap.md`'s
+root is a policy edit away (see `vault-bootstrap.md`'s
 emergency-root section), not another re-init. What's left here is
 narrower: genuine raft-data loss or corruption a snapshot restore
 can't fix.
@@ -22,7 +22,7 @@ can't fix.
    this; it's the only copy of everything once step 2 runs.
 2. On `security`: stop the `openbao` container, remove the
    `openbao_data` volume's contents, restart it, then init fresh from
-   `controller` (mirrored from [`openbao.md`](openbao.md)'s **First
+   `controller` (mirrored from [`deployment.md`](deployment.md)'s **First
    init** section - that doc is canonical for the reasoning and for
    the exact command if the two ever disagree):
 
@@ -38,7 +38,7 @@ can't fix.
    per share).
 
 3. Recreate `controller`'s AppRole: run steps 1-6 of
-   [`openbao-auth.md`](openbao-auth.md)'s Runbook with the fresh root
+   [`auth.md`](auth.md)'s Runbook with the fresh root
    token from step 2. That doc owns the commands, TTLs and the
    confirmation that the AppRole works.
 
@@ -78,7 +78,7 @@ can't fix.
    never `ansible/files/secrets/`.
 
    **Confirm the scope actually holds before trusting it**, same
-   reasoning as `openbao-auth.md`'s own step 6 - a policy file is a
+   reasoning as `auth.md`'s own step 6 - a policy file is a
    claim until proven. From `controller`, paste `secret_id` when
    prompted:
 
@@ -137,7 +137,7 @@ can't fix.
    `secret_id_ttl=0` (never expires), unlike `controller`'s 90-day
    cycle: this identity lives permanently on `security` itself, not on
    a laptop with a rotation habit - same "always-on box" reasoning
-   [ADR 0020 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-000.md)
+   [ADR 0020 (Automation identity scope)](../../../decisions/0020-automation-identity-and-access-scope/revision-000.md)
    gives for `cd_agent`'s own AppRoles, applied here a stage early
    since this identity exists before `cd_agent` does.
 
@@ -149,10 +149,10 @@ can't fix.
    once that method is built, if it is meaningful.
 
    This step only provisions the identity. The watcher's install steps
-   in [`openbao-rotation-read-watcher.md`](openbao-rotation-read-watcher.md) mint its
+   in [`rotation-read-watcher.md`](rotation-read-watcher.md) mint its
    `secret_id` and write it, with the `role_id`, to the files on `security`.
 
-7. Revoke root, same as `openbao-auth.md`'s own last step.
+7. Revoke root, same as `auth.md`'s own last step.
 8. Confirm:
 
    ```sh

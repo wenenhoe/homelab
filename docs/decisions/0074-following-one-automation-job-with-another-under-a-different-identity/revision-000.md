@@ -22,7 +22,7 @@ Some work is a consequence of another job's work but needs authority the first j
 
 [ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md) starts the deploy job when `origin/main` has a commit it has not deployed, and starts every other job from its own timer. A rotation changes no commit.
 
-A leaf rotation creates a new key, verifies it, and revokes the old one at once ([`rotation.md`](../../topics/secrets/cloud-credentials/rotation.md)). The write leaf reaches `storage` only when `deploy.yaml` next renders its `rclone.conf`, and `cloud_sync` runs there daily. Until that deploy runs, `storage` holds a key that no longer works.
+A leaf rotation creates a new key, verifies it, and revokes the old one at once ([`rotation.md`](../../topics/security/cloud-credentials/rotation.md)). The write leaf reaches `storage` only when `deploy.yaml` next renders its `rclone.conf`, and `cloud_sync` runs there daily. Until that deploy runs, `storage` holds a key that no longer works.
 
 Leaves rotate independently. A run can rotate and revoke some leaves and then fail on another, so a failed run leaves `storage` stale just as a successful one does, and a run that rotated nothing leaves it correct. A deploy renders from the store's current values and is idempotent, so running one when nothing changed is harmless.
 
@@ -30,7 +30,7 @@ systemd starts a named unit when another ends, through `OnSuccess=` and `OnFailu
 
 OpenBao's AppRole API generates a new secret ID on each call and lists them by accessor ([API](https://openbao.org/docs/api/auth/approle/)), so one role holds several independent secret IDs.
 
-The write leaf's redeploy is `deploy.yaml --limit storage,localhost`, confirmed live ([`secrets-rotation.md`](../../topics/secrets/secrets-rotation.md)). The limit confines a run to `storage` and the controller; which OpenBao paths the deploy identity may read is [ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)'s.
+The write leaf's redeploy is `deploy.yaml --limit storage,localhost`, confirmed live ([`secrets-rotation.md`](../../topics/security/secrets-rotation.md)). The limit confines a run to `storage` and the controller; which OpenBao paths the deploy identity may read is [ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)'s.
 
 **Threat model.** The adversary can write to `main`, or controls a managed host or the coding-agent host, as in ADR 0044. The assets are the credentials each job holds. If what follows what were defined in the fetched tree, a merge to `main` could add a follow-on under any identity. If data passed from one job to the next, the first job could steer the second.
 

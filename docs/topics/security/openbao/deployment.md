@@ -1,36 +1,36 @@
 # OpenBao: Secrets Store Bootstrap
 
 `openbao` is the repo's secrets store
-([ADR 0013 revision 1 (Secret storage)](../../decisions/0013-secret-storage/revision-001.md)).
+([ADR 0013 revision 1 (Secret storage)](../../../decisions/0013-secret-storage/revision-001.md)).
 This doc covers deploying it, its TLS cert, and getting it initialized
 and unsealed. Auth and policies are covered in
-[`openbao-auth.md`](openbao-auth.md); the secrets role migration is
-covered in [`secrets.md`](secrets.md). The backup/restore drill has
-its own doc too: [`openbao-backup-restore.md`](openbao-backup-restore.md).
+[`auth.md`](auth.md); the secrets role migration is
+covered in [`secrets.md`](../secrets.md). The backup/restore drill has
+its own doc too: [`backup-restore.md`](backup-restore.md).
 
 ## Deployment
 
 Single-node, integrated raft storage, on `security` — same trust tier
 as `step-ca`/`tinyauth`/`lldap`
-([0111](../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
+([0111](../../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
 `docker/openbao/configs/openbao.hcl.j2` renders the raft/listener
 config; `app_catalog.yaml`'s `openbao` entry seeds it into a `config`
 named volume the same way `dashy` seeds its `conf.yml`
-([`volumes.md`](../deploy/volumes.md)). `data` (raft state) and `certs` (TLS
+([`volumes.md`](../../deploy/volumes.md)). `data` (raft state) and `certs` (TLS
 material) are separate named volumes — `data` must never be wiped by
 `cleanup.yaml`/a volume reset outside a deliberate restore; recovering
 it means restoring from the raft snapshot backup
-([`openbao-backup-restore.md`](openbao-backup-restore.md)), not just
+([`backup-restore.md`](backup-restore.md)), not just
 recreating the volume.
 
 No `backup:` entry in `app_catalog.yaml` — the generic `backup_agent`
 path stops the container and tars its volumes
-([`backup.md`](../disaster-recovery/backup.md)), which for OpenBao
+([`backup.md`](../../disaster-recovery/backup.md)), which for OpenBao
 would mean sealing it (and a manual unseal per
-[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup cycle.
+[0018](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup cycle.
 OpenBao's own `bao operator raft snapshot save` is the backup mechanism
 here instead — see
-[`openbao-backup-restore.md`](openbao-backup-restore.md).
+[`backup-restore.md`](backup-restore.md).
 
 No `caddy:` entry either, same reasoning `step-ca` already documents:
 an admin/secrets API isn't something to put behind an ordinary
@@ -39,24 +39,24 @@ reachability from other hosts eventually — `controller`-run plays on
 hosts other than `security` reach Vault's API for every secret now
 sourced from it. `compose.yaml.j2` publishes `8200` directly on the host
 (`0.0.0.0:8200:8200`, or `127.0.0.1` while
-[`bootstrap-security.yaml`](../../../ansible/playbooks/bootstrap-security.yaml)
+[`bootstrap-security.yaml`](../../../../ansible/playbooks/bootstrap-security.yaml)
 holds an uninitialised node), the same bypass-Caddy-but-still-TLS approach
-lldap's LDAPS listener uses (see [`lldap.md`](../services/lldap.md)) — not proxied
+lldap's LDAPS listener uses (see [`lldap.md`](../../services/lldap.md)) — not proxied
 HTTP-through-Caddy, since API/token clients don't want Caddy's
 forward-auth in front of them the way a browser app does. The hostname
 itself is a hand-written `extra_records` CNAME in
 `host_vars/security.yaml` — bind9's auto-generated CNAMEs only fire for
 apps with a `caddy:` route (see
-[`reverse-proxy-and-dns.md`](../../architecture/reverse-proxy-and-dns.md)),
+[`reverse-proxy-and-dns.md`](../../../architecture/reverse-proxy-and-dns.md)),
 which this deliberately isn't, so it needed the same manual treatment
 `sso` already gets in the same file.
 
 `ui = false` in the rendered config — this repo's day-to-day OpenBao
 consumers are Ansible and, once the
-[CD agent project](../../projects/cd-agent.md) lands, the CD agent — not a
+[CD agent project](../../../projects/cd-agent.md) lands, the CD agent — not a
 human clicking through a browser. A human who needs to look inside
 Vault directly does it from the CLI (native `bao` on `security`, real
-TLS — see [`openbao-auth.md`](openbao-auth.md#runbook)). No UI is served,
+TLS — see [`auth.md`](auth.md#runbook)). No UI is served,
 so a port forward to 8200 reaches the API and nothing else.
 
 ## TLS
@@ -64,7 +64,7 @@ so a port forward to 8200 reaches the API and nothing else.
 `step_ca_cert` (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6,
 called once per app) issues OpenBao's leaf cert from step-ca and
 installs a `cert-renewer@openbao.timer`, the same one-time-issuance-
-then-renewal shape it uses for [lldap's LDAPS cert](../services/lldap.md) — same
+then-renewal shape it uses for [lldap's LDAPS cert](../../services/lldap.md) — same
 provisioner-password-for-initial-issuance/mTLS-for-renewal split, same
 `smallstep/step-cli` image rather than a host-installed `step` binary.
 Both instances install the same generic `cert-renewer@.service`/`.timer`
@@ -81,7 +81,7 @@ On a genuinely first deploy, the `certs` volume starts empty and
 `openbao.hcl`'s listener requires `tls_cert_file`/`tls_key_file` to
 exist — the container is expected to fail to start and be retried by
 `restart: unless-stopped` until Play 6 issues the cert and restarts it.
-This is the same bootstrap race [`lldap.md`](../services/lldap.md) documents for
+This is the same bootstrap race [`lldap.md`](../../services/lldap.md) documents for
 tinyauth's first-ever deploy, and the same tolerated crash-loop.
 
 ## First bring-up order
@@ -93,16 +93,16 @@ flowchart TD
     C --> D["Uninitialized and sealed"]
     D --> E["init: 3 shares, root token printed once"]
     E --> F["unseal, run twice"]
-    F --> G["openbao-auth runbook with the root token: KV v2, AppRole, policy, controller role"]
+    F --> G["auth runbook with the root token: KV v2, AppRole, policy, controller role"]
     G --> H["Smoke test from controller: put and get succeed, metadata delete denied"]
     H --> I["Revoke the root token"]
     I --> J["openbao_utils.bootstrap fills manual Vault-backed secrets"]
 ```
 
 Every restart afterwards returns to the sealed state and needs only the
-unseal step. The AppRole steps are in [`openbao-auth.md`](openbao-auth.md);
+unseal step. The AppRole steps are in [`auth.md`](auth.md);
 the bootstrap script is covered in
-[`secrets.md`](secrets.md#bootstrapping-manual-secrets).
+[`secrets.md`](../secrets.md#bootstrapping-manual-secrets).
 
 ## Non-root user, and what it costs
 
@@ -115,7 +115,7 @@ consequences directly:
 
 - A freshly-created named volume is root-owned, and the `openbao` user
   can't write into one it doesn't own. Fixed for the raft data volume
-  by [`roles/openbao`](../../../ansible/roles/openbao) — a plain, guarded
+  by [`roles/openbao`](../../../../ansible/roles/openbao) — a plain, guarded
   `docker run --rm --user root ... chown -R openbao:openbao` that only
   actually runs when the volume's current owner doesn't already match,
   checked before every deploy. By username, not a hardcoded UID:
@@ -130,7 +130,7 @@ consequences directly:
   `community.docker.docker_compose_v2` reports as changed,
   unconditionally, forever. `openbao` is self-managed
   (`compose_self_managed_apps`, same mechanism `caddy`/`bind9` use, see
-  [`deployment-flow.md`](../deploy/deployment-flow.md)'s Play 4) specifically so
+  [`deployment-flow.md`](../../deploy/deployment-flow.md)'s Play 4) specifically so
   this chown could be a plain guarded task instead.
 - `step ca certificate`/`step ca renew` both run as `--user root` too
   (same freshly-created-volume issue `step_ca_cert` already documents),
@@ -165,7 +165,7 @@ loopback-only, against our own internal CA's cert, so there's no real
 trust decision being loosened here, unlike using it against a real
 remote OpenBao). Unlike other apps here, "unhealthy" can mean sealed or uninitialized,
 not only down: `bao status` exits non-zero in both states. Since
-[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)
+[0018](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)
 leaves OpenBao sealed after every restart until a human unseals it (and
 a fresh deploy starts uninitialized), the container shows unhealthy in
 Beszel for both stretches. That is accurate: it is not
@@ -180,7 +180,7 @@ serving anything.
 seal state to lose). Restarting OpenBao on every renewal would reseal
 the vault at whatever cadence cert renewal fires, not just on reboot —
 undermining
-[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)'s cost-benefit premise
+[0018](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)'s cost-benefit premise
 that unseal only costs a human at the moments they're already at the
 keyboard.
 
@@ -206,7 +206,7 @@ serves the renewed cert's serial afterwards.
 
 ## Init and unseal — manual, via `init.py` and `unseal.py`
 
-[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) chose manual Shamir
+[0018](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) chose manual Shamir
 unseal over cloud auto-unseal specifically because a human is already
 at the keyboard for every reboot `security` has ever had. `maintenance.yaml`
 keeps that true: it upgrades `security` but leaves it unrebooted
@@ -238,7 +238,7 @@ them, not work around them:
 
 Both scripts keep driving `docker exec` against the live
 container, permanently, by necessity — see
-[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md)'s
+[ADR 0106 (Operator bao CLI access)](../../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md)'s
 Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
 but the container crash-loops until `step_ca_cert` issues its leaf
 cert, so there's no trustworthy network path to it during that window.
@@ -246,9 +246,9 @@ This is the one place in the whole OpenBao CLI surface that stays
 `docker exec`-based — everywhere else now uses the native `bao`
 binary directly (`security` or `controller`, whichever you're on), or
 `shell.py` (`controller` only — see
-[ADR 0106 (Operator bao CLI access)](../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md))
+[ADR 0106 (Operator bao CLI access)](../../../decisions/0106-operator-access-to-the-openbao-cli/revision-000.md))
 when starting from an AppRole login; see
-[`openbao-auth.md`](openbao-auth.md#runbook).
+[`auth.md`](auth.md#runbook).
 
 ### First init (once, ever, per raft dataset)
 
@@ -271,11 +271,11 @@ The command prints 3 unseal key shares and an initial root token,
 1. Copy all 3 unseal key shares and the root token into the password
    manager entry this repo already uses for the backup GPG key and (once
    generated) the snapshot read-only credentials
-   ([`create_snapshot_readonly_keys.py`](../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
+   ([`create_snapshot_readonly_keys.py`](../../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
    same offline handling, one entry.
 2. Print or write down one of the three shares and store it physically
    offline, separate from the password manager — the same
-   two-copies-not-one pattern [`backup.md`](../disaster-recovery/backup.md)
+   two-copies-not-one pattern [`backup.md`](../../disaster-recovery/backup.md)
    uses for the GPG private key.
 3. Do not leave any of this in shell scrollback, a file on `security`,
    or a file on `controller`. Nothing here is written to
@@ -286,7 +286,7 @@ The command prints 3 unseal key shares and an initial root token,
 The root token is not one of ADR 0111's two recovery-critical items, but
 treat it with the same discipline for now: it's the only credential
 that can configure anything in a freshly-initialized, empty Vault.
-[`openbao-auth.md`](openbao-auth.md) is what gives
+[`auth.md`](auth.md) is what gives
 `controller` its own AppRole and revokes this initial root token once
 that AppRole is proven — don't revoke it before then, and don't leave
 it standing indefinitely after.
@@ -315,5 +315,5 @@ by Docker's own log driver — not the API/CLI route, which needs
 `unsafe_allow_api_audit_creation` and a privileged token neither of
 which this deployment has. `logging:` on the `openbao` compose service
 caps growth (`max-size`/`max-file`). See
-[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+[ADR 0026 (High-value secret read alerts)](../../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 for why, and its threat model for what this does and doesn't expose.

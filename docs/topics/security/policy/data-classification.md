@@ -1,6 +1,6 @@
 # Data classification
 
-Where a piece of information about this lab may be kept. This repository is public and its history is permanent, so the placement is decided before a fact is written, not after. The rule in [`docs/README.md#public-repo`](../../README.md#public-repo) is the short form; this page is the framework behind it: the classes, the questions that place a kind of information, and the rules that follow. How the framework is applied to the lab's own information, and what has been decided for each kind, is kept privately.
+Where a piece of information about this lab may be kept. This repository is public and its history is permanent, so the placement is decided before a fact is written, not after. The rule in [`docs/README.md#public-repo`](../../../README.md#public-repo) is the short form; this page is the framework behind it: the classes, the questions that place a kind of information, and the rules that follow. How the framework is applied to the lab's own information, and what has been decided for each kind, is kept privately.
 
 The stance is open: the practices, the designs and the governance are published, so anyone can read how the lab is run and reuse it. What is kept back is how those practices were exercised, what they found, and anything that would let a reader act as the maintainer.
 

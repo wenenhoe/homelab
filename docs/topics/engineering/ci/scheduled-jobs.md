@@ -49,7 +49,7 @@ failure. Cron fields support `*`, ranges, lists and steps; minutes must be
 
 Report-only Ansible-misconfig and secret scanning, separate from the
 correctness/linting jobs in [CI: PR Checks](pipeline.md#jobs) — see
-[`security-scanning.md`](../security-scanning.md).
+[`security-scanning.md`](../../security/policy/security-scanning.md).
 
 ## Weekly pin checks
 
@@ -65,4 +65,4 @@ Runs once a week from the private `homelab-security` repo (its schedule ticks da
 and the first tick of each week runs), not from a workflow in this repo, and writes
 nothing here. What it reads from this repo, how it ranks images
 and what it doesn't cover are in
-[`security-scanning.md`](../security-scanning.md#image-vulnerability-assessment).
+[`security-scanning.md`](../../security/policy/security-scanning.md#image-vulnerability-assessment).

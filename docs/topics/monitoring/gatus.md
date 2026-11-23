@@ -76,7 +76,7 @@ unset t
 ```
 
 A real producer's next scheduled push also resolves it. This proves the routing and the resolved message. Detecting a job that
-stops is a separate path (a missed heartbeat), shown by stopping a timer: the [`rotation-read-watcher`](../secrets/openbao-rotation-read-watcher.md)
+stops is a separate path (a missed heartbeat), shown by stopping a timer: the [`rotation-read-watcher`](../security/openbao/rotation-read-watcher.md)
 heartbeat is the quickest, with a 15-minute interval.
 
 ## Telegram routing
@@ -137,7 +137,7 @@ Three producers do not use the role:
   bearer header to `curl` on stdin (`-K -`) so the token is not in an argument. It tries both monitors even when the
   first push fails, and a failed push fails the unit, so `OnFailure=` alerts as before. A backup host with no matching
   `heartbeat_jobs` entry fails the render instead of skipping the push.
-- **`rotation-read-watcher`** runs from units copied by hand ([`openbao-rotation-read-watcher.md`](../secrets/openbao-rotation-read-watcher.md)),
+- **`rotation-read-watcher`** runs from units copied by hand ([`rotation-read-watcher.md`](../security/openbao/rotation-read-watcher.md)),
   not from Ansible. `gatus-push-rotation-read-watcher.service` has the same shape as the role's, and its curl config is written
   by hand from the job's token.
 - **The CD agent's credential expiry job** has no endpoint yet. The `cd_agent` role can install a push unit for any job that sets

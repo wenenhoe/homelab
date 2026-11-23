@@ -57,7 +57,7 @@ the maintainer remembers, and a path that is never chosen is never tested.
   rebuilt twice at once.
 - **The results are private.** How the exercises were run and what they found is
   kept out of this repository
-  ([`data-classification.md`](../../topics/engineering/data-classification.md)).
+  ([`data-classification.md`](../../topics/security/policy/data-classification.md)).
   [ADR 0100 (Recording a system's integration)](../0100-recording-how-a-system-is-integrated/revision-001.md)
   shows each system's tier in the coverage view, and a check kept with the private
   record reports the age of each system's newest restoring drill against this cadence.

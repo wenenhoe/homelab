@@ -18,5 +18,5 @@ superseded_by: 1
 Cache every credential — rotation keys/tokens and leaf credentials
 alike — to `ansible/files/secrets/`, the same flat-file convention
 every other secret in this repo already uses (see
-[`secrets.md`](../../topics/secrets/secrets.md)). No separate secrets-manager dependency
+[`secrets.md`](../../topics/security/secrets.md)). No separate secrets-manager dependency
 for this subproject.

@@ -62,11 +62,11 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   leaf, worth it here too since this credential otherwise sits unused
   until an actual disaster. Prints each credential once instead of
   caching it to OpenBao; see
-  [`openbao.md`](../openbao.md) for where it goes from there.
+  [`deployment.md`](../openbao/deployment.md) for where it goes from there.
 - **`tools/cloud_credentials/create_snapshot_write_keys.py`** — run
   routinely, same cadence as `create_leaf_keys.py`. Mints the standing,
   quarterly-expiring write leaf the backup script in
-  [`openbao-backup-restore.md`](../openbao-backup-restore.md) pushes
+  [`backup-restore.md`](../openbao/backup-restore.md) pushes
   snapshots with — a different credential from the read-only one just
   above, scoped to the same `openbao-snapshots` bucket but write-only
   (no `deleteFiles`/admin capability, same shape as `cloud_sync`'s own
@@ -92,7 +92,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
 
 Restoring cloud_credentials' Vault state after a genuine OpenBao re-init is
 `openbao_utils/restore.py`'s job — see
-[`openbao-reinit-runbook.md`](../openbao-reinit-runbook.md).
+[`reinit-runbook.md`](../openbao/reinit-runbook.md).
 
 ## Testing
 

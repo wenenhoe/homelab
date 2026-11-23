@@ -11,7 +11,7 @@ path to it yet, and `docker exec` skips the network and TLS chain entirely
 `bao operator init` takes no input, so this runs a plain `docker exec` with
 no PTY. Its output is the initial root token and the unseal key shares, which
 belong only on the operator's screen and in their password manager
-(docs/topics/secrets/openbao.md, First init). This script prints them and
+(docs/topics/security/openbao/deployment.md, First init). This script prints them and
 nothing else: no logging, no file.
 
 The output is shown as it arrives, and the wait for it is longer than the
@@ -33,7 +33,7 @@ from utils.repo import OPENBAO_CONTAINER, connect_ssh, security_ssh_target
 # Per read, not for the whole command.
 INIT_TIMEOUT_SECONDS = 120
 
-LOST_OUTPUT_DOC = "docs/topics/secrets/openbao-backup-restore.md, 'If init's output was lost'"
+LOST_OUTPUT_DOC = "docs/topics/security/openbao/backup-restore.md, 'If init's output was lost'"
 
 
 def main() -> int:
@@ -71,7 +71,7 @@ def main() -> int:
     print(
         "\nCopy the 3 unseal key shares and the root token above into the "
         "password manager entry now, plus one offline physical copy of one "
-        "share - see docs/topics/secrets/openbao.md's First init section. Nothing above "
+        "share - see docs/topics/security/openbao/deployment.md's First init section. Nothing above "
         "was written to disk or logged by this script."
     )
     return 0

@@ -82,8 +82,8 @@ job's credentials directory, then running a job that can compare.
   a run reaching `security` use an explicit SSH connection all stand.
 
 Behavior is described in
-[`openbao-cd-agent-approles.md`](../../topics/secrets/openbao-cd-agent-approles.md)
-and [`secrets.md`](../../topics/secrets/secrets.md).
+[`openbao-cd-agent-approles.md`](../../topics/security/openbao/openbao-cd-agent-approles.md)
+and [`secrets.md`](../../topics/security/secrets.md).
 
 ## Invariants
 

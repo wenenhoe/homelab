@@ -1,6 +1,6 @@
 # Security Scanning
 
-Trivy checks, separate from the [PR-checks pipeline](ci/pipeline.md)'s
+Trivy checks, separate from the [PR-checks pipeline](../../engineering/ci/pipeline.md)'s
 correctness/linting jobs — these are report-only, not merge-blocking. Image
 vulnerabilities are assessed by a separate program, described
 [last](#image-vulnerability-assessment).
@@ -8,7 +8,7 @@ vulnerabilities are assessed by a separate program, described
 ## Trivy security scans
 
 Two checks, defined once in
-[`_trivy-scan.yml`](../../../.github/workflows/_trivy-scan.yml) (`workflow_call`,
+[`_trivy-scan.yml`](../../../../.github/workflows/_trivy-scan.yml) (`workflow_call`,
 same sharing pattern as `_compose-boot-test.yml`) and run from two
 places:
 
@@ -35,7 +35,7 @@ The `gitleaks` pre-commit hook scans only what is staged, so it runs at
 commit time on a developer's machine and finds nothing under
 `pre-commit run --all-files`, which is how `pre-commit-checks` invokes the
 hooks. That job therefore skips the hook (`SKIP: gitleaks`) and runs
-[`ci.scan.gitleaks_range`](../../../tools/ci/scan/gitleaks_range.py) as its
+[`ci.scan.gitleaks_range`](../../../../tools/ci/scan/gitleaks_range.py) as its
 own step: the same gitleaks build the hook uses, over every commit from the
 PR's base to its head, merge commits included, with matches redacted in the log and no inline allow comment honoured. It runs on the
 build pre-commit already compiled for the rev pinned in
@@ -44,12 +44,12 @@ and the job checks out full history for it. The step fails the job, and
 `pre-commit-checks` is a required check, so a secret anywhere in the PR's
 commits blocks the merge even when a later commit removes it from the tree.
 
-A placeholder that trips a rule is allowed in [`.gitleaks.toml`](../../../.gitleaks.toml), which extends the default
+A placeholder that trips a rule is allowed in [`.gitleaks.toml`](../../../../.gitleaks.toml), which extends the default
 rules and is read from the repository root by both the hook and the range scan. An entry names one file and one exact
 value, so the same value anywhere else, and any other value in that file, is still reported. The file is read from the
 checked-out tree, so an entry also covers the commits that added the value.
 
-**Accepted-risk findings**: [`.config/.trivyignore`](../../../.config/.trivyignore),
+**Accepted-risk findings**: [`.config/.trivyignore`](../../../../.config/.trivyignore),
 alongside this repo's other tool configs — same documented-exception
 convention as `.github/compose-boot-test-exclusions.txt`.
 
@@ -71,7 +71,7 @@ gives the reason and when it is due.
   in the generated Trivy config, built from the live
   `ansible/playbooks/*.y{a,}ml` listing so new playbooks are covered
   automatically. That is
-  [`tools/ci/scan/trivy_config.py`](../../../tools/ci/scan/trivy_config.py),
+  [`tools/ci/scan/trivy_config.py`](../../../../tools/ci/scan/trivy_config.py),
   which fails the job if the directory has no playbooks rather than
   scanning nothing.
 
@@ -87,7 +87,7 @@ Image CVE scanning doesn't run in this repo's CI, for two reasons.
 
 - **Where a result can live.** A scan result says which deployed image has
   which fixable vulnerability, and this repo's commits, pull requests, issues
-  and Actions logs are public ([`docs/README.md#public-repo`](../../README.md#public-repo)).
+  and Actions logs are public ([`docs/README.md#public-repo`](../../../README.md#public-repo)).
   Findings belong in the private tracker.
 - **The first attempt was noise.** It was tried in several scopes (PR-triggered,
   diff-aware, unconditional) with a Vulnerability Dashboard issue to aggregate
@@ -106,13 +106,13 @@ A weekly job in the private `homelab-security` repo's own CI (it ticks daily, an
 the first tick of each week runs it) scans every image
 this repo deploys, ranks what it finds, and keeps the results there. It is
 decided in
-[ADR 0071 (Image vulnerability assessment)](../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md).
+[ADR 0071 (Image vulnerability assessment)](../../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md).
 This repo's part is the inventory it reads and the rule that no result lands
 here.
 
 - **Inventory.** The job reads this repo by a plain clone and runs
   `python -m ci.images.remote list --json`
-  ([the contract](ci/image-tag-check.md#image-inventory-json)). An image pinned in a
+  ([the contract](../../engineering/ci/image-tag-check.md#image-inventory-json)). An image pinned in a
   compose file, an Ansible role or a script is **deployed** and scanned. A
   Dockerfile base is covered through the image built from it. An image used
   only by Molecule or CI is listed and not scanned.

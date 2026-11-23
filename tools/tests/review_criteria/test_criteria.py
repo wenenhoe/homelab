@@ -228,12 +228,12 @@ class TestAgainstGit:
 
 class TestDocumentedTable:
     def test_the_doc_lists_every_criterion_with_its_kind(self):
-        doc = (REPO_ROOT / "docs/topics/engineering/pr-review.md").read_text()
+        doc = (REPO_ROOT / "docs/topics/security/policy/pr-review.md").read_text()
         rows = re.findall(r"^\| (R\d|r\d) \| (major|minor) \|", doc, re.MULTILINE)
         assert rows == [(criterion.id, criterion.kind) for criterion in c.CRITERIA]
 
     def test_the_thresholds_in_the_doc_match_the_code(self):
-        doc = (REPO_ROOT / "docs/topics/engineering/pr-review.md").read_text()
+        doc = (REPO_ROOT / "docs/topics/security/policy/pr-review.md").read_text()
         assert f"{c.MINOR_LINES} or more changed lines, or {c.MINOR_FILES} or more files" in doc
 
     def test_criterion_ids_are_unique(self):

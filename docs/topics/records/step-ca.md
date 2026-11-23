@@ -5,7 +5,7 @@ The private certificate authority for internal TLS, on `security`. Its initialis
 ## Dependencies
 
 - Needs the `caddy-proxy` network, the `data` and `scripts` volumes, and the `step-ca-password` and `step-ca-provisioner-password` secrets ([`step-ca.md`](../services/step-ca.md#secrets)). Those secrets are read from OpenBao at deploy time.
-- Needs OpenBao for the deploy that renders its `.env`, and OpenBao needs it for its own certificate: the loop is broken by the `bootstrap-security.yaml` playbook ([`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#rebuilding-security)).
+- Needs OpenBao for the deploy that renders its `.env`, and OpenBao needs it for its own certificate: the loop is broken by the `bootstrap-security.yaml` playbook ([`backup-restore.md`](../security/openbao/backup-restore.md#rebuilding-security)).
 - Needed by `lldap` and `openbao` for their leaf certificates (`step_ca_cert`), and by `tinyauth` for the root it trusts to verify LDAPS (`tinyauth_ca_trust`).
 
 ## Data

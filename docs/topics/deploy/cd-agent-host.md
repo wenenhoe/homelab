@@ -19,10 +19,10 @@ The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the 
 | `deploy` | A minute after boot, then 5 minutes after each run ends; acts only when `main` has a commit it has not deployed | `ansible-playbook playbooks/deploy.yaml` in `ansible/`, with `ansible/requirements.yml`'s collections |
 | `maintenance` | The 1st and 15th of each month at 03:00 | `ansible-playbook playbooks/maintenance.yaml` in `ansible/`, with the same collections |
 | `credential-expiry` | Weekly, Monday at 00:00 | `python -m cloud_credentials.check_credential_expiry` in `tools/` |
-| `rotation` | The 8th of each month at 02:00 | `python -m cloud_credentials.rotate_leaf_keys` in `tools/`, which rotates the leaf credentials ([`rotation.md`](../secrets/cloud-credentials/rotation.md#rotation)) |
+| `rotation` | The 8th of each month at 02:00 | `python -m cloud_credentials.rotate_leaf_keys` in `tools/`, which rotates the leaf credentials ([`rotation.md`](../security/cloud-credentials/rotation.md#rotation)) |
 | `redeploy-storage` | When `rotation` ends, however it ends; no timer | `ansible-playbook playbooks/deploy.yaml --limit storage,localhost` in `ansible/`, with the same collections, and without waiting for a new commit |
 
-Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). `storage` takes a rotated write key only when `deploy.yaml` next renders its `rclone.conf`, which is what `redeploy-storage` does. The 8th at 02:00 is clear of `maintenance` (the 1st and 15th) and leaves the redeploy finished before `cloud_sync`'s 06:00 run. `rotation` keeps the default timeout, which is also the lifetime of its AppRole token ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md#creating-the-roles)).
+Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). `storage` takes a rotated write key only when `deploy.yaml` next renders its `rclone.conf`, which is what `redeploy-storage` does. The 8th at 02:00 is clear of `maintenance` (the 1st and 15th) and leaves the redeploy finished before `cloud_sync`'s 06:00 run. `rotation` keeps the default timeout, which is also the lifetime of its AppRole token ([`openbao-cd-agent-approles.md`](../security/openbao/openbao-cd-agent-approles.md#creating-the-roles)).
 
 ## Variables
 
@@ -55,14 +55,14 @@ For a job named `deploy`:
 | :--- | :--- |
 | `cd-agent-deploy` (user and group) | A system user with `/usr/sbin/nologin` as its shell and its state directory as its home. |
 | `/var/lib/cd-agent/deploy` | The runner's state directory ([`cd-agent-runner.md`](cd-agent-runner.md#state-directory)), mode `0700`, owned by the job's user. |
-| `/etc/cd-agent/credentials/deploy` | Where the job's credential files go, mode `0700`, owned by the job's user. The directory keeps every other user out whatever a file's own mode. The role creates the directory and no files; delivery is the AppRoles work ([`cd-agent.md`](../../projects/cd-agent.md)). The job's unit sets `HOMELAB_SECRETS_DIR` to it, so the job reads its OpenBao credential and `main-domain` from there ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)). |
+| `/etc/cd-agent/credentials/deploy` | Where the job's credential files go, mode `0700`, owned by the job's user. The directory keeps every other user out whatever a file's own mode. The role creates the directory and no files; delivery is the AppRoles work ([`cd-agent.md`](../../projects/cd-agent.md)). The job's unit sets `HOMELAB_SECRETS_DIR` to it, so the job reads its OpenBao credential and `main-domain` from there ([`openbao-cd-agent-approles.md`](../security/openbao/openbao-cd-agent-approles.md)). |
 | `cd-agent-deploy.service`, `cd-agent-deploy.timer` | The job's units in `/etc/systemd/system`. |
 
 `/etc/cd-agent/credentials` is mode `0711`, so a job's user can reach its own directory but not list the others.
 
 The runner (`run_job.py`) and the toolchain step (`toolchain.py`) are installed under `/opt/cd-agent/lib/cd_agent/`, owned by root and mode `0644`. They are copied from the controller's checkout when the role runs, not fetched, so the code that decides what runs is never replaced by what it fetches. A change to `tools/cd_agent/` reaches the host the next time the role is applied.
 
-`uv` is unpacked under `/opt/cd-agent/uv/<version>/` and linked at `/opt/cd-agent/bin/uv`, root-owned and not writable by any job's user. Each unit's `PATH` starts with `/opt/cd-agent/bin`, so a job's command, and the toolchain step, find it. `rclone` is unpacked under `/opt/cd-agent/rclone/<version>/` and linked at `/opt/cd-agent/bin/rclone` the same way, so the leaf-key verification in [`rotation.md`](../secrets/cloud-credentials/rotation.md) finds the binary it runs. A job's environment lives in its own state directory.
+`uv` is unpacked under `/opt/cd-agent/uv/<version>/` and linked at `/opt/cd-agent/bin/uv`, root-owned and not writable by any job's user. Each unit's `PATH` starts with `/opt/cd-agent/bin`, so a job's command, and the toolchain step, find it. `rclone` is unpacked under `/opt/cd-agent/rclone/<version>/` and linked at `/opt/cd-agent/bin/rclone` the same way, so the leaf-key verification in [`rotation.md`](../security/cloud-credentials/rotation.md) finds the binary it runs. A job's environment lives in its own state directory.
 
 ## The unit
 
@@ -116,7 +116,7 @@ A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push
 
 To give `credential-expiry` its heartbeat, add `{id: cd-agent-credential-expiry, group: backups, period_minutes: 10080}` to `heartbeat_jobs`, a `gatus-token-cd-agent-credential-expiry` entry (`source: hex`, `length: 64`, `store: openbao`, `scope: hosts/security`) to the secret catalog, and `heartbeat: cd-agent-credential-expiry` to the job. Deploy `security` (`--limit security,localhost`) and then apply this role.
 
-The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, after the role has run. `sudo` on the host needs a terminal, so the token goes into a temporary file first, from a `vault-bootstrap` session on the operator host ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)):
+The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, after the role has run. `sudo` on the host needs a terminal, so the token goes into a temporary file first, from a `vault-bootstrap` session on the operator host ([`openbao-cd-agent-approles.md`](../security/openbao/openbao-cd-agent-approles.md)):
 
 ```sh
 bao kv get -mount=secret -field=value hosts/security/gatus-token-cd-agent-credential-expiry \

@@ -6,7 +6,7 @@ order, and where each is recorded. The decision is
 [ADR 0101 (DR exercise cadence)](../../decisions/0101-exercising-disaster-recovery/revision-000.md).
 The procedures it points at are [`restore.md`](restore.md), [`fire-drill.md`](fire-drill.md),
 [`rebuild-runbook.md`](rebuild-runbook.md) and
-[`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md). The exercise kinds follow
+[`backup-restore.md`](../security/openbao/backup-restore.md). The exercise kinds follow
 NIST SP 800-34's tabletop, functional and full-scale exercises; this page claims conformance
 with no standard.
 
@@ -64,7 +64,7 @@ The host migration's rebuilds count as the first cycle.
 state encryption passphrase and the unseal shares from where they are kept, and count the shares. Then use
 them: decrypt a real app archive ([`backup.md`](backup.md#encryption)), pull and decrypt the latest
 secrets-store snapshot with
-[`snapshot-pull.sh`](../secrets/openbao-backup-restore.md#pulling-a-snapshot), and decrypt the newest object
+[`snapshot-pull.sh`](../security/openbao/backup-restore.md#pulling-a-snapshot), and decrypt the newest object
 under `state/` in the state copy bucket ([State copy](../infra/tofu/state-and-credentials.md#state-copy)).
 Check the offline passphrase against the one in use without printing either: `sha256sum` of each must match.
 The shares are used in the restore drill and in the total-loss exercise, not here. Delete every decrypted
@@ -78,7 +78,7 @@ and the loss of the workstation that holds the break-glass credentials. Each is 
 two years.
 
 **Total loss.** In the isolated block, with no on-site copy: the secrets-store bootstrap
-([`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#rebuilding-security)), then the
+([`backup-restore.md`](../security/openbao/backup-restore.md#rebuilding-security)), then the
 storage host, then one app host, each from the cloud copies. It is staged because the node cannot
 hold the estate twice at once. If the chain does not fit in the isolated block, it is walked as a
 tabletop until it does, and the drill record says so.
@@ -93,7 +93,7 @@ Every real restore or rebuild is an entry in the private drill record, with its 
 key-custody check and a total-loss exercise add an entry too, saying what was done and what was found.
 What a tabletop finds is written as a change to a procedure or a record, never as a security incident or an
 exposure ([`docs/README.md#public-repo`](../../README.md#public-repo)). The results are not kept here
-([`data-classification.md`](../engineering/data-classification.md)); a check that reads the record against
+([`data-classification.md`](../security/policy/data-classification.md)); a check that reads the record against
 the cadence above reports a system or an exercise that is late.
 
 ## When the cadence cannot be kept

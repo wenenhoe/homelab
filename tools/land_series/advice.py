@@ -1,4 +1,4 @@
-"""Whether a pull request of the series is worth asking for a review, from `review_criteria` (docs/topics/engineering/pr-review.md).
+"""Whether a pull request of the series is worth asking for a review, from `review_criteria` (docs/topics/security/policy/pr-review.md).
 
 Advice only: a failure to read a diff gives no advice, and nothing here stops a replay or a merge.
 """
@@ -23,7 +23,7 @@ def advice(repo: Path, tip: str, commits: int) -> list[str]:
         return []
     if not assessment.recommend:
         return []
-    return ["Worth asking for a review:", *(f"  {line}" for line in describe(assessment)), "  How to ask: docs/topics/engineering/pr-review.md"]
+    return ["Worth asking for a review:", *(f"  {line}" for line in describe(assessment)), "  How to ask: docs/topics/security/policy/pr-review.md"]
 
 
 def replay_advice(repo: Path, results: Sequence[LayerResult]) -> list[str]:

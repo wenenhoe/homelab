@@ -91,7 +91,7 @@ can't be minted the same way.
 Today, both the freshness check and rotation itself are
 human-attended: `check_freshness.py` runs via a systemd **user** timer
 installed by hand on `controller` — the operator's own machine, not
-through any Ansible role (see `docs/topics/secrets/cloud-credentials/expiry.md`'s
+through any Ansible role (see `docs/topics/secrets/cloud-credentials/expiry.md (renamed: docs/topics/security/cloud-credentials/expiry.md)`'s
 Credential expiry section) — and `create_rotation_keys.py --rotate` is
 run by hand against the schedule above rather than on it
 automatically. Moving both onto a dedicated always-on host, so they

@@ -27,7 +27,7 @@ Every VM is on the one Proxmox node: the gateway ([`opnsense-vm.md`](../infra/to
 | Deploys, `maintenance.yaml`, credential rotation, Tofu | By hand | Not done | Not done |
 | Provider-side clocks: lock windows, lifecycle rules, credential lifetimes | Tick | Tick | Tick |
 
-The credential freshness check runs from a user timer on `controller` ([`expiry.md`](../secrets/cloud-credentials/expiry.md#scheduling)); it runs only while that machine is on.
+The credential freshness check runs from a user timer on `controller` ([`expiry.md`](../security/cloud-credentials/expiry.md#scheduling)); it runs only while that machine is on.
 
 ## Clocks that keep running
 
@@ -37,7 +37,7 @@ These keep their own time while the node is off, so each is checked or set befor
 | :--- | :--- |
 | On-site backup retention | `backup_defaults.retention_days` in the inventory, and [`backup.md`](backup.md) |
 | Cloud copy lifetimes and lock windows | [`cloud-sync.md`](cloud-sync.md) |
-| Cloud credential lifetimes and warnings | [`expiry.md`](../secrets/cloud-credentials/expiry.md) |
+| Cloud credential lifetimes and warnings | [`expiry.md`](../security/cloud-credentials/expiry.md) |
 | Internal certificate lifetimes and renewal | [`gatus.md`](../monitoring/gatus.md) |
 | OpenBao seals on every restart | [ADR 0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) |
 
@@ -51,7 +51,7 @@ These keep their own time while the node is off, so each is checked or set befor
 
 ### Normal to Away
 
-1. From `tools/`, run `python3 -m cloud_credentials.check_credential_expiry` and rotate what is close to expiry with `python3 -m cloud_credentials.rotate_leaf_keys` ([`rotation.md`](../secrets/cloud-credentials/rotation.md)), deploy to `storage` and `localhost`, then start `cloud-sync.service` on `storage` and read its status.
+1. From `tools/`, run `python3 -m cloud_credentials.check_credential_expiry` and rotate what is close to expiry with `python3 -m cloud_credentials.rotate_leaf_keys` ([`rotation.md`](../security/cloud-credentials/rotation.md)), deploy to `storage` and `localhost`, then start `cloud-sync.service` on `storage` and read its status.
 2. Run `ansible/scripts/restore_all.py --check` for every host.
 3. Check the alert path: Telegram posts to the Backups, Certs and Monitoring topics, the Gatus heartbeats for backups and cloud sync exist and are green, and a phone reaches Tailscale and Telegram.
 4. Copy the Tofu state off the operator host and leave no building project half-applied.
@@ -76,7 +76,7 @@ These keep their own time while the node is off, so each is checked or set befor
 
 ### Dark to Normal
 
-1. Start the gateway first, then `security` and unseal OpenBao ([`openbao.md`](../secrets/openbao.md#init-and-unseal--manual-via-initpy-and-unsealpy)), then `storage`, then the app hosts.
+1. Start the gateway first, then `security` and unseal OpenBao ([`deployment.md`](../security/openbao/deployment.md#init-and-unseal--manual-via-initpy-and-unsealpy)), then `storage`, then the app hosts.
 2. Check the host clocks before judging any certificate.
 3. Before the first backup, run `restore_all.py --check` per host and confirm the retention and the backup agents are as set.
 4. Check the internal certificates, run cloud sync once and read its exit status, restore the OCI rule and the retention.

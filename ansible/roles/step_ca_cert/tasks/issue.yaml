@@ -57,7 +57,7 @@
       -e volume_rm_confirm=true -e volume_rm_stop_app=false
 
       The reissue restarts {{ step_ca_cert_app_name }} (an OpenBao restart
-      leaves it sealed, see docs/topics/secrets/openbao.md). If the requested names are the
+      leaves it sealed, see docs/topics/security/openbao/deployment.md). If the requested names are the
       mistake, revert the change instead.
   when:
     - step_ca_cert_inspect_result.status == 0

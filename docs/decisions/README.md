@@ -106,7 +106,7 @@ yet built.
   [Superseded revisions](#superseded-revisions).
 - A material change to an `accepted` or `superseded` revision is a new
   revision in the same lineage, never an edit. When a superseded ADR is
-  referenced from [`nist-800-53-alignment.md`](../topics/engineering/nist-800-53-alignment.md),
+  referenced from [`nist-800-53-alignment.md`](../topics/security/policy/nist-800-53-alignment.md),
   re-check the mapping in the same patch; `check_doc_drift.py` fails
   until it is addressed.
 - Competing candidates in one generation stay `working` until one is

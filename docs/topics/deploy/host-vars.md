@@ -70,7 +70,7 @@ pairs and `cloud_sync_targets`, `security.yaml`'s `step_ca_password`,
 new var belongs here or in `main.yaml`, and the worked examples of
 telling a genuinely-single-host var apart from one that only looks that
 way (`tinyauth_host` vs `step_ca_password`), live in
-[`secrets.md`](../secrets/secrets.md) — that's the canonical explanation; this
+[`secrets.md`](../security/secrets.md) — that's the canonical explanation; this
 section just flags that `host_vars` isn't only about things that
 *inherently* vary per host (`caddy_domain`, `compose_apps`) but also
 things that happen to be *consumed* by only one host, secrets and plain

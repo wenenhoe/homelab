@@ -34,7 +34,7 @@ A layer costs and a commit does not. Each layer is a full CI run waited for befo
 1. **A stage.** A project stage is one pull request ([What a stage is](../../projects/README.md#what-a-stage-is)).
 2. **An order the checks force.** The replay judges a layer's project scope against the state before its pull request, so a widened `allowed_paths` has to merge in an earlier layer than the one that needs it. One early layer carries every widening the series needs, not one layer per widening.
 3. **A revert of its own.** The rest of the series still makes sense without it, and the maintainer could want to undo one and keep the other. If both would always be undone together, they are one layer.
-4. **The stop list or a review.** A layer that changes a path on [the stop list](#replay), or that trips a criterion of [`pr-review.md`](pr-review.md#when-it-is-worth-asking), stays apart from layers that do not, so the confirmation and the review attach to the code that asked for them. The docs that describe that code stay with it.
+4. **The stop list or a review.** A layer that changes a path on [the stop list](#replay), or that trips a criterion of [`pr-review.md`](../security/policy/pr-review.md#when-it-is-worth-asking), stays apart from layers that do not, so the confirmation and the review attach to the code that asked for them. The docs that describe that code stay with it.
 
 These always join the layer that does the work, as commits in it:
 
@@ -92,7 +92,7 @@ Progress goes to stderr: what the tool is doing to which pull request, and the p
 
 ## Advice on a review
 
-After the replay, and again before each merge prompt of `--land`, the tool applies the criteria of [`pr-review.md`](pr-review.md#when-it-is-worth-asking) to each pull request's own commits and prints `Worth asking for a review:` with the criteria that tripped, the files that tripped them and a pointer to how to ask. A pull request that trips none gets no line. It is advice: it changes no exit status and stops nothing, a diff it cannot read gives none, and `--yes` skips the merge prompt and so its advice too.
+After the replay, and again before each merge prompt of `--land`, the tool applies the criteria of [`pr-review.md`](../security/policy/pr-review.md#when-it-is-worth-asking) to each pull request's own commits and prints `Worth asking for a review:` with the criteria that tripped, the files that tripped them and a pointer to how to ask. A pull request that trips none gets no line. It is advice: it changes no exit status and stops nothing, a diff it cannot read gives none, and `--yes` skips the merge prompt and so its advice too.
 
 ## Not for
 

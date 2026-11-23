@@ -22,7 +22,7 @@ PROJECT_DOC_RE = re.compile(r"docs/projects/(?!(?:README|TEMPLATE)\.md$)[^/]+\.m
 # (the projects README is a project doc's sibling) and the topics index.
 IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/topics/README.md")
 
-NIST_PAGE = "docs/topics/engineering/nist-800-53-alignment.md"
+NIST_PAGE = "docs/topics/security/policy/nist-800-53-alignment.md"
 
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)

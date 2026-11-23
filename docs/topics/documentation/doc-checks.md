@@ -65,7 +65,7 @@ these narrow, structural things:
   count and sequence, so a row paraphrasing a play's name isn't flagged as drift.
 - [`pipeline.md`](../engineering/ci/pipeline.md#jobs)'s Jobs table lists every `pr-checks.yml` job id, except
   `detect-changes` (internal plumbing) and `trivy-scan` (documented in
-  [`security-scanning.md`](../engineering/security-scanning.md) instead).
+  [`security-scanning.md`](../security/policy/security-scanning.md) instead).
 - Every `app_catalog` entry names its service record with `doc:`
   ([`doc_records.py`](../../../tools/doc_scripts/doc_records.py), [ADR 0100](../../decisions/0100-recording-how-a-system-is-integrated/revision-000.md)).
   The named doc must exist and have the seven `##` sections `Dependencies`, `Data`,
@@ -90,7 +90,7 @@ these narrow, structural things:
   A path containing `NNN` is a placeholder; a deleted file is referred to
   by name, not by path.
 - Every ADR linked from
-  [`nist-800-53-alignment.md`](../engineering/nist-800-53-alignment.md) isn't
+  [`nist-800-53-alignment.md`](../security/policy/nist-800-53-alignment.md) isn't
   `status: superseded` — the one state transition the anchor check
   above can't catch, since a superseded ADR's file doesn't move or
   break any link. Doesn't check whether an *accepted* ADR's reasoning

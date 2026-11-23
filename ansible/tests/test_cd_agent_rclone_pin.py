@@ -1,7 +1,7 @@
 """The CD agent's native rclone is on the minor release cloud_sync's image runs.
 
 Leaf-key verification has to follow the request sequence production's rclone
-makes (docs/topics/secrets/cloud-credentials/rotation.md), so a native rclone
+makes (docs/topics/security/cloud-credentials/rotation.md), so a native rclone
 from another minor release could accept a key production's would reject.
 """
 

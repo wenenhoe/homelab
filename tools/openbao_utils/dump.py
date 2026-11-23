@@ -5,7 +5,7 @@ destructive OpenBao re-init.
 
 Opposite direction from openbao_utils/restore.py (Vault -> files here,
 backup -> Vault there). Re-run it before any operation that could lose
-Vault's data; docs/topics/secrets/openbao-reinit-runbook.md is the
+Vault's data; docs/topics/security/openbao/reinit-runbook.md is the
 consumer of what it produces.
 
 Covers:

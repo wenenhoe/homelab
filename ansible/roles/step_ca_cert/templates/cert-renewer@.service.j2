@@ -73,7 +73,7 @@ ExecStartPost=/bin/sh -c '[ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --
 ; representing a Docker Compose service to reload here) by restarting
 ; the container directly. RENEW_ACTION=signal sends SIGHUP instead, for
 ; an app whose TLS listener reloads-on-SIGHUP without a restart - see
-; docs/topics/secrets/openbao.md for why openbao sets this.
+; docs/topics/security/openbao/deployment.md for why openbao sets this.
 ExecStartPost=/bin/sh -c 'if [ "${RENEW_ACTION}" = "signal" ]; then /usr/bin/docker kill --signal=HUP %i; else /usr/bin/docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i; fi'
 
 ; Then restart the apps named in RENEW_RESTARTS_AFTER, each one's own compose

@@ -94,7 +94,7 @@ Telegram path alone.
 ## Consequences
 
 - Every weekly credential check raises three alerts instead of one, which
-  the [watcher doc](../../topics/secrets/openbao-rotation-read-watcher.md)
+  the [watcher doc](../../topics/security/openbao/rotation-read-watcher.md)
   explains.
 - The watcher no longer watches R2 alone, so it is named
   `rotation-read-watcher`.

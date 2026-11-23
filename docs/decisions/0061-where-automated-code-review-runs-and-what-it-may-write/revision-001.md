@@ -148,7 +148,7 @@ The audit and this review draw on one subscription allowance, so they
 compete with each other and with interactive use.
 
 The behaviour, and the practice of requesting a review after the checks are
-green, are described in [`pr-review.md`](../../topics/engineering/pr-review.md).
+green, are described in [`pr-review.md`](../../topics/security/policy/pr-review.md).
 
 ## Invariants
 

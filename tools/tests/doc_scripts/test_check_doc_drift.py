@@ -92,7 +92,7 @@ class TestCrossFolderLink:
         repo.write("docs/topics/services/openbao.md", "# OpenBao\n\n## Unsealing\n")
 
     def test_relative_link_into_a_sibling_folder_resolves(self, repo):
-        repo.write("docs/topics/secrets/rotation.md", "See [OpenBao](../services/openbao.md#unsealing).\n")
+        repo.write("docs/topics/security/rotation.md", "See [OpenBao](../services/openbao.md#unsealing).\n")
         drift.check_no_stale_anchors()
         assert drift.errors == []
 
@@ -105,7 +105,7 @@ class TestCrossFolderLink:
         ids=["wrong-anchor", "dangling-file"],
     )
     def test_a_broken_cross_folder_link_fails(self, repo, link, reported):
-        repo.write("docs/topics/secrets/rotation.md", f"See [x]({link}).\n")
+        repo.write("docs/topics/security/rotation.md", f"See [x]({link}).\n")
         drift.check_no_stale_anchors()
         assert len(drift.errors) == 1, drift.errors
         assert reported in drift.errors[0]
@@ -175,7 +175,7 @@ class TestNistAlignment:
     def test_link_to_a_superseded_lineage_revision_fails(self, repo):
         revision(repo.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
         revision(repo.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
-        repo.write("docs/topics/engineering/nist-800-53-alignment.md", "[old](../../decisions/0013-secret-storage/revision-000.md)\n")
+        repo.write("docs/topics/security/policy/nist-800-53-alignment.md", "[old](../../../decisions/0013-secret-storage/revision-000.md)\n")
         drift.check_nist_alignment_currency()
         assert len(drift.errors) == 1, drift.errors
         assert "now status: superseded" in drift.errors[0]
@@ -183,14 +183,14 @@ class TestNistAlignment:
     def test_link_to_the_accepted_revision_passes(self, repo):
         revision(repo.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
         revision(repo.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
-        repo.write("docs/topics/engineering/nist-800-53-alignment.md", "[now](../../decisions/0013-secret-storage/revision-001.md)\n")
+        repo.write("docs/topics/security/policy/nist-800-53-alignment.md", "[now](../../../decisions/0013-secret-storage/revision-001.md)\n")
         drift.check_nist_alignment_currency()
         assert drift.errors == []
 
     def test_links_outside_lineages_are_ignored(self, repo):
         repo.write("docs/decisions/0001-flat.md", "# not a lineage\n")
         repo.write("docs/topics/deploy/host-vars.md", "# Host vars\n")
-        repo.write("docs/topics/engineering/nist-800-53-alignment.md", "[flat](../../decisions/0001-flat.md) and [other](../deploy/host-vars.md)\n")
+        repo.write("docs/topics/security/policy/nist-800-53-alignment.md", "[flat](../../../decisions/0001-flat.md) and [other](../deploy/host-vars.md)\n")
         drift.check_nist_alignment_currency()
         assert drift.errors == []
 

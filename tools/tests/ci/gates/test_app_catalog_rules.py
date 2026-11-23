@@ -260,7 +260,7 @@ class TestEachRule:
     @pytest.mark.parametrize(
         "doc",
         [
-            pytest.param("docs/topics/secrets/openbao.md", id="grouped"),
+            pytest.param("docs/topics/security/openbao/deployment.md", id="grouped"),
             pytest.param("docs/topics/infra/dns/bind9.md", id="nested"),
             pytest.param("docs/topics/services/my-app_2.md", id="underscore-and-digit"),
         ],
@@ -273,16 +273,16 @@ class TestEachRule:
         [
             pytest.param("docs/README.md", id="other-docs-directory"),
             pytest.param("docs/topics/openbao.md", id="not-in-a-group"),
-            pytest.param("docs/topics/secrets/openbao", id="no-extension"),
-            pytest.param("docs/topics/secrets/openbao.txt", id="wrong-extension"),
+            pytest.param("docs/topics/security/openbao", id="no-extension"),
+            pytest.param("docs/topics/security/openbao.txt", id="wrong-extension"),
             pytest.param("topics/secrets/openbao.md", id="not-repo-relative"),
-            pytest.param("/docs/topics/secrets/openbao.md", id="absolute"),
+            pytest.param("/docs/topics/security/openbao/deployment.md", id="absolute"),
             pytest.param("docs/topics/../decisions/x.md", id="dotdot"),
-            pytest.param("docs/topics/secrets/../../x/a.md", id="dotdot-deeper"),
-            pytest.param("docs/topics/secrets/open bao.md", id="space"),
+            pytest.param("docs/topics/security/../../x/a.md", id="dotdot-deeper"),
+            pytest.param("docs/topics/security/open bao.md", id="space"),
             pytest.param("", id="empty"),
             pytest.param(None, id="null"),
-            pytest.param(["docs/topics/secrets/openbao.md"], id="list"),
+            pytest.param(["docs/topics/security/openbao/deployment.md"], id="list"),
             pytest.param(True, id="true"),
         ],
     )

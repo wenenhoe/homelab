@@ -6,7 +6,7 @@ Each provider goes through the same create, verify, then revoke path as
 turn, so one command rotates all six leaf credentials. A provider that
 fails, by reporting a failed verification, by exiting or by raising, does
 not stop the providers after it, and the exit status is 1 if any failed.
-See docs/topics/secrets/cloud-credentials/rotation.md.
+See docs/topics/security/cloud-credentials/rotation.md.
 
 Usage (run from tools/):
     python3 -m cloud_credentials.rotate_leaf_keys

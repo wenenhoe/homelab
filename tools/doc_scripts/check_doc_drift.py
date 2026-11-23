@@ -362,7 +362,7 @@ def check_adr_link_names() -> None:
 
 
 def check_nist_alignment_currency() -> None:
-    """docs/topics/engineering/nist-800-53-alignment.md links to specific ADRs as
+    """docs/topics/security/policy/nist-800-53-alignment.md links to specific ADRs as
     evidence for a control mapping; unlike a plain dead link, an ADR
     being marked superseded doesn't move or delete the file, so
     check_no_stale_anchors's link-resolution check passes right through
@@ -375,7 +375,7 @@ def check_nist_alignment_currency() -> None:
     those stay on whoever's making that change, same as the page's own
     "What this page is not" section says.
     """
-    doc = ROOT / "docs/topics/engineering/nist-800-53-alignment.md"
+    doc = ROOT / "docs/topics/security/policy/nist-800-53-alignment.md"
     text = read(doc)
 
     for rel in PLAIN_MD_LINK_RE.findall(text):

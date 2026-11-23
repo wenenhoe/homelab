@@ -1,7 +1,7 @@
 """python3 -m review_criteria BASE HEAD [--repo DIR]
 
 Say whether the change from BASE to HEAD is worth asking for a review, and which criteria say so
-(docs/topics/engineering/pr-review.md). It is advice: the exit status is 0 either way.
+(docs/topics/security/policy/pr-review.md). It is advice: the exit status is 0 either way.
 """
 
 from __future__ import annotations

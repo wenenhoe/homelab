@@ -1,0 +1,36 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+  tasks:
+    # Deliberately no container started at all. The guard is the first thing the
+    # role checks, before it compares or downloads anything, so no step-ca or
+    # OpenBao is needed here.
+    - name: "Run openbao_cli [block / rescue] (no running openbao container, failure is deliberate and expected)"
+      block:
+        - name: Run openbao_cli on a host with no openbao container
+          ansible.builtin.include_role:
+            name: openbao_cli
+      rescue:
+        # A bare rescue: accepts any failure as "the guard worked", so a Docker
+        # hiccup in another task would pass as happily. Assert the exact task
+        # and reason first.
+        - name: Confirm the failure came from the "not running" guard itself
+          ansible.builtin.assert:
+            that:
+              - 'ansible_failed_task.name == "Fail loudly if openbao isn''t running yet"'
+              - "'No running \"openbao\" container found' in ansible_failed_result.msg"
+            fail_msg: >-
+              openbao_cli failed, but not for the reason this scenario exists to
+              test. Expected the "Fail loudly if openbao isn't running yet" task
+              to fail naming "openbao"; got task
+              "{{ ansible_failed_task.name | default('unknown') }}" with message:
+              {{ ansible_failed_result.msg | default('(no msg)') }}
+
+        - name: Leave a marker proving the guard caught the missing container
+          ansible.builtin.copy:
+            dest: /tmp/openbao_cli_not_running_halt_marker
+            content: "missing openbao container caught as expected\n"
+            mode: "0644"

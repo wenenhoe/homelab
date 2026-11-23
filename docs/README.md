@@ -59,22 +59,14 @@ another lineage or listed in `decisions/removed.md` is retired, and
 [`check_retired_numbers.py`](../tools/doc_scripts/check_retired_numbers.py)
 fails on it in prose, a comment or the text of a link.
 
-**Every doc's source of truth is the code/config it describes, checked
-by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
-the handful of places that check mechanically (every directory's own
-index, with `topics/`'s covering every doc under it at any depth;
-`ansible.md`'s playbook table; the molecule scenario matrix; the deploy
-play numbering; `ci/pipeline.md`'s job table; every cross-file `#anchor`
-reference repo-wide; every `docs/decisions/` or `docs/projects/` path
-written anywhere, comments included; and the decision-lineage and
-project rules in [`decisions/README.md`](decisions/README.md) and
-[`projects/README.md`](projects/README.md)). What a change to a project or an
-accepted decision may do is checked separately, by
-[`check_doc_change.py`](../tools/doc_scripts/check_doc_change.py); the rules
-are in [`topics/engineering/ci/doc-checks.md`](topics/engineering/ci/doc-checks.md).
-Nothing here enforces the rest by tooling — that's still on whoever's
-making the change to keep current in the same PR, the same way a
-diagram's topology should change alongside the topology it shows (see
+**Every doc's source of truth is the code/config it describes.**
+[`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py) checks mechanically the
+places that can be, and
+[`topics/engineering/ci/doc-checks.md`](topics/engineering/ci/doc-checks.md#docs-drift-check)
+lists them. What a change to a project or an accepted decision may do is checked separately,
+by [`check_doc_change.py`](../tools/doc_scripts/check_doc_change.py). Nothing enforces the
+rest by tooling: that is on whoever is making the change to keep current in the same PR, the
+same way a diagram's topology should change alongside the topology it shows (see
 `architecture/README.md`'s note on that).
 
 ## Public repo

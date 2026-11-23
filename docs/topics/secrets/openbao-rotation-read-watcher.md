@@ -215,48 +215,12 @@ holds the old `secret_id`, and the policy reads only Telegram's secrets. A
 re-init does not recreate them, since the runbook provisions only the new role,
 so they go then, or in any earlier root session.
 
-## Known gap
+## When the watcher is down
 
-`rotation-read-watcher.service` has no alert wired for a watcher that's
-stopped doing its job, unlike every other managed service on this
-host. The obvious fix doesn't actually work for this unit's shape:
-`OnFailure=` only fires once a unit reaches systemd's `failed` state,
-and per systemd's own docs a service using `Restart=` only enters
-`failed` once its start limits are exhausted (`systemd.unit(5)`,
-`OnFailure=`). This unit sets `Restart=always`/`RestartSec=10`
-with no `StartLimitIntervalSec=`/`StartLimitBurst=` override, so at
-one failure per 10s it never crosses systemd's default burst
-threshold — it restarts forever instead. `OnFailure=` would never
-fire here, wired or not.
+Gatus's missed-heartbeat alert is the only alert for a watcher that has stopped. The heartbeat unit pushes on success only, and the endpoint's 15-minute interval (a 10-minute push period plus 5 minutes of slack) puts the alert between 15 and 30 minutes after the last push. Gatus reports that the watcher is unhealthy, not why: the cause is in `journalctl -u rotation-read-watcher` on `security`. Any read of a rotation credential while the watcher is down goes undetected.
 
-Bounding the restarts to force a `failed` state isn't the fix either:
-it trades away the one thing this restart policy is for. This unit's
-actual failure mode has been OpenBao being sealed (see
-[ADR 0018 (Secrets store unsealing)](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) after a restart or
-a re-init, not a real crash — and that clears on its own once someone
-unseals it. A bounded restart count would leave the watcher sitting
-`failed` silently until a human notices, which is worse than today's
-gap.
+The unit has no `OnFailure=` alert because it would never fire. `OnFailure=` runs once a unit reaches systemd's `failed` state, and a service with `Restart=` only gets there once its start limits are exhausted (`systemd.unit(5)`, `OnFailure=`). This unit sets `Restart=always` and `RestartSec=10` with no `StartLimitIntervalSec=` or `StartLimitBurst=` override, so at one failure per 10 seconds it never crosses the default burst threshold and restarts for as long as the cause lasts.
 
-The replacement: a separate check, run off the same
-`rotation-read-watcher-heartbeat.timer` tick, that counts consecutive ticks
-where `rotation-read-watcher.service` isn't active and, past **3 in a row
-(~30 minutes)**, sends a Telegram alert carrying the tail of
-`journalctl -u rotation-read-watcher` — the actual error, not just "it's
-down." Not yet built.
+Bounding the restarts to force a `failed` state would give up what the restart policy is for. The usual cause is OpenBao being sealed after a restart or a re-init ([ADR 0018 (Secrets store unsealing)](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)), which clears once someone unseals it. A bounded count would leave the watcher `failed` and silent after that.
 
-30 minutes is what Gatus already gives: the endpoint's 15-minute heartbeat interval (a 10-minute push period plus 5
-minutes of slack) puts its own alert between 15 and 30 minutes after the last push. A check that waits for 3 missed
-ticks therefore adds the cause, the journal tail, and not an earlier alert; revisit the threshold when it is built.
-
-Needs its own standalone `/etc/telegram-notify/rotation-read-watcher.env`,
-populated by hand from the same `hosts/all/telegram/*` values, for
-the same reason as the original plan: it must fire even if the
-Vault-reachability problem that took the watcher down also takes out
-any Vault-backed alerting path.
-
-Until this lands, Gatus's missed-heartbeat alert is the only
-backstop. Since this watcher's only job is alerting on reads of the
-rotation credentials, any read that happens while it's down goes
-undetected until then — Gatus reports the watcher is unhealthy, not
-why, and not what happened while it was down.
+A check that counted missed heartbeat ticks and sent the journal tail to Telegram would alert no earlier than Gatus, so it would add only the cause. That would cost a counter file and a second hand-filled `/etc/telegram-notify/` env file, and it would break the convention in `rotation-read-watcher-heartbeat.service`: `OnSuccess=` only, never an explicit failure push, with Gatus as the backstop ([`gatus.md`](../monitoring/gatus.md)). The watcher therefore has no check of its own.

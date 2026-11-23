@@ -111,7 +111,7 @@ paths that end, begin or climb out of an allowed one. A URL-encoded
 `/containers/%6Ason` decodes to the allowed path and is passed on, which is
 the same resource. The list is asserted call by call on the real proxy image
 by the Molecule scenario in
-[`molecule-testing.md`](../../topics/engineering/molecule-testing.md).
+[`molecule-testing.md`](../../topics/testing/molecule-testing.md).
 
 The consumer that only reads (`beszel-agent`) keeps its flags in this
 revision; see Consequences.

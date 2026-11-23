@@ -122,7 +122,7 @@ keys, and nothing it needs for that is a service that runs on the node.
 - The ISO is an offline secret that holds a password hash, to be rebuilt when
   the hash or the keys change.
 - The role cannot run in Molecule, so
-  `docs/topics/engineering/molecule-testing.md` records it as an exception to
+  `docs/topics/testing/molecule-testing.md` records it as an exception to
   the idempotence check, and a second converge with no change on a nested VM
   stands in for it.
 - A reinstall still loses every machine on the node. Rebuilding them is the

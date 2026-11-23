@@ -97,7 +97,7 @@ Restoring cloud_credentials' Vault state after a genuine OpenBao re-init is
 ## Testing
 
 None of these are an Ansible role, so Molecule's per-host
-model (`docs/topics/engineering/molecule-testing.md`) doesn't apply. `ansible/tests/`
+model (`docs/topics/testing/molecule-testing.md`) doesn't apply. `ansible/tests/`
 holds pytest tests — every provider HTTP call and `rclone` invocation
 mocked — run via `uv run pytest ansible/tests/ -v` and wired into CI as
 `pr-checks.yml`'s

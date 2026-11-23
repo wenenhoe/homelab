@@ -37,7 +37,7 @@ today.
 
 A Molecule scenario's compose files live in its `files/docker/<app>/`. A
 fixture for an app that exists under `docker/` is a symlink to it, not a
-copy ([`molecule-fixtures.md`](molecule-fixtures.md)).
+copy ([`molecule-fixtures.md`](../testing/molecule-fixtures.md)).
 
 ## Vault KV paths
 
@@ -179,7 +179,7 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   code reads data from outside the program, such as a parsed JSON
   document that is not an object.
 - **Mutation testing.** It is run by hand, with tooling kept outside this repo, when a credential module's
-  tests change, never in CI; see [`mutation-testing.md`](mutation-testing.md) for when and what stays private.
+  tests change, never in CI; see [`mutation-testing.md`](../testing/mutation-testing.md) for when and what stays private.
 
 ## Shell tests
 
@@ -187,7 +187,7 @@ Bats tests under `tools/tests/shell/` cover the shell scripts that decide an
 outcome worth protecting; the choice is
 [ADR 0086 (Shell script tests)](../../decisions/0086-testing-the-control-flow-of-shell-scripts/revision-000.md),
 and how to run them and what the harness does is in
-[`ci/shell-tests.md`](ci/shell-tests.md).
+[`shell-tests.md`](../testing/shell-tests.md).
 
 - **Which scripts.** A script gets a test file when it has a branch that
   decides an outcome worth protecting: a failure path, a cleanup guarantee,

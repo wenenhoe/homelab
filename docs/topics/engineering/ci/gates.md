@@ -38,7 +38,7 @@ that the expected failure message is still the `restore` role's own.
 (see [`restore.md`](../../disaster-recovery/restore.md)), so this
 step is the regression check for that two-file invocation pattern
 specifically — not for `restore`'s own validation logic, which
-[Molecule](../molecule-testing.md) already covers. It deliberately points
+[Molecule](../../testing/molecule-testing.md) already covers. It deliberately points
 at a nonexistent archive and asserts the failure is the expected
 archive-not-found message, not an `ansible_host`/`secrets_generated`
 resolution failure (that signature means the regression is back).
@@ -326,7 +326,7 @@ which hold a package-write token.
   image variable without loading its file or loads one it doesn't use (an
   unused load reruns that role whenever the image is bumped), and on an
   image file no play loads. See
-  [`molecule-fixtures.md`](../molecule-fixtures.md#shared-image-pins).
+  [`molecule-fixtures.md`](../../testing/molecule-fixtures.md#shared-image-pins).
 - **`check-image-digests`** (`ci.images.digests check`, also a pre-commit hook,
   so it runs in `pre-commit-checks` on every PR) fails on an image reference
   with no `@sha256` digest, on one `name:tag` pinned to two digests, and on

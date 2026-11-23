@@ -27,7 +27,7 @@ Makes the Proxmox node reproducible: an install ISO that carries its own answer 
 
 ## Scope
 
-An inventory of the running node's settings, written up in the new topic doc `docs/topics/infra/proxmox-node.md`. The answer-file template and the tool in `tools/proxmox_install/` that merges the credentials and builds the ISO, with its tests. The role `ansible/roles/proxmox_node/`, its playbook `ansible/playbooks/proxmox_node.yaml` and the node's group in `ansible/inventory/inventory.yaml`. The manual steps in `docs/topics/infra/vm-provisioning.md` become pointers to the role, and the role's exception to the idempotence check is recorded in `docs/topics/engineering/molecule-testing.md`. The new topic doc needs its row in `docs/topics/README.md`.
+An inventory of the running node's settings, written up in the new topic doc `docs/topics/infra/proxmox-node.md`. The answer-file template and the tool in `tools/proxmox_install/` that merges the credentials and builds the ISO, with its tests. The role `ansible/roles/proxmox_node/`, its playbook `ansible/playbooks/proxmox_node.yaml` and the node's group in `ansible/inventory/inventory.yaml`. The manual steps in `docs/topics/infra/vm-provisioning.md` become pointers to the role, and the role's exception to the idempotence check is recorded in `docs/topics/testing/molecule-testing.md`. The new topic doc needs its row in `docs/topics/README.md`.
 
 Not in this project: hardening the node, clusters, backups and restores of the machines on it, Proxmox's update repositories, and the real reinstall, which is a planned outage the maintainer chooses. The Tofu modules and their tests keep taking the `tofu-images` storage and the bridge names as inputs, since the role creates what they name.
 

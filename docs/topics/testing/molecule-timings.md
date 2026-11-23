@@ -1,12 +1,12 @@
 # CI Molecule Timings
 
-How the shard table in [`.github/molecule-shards.yml`](../../../../.github/molecule-shards.yml) is kept balanced: a scheduled run times the scenarios of the roles that changed, records the numbers, and reports a better table. The table's use in the pipeline is in [CI: PR Checks](pipeline.md#sharded-roles); the decision is [ADR 0115 (Molecule shard balance)](../../../decisions/0115-keeping-the-molecule-shard-table-balanced/revision-000.md).
+How the shard table in [`.github/molecule-shards.yml`](../../../.github/molecule-shards.yml) is kept balanced: a scheduled run times the scenarios of the roles that changed, records the numbers, and reports a better table. The table's use in the pipeline is in [CI: PR Checks](../engineering/ci/pipeline.md#sharded-roles); the decision is [ADR 0115 (Molecule shard balance)](../../decisions/0115-keeping-the-molecule-shard-table-balanced/revision-000.md).
 
-[`molecule-timings.yml`](../../../../.github/workflows/molecule-timings.yml) fires on Wednesday and Saturday at 05:07 UTC and on demand. Its `force` input measures every role. The code is `tools/ci/timing/`, run from `tools/` through `uv run`.
+[`molecule-timings.yml`](../../../.github/workflows/molecule-timings.yml) fires on Wednesday and Saturday at 05:07 UTC and on demand. Its `force` input measures every role. The code is `tools/ci/timing/`, run from `tools/` through `uv run`.
 
 ## What gets timed
 
-`ci.timing.fingerprint` gives each role a digest of the files its Molecule run reads: its [watch set](change-scoping.md#molecule-watch-sets) plus the paths every scenario inherits, as `git ls-files -s` lists them. The digest follows content, so a rebuilt checkout of the same files gives the same one. A role needs timing again when it has no record, its digest differs from the recorded one, or its record is more than 90 days old. `ci.timing.plan` names those roles, and the `plan` job turns them into legs with `ci.scope.molecule_shards`, the same legs a pull request runs. A run on a quiet week names none, so the `measure` job is skipped and only the report runs.
+`ci.timing.fingerprint` gives each role a digest of the files its Molecule run reads: its [watch set](../engineering/ci/change-scoping.md#molecule-watch-sets) plus the paths every scenario inherits, as `git ls-files -s` lists them. The digest follows content, so a rebuilt checkout of the same files gives the same one. A role needs timing again when it has no record, its digest differs from the recorded one, or its record is more than 90 days old. `ci.timing.plan` names those roles, and the `plan` job turns them into legs with `ci.scope.molecule_shards`, the same legs a pull request runs. A run on a quiet week names none, so the `measure` job is skipped and only the report runs.
 
 ## What is recorded
 

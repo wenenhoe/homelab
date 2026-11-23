@@ -47,7 +47,7 @@ apt-config dump Unattended-Upgrade | grep -E 'Allowed-Origins|Reboot|updates'
 Both periodic values are `"1"`, no allowed origin is an `-updates`
 pocket, and no `Automatic-Reboot "true"` appears. The role's Molecule
 scenario asserts the same lines; see
-[`molecule-testing.md`](../engineering/molecule-testing.md).
+[`molecule-testing.md`](../testing/molecule-testing.md).
 
 ## Adding an area
 

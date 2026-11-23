@@ -32,7 +32,7 @@
 
     # Deploys the REAL docker/openbao/compose.yaml.j2 + configs/openbao.hcl.j2
     # (symlinked into this scenario's own files/docker/ — see
-    # docs/topics/engineering/molecule-fixtures.md), through the exact same `roles/openbao`
+    # docs/topics/testing/molecule-fixtures.md), through the exact same `roles/openbao`
     # production uses — not a reimplemented inline deploy sequence — so
     # this scenario exercises the real data-volume chown-if-needed guard
     # too, not just the cert-issuance path step_ca_cert itself owns. TLS

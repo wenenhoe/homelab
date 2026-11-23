@@ -123,7 +123,7 @@ change that makes it.
   image-pin hook already does.
 - Every place that names a moved path changes with it: links in
   `docs/README.md`, `AGENTS.md`, `README.md`, `docs/topics/engineering/ci/pipeline.md` and
-  `docs/topics/engineering/molecule-fixtures.md`, the `allowed_paths` example in
+  `docs/topics/engineering/molecule-fixtures.md (renamed: docs/topics/testing/molecule-fixtures.md)`, the `allowed_paths` example in
   `docs/projects/README.md`, and any project's own `allowed_paths`.
 - A change to a check is reviewed with the code it checks, and the code that
   runs is the PR's own. That is already true of every workflow and is

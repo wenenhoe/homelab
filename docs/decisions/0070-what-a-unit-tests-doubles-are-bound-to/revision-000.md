@@ -91,7 +91,7 @@ Existing doubles are brought into line case by case, in separate changes on the 
 
 - What a test must assert, and which tests are deleted or merged. Those rules go in `conventions.md` and stand independently of how a double is built.
 - Mutation testing; a spike answers whether it adds signal before any decision.
-- Which behaviors get a test, and Molecule scenarios, which [`molecule-testing.md`](../../topics/engineering/molecule-testing.md) covers.
+- Which behaviors get a test, and Molecule scenarios, which [`molecule-testing.md`](../../topics/testing/molecule-testing.md) covers.
 - Replacing hand-written doubles with an emulator for the OCI classic-IAM surface, which is [ADR 0041 (OCI IAM bootstrap testing)](../0041-testing-the-oci-classic-iam-bootstrap/revision-000.md).
 
 ## Reconsideration triggers

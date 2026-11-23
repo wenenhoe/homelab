@@ -28,7 +28,7 @@ pointed to instead.
   leave out the generated views; see
   [`pre-commit.md`](docs/topics/engineering/pre-commit.md#applying-patches-with-git-am).
 - [`docs/topics/engineering/security-findings.md`](docs/topics/engineering/security-findings.md#referring-to-findings-from-this-repo)
-  and [`docs/topics/engineering/mutation-testing.md`](docs/topics/engineering/mutation-testing.md#keeping-results-private)
+  and [`docs/topics/testing/mutation-testing.md`](docs/topics/testing/mutation-testing.md#keeping-results-private)
   — what from the private tracker and the private mutation tooling may be
   mentioned in this repo, and where their output goes. Read them before
   a change that touches either.
@@ -88,7 +88,7 @@ Docker or registry access, see
 - **Idempotency.** Every Molecule scenario runs a real `idempotence`
   check — converge twice, second run reports no changes — except ones
   documented otherwise (rotation, one-shot jobs, timed renewal; see
-  [`docs/topics/engineering/molecule-testing.md`](docs/topics/engineering/molecule-testing.md)). A role that
+  [`docs/topics/testing/molecule-testing.md`](docs/topics/testing/molecule-testing.md)). A role that
   can't pass this either earns a documented exception there or isn't
   done.
 
@@ -149,6 +149,6 @@ A block with no interactive step needs no segments.
   against it, not authored independently from memory.
 - A test for a side effect asserts the side effect happened (a
   timestamp changed, a file exists, a KV version incremented) — see
-  [`docs/topics/engineering/molecule-testing.md`](docs/topics/engineering/molecule-testing.md)'s
+  [`docs/topics/testing/molecule-testing.md`](docs/topics/testing/molecule-testing.md)'s
   `rotate_secret` scenario for a real example — not just that a task
   exited zero.

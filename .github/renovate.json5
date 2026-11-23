@@ -669,7 +669,7 @@
 
     // docker/lldap/compose.yaml, docker/bind9/compose.yaml, and
     // docker/caddy/compose.yaml's molecule fixtures are symlinks to
-    // these same files (see docs/topics/engineering/molecule-testing.md), so there is only
+    // these same files (see docs/topics/testing/molecule-testing.md), so there is only
     // ever one real occurrence of each of those image pins for Renovate
     // to see — no groupName needed to keep prod and test fixture in
     // lockstep, because there's nothing left to drift apart.

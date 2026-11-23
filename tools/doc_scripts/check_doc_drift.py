@@ -134,11 +134,11 @@ def check_ansible_reference() -> None:
 
 
 def check_molecule_matrix() -> None:
-    """docs/topics/engineering/molecule-testing.md's Scenario matrix table, role-for-role
+    """docs/topics/testing/molecule-testing.md's Scenario matrix table, role-for-role
     and scenario-for-scenario, against the real
     ansible/roles/*/molecule/*/ directories.
     """
-    lines = read(ROOT / "docs/topics/engineering/molecule-testing.md").splitlines()
+    lines = read(ROOT / "docs/topics/testing/molecule-testing.md").splitlines()
     start = next(i for i, line in enumerate(lines) if line.strip() == "## Scenario matrix")
     table_lines: list[str] = []
     for line in lines[start:]:

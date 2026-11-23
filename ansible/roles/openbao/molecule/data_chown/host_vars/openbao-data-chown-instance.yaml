@@ -25,7 +25,7 @@ telegram_topic_id_certs: ""  # noqa: var-naming[no-role-prefix]
 # Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
 # openbao entry) — extracted via lookup rather than hand-copied, same
 # reasoning as default's own host_vars (see
-# docs/topics/engineering/molecule-fixtures.md): a hand-copied fixture drifts silently, a
+# docs/topics/testing/molecule-fixtures.md): a hand-copied fixture drifts silently, a
 # lookup can't.
 app_catalog: >-  # noqa: var-naming[no-role-prefix]
   {{

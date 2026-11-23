@@ -11,9 +11,9 @@ Every workflow with a `schedule` trigger, listed by the time of day of its first
 | `check-image-tags.yml` | `23 2 * * 0` | Sunday 02:23 | Sunday 10:23 | Checks that every pinned image still exists in its registry ([image tag check](image-tag-check.md)). |
 | `check-release-checksums.yml` | `41 3 * * 0` | Sunday 03:41 | Sunday 11:41 | Asks each publisher again whether the pinned release hashes are theirs, and Docker and Tailscale whether they still serve the apt keys the roles pin ([release checksum check](release-checksum-check.md)). |
 | `check-image-provenance.yml` | `13 4 * * 0` | Sunday 04:13 | Sunday 12:13 | Asks each publisher again whether the pinned image digests are theirs ([image provenance check](image-provenance-check.md)). |
-| `check-shell-test-pins.yml` | `47 4 * * 0` | Sunday 04:47 | Sunday 12:47 | Checks that each pinned Bats release tag still points at its pinned commit ([shell test pins](shell-test-pins.md#checking-the-pins)). |
+| `check-shell-test-pins.yml` | `47 4 * * 0` | Sunday 04:47 | Sunday 12:47 | Checks that each pinned Bats release tag still points at its pinned commit ([shell test pins](../../testing/shell-test-pins.md#checking-the-pins)). |
 | `scratch-gateway-qemu.yml` | `29 5 * * 0,3` | Sunday and Wednesday 05:29 | Sunday and Wednesday 13:29 | Boots the pinned OPNsense image in QEMU and runs the `rehearsal` spec on it, which also keeps the cached image from being evicted for going 7 days unused ([scratch gateway runs](../../infra/scratch-gateway-runs.md#the-workflow)). |
-| `molecule-timings.yml` | `7 5 * * 3,6` | Wednesday and Saturday 05:07 | Wednesday and Saturday 13:07 | Times the Molecule scenarios of the roles whose files changed since they were measured and reports whether the shard table still balances them ([Molecule timings](molecule-timings.md)). |
+| `molecule-timings.yml` | `7 5 * * 3,6` | Wednesday and Saturday 05:07 | Wednesday and Saturday 13:07 | Times the Molecule scenarios of the roles whose files changed since they were measured and reports whether the shard table still balances them ([Molecule timings](../../testing/molecule-timings.md)). |
 | `progress-log.yml` | `17 16 * * *` | Every day 16:17 | Every day 00:17 | Adds what was merged to `main` since the last run to the weekly and monthly progress log on the `progress-log` branch ([Progress log](#progress-log)). |
 | `renovate.yml` | `37 17 * * *` | Every day 17:37 | Every day 01:37 | Runs Renovate, then checks that the run started inside its window ([Renovate schedule window](#renovate-schedule-window), [Renovate](renovate.md)). |
 | `build-caddy-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the Caddy image, as it does on a push that changes its Dockerfile ([Dockerfile changes](gates.md#dockerfile-changes)). |
@@ -75,7 +75,7 @@ emails a failed scheduled run to the person who last changed the schedule.
 whether each pinned Bats release tag still points at its pinned commit. It is
 the same check the `shell-tests` PR job runs when the pin file or its tooling
 changes; what it verifies and how it fails is in
-[CI Shell Test Pins](shell-test-pins.md#checking-the-pins). GitHub emails a
+[CI Shell Test Pins](../../testing/shell-test-pins.md#checking-the-pins). GitHub emails a
 failed scheduled run to the person who last changed the schedule.
 
 ## Progress log

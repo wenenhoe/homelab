@@ -7,7 +7,7 @@ Which jobs block a merge is set by the repository rulesets on those branches
 ([`branching.md`](../branching.md#the-rulesets)), not by anything in this
 repo; see [Requiring checks before merge](#requiring-checks-before-merge)
 below for the check names. This pipeline isn't a substitute
-for [Molecule](../molecule-testing.md): Molecule tests one role in
+for [Molecule](../../testing/molecule-testing.md): Molecule tests one role in
 isolation, this pipeline tests the parts Molecule can't (linting the
 whole tree, a real compose stack booting, and the actual
 `deploy.yaml`/`restore.yaml` ordering).
@@ -32,7 +32,7 @@ call it as `python -m <package>.<module>` from `tools/`
   [App catalog rules](gates.md#app-catalog-rules)).
 - `ci.images` — the image registry and the CI image builds.
 - `ci.scan` — setup for the security scans (the Trivy config, and the gitleaks run over a PR's commits).
-- `ci.timing` — the scheduled Molecule timing run: which roles to time again, folding the timings into the recorded state, and the shard table report (see [Molecule timings](molecule-timings.md)).
+- `ci.timing` — the scheduled Molecule timing run: which roles to time again, folding the timings into the recorded state, and the shard table report (see [Molecule timings](../../testing/molecule-timings.md)).
 - `ci.fixtures` — data a job seeds before a real run, derived from the repo
   (the deploy-ordering check's secrets).
 
@@ -91,11 +91,11 @@ parse on an older Python than the repo's own. The rest run through
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/`, spread over the runner's cores by `pytest-xdist` (`-n auto --dist worksteal`) — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | deploy inputs changed (the `deploy_ordering` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | Runs the real `deploy.yaml` and `restore.yaml` against a CI inventory and checks the `ansible_host` resolution chain. See [Deploy-ordering-check](gates.md#deploy-ordering-check). |
-| `molecule` | any role touched | One matrix job per changed role, or per shard for the roles `.github/molecule-shards.yml` splits (see [Sharded roles](#sharded-roles)), running `./scripts/molecule-test-all.sh <role> [-s <scenario>...]`. Uploads the leg's coverage data and writes each scenario's run time to the job summary. See [`molecule-testing.md`](../molecule-testing.md). |
+| `molecule` | any role touched | One matrix job per changed role, or per shard for the roles `.github/molecule-shards.yml` splits (see [Sharded roles](#sharded-roles)), running `./scripts/molecule-test-all.sh <role> [-s <scenario>...]`. Uploads the leg's coverage data and writes each scenario's run time to the job summary. See [`molecule-testing.md`](../../testing/molecule-testing.md). |
 | `molecule-coverage` | always | Merges every `molecule` leg's coverage data and gates each tested role's [coverage report](gates.md#molecule-coverage-gate) against its floor. Its steps do nothing when no role was tested. |
 | `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash or apt key fingerprint (`cd_agent`'s, `openbao_cli`'s, `docker`'s and `tailscale_node`'s `defaults/main.yaml`), changed | Each pinned release checksum is the one its publisher signed, attested or lists, and each pinned apt key is the one its vendor serves — see [Release checksum check](release-checksum-check.md). |
 | `provenance` | `tools/ci/provenance/**`, or a file that can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the scripts, workflow and Python constant a Renovate manager tracks), changed | Each pinned image digest is one its publisher signed or attested — see [Image provenance check](image-provenance-check.md). |
-| `shell-tests` | the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Fetches the pinned Bats clones and runs the shell tests on them, with the project's locked Python environment for the templates — see [Shell tests](shell-tests.md). A change to the pin file or the tooling beside it also checks each pinned tag — see [Shell test pins](shell-test-pins.md). |
+| `shell-tests` | the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Fetches the pinned Bats clones and runs the shell tests on them, with the project's locked Python environment for the templates — see [Shell tests](../../testing/shell-tests.md). A change to the pin file or the tooling beside it also checks each pinned tag — see [Shell test pins](../../testing/shell-test-pins.md). |
 | `mermaid-check` | the `mermaid_check` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check). |
 | `renovate-config-check` | the `renovate_config` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | `.github/renovate.json5` is a valid Renovate repo config under the pinned Renovate image — see [Validating the config](renovate.md#validating-the-config). |
 | `doc-site` | the `doc_site` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Builds the documentation site and checks its layout at phone widths, the two steps `pages.yml` runs before it deploys — see [The doc site renderer](../../documentation/doc-site.md#publishing). |
@@ -191,7 +191,7 @@ role disagrees with the scenarios on disk, and
 `python_unit_tests` runs when the table changes. Adding a scenario to a split
 role therefore means adding it to a shard in the same PR.
 
-Shards were balanced on measured scenario times, longest first. A scheduled run keeps those times current and proposes a better table; see [Molecule timings](molecule-timings.md). A role is worth
+Shards were balanced on measured scenario times, longest first. A scheduled run keeps those times current and proposes a better table; see [Molecule timings](../../testing/molecule-timings.md). A role is worth
 splitting when its leg is the longest in a typical run and its scenarios are
 spread evenly enough for the split to shorten it: a role dominated by one
 scenario can't get faster than that scenario. Each extra leg costs about 15

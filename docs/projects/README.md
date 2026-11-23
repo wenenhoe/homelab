@@ -59,6 +59,7 @@ The initiatives, in the order the [Roadmap](https://wenenhoe.github.io/homelab/p
 5. `off-site-monitoring` — monitoring that keeps working when the lab or the site is lost.
 6. `compose-stack-files` — compose apps whose files and configuration deploy and restart reliably.
 7. `coding-agent-host` — a coding agent on its own isolated host, reached only through a reviewed path.
+8. `network-boundary` — the gateway's declared flows shown to hold, its drift reported, and the tailnet policy kept in code.
 
 ## Lifecycle
 

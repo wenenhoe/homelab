@@ -6,6 +6,7 @@ status: building
 blocked: false
 summary: A flow list, a probe runner and a canary VM per zone that show the firewall allows the declared flows between zones and blocks the rest, shared by the gateway, coding-agent and operator-host projects.
 decision: ADR-0094/0
+super_project: network-boundary
 allowed_paths:
   - tools/network_checks/**
   - tools/tests/network_checks/**

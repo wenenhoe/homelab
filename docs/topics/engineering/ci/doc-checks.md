@@ -201,35 +201,22 @@ and why). It runs in two places:
   `pre-commit-checks`' `--all-files` run nothing is staged and it passes
   trivially.
 
-In both, a project's scope is read from the doc **as it stands on the
-base**, so a change can't widen its own scope and then use it. The
-decision revisions a project's close edits need no entry: the one
-`decision:` names, each one in `also_implements:`, and the revision each
-supersedes. They come from the base project doc and from the `supersedes:`
-the base revision has, never from the change, so a change can't add one
-([`doc_scope.lifecycle_paths`](../../../../tools/doc_scripts/doc_scope.py)). A project
-binds a change only if the change *works* its doc: its frontmatter or a
-stage's number or status in the Execution plan table differs from the base,
-or the doc is deleted. A prose or link edit to the doc, such as a sweep
-across every project doc, binds nothing, so a repo-wide docs cleanup
-isn't held to the scope of whichever projects it happened to edit. A project
-doc that is new in the change has no scope yet. Renames and deletions
-count as touching both paths. Path-level only: it can't tell whether an
-edit inside an allowed file is the permitted one, and a change that never
-works its project doc isn't bounded.
+In both, the scope in force, the decision revisions a close edits and what ties a
+change to a project are the rules of
+[`docs/projects/README.md#scope`](../../../projects/README.md#scope); the exempt
+revisions come from the base project doc and the `supersedes:` the base revision has,
+never from the change
+([`doc_scope.lifecycle_paths`](../../../../tools/doc_scripts/doc_scope.py)). A rename
+or a deletion counts as touching both paths.
 
 ## Project size warnings
 
 [`tools/doc_scripts/doc_sizing.py`](../../../../tools/doc_scripts/doc_sizing.py)
-holds the size rules of [ADR 0037 revision 5](../../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md).
-None fails a check; each prompts a review. `check_doc_drift.py` prints, as
-`::warning::`, a project with a single stage row that no other project alone
-depends on; one with more than six stages; two projects chained by `depends_on`
-that name one revision, unless a third depends on the earlier alone; and a stage
-row that names another project (its id, its doc path or a link to a sibling doc)
-next to a waiting word. The drift check prints them only when it has no errors.
-The [project start check](#project-start-check) warns when a stage is added to a
-project that was already building.
+holds the size rules of [ADR 0037 revision 5](../../../decisions/0037-decision-and-project-documentation-workflow/revision-005.md),
+and [`docs/projects/README.md#sizing-a-project`](../../../projects/README.md#sizing-a-project)
+lists what each warns about. None fails a check. `check_doc_drift.py` prints them as
+`::warning::`, and only when it has no errors. The [project start check](#project-start-check)
+warns when a stage is added to a project that was already building.
 
 ## Scope suggestions
 

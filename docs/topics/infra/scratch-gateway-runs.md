@@ -144,7 +144,7 @@ The runner reaches the DMZ canary only through a row that admits the operator ho
 The VLAN 30 scratch kit (the seed's VLAN list and `lan_bridge` in the Ubuntu module) is tested as far as the gateway having the VLAN 30 interface: the `seed-vlans` run, which builds the gateway with the seed's own eight VLANs, 45 among them. What no run shows yet, because the play has no zone for VLAN 30 and the flow list no row for it:
 
 - a VM tagged 30 reaching the gateway, which needs the zone's interface address and a pass rule;
-- the zone's flows (rows 7 and 12 of [`opnsense-gateway.md`](tofu/opnsense-gateway.md#zone-policy)), and that default-deny holds in VLAN 30;
+- the zone's flows ([`operator-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy) and [`tailscale-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy)), and that default-deny holds in VLAN 30;
 - the canary VM for that zone, which is this step with `zone` naming it.
 
 They wait for [the coding agent's network](../../projects/coding-agent-network.md), which adds the zone to the play. Passing the zone's flows on a scratch gateway is the first run of a spec like `canary-vm` for the new zone. Until then a VM at VMID 308 on the scratch gateway would sit on an interface with no rules and could show only that it is blocked.

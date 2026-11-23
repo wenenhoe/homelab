@@ -16,7 +16,9 @@ from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT, docs_in, load_lineages, read_frontmatter
 
-EXPLORATION_PATH_RE = re.compile(r"docs/explorations/(?!(?:README|TEMPLATE)\.md\b)[\w.-]+\.md")
+# The repo-root path, or one relative to the file that names it, which is how a link writes it.
+_EXPLORATION_FILE = r"explorations/(?!(?:README|TEMPLATE)\.md\b)[\w.-]+\.md"
+EXPLORATION_PATH_RE = re.compile(rf"docs/{_EXPLORATION_FILE}|(?<![\w/.-])(?:\.\./)*{_EXPLORATION_FILE}")
 # Files that may name an exploration: the explorations themselves and the generated planning view.
 MENTION_ALLOWED_PREFIX = "docs/explorations/"
 MENTION_ALLOWED_FILES = {"docs/project-planning.md"}

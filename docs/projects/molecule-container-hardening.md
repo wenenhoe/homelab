@@ -56,7 +56,7 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced.
 - **Must not change:** the scenario platforms' `molecule.yml`; the production compose files the fixtures link to; the linked rule's text in `AGENTS.md`.
-- **Relevant files and interfaces:** [`container-hardening.md`](../topics/deploy/container-hardening.md) for choosing and verifying a set; the production compose file of each image (`docker/openbao/`, `docker/lldap/`, `docker/seaweedfs/`, `docker/step-ca/`); `ansible/roles/molecule_helpers/tasks/start_*_test_target.yaml`; [`molecule-fixtures.md`](../topics/engineering/molecule-fixtures.md).
+- **Relevant files and interfaces:** [`container-hardening.md`](../topics/deploy/container-hardening.md) for choosing and verifying a set; the production compose file of each image (`docker/openbao/`, `docker/lldap/`, `docker/seaweedfs/`, `docker/step-ca/`); `ansible/roles/molecule_helpers/tasks/start_*_test_target.yaml`; [`molecule-fixtures.md`](../topics/testing/molecule-fixtures.md).
 - **Required checks:** `pre-commit run --all-files` with the hooks that need Docker or network skipped and named; `uv run pytest` from `tools/` and `ansible/tests`; the scenarios of every role a change touches, which run in CI.
 
 ## Risks

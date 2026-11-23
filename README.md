@@ -68,7 +68,7 @@ That sets up the Python environment, the Ansible collections and the git hooks. 
 | | Provision a VM with OpenTofu | [`vm-provisioning.md`](docs/topics/infra/vm-provisioning.md) |
 | | Rebuild a host from the repo and its backups | [`rebuild-runbook.md`](docs/topics/disaster-recovery/rebuild-runbook.md) |
 | | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
-| Develop | Run or write tests | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
+| Develop | Run or write tests | [`molecule-testing.md`](docs/topics/testing/molecule-testing.md) · [`conventions.md`](docs/topics/engineering/conventions.md) |
 | | Know what the pre-commit hooks check | [`pre-commit.md`](docs/topics/engineering/pre-commit.md) |
 | | Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
 | Understand | See the fleet on one page | [`system-overview.md`](docs/architecture/system-overview.md) |

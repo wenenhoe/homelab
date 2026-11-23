@@ -345,7 +345,7 @@ class TestAnsibleReference:
 class TestMoleculeMatrix:
     def _write(self, repo, rows: list[str], scenarios: dict[str, list[str]]) -> None:
         repo.write(
-            "docs/topics/engineering/molecule-testing.md",
+            "docs/topics/testing/molecule-testing.md",
             "# Molecule\n\n## Scenario matrix\n\n| Role | Scenario |\n| :--- | :--- |\n" + "\n".join(rows) + "\n\n## Next\n",
         )
         for role, names in scenarios.items():

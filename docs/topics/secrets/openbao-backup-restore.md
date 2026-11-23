@@ -98,7 +98,7 @@ inherits it the same way any other native `bao` invocation does.
 by running the drill end to end, on `openbao/openbao:2.7.1`.
 `docker/openbao/compose.yaml.j2` pins the release the server runs now,
 which can be newer. The `snapshot_restore` Molecule scenario
-([`molecule-testing.md`](../engineering/molecule-testing.md))
+([`molecule-testing.md`](../testing/molecule-testing.md))
 runs it again on whatever image the Molecule helper pins, on every bump
 of that pin. Newer releases can change behavior: `generate-root`'s
 authenticated-endpoint behavior changed (see

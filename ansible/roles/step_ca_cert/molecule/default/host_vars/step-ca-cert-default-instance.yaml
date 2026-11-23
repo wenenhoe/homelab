@@ -38,7 +38,7 @@ telegram_topic_id_certs: ""
 # Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
 # lldap entry) — extracted via lookup rather than hand-copied. A
 # hand-authored copy drifts silently; a lookup can't — see
-# docs/topics/engineering/molecule-fixtures.md.
+# docs/topics/testing/molecule-fixtures.md.
 app_catalog: >-
   {{
     (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')

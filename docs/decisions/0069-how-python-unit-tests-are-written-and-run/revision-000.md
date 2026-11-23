@@ -64,7 +64,7 @@ The conventions are written down in a testing section of `docs/topics/engineerin
 
 - Rules for test doubles and assertion strength: what a mock is bound to, which values a pass-through test may use, which tests are deleted. That is a separate problem that would still stand if the framework changed, so it gets its own lineage before that work starts.
 - Mutation testing. Whether it adds signal on the pure-logic modules is answered by a spike before any decision.
-- Molecule scenarios and role testing, which [`docs/topics/engineering/molecule-testing.md`](../../topics/engineering/molecule-testing.md) covers.
+- Molecule scenarios and role testing, which [`docs/topics/engineering/molecule-testing.md`](../../topics/testing/molecule-testing.md) covers.
 - Which behaviors get a test.
 
 ## Reconsideration triggers

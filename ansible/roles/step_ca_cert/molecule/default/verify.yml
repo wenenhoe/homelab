@@ -128,7 +128,7 @@
     # stays 0 here even though the container demonstrably did restart.
     # StartedAt changes on every restart regardless of cause, the same
     # signal backup_agent's own scenario already uses for this exact
-    # kind of assertion (see docs/topics/engineering/molecule-testing.md).
+    # kind of assertion (see docs/topics/testing/molecule-testing.md).
     - name: Record lldap's start time after
       community.docker.docker_container_info:
         name: lldap

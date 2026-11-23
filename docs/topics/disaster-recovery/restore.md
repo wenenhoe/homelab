@@ -15,7 +15,7 @@ the command line instead (see below).
 ## Safety gates
 
 Two gates block the destructive steps, each covered by a
-[Molecule scenario](../engineering/molecule-testing.md) asserting the actual side effect
+[Molecule scenario](../testing/molecule-testing.md) asserting the actual side effect
 (container `StartedAt`, volume content), not just exit code:
 
 - **Required vars** — `restore_app`, `restore_archive_local_path`,

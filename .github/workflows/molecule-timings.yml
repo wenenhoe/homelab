@@ -5,7 +5,7 @@ name: Molecule timings
 # still balances them. A role is out of date when the files its Molecule run
 # reads changed since it was measured, or when its measurement is 90 days old,
 # so a run on a quiet week measures nothing and only reads the recorded state.
-# See docs/topics/engineering/ci/molecule-timings.md.
+# See docs/topics/testing/molecule-timings.md.
 #
 # The state is one JSON file in the Actions cache, restored by prefix, so the
 # newest entry wins. Restoring it counts as access, and a run twice a week

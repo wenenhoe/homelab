@@ -148,7 +148,7 @@ unique scenario names. A role stops at its first failing scenario, as
 seconds per scenario and, in CI, appends it to the job summary, which is
 the data for deciding whether a role is worth splitting across runners.
 With `MOLECULE_TIMINGS_FILE` set it also writes each row, tab-separated, to
-that file, which [the scheduled timing run](ci/molecule-timings.md) collects.
+that file, which [the scheduled timing run](molecule-timings.md) collects.
 
 `molecule_helpers`'s shared scaffolding — the reference table of its
 task files, and how the DinD test containers it prepares actually
@@ -184,13 +184,13 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR for faster feedback —
    CI also runs every role whose watch set a PR touches (see
-   [`ci/change-scoping.md`](ci/change-scoping.md#change-scoped-not-a-full-sweep)).
+   [`ci/change-scoping.md`](../engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep)).
 
 ## Coverage
 
 See [`molecule-coverage/README.md`](../../../ansible/molecule-coverage/README.md)
 for the task/loop/branch coverage tool that runs on top of these
-scenarios and gates CI (see [`ci/gates.md`](ci/gates.md#molecule-coverage-gate)).
+scenarios and gates CI (see [`ci/gates.md`](../engineering/ci/gates.md#molecule-coverage-gate)).
 
 ## What molecule scenarios can't catch: tag wiring
 

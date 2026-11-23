@@ -1,26 +1,26 @@
 # CI Shell Tests
 
-Bats tests for the shell scripts that decide an outcome worth protecting: what a failed run leaves running or stopped, what is cleaned up on every exit path, what a prompt must be answered with. The decision is [ADR 0086 (Shell script tests)](../../../decisions/0086-testing-the-control-flow-of-shell-scripts/revision-000.md). The runner and its libraries are the pinned clones described in [CI Shell Test Pins](shell-test-pins.md).
+Bats tests for the shell scripts that decide an outcome worth protecting: what a failed run leaves running or stopped, what is cleaned up on every exit path, what a prompt must be answered with. The decision is [ADR 0086 (Shell script tests)](../../decisions/0086-testing-the-control-flow-of-shell-scripts/revision-000.md). The runner and its libraries are the pinned clones described in [CI Shell Test Pins](shell-test-pins.md).
 
-The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell), one `.bats` file per script:
+The tests are under [`tools/tests/shell/`](../../../tools/tests/shell), one `.bats` file per script:
 
 | Test file | Script |
 | :--- | :--- |
-| `run_restore.bats` | [`docker/minecraft/scripts/run_restore.sh`](../../../../docker/minecraft/scripts/run_restore.sh) |
-| `snapshot_push.bats` | [`tools/openbao_utils/scripts/snapshot-push.sh`](../../../../tools/openbao_utils/scripts/snapshot-push.sh) |
-| `snapshot_pull.bats` | [`tools/openbao_utils/scripts/snapshot-pull.sh`](../../../../tools/openbao_utils/scripts/snapshot-pull.sh) |
-| `molecule_test_all.bats` | [`ansible/scripts/molecule-test-all.sh`](../../../../ansible/scripts/molecule-test-all.sh) |
-| `run_upgrade.bats` | [`docker/minecraft/scripts/run_upgrade.sh`](../../../../docker/minecraft/scripts/run_upgrade.sh) |
-| `fetch_image.bats` | [`tofu/modules/proxmox_opnsense_vm/fetch_image.sh`](../../../../tofu/modules/proxmox_opnsense_vm/fetch_image.sh) |
-| `build_seed.bats` | [`tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh`](../../../../tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh) |
-| `first_boot.bats` | [`tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh`](../../../../tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh) |
-| `scratch_gateway.bats` | [`tofu/scratch/opnsense/scratch_gateway.sh`](../../../../tofu/scratch/opnsense/scratch_gateway.sh) |
-| `retire_vm.bats` | [`tools/rebuild_check/scripts/retire_vm.sh`](../../../../tools/rebuild_check/scripts/retire_vm.sh) |
-| `stage_image.bats` | [`tofu/scratch/opnsense/stage_image.sh`](../../../../tofu/scratch/opnsense/stage_image.sh) |
-| `prepare_image.bats` | [`tofu/modules/proxmox_ubuntu_template/prepare_image.sh`](../../../../tofu/modules/proxmox_ubuntu_template/prepare_image.sh) |
-| `acceptance.bats` | [`tofu/scratch/opnsense/acceptance/acceptance.sh`](../../../../tofu/scratch/opnsense/acceptance/acceptance.sh) |
-| `check_freshness.bats` | the template [`check-freshness.sh.j2`](../../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) |
-| `caddy_cert_expiry.bats` | the template [`check.sh.j2`](../../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) of the `caddy_cert_expiry` role |
+| `run_restore.bats` | [`docker/minecraft/scripts/run_restore.sh`](../../../docker/minecraft/scripts/run_restore.sh) |
+| `snapshot_push.bats` | [`tools/openbao_utils/scripts/snapshot-push.sh`](../../../tools/openbao_utils/scripts/snapshot-push.sh) |
+| `snapshot_pull.bats` | [`tools/openbao_utils/scripts/snapshot-pull.sh`](../../../tools/openbao_utils/scripts/snapshot-pull.sh) |
+| `molecule_test_all.bats` | [`ansible/scripts/molecule-test-all.sh`](../../../ansible/scripts/molecule-test-all.sh) |
+| `run_upgrade.bats` | [`docker/minecraft/scripts/run_upgrade.sh`](../../../docker/minecraft/scripts/run_upgrade.sh) |
+| `fetch_image.bats` | [`tofu/modules/proxmox_opnsense_vm/fetch_image.sh`](../../../tofu/modules/proxmox_opnsense_vm/fetch_image.sh) |
+| `build_seed.bats` | [`tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh`](../../../tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh) |
+| `first_boot.bats` | [`tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh`](../../../tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh) |
+| `scratch_gateway.bats` | [`tofu/scratch/opnsense/scratch_gateway.sh`](../../../tofu/scratch/opnsense/scratch_gateway.sh) |
+| `retire_vm.bats` | [`tools/rebuild_check/scripts/retire_vm.sh`](../../../tools/rebuild_check/scripts/retire_vm.sh) |
+| `stage_image.bats` | [`tofu/scratch/opnsense/stage_image.sh`](../../../tofu/scratch/opnsense/stage_image.sh) |
+| `prepare_image.bats` | [`tofu/modules/proxmox_ubuntu_template/prepare_image.sh`](../../../tofu/modules/proxmox_ubuntu_template/prepare_image.sh) |
+| `acceptance.bats` | [`tofu/scratch/opnsense/acceptance/acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) |
+| `check_freshness.bats` | the template [`check-freshness.sh.j2`](../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) |
+| `caddy_cert_expiry.bats` | the template [`check.sh.j2`](../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) of the `caddy_cert_expiry` role |
 | `harness.bats` | the harness itself |
 
 ## Running them
@@ -37,7 +37,7 @@ BATS_LIB_PATH="$CLONES" "$CLONES/bats-core/bin/bats" tools/tests/shell
 
 ## In CI
 
-The `shell-tests` job of `pr-checks.yml` runs when a pull request changes a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py` (the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)). It runs on the runner's own Bash and GNU userland, with the locked environment for the templates and `python3` for the fetch. It is not a matrix job, so it can be required directly: a pull request that changes none of those paths reports it skipped.
+The `shell-tests` job of `pr-checks.yml` runs when a pull request changes a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py` (the `shell_tests` output in [Change scoping](../engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep)). It runs on the runner's own Bash and GNU userland, with the locked environment for the templates and `python3` for the fetch. It is not a matrix job, so it can be required directly: a pull request that changes none of those paths reports it skipped.
 
 Its steps, in order:
 
@@ -51,7 +51,7 @@ Any matching change runs every test file, not only the one for the script that c
 
 ## The harness
 
-[`test_helper/harness.bash`](../../../../tools/tests/shell/test_helper/harness.bash) is loaded by every test file, which calls `harness_setup` from `setup` and `harness_teardown` from `teardown`.
+[`test_helper/harness.bash`](../../../tools/tests/shell/test_helper/harness.bash) is loaded by every test file, which calls `harness_setup` from `setup` and `harness_teardown` from `teardown`.
 
 - **Fail-by-default stubs.** A directory of stubs comes first on `PATH`, with one for every external tool a script under test calls (`HARNESS_EXTERNAL_TOOLS`). Until a test replaces it with `stub`, a stub exits 127 and records the call, so a test that forgets one fails instead of running the real `docker`, `bao` or `ssh`. A script that swallows a failing command (`|| true`) would hide the forgotten stub from its exit status, so `harness_teardown` fails the test when any unstubbed call was recorded. A tool a script starts to call is added to the list.
 - **Stubs that record.** `stub NAME` writes an executable that appends its arguments, one line, to the call log and then runs the body the test gives it. `calls_to NAME` reads the log back. A test makes a stub fail or succeed by what the body does, usually from an environment variable the test sets for one `run`.

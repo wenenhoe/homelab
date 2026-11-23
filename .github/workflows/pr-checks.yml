@@ -281,7 +281,7 @@ jobs:
           locked: "true"
 
   # Plain controller-side Python, not an Ansible role — no molecule/
-  # scenario applies (see docs/topics/engineering/molecule-testing.md). Every provider HTTP
+  # scenario applies (see docs/topics/testing/molecule-testing.md). Every provider HTTP
   # call and rclone invocation is mocked; nothing here needs network
   # access or Galaxy collections.
   python-unit-tests:
@@ -698,7 +698,7 @@ jobs:
 
   # Runs the Bats tests for the repo's shell scripts on the pinned bats-core,
   # bats-support and bats-assert clones (ADR 0086) — see
-  # docs/topics/engineering/ci/shell-tests.md. Not a matrix job, so it can be
+  # docs/topics/testing/shell-tests.md. Not a matrix job, so it can be
   # required directly: a PR that changes no shell script, shell test or pin
   # reports it skipped.
   shell-tests:

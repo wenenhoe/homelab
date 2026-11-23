@@ -58,7 +58,7 @@ these narrow, structural things:
 - `docs/topics/deploy/ansible.md`'s Playbooks and Roles tables list exactly the files
   under `ansible/playbooks/*.yaml` and directories under
   `ansible/roles/*/`.
-- `docs/topics/engineering/molecule-testing.md`'s Scenario matrix table lists exactly the
+- `docs/topics/testing/molecule-testing.md`'s Scenario matrix table lists exactly the
   scenario directories that exist under `ansible/roles/*/molecule/*/`.
 - `docs/topics/deploy/deployment-flow.md`'s Plays table has one row per play in
   `deploy.yaml`, numbered sequentially from 0. Wording isn't compared, only

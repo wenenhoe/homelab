@@ -61,7 +61,7 @@ The file holds the role's keys alongside `dns` on the DNS host. A container
 created after the restart shows the default `Config`; one created before it
 shows an empty `Config` until it is recreated. The role's Molecule scenario
 asserts the same property on a fresh container and that a key it does not
-own survives; see [`molecule-testing.md`](../engineering/molecule-testing.md).
+own survives; see [`molecule-testing.md`](../testing/molecule-testing.md).
 
 ## Compose version
 

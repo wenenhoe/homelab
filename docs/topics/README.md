@@ -139,9 +139,22 @@ How the documentation is generated, checked and published.
 | [`doc-site.md`](documentation/doc-site.md) | The renderer that turns the generated views into a static site: the rows both outputs are built from, building the site, the anchors, the pinned stylesheet and its integrity attribute, the layout check, and the workflow that deploys it. |
 | [`progress-log.md`](documentation/progress-log.md) | The weekly and monthly record of what was merged to `main`, generated daily onto the `progress-log` branch: how to read it, what it decides by rule, how notes survive, and how to rebuild it. |
 
+## testing/
+
+How the repo's code is tested: Molecule scenarios and their fixtures, the shell tests, and mutation testing.
+
+| Doc | Covers |
+| :--- | :--- |
+| [`molecule-testing.md`](testing/molecule-testing.md) | Molecule scenario matrix and how to add one. |
+| [`molecule-fixtures.md`](testing/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_catalog` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
+| [`molecule-timings.md`](testing/molecule-timings.md) | How the Molecule shard table is kept balanced: the scheduled run that times only the roles whose files changed, the recorded state, and the report that proposes a better table. |
+| [`shell-tests.md`](testing/shell-tests.md) | The Bats tests for the repo's shell scripts: where they live, how to run them on the pinned clones, the harness that fails on any tool a test did not stub, and what each file asserts. |
+| [`shell-test-pins.md`](testing/shell-test-pins.md) | The Bats runner and libraries the shell tests run on, pinned by commit: the pin file, fetching the clones, and the check that each pinned tag still points at its commit. |
+| [`mutation-testing.md`](testing/mutation-testing.md) | When a mutation run is worth making on the credential tooling, how to read a survivor, and why its output stays off public surfaces. |
+
 ## engineering/
 
-Working on the repo: conventions, tests, CI, review and scanning.
+Working on the repo: conventions, CI, review and scanning.
 
 | Doc | Covers |
 | :--- | :--- |
@@ -154,20 +167,14 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |
 | [`ci/change-scoping.md`](engineering/ci/change-scoping.md) | How a change decides which jobs run: the scoped outputs `detect-changes` produces, Molecule watch sets, and the comment-only and formatting-only changes that queue nothing. |
 | [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing and Dockerfile builds. |
-| [`ci/molecule-timings.md`](engineering/ci/molecule-timings.md) | How the Molecule shard table is kept balanced: the scheduled run that times only the roles whose files changed, the recorded state, and the report that proposes a better table. |
 | [`ci/image-tag-check.md`](engineering/ci/image-tag-check.md) | The weekly check that every pinned image tag still exists in its registry. |
 | [`ci/release-checksum-check.md`](engineering/ci/release-checksum-check.md) | The check that each pinned release hash is the one its publisher signed, attested or lists, on pull requests and weekly. |
 | [`ci/image-provenance-check.md`](engineering/ci/image-provenance-check.md) | The check that each pinned image digest is one its publisher signed or attested, the signer fixed in the repository, on pull requests and weekly. |
-| [`ci/shell-tests.md`](engineering/ci/shell-tests.md) | The Bats tests for the repo's shell scripts: where they live, how to run them on the pinned clones, the harness that fails on any tool a test did not stub, and what each file asserts. |
-| [`ci/shell-test-pins.md`](engineering/ci/shell-test-pins.md) | The Bats runner and libraries the shell tests run on, pinned by commit: the pin file, fetching the clones, and the check that each pinned tag still points at its commit. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | When each scheduled workflow fires, the Renovate window check and Trivy scanning. |
 | [`ci/renovate.md`](engineering/ci/renovate.md) | How self-hosted Renovate runs, its schedule, and the GitHub App it authenticates as: permissions, key rotation, how `maintenance` is realigned before each run, and checking a run. |
 | [`branching.md`](engineering/branching.md) | The three long-lived branches: what each holds, the rulesets that protect them, choosing the branch for a change, promoting `maintenance` or `develop` into `main`, realigning `develop` by hand, and a fix that cannot wait. |
 | [`reviewing-renovate-updates.md`](engineering/reviewing-renovate-updates.md) | Reading Renovate's open pull requests into `maintenance` for breaking changes with `tools/renovate_merge`, merging them, and opening the promotion pull request: the summary and its levels, the reviewed-head check, what the merge waits for, and where the tool stops. |
 | [`landing-a-series.md`](engineering/landing-a-series.md) | Landing a series of patches on `main` as pull requests with `tools/land_series`: the `.series` input, the replay and the stop list, the kept branches, and the push, wait, confirm and merge of each pull request. |
-| [`mutation-testing.md`](engineering/mutation-testing.md) | When a mutation run is worth making on the credential tooling, how to read a survivor, and why its output stays off public surfaces. |
-| [`molecule-testing.md`](engineering/molecule-testing.md) | Molecule scenario matrix and how to add one. |
-| [`molecule-fixtures.md`](engineering/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_catalog` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
 | [`security-scanning.md`](engineering/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
 | [`security-findings.md`](engineering/security-findings.md) | The private `homelab-security` tracker for code-review findings: what it holds, the contract a writer follows, how findings are triaged, and how this repo may refer to them. |
 | [`pr-review.md`](engineering/pr-review.md) | Asking for a review of a pull request from the private checkout: when a change is worth asking for, the command, what it checks first, and where the output lives, which is a private Issue and nothing in this repo. |

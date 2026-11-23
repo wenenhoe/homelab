@@ -7,7 +7,7 @@ short: "Docs as site pages"
 solution: "Render topic docs, projects and decisions as pages of the doc site with its own renderer extended by a CommonMark library, drawing Mermaid diagrams at build time"
 summary: "Where a reader of a topic doc, a project or a decision, on a phone or following a row of a generated view, reads it, and how those pages are made without a second build system or a script the reader must run."
 topic: documentation-process
-status: approved
+status: accepted
 related: [ADR-0117]
 relies_on:
   - adr: ADR-0117

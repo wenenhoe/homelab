@@ -146,3 +146,65 @@ def test_a_page_without_a_list_or_tabs_is_not_opened_at_the_wide_size(tmp_path):
 
 def test_a_page_with_tabs_is_opened_at_the_wide_size(tmp_path):
     assert "/ at 1280px" in sizes_reported(tmp_path, '<div class="tabs"></div><div style="width:1500px">wide</div>')
+
+
+def write_pages(directory, paths: list[str]) -> None:
+    for path in paths:
+        page = directory / path.strip("/") / "index.html"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(PAGE.format(body="<p>x</p>"), encoding="utf-8")
+
+
+def a_site(directory, per_section: int) -> list[str]:
+    sections = ("projects", "decisions", "topics", "architecture")
+    paths = ["/", "/project-planning/", "/decision-index/", "/dr-coverage/", *(f"/{s}/" for s in sections)]
+    paths += [f"/{s}/doc-{n:03}/" for s in sections for n in range(per_section)]
+    write_pages(directory, paths)
+    return paths
+
+
+def test_the_sample_has_the_home_page_the_views_the_landings_and_a_page_of_each_section(tmp_path):
+    paths = a_site(tmp_path, 3)
+    assert layout.sample_of(tmp_path) == [
+        "/",
+        "/architecture/",
+        "/architecture/doc-000/",
+        "/decision-index/",
+        "/decisions/",
+        "/decisions/doc-000/",
+        "/dr-coverage/",
+        "/project-planning/",
+        "/projects/",
+        "/projects/doc-000/",
+        "/topics/",
+        "/topics/doc-000/",
+    ]
+    assert set(layout.sample_of(tmp_path)) < set(paths)
+
+
+def test_the_sample_adds_the_longest_page_that_lists_its_headings(tmp_path):
+    a_site(tmp_path, 3)
+    for path, size in (("/topics/doc-001/", 5), ("/decisions/doc-002/", 90), ("/projects/doc-001/", 20)):
+        (tmp_path / path.strip("/") / "index.html").write_text(PAGE.format(body='<nav class="toc"></nav>' + "<p>text</p>" * size), encoding="utf-8")
+    sample = layout.sample_of(tmp_path)
+    assert "/decisions/doc-002/" in sample and "/topics/doc-001/" not in sample and "/projects/doc-001/" not in sample
+
+
+def test_the_sample_does_not_grow_with_the_number_of_pages(tmp_path):
+    a_site(tmp_path, 120)
+    (tmp_path / "topics/doc-077/index.html").write_text(PAGE.format(body='<nav class="toc"></nav>' + "<p>text</p>" * 200), encoding="utf-8")
+    sample = layout.sample_of(tmp_path)
+    assert len(layout.pages_of(tmp_path)) > 480 and "/topics/doc-077/" in sample
+    assert len(sample) <= layout.MAX_SAMPLE
+
+
+def test_a_site_with_no_long_page_still_has_a_sample(tmp_path):
+    a_site(tmp_path, 1)
+    assert layout.sample_of(tmp_path)
+
+
+def test_check_opens_only_the_pages_it_is_given(tmp_path):
+    for name in "abc":
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "index.html").write_text(PAGE.format(body='<p style="font-size:9px">x</p>'), encoding="utf-8")
+    assert [e.split(": ")[0] for e in layout.check(tmp_path, (390,), pages=["/b/"])] == ["/b/ at 390px"]

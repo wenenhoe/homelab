@@ -4,7 +4,8 @@ A page fails when it scrolls sideways, when an element sticks out past the right
 wider than the block (a table cell or card cell that overflows its box), when any visible text is under 12 pixels, when a bar
 that stays on screen takes more than a fifth of its height, or when a link to a heading leaves the heading under such a bar. At
 widths where the page has a menu drawer the drawer is opened and held to the same rules. The check serves the directory
-over localhost and uses the Chrome that is installed (`channel="chrome"`), so nothing is downloaded.
+over localhost and uses the Chrome that is installed (`channel="chrome"`), so nothing is downloaded. A page is loaded once and
+resized to each width, and the pages are shared among a few browsers that run side by side.
 
 Usage (from tools/): python -m doc_site.layout SITE_DIR
 """
@@ -14,9 +15,11 @@ from __future__ import annotations
 import argparse
 import functools
 import http.server
+import multiprocessing
 import sys
 import threading
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
+from concurrent.futures import ProcessPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -28,6 +31,8 @@ from playwright.sync_api import Page, sync_playwright
 HEIGHT = 800
 VIEWPORTS = ((360, HEIGHT), (390, HEIGHT), (768, HEIGHT), (844, HEIGHT), (844, 390))
 WIDTHS = tuple(width for width, _ in VIEWPORTS)
+# Browsers that run side by side. A browser spends most of a check waiting on the driver, so more than the cores a runner has still helps.
+WORKERS = 4
 # A bar that stays on screen takes at most this share of the height.
 MAX_BAR_SHARE = 0.2
 MIN_FONT_PX = 12
@@ -42,13 +47,16 @@ MEASURE = """
     return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + classes.map((c) => '.' + c).join('');
   };
   // Text hidden the screen-reader way (a 1px clipped box) is not on the screen, so it is not measured.
+  const seen = new Map();
   const clipped = (el) => {
-    for (let a = el; a; a = a.parentElement) {
-      const cs = getComputedStyle(a);
-      if (cs.position === 'absolute' && a.clientWidth <= 1 && a.clientHeight <= 1) return true;
-      if (/rect\\(0(px)?, 0(px)?, 0(px)?, 0(px)?\\)/.test(cs.clip)) return true;
-    }
-    return false;
+    if (!el) return false;
+    if (seen.has(el)) return seen.get(el);
+    const cs = getComputedStyle(el);
+    const hidden = (cs.position === 'absolute' && el.clientWidth <= 1 && el.clientHeight <= 1)
+      || /rect\\(0(px)?, 0(px)?, 0(px)?, 0(px)?\\)/.test(cs.clip)
+      || clipped(el.parentElement);
+    seen.set(el, hidden);
+    return hidden;
   };
   const visible = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden' && !clipped(el);
   const root = document.documentElement;
@@ -146,40 +154,68 @@ def measure(page: Page) -> list[str]:
     return page.evaluate(MEASURE, [MIN_FONT_PX, TOLERANCE_PX, MAX_BAR_SHARE])
 
 
-def check_page(page: Page, url: str, viewport: tuple[int, int]) -> list[str]:
-    page.set_viewport_size({"width": viewport[0], "height": viewport[1]})
+MENU_OPEN = "() => { const d = document.querySelector('dialog.drawer'); return d !== null && d.open; }"
+MENU_SHOWN = """() => {
+  const b = document.querySelector('.menu-btn');
+  return b !== null && b.getClientRects().length > 0 && getComputedStyle(b).visibility !== 'hidden';
+}"""
+
+
+def check_page(page: Page, url: str, sizes: Sequence[tuple[int, int]]) -> list[tuple[int, str]]:
+    """The problems of the page at `url` at each of `sizes`, as (index of the size, problem). The page is loaded once and resized, since
+    nothing in it depends on the width at load time."""
+    problems: list[tuple[int, str]] = []
+    page.set_viewport_size({"width": sizes[0][0], "height": sizes[0][1]})
     page.goto(url)
     page.wait_for_load_state("load")
-    problems = measure(page) + page.evaluate(ANCHORS, TOLERANCE_PX)
-    button = page.locator(".menu-btn")
-    if button.is_visible():
-        button.click()
-        problems += [f"with the menu open, {problem}" for problem in measure(page)]
-        if not page.locator("dialog.drawer").evaluate("el => el.open"):
-            problems.append("the menu button does not open the menu")
-        page.keyboard.press("Escape")
+    for index, (width, height) in enumerate(sizes):
+        if index:
+            page.set_viewport_size({"width": width, "height": height})
+        found = measure(page) + page.evaluate(ANCHORS, TOLERANCE_PX)
+        if page.evaluate(MENU_SHOWN):
+            page.locator(".menu-btn").click()
+            found += [f"with the menu open, {problem}" for problem in measure(page)]
+            if not page.evaluate(MENU_OPEN):
+                found.append("the menu button does not open the menu")
+            page.keyboard.press("Escape")
+        problems += [(index, problem) for problem in found]
     return problems
 
 
-def check(directory: Path, viewports: tuple[int | tuple[int, int], ...] = VIEWPORTS) -> list[str]:
-    """Every layout problem on every page of the site in `directory`, each as `<page> at <width>px: <problem>`, or `<width>x<height>px`
-    where the height is not the usual one. A bare width is that width at the usual height."""
-    sizes = [(v, HEIGHT) if isinstance(v, int) else v for v in viewports]
-    errors: list[str] = []
-    pages = pages_of(directory)
-    if not pages:
-        return [f"{directory} has no pages"]
-    with serving(directory) as base, sync_playwright() as playwright:
+def _check_chunk(base: str, paths: Sequence[str], sizes: Sequence[tuple[int, int]]) -> list[tuple[str, int, str]]:
+    """The problems of `paths` as (path, index of the size, problem), in one browser of its own."""
+    found: list[tuple[str, int, str]] = []
+    with sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel="chrome")
         try:
             page = browser.new_page()
-            for path in pages:
-                for size in sizes:
-                    label = f"{size[0]}px" if size[1] == HEIGHT else f"{size[0]}x{size[1]}px"
-                    errors += [f"{path} at {label}: {problem}" for problem in check_page(page, base + path, size)]
+            for path in paths:
+                found += [(path, index, problem) for index, problem in check_page(page, base + path, sizes)]
         finally:
             browser.close()
-    return errors
+    return found
+
+
+def check(directory: Path, viewports: tuple[int | tuple[int, int], ...] = VIEWPORTS, workers: int = WORKERS) -> list[str]:
+    """Every layout problem on every page of the site in `directory`, each as `<page> at <width>px: <problem>`, or `<width>x<height>px`
+    where the height is not the usual one, in the order of the pages and then of `viewports`. A bare width is that width at the usual
+    height. The pages are dealt out to up to `workers` browsers."""
+    sizes = [(v, HEIGHT) if isinstance(v, int) else v for v in viewports]
+    pages = pages_of(directory)
+    if not pages:
+        return [f"{directory} has no pages"]
+    chunks = [pages[i::workers] for i in range(min(workers, len(pages)))]
+    with serving(directory) as base:
+        if len(chunks) == 1:
+            found = _check_chunk(base, chunks[0], sizes)
+        else:
+            # `spawn`, since the server above runs a thread and a forked child would inherit it halfway through a request.
+            with ProcessPoolExecutor(len(chunks), mp_context=multiprocessing.get_context("spawn")) as pool:
+                found = [item for chunk in pool.map(_check_chunk, [base] * len(chunks), chunks, [sizes] * len(chunks)) for item in chunk]
+    order = {path: n for n, path in enumerate(pages)}
+    found.sort(key=lambda item: (order[item[0]], item[1]))
+    labels = [f"{w}px" if h == HEIGHT else f"{w}x{h}px" for w, h in sizes]
+    return [f"{path} at {labels[index]}: {problem}" for path, index, problem in found]
 
 
 def main(argv: list[str] | None = None) -> int:

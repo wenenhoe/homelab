@@ -14,7 +14,7 @@ A media-download proxy on `services`. The catalog's facts are in the [coverage t
 ## Exposure
 
 - Its Caddy route sets `auth: false`, so Tinyauth does not gate it ([`caddy.md`](../services/caddy.md)). It is a public API endpoint: clients call it directly with no browser session, so Tinyauth cannot gate it, as the catalog entry's comment says.
-- Outbound, it fetches whatever address a request names. It drops every capability and exposes port 9000 to Caddy only.
+- Outbound, it fetches links of the services it supports and answers `error.api.link.invalid` to any other address. It drops every capability and exposes port 9000 to Caddy only.
 
 ## Threat model
 

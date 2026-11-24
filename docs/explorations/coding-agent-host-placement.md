@@ -49,11 +49,23 @@ runs, so the placement is decided before the stages that build it.
   pooled hours per month, not a cap on what runs at once: 3,000 OCPU-hours and
   18,000 GB-hours a month is 4 OCPU and 24 GB running all month, and 1,500 and
   9,000 is 2 OCPU and 12 GB. It was cut from the first to the second on 15 June
-  2026. The account here is pay-as-you-go, and Oracle support is reported to
-  have said that such accounts keep the larger allowance. That is not published
-  policy, and it is to be checked against Oracle's own pages and the account's
-  usage page before anything relies on it. Beyond the allowance a run is billed
-  by the hour at a rate on Oracle's price list, which is to be read there.
+  2026, and instances over the new limit were later reported disabled. Oracle's
+  own pages do not agree on what a paid account gets. The
+  [Always Free resources page](https://docs.oracle.com/iaas/Content/FreeTier/resourceref.htm)
+  in one version says "all tenancies" get the first 3,000 and 18,000, and the
+  pay-as-you-go price page still says the first 3,000 OCPU-hours and 18,000
+  GB-hours of the A1 shape are free, while the current Always Free listing and
+  third-party summaries give 1,500 and 9,000. The account here is pay-as-you-go,
+  and Oracle support is reported to have said that such accounts keep the larger
+  allowance. That is not published policy. What the account's usage page shows
+  for its monthly free quantity still has to be read before anything relies on
+  it.
+- **What a billed hour costs.** Oracle's compute price list gives Ampere A1 at
+  $0.01 per OCPU-hour and $0.0015 per GB-hour. A host of 2 OCPU and 8 GB is
+  then $0.032 an hour, so a session of a few hours costs cents and 100 hours in
+  a month about $3, before the boot volume. Read the rates again on the price
+  list when the choice is made. The allowance therefore decides little about the
+  cost of this host; it matters for Wazuh, which runs all month.
 - **Who else wants it.** The security-event pipeline of
   [ADR 0045](../decisions/0045-security-event-collection-and-alerting/revision-000.md)
   plans the same allowance for Wazuh, at a size now being considered of 2 OCPU
@@ -69,12 +81,28 @@ runs, so the placement is decided before the stages that build it.
   the OCPU pool is the one that runs out, with about 40 hours left after Wazuh
   and so about 20 hours of the host before billing.
 - **Architecture.** Ampere is Arm64. The role, the sandbox and Claude Code on
-  Arm64 are not tested here. The other free instances are too small: Oracle's
-  AMD micro instances are 1 GB, and Google's free instance is 1 GB with 1 GB of
-  free outbound transfer a month.
+  Arm64 are not tested here. Claude Code's
+  [sandbox documentation](https://code.claude.com/docs/en/sandboxing) names no
+  architecture limit: on Linux it needs `bubblewrap` and `socat`, the seccomp
+  filter that blocks Unix sockets is optional, and on Ubuntu 24.04 and later an
+  AppArmor profile for `bwrap` is needed first. When the sandbox cannot start,
+  Claude Code runs commands unsandboxed unless `sandbox.failIfUnavailable` is
+  `true`, so the host's settings have to set it. The
+  [sandbox runtime](https://github.com/anthropic-experimental/sandbox-runtime)
+  documents the seccomp filter for x64 and arm64 in one place and ships
+  pre-generated filters for "x86-64 and arm" in another, so whether arm64 needs a
+  local build is still to be checked on an Arm instance. The other free
+  instances are too small: Oracle's AMD micro instances are 1 GB, and Google's
+  free instance is 1 GB with 1 GB of free outbound transfer a month.
 - **Capacity to create.** An instance created for each session needs the region
-  to have Ampere capacity at that time. Whether it often does not is to be
-  checked, and a host that is stopped and restarted may have the same problem.
+  to have Ampere capacity at that time. Oracle's community forum has recent
+  reports of "out of host capacity" for the A1 shape in several regions, some
+  lasting weeks, including one from a user who deleted an instance and could not
+  recreate it. Whether the account's home region is one of them has not been
+  looked at, and Ampere availability can only be tested by trying to create the
+  instance there. A host that is stopped and restarted may have the same
+  problem, and stopped instances over the new limit were reported unable to
+  start.
 - **Not examined here.** Moving other hosts off the node, such as the apps of
   `services` that could sit in a DMZ. That is a separate question with its own
   options.
@@ -106,3 +134,10 @@ the zone project's first stage can finish. What would change it: Claude Code's
 sandbox not working on Arm64, Ampere capacity often missing at session start,
 or the provider credential in the creating job turning out harder to hold than
 the node's room is worth.
+
+Capacity is now the larger risk than the allowance: a session costs cents when
+billed, but a destroyed instance may not come back. Two cheap trials settle it
+before any stage is built: create the instance and run the sandbox's dependency
+check on it, and repeat the creation at several times of day. If creation fails
+often, the stopped instance and the small paid instance are the options to
+reopen.

@@ -36,6 +36,7 @@ A result, a date or a finding does not become Public by being reworded.
 | The results of exercises and drills, dated outcomes and what they found | Private |
 | Code-review findings and the image vulnerability assessment | Private |
 | Audit reports, result files and session handover notes | Private |
+| Explorations (questions with no chosen solution) | Public or Private, by what answering will record; placed when opened, see [Explorations](../../../explorations/README.md#which-repository) |
 | Mutation-testing records | Local |
 | Credentials, keys and values read from the secrets store | Secret |
 | Tools that check or report on any of the above | Public; what they output follows the output's own kind |
@@ -46,6 +47,7 @@ A result, a date or a finding does not become Public by being reworded.
 - **Time.** A completed, past action that shows no gap is public. A current or future state of weakness, and the dates that bound it, are private.
 - **Reasons.** A reason that explains why something is urgent or unsafe is private, even when what is being done is public.
 - **Open questions.** An unanswered question in a record, such as "Unknown: ... check ...", is public: it states no weakness. When it is checked, the answer is placed by the test, and a confirmed weakness is private until it is fixed.
+- **Explorations.** A question is placed by what its answer will record, not by how the question reads: one whose answer will record a private kind of information is opened on the private side even when its text is a design question. A public exploration is never edited to reflect a private result.
 - **Declassifying** is the maintainer's decision, made per kind and recorded privately. An agent never moves information to a more open class.
 - **When unsure,** write the more closed class and say which question left it unclear. A private fact can be published later; a published one cannot be taken back.
 

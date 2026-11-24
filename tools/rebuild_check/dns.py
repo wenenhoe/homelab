@@ -109,6 +109,8 @@ def zones_have_one_serial(dig: Dig, plan: Plan) -> Result:
                 problems.append(f"{zone}: {why}")
             else:
                 serials[role] = serial
+        if len(serials) < len(plan.servers.both()):
+            continue
         if len(set(serials.values())) > 1:
             problems.append(f"{zone}: serial {serials['primary']} on the primary, {serials['secondary']} on the secondary: the transfer has not happened")
         else:

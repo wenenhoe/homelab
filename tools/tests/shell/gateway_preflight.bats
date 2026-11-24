@@ -15,6 +15,9 @@ setup() {
   stub ssh <<'BODY'
 cmd=${*: -1}
 case "$cmd" in
+  true)
+    [ "${NODE_STATUS-0}" = 0 ] || { printf 'Permission denied (publickey,password).\n' >&2; exit 255; }
+    ;;
   "pvesm list tofu-images --content import")
     printf 'Volid Format Type Size VMID\n'
     [ -z "${IMAGE_LISTED-$VOLUME}" ] || printf '%s raw import 3221225472\n' "${IMAGE_LISTED-$VOLUME}"
@@ -42,6 +45,7 @@ BODY
 [[ "$1" != -chdir=* ]] || shift
 case "$1" in
   plan)
+    printf 'STATE_MARK=%s\n' "${STATE_MARK-unset}" >> "$CALLS"
     [ "${PLAN_STATUS-0}" = 0 ] || { printf 'Error: backend unreachable\n'; exit 1; }
     ;;
   show) printf '{}\n' ;;
@@ -71,6 +75,10 @@ teardown() {
   harness_teardown
 }
 
+calls_to_marker() {
+  grep '^STATE_MARK=' "$CALLS" || true
+}
+
 @test "before: a clean gateway passes every check, notes the grant it is not holding, and changes nothing" {
   run -0 "$SCRIPT" before
 
@@ -98,10 +106,33 @@ tofu -chdir=[^ ]+/tofu show -json [^ ]+/plan$"
 @test "before: a plan that cannot be made fails with the end of tofu's output and reads no image volume" {
   PLAN_STATUS=1 run -1 "$SCRIPT" before
 
-  assert_line "FAIL  plan: tofu plan failed: Error: backend unreachable "
+  assert_line "FAIL  plan: tofu plan failed; its last lines:"
+  assert_line "        Error: backend unreachable"
   assert_line "FAIL  image: no plan to read the image volume from"
   run calls_to tofu
   assert_output --regexp "^tofu -chdir=[^ ]+/tofu plan "
+}
+
+@test "the state backend's environment is sourced for tofu when the file is readable" {
+  printf 'STATE_MARK=encrypted\n' > "$HOME/.config/tofu/state-backend.env"
+  run -0 "$SCRIPT" before
+
+  run calls_to_marker
+  assert_output "STATE_MARK=encrypted"
+}
+
+@test "a node that cannot be reached is one failure with ssh's own error, and no node check runs" {
+  NODE_STATUS=255 run -1 "$SCRIPT" before
+
+  assert_line --partial "FAIL  node: ssh to root@pve failed: Permission denied (publickey,password)."
+  assert_line --partial "needs SSH_CONTROL_PATH"
+  assert_line "FAIL  image: the node is not reachable"
+  refute_output --partial "vm:"
+  refute_output --partial "dump:"
+  refute_output --partial "grant:"
+  assert_line "ok    plan: the plan changes nothing"
+  run calls_to ssh
+  assert_output --regexp "^ssh -o BatchMode=yes -o ConnectTimeout=15 root@pve true$"
 }
 
 @test "an image volume the node does not list fails and says how to stage it" {

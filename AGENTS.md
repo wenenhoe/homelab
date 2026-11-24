@@ -37,7 +37,7 @@ pointed to instead.
 
 | The change is | It goes in |
 | :--- | :--- |
-| A question with no chosen solution yet | [`docs/explorations/`](docs/explorations/README.md) |
+| A question with no chosen solution yet | [`docs/explorations/`](docs/explorations/README.md), unless its answer will record something private ([which repository](docs/explorations/README.md#which-repository)) |
 | A choice made, with its reasons | [`docs/decisions/`](docs/decisions/README.md) |
 | What remains of multi-stage work | [`docs/projects/`](docs/projects/README.md) |
 | How the system behaves on `main` now | [`docs/topics/`](docs/topics/README.md) |

@@ -23,6 +23,29 @@ slug), `type: exploration`, `title` (the question, without naming a solution),
 facts that matter, the options with what each would cost, and optionally a
 leaning.
 
+## Which repository
+
+A question is placed when it is opened, by what answering it will record and
+not by how its text reads. It is opened here unless the answer will record
+something the [data classification](../topics/security/policy/data-classification.md#placing-information)
+puts in a private class: a weakness or exposure that is not yet fixed, a window in
+which something is unavailable, unmonitored or about to expire, or a measured
+state of a live host that shows a gap. That holds even when the question is a
+design question and its text states nothing sensitive. Such a question is opened
+in the maintainer's private repository, not here.
+
+A session that cannot read that repository still places the question with this
+test. It does not open the question here: it says that it belongs on the private
+side and why, keeps the wording in the conversation, and leaves it for a session
+that can file it there. When the placement is unclear it takes the private side
+and says which classification question left it unclear.
+
+Placement looks forward and does not edit the past. A public exploration is
+never changed to reflect a private result: the weakness is fixed by an ordinary
+change described by what it does, and the exploration is deleted when its
+question ends. A public question whose answer will turn out to need the private
+side is moved by the maintainer, with the private copy filed first.
+
 ## How one ends
 
 The pull request that ends an exploration deletes it. There is no archive and

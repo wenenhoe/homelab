@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import create_autospec
+
 import pytest
 from _fake_vault import FakeVault
 from cloud_credentials import secret_store
@@ -32,8 +34,9 @@ class CategoryVault:
 @pytest.fixture
 def fake_vault(monkeypatch: pytest.MonkeyPatch) -> FakeVault:
     vault = FakeVault()
-    monkeypatch.setattr(secret_store, "_vault_read_at", vault.store.get)
-    monkeypatch.setattr(secret_store, "_vault_write_at", vault.write)
+    # Bound to the real signatures, so a call that adds or renames an argument fails here, not only against OpenBao.
+    monkeypatch.setattr(secret_store, "_vault_read_at", create_autospec(secret_store._vault_read_at, side_effect=vault.store.get))
+    monkeypatch.setattr(secret_store, "_vault_write_at", create_autospec(secret_store._vault_write_at, side_effect=vault.write))
     return vault
 
 

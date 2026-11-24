@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from _b2_objects import bucket, full_application_key
+from _r2_groups import R2_GROUPS
 from _responses import response
 from cloud_credentials import create_snapshot_readonly_keys as snap
 
@@ -20,7 +21,7 @@ class TestMintR2:
         vault.seed("cloudflare-r2-account-id", "acct123")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjects succeeded"), autospec=True)
-    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Read": "grp-read"}, autospec=True)
+    @patch.object(snap, "r2_permission_group_ids", return_value=R2_GROUPS, autospec=True)
     def test_mints_readonly_token_scoped_to_the_snapshot_bucket_with_no_expiry(self, _mock_groups, mock_verify, session_class):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
@@ -33,6 +34,7 @@ class TestMintR2:
         assert f"acct123_default_{snap.SNAPSHOT_BUCKET_R2}" in next(iter(body["policies"][0]["resources"]))
         assert "expires_on" not in body, "the break-glass snapshot credential must not carry the quarterly leaf expiry"
         assert body["name"] == "openbao-snapshot-readonly"
+        assert body["policies"][0]["permission_groups"] == [{"id": "grp-read"}], "the break-glass credential must be minted read-only"
         # The actual point of verifying: this must run against the real
         # rclone S3-compatible path (endpoint/region/bucket), not just
         # confirm the provider's create-token API accepted the request.

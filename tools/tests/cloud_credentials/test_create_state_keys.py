@@ -12,10 +12,9 @@ from unittest.mock import patch
 
 import pytest
 from _b2_objects import bucket, full_application_key
+from _r2_groups import R2_GROUPS
 from _responses import response
 from cloud_credentials import create_state_keys as state
-
-R2_GROUPS = {"Workers R2 Storage Bucket Item Write": "grp-write"}
 
 
 @pytest.fixture(autouse=True)
@@ -101,6 +100,7 @@ class TestMintR2:
         assert f"acct123_default_{state.STATE_BUCKET_R2}" in next(iter(body["policies"][0]["resources"]))
         assert "expires_on" in body
         assert body["name"] == state.TOKEN_NAME_R2
+        assert body["policies"][0]["permission_groups"] == [{"id": "grp-write"}]
         secret = state.hashlib.sha256(b"token-value").hexdigest()
         mock_verify.assert_called_once_with("TOKEN_ID", secret, "https://acct123.r2.cloudflarestorage.com", "auto", state.STATE_BUCKET_R2, "write")
 

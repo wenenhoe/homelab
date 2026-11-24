@@ -36,6 +36,9 @@ def run(state: dict, args: list[str]) -> int:
             return 1
     elif args[:1] == ["api"]:
         assert args[1].startswith("repos/{owner}/{repo}/rules/branches/"), args
+        if state.get("rules_error"):
+            print(state["rules_error"], file=sys.stderr)
+            return 1
         rules = [{"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": name} for name in state["required"]]}}]
         print(json.dumps(rules))
     elif verb == ["pr", "list"]:

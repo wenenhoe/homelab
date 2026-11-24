@@ -232,3 +232,15 @@ def test_promote_without_a_terminal_or_yes_opens_nothing(github: FakeGitHub, pro
 
     assert "not confirmed" in capsys.readouterr().err
     assert github.created() == []
+
+
+def test_merge_waits_for_the_checks_named_on_the_command_line(github: FakeGitHub, tmp_path: Path) -> None:
+    github.add_pull(checks=[[["lint", "pass"], ["tests", "pass"]]])
+    path = write_summary(github, tmp_path)
+    state = github.state()
+    state["rules_error"] = "HTTP 403"
+    github.save(state)
+
+    assert cli.main(["merge", str(path), "--repo", str(tmp_path), "--yes", "--require-check", "lint", "--require-check", "tests"]) == 0
+
+    assert github.merged() == [1]

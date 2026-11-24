@@ -1,11 +1,12 @@
 """python3 -m renovate_merge summary [--repo DIR] [--base BRANCH] [--out DIR] [--notes-characters N] [--allow-main]
-python3 -m renovate_merge merge SUMMARY.json [PR ...] [--repo DIR] [--yes | --allow-main] [--dry-run]
+python3 -m renovate_merge merge SUMMARY.json [PR ...] [--repo DIR] [--yes | --allow-main] [--require-check NAME ...] [--dry-run]
 python3 -m renovate_merge promote [--repo DIR] [--yes] [--dry-run]
 
 `summary` reads Renovate's open pull requests into BRANCH (default `maintenance`), prints their updates and release notes with
 the lines that look like breaking changes marked, and writes `summary.md` and `summary.json` to OUT (default: `renovate-merge/` in the
 git directory). `merge` merges the pull requests of a summary.json: those named, or with none named every one at level `none`, each only
-while its head is the commit the summary read and once the required checks have passed. It uses the maintainer's own `gh` login and
+while its head is the commit the summary read and once the required checks have passed (the rulesets', or those `--require-check` names).
+It uses the maintainer's own `gh` login and
 refuses `main` as a branch unless `--allow-main` is given to both commands; with it `merge` asks for the branch name to be typed and
 refuses `--yes`. `promote` opens the pull request that promotes `maintenance` into `main`, with a table of what the batch
 holds, and stops there: the merge deploys, so it is made by hand.
@@ -79,7 +80,7 @@ def merging(args: argparse.Namespace) -> int:
     summary = load_summary(args.summary.read_text(encoding="utf-8"), args.allow_main)
     chosen = select(summary, args.pulls)
     confirm = (lambda _: True) if args.yes else (lambda pulls: ask(pulls, summary.base))
-    outcomes = merge(args.repo, summary, chosen, confirm, dry_run=args.dry_run, progress=say)
+    outcomes = merge(args.repo, summary, chosen, confirm, dry_run=args.dry_run, progress=say, require=frozenset(args.require_check))
     status = outcomes_status(outcomes)
     return 0 if args.dry_run else status
 
@@ -119,6 +120,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     merging_parser.add_argument("--repo", type=Path, default=Path())
     merging_parser.add_argument("--yes", action="store_true", help="merge without asking")
     merging_parser.add_argument("--allow-main", action="store_true", help="merge a summary of main, confirmed by typing main; not with --yes")
+    merging_parser.add_argument(
+        "--require-check",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="wait for this check instead of reading the rulesets, which a private repository on a free plan does not serve; repeat for each",
+    )
     merging_parser.add_argument("--dry-run", action="store_true", help="report what each pull request would do and merge nothing")
     promoting_parser = commands.add_parser("promote", help="open the pull request that promotes maintenance into main")
     promoting_parser.add_argument("--repo", type=Path, default=Path())

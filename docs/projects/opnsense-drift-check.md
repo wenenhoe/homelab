@@ -39,13 +39,14 @@ Implements [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsens
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | The scheduled drift run and its heartbeat. Starts once the host that runs it exists | Not started | A clean check pushes the heartbeat, a check that reports a change or fails alerts through `OnFailure=`, and a run that does not happen alerts through the missing heartbeat, shown against a scratch gateway with a rule added by hand |
+| 2 | Settings the run cannot see | Not started | For each setting only the seed sets, a scratch gateway with that setting changed by hand makes the run or a named existing check fail, or the setting is named in the topic doc as pinned by the seed's own test, which is named |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
 - [ ] A scheduled `--check --diff` run of the gateway's play pushes a heartbeat on a clean check and alerts on a reported change, a failure or a missed run.
-- [ ] The settings that only the seed sets are shown by the run, or the project records that the seed's own tests are the check.
+- [ ] Each setting that only the seed sets is shown by the run or by a named check, or is pinned by the seed's own test.
 
 ## Agent handoff
 

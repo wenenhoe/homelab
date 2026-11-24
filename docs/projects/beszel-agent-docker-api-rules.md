@@ -6,6 +6,9 @@ status: not-started
 blocked: false
 summary: "Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image."
 super_project: compose-stack-files
+depends_on:
+  - project: PROJ-backup-agent-compose-app
+    reason: "That project moves the proxy rules file this one models its own on and settles how such a file reaches a host through the compose role."
 allowed_paths:
   - docker/beszel-agent/**
   - ansible/inventory/group_vars/all/app_catalog.yaml
@@ -16,7 +19,7 @@ allowed_paths:
 
 # Beszel Agent Docker API Rules
 
-Gives the `beszel-agent` proxy the same kind of policy `backup-agent`'s proxy has: a rules file that names each call and refuses the rest, in place of the `CONTAINERS=1` flag. The change is one stage; the rules file, its check and the docs that describe them merge together.
+Gives the `beszel-agent` proxy the same kind of policy `backup-agent`'s proxy has: a rules file that names each call and refuses the rest, in place of the `CONTAINERS=1` flag. Two stages: the rules file with its delivery, then the check that proves it, each merging with the docs that describe it.
 
 ## Scope
 
@@ -34,7 +37,8 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The rules file and its check | Not started | `beszel.md` describes the rules file and what the proxy admits, `adding-an-app.md` and `molecule-testing.md` describe the check, no doc still says the sidecar is scoped by `CONTAINERS=1`, Open items 1 and 3 are closed in this doc; the proxy mounts the rules file read-only over the template and sets no flag. Every call in the call set below that the rules admit reaches a fake socket as the same method and target, with and without a query string. Every other call gets a 403 and never arrives: `archive`, `export`, `top`, `events`, `info` and the image calls unless open item 2 admits them, a write verb on any path, and a container id that is not 12 to 64 hex digits. Editing the file recreates the proxy, shown by a changed file giving a new container. The pinned agent image run against the proxy reads the container list and a container's stats, shown by 200s in the proxy's request log |
+| 1 | The rules file and its delivery | Not started | `beszel.md` describes the rules file and what the proxy admits, no doc still says the sidecar is scoped by `CONTAINERS=1`, and open item 1 is closed in this doc; the proxy mounts the rules file read-only over the template and sets no flag, and editing the file recreates the proxy, shown by a changed file giving a new container |
+| 2 | The call-set check | Not started | `adding-an-app.md` and `molecule-testing.md` describe the check, and open item 2 is closed in this doc. Every call in the call set below reaches a fake socket as the same method and target, with and without a query string, for the seven calls the rules admit and none other. Every other call gets a 403 and never arrives: `archive`, `export`, `top`, `events`, `info` and the image calls, a write verb on any path, and a container id that is not 12 to 64 hex digits. The pinned agent image run against the proxy reads the container list and a container's stats, shown by 200s in the proxy's request log |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -49,8 +53,8 @@ Read from the agent's source at the `v0.21.0` tag (`agent/docker.go`, `agent/doc
 | `GET /version` | `checkDockerVersion` | At start and after the first list; also the proxy's healthcheck | Admitted |
 | `GET /containers/{id}/json` | `getContainerInfo` on a hub request; `getPodmanContainerHealth` on Podman only | On demand | Admitted |
 | `GET /containers/{id}/logs?timestamps=1&stdout=1&stderr=1&tail=200` | `getLogs` on a hub request | On demand | Admitted |
-| `GET /info` | `GetHostInfo`, which ignores an error | Once, for the host's details | Refused |
-| `GET /images/{name}/json` | `inspectImageDigests`, for an image reference not pinned by a digest, unless `DOCKER_IMAGE_CHECK=false` | Background, per image | Refused |
+| `GET /info` | `GetHostInfo`, which ignores an error | Once, for the host's details | Refused, and stays refused |
+| `GET /images/{name}/json` | `inspectImageDigests`, for an image reference not pinned by a digest, unless `DOCKER_IMAGE_CHECK=false` | Background, per image | Refused, and stays refused |
 
 `CONTAINERS=1` with `POST=0` admits every `GET` whose path starts with `/containers`, so today it also admits `archive`, `export`, `top` and the rest, plus `/_ping`, `/version` and `/events`. The agent removes `Config.Env` from the inspect data before it returns it to the hub, but the proxy cannot: an inspect call still delivers the environment to the agent process.
 
@@ -79,11 +83,12 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 
 ## Open items
 
-1. How `docker/beszel-agent/` ships the file verbatim and how an edit recreates the proxy. An `app_catalog` `configs` entry renders its source through `template`, and a `scripts` entry lands under `scripts/`; neither adds a content label of the kind `backup_agent` renders into its compose template. Whether this needs a change under `ansible/roles/compose/` decides the scope.
-2. Whether the rules admit `GET /info` and `GET /images/{name}/json`. Today's flags refuse both, so a file that names only the first five calls changes nothing the hub shows. Admitting them is a change in what the agent can read and is the maintainer's call.
-3. Where the call-set check runs. `beszel-agent` has no role or scenario of its own, and the fake socket and checker that `backup_agent` uses live under that role. Sharing them moves files out of a role this project must not change, so that needs its own change first; copying them duplicates a checker.
+1. How an edit to the rules file recreates the proxy. An `app_catalog` `configs` entry renders its source through `template`, which leaves a file with no Jinja syntax byte for byte, as the `backup_agent` rules file is. The file then reaches the host through the compose role, mounted read-only as [ADR 0087 (Ansible-rendered files in containers)](../decisions/0087-delivering-files-ansible-renders-to-a-container/revision-000.md) decides. A content label on the proxy, as `backup_agent` renders into its compose template, recreates it on a change until the compose role restarts a container whose mounted file changed; whether the label can be rendered from `docker/beszel-agent/compose.yaml` without a change under `ansible/roles/compose/` is settled in stage 1, and a change there stops the work.
+2. Where the call-set check runs. `beszel-agent` has no role or scenario of its own, and the fake socket and checker that `backup_agent` uses live under that role. Sharing them moves files out of a role this project must not change, so that needs its own change first; copying them duplicates a checker.
 
-Sizing reviewed against ADR 0037 revision 5: kept as one stage. It changes one app's proxy rules and its check, and no neighbour's work closes with it.
+The rules admit neither `GET /info` nor `GET /images/{name}/json`: today's flags refuse both, so the file changes nothing the hub shows.
+
+Sizing reviewed against ADR 0037 revision 5: two stages, because the rules file and the check that proves it are separate reviews, and the check's location waits on the first stage.
 
 ## Closing checklist
 

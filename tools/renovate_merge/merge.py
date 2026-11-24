@@ -56,8 +56,12 @@ def silent(message: str) -> None:
     """The default progress: none."""
 
 
-def load_summary(text: str) -> Summary:
-    """The summary file the `summary` command wrote; anything else is refused, since what it names gets merged."""
+def load_summary(text: str, allow_main: bool = False) -> Summary:
+    """The summary file the `summary` command wrote; anything else is refused, since what it names gets merged.
+
+    A summary for `main` is refused unless the caller was told to allow it. The file cannot say so itself: it is data, and one that
+    named `main` as its branch would otherwise authorise the merge.
+    """
     try:
         record = json.loads(text)
         base = record["base"]
@@ -66,8 +70,8 @@ def load_summary(text: str) -> Summary:
         raise MergeError(f"not a summary written by `renovate_merge summary`: {error!r}") from error
     if not isinstance(base, str) or not all(isinstance(number, int) for number in pulls):
         raise MergeError("not a summary written by `renovate_merge summary`: the branch or a pull request number has the wrong type")
-    if base in PROTECTED_BRANCHES:
-        raise MergeError(f"this tool never merges into {base}: a merge there is a deploy")
+    if base in PROTECTED_BRANCHES and not allow_main:
+        raise MergeError(f"merging into {base} needs --allow-main: a merge there can be a deploy")
     return Summary(base, pulls)
 
 

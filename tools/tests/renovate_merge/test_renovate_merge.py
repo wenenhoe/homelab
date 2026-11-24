@@ -55,9 +55,12 @@ class TestLoadSummary:
         with pytest.raises(MergeError, match="not a summary written by"):
             merging.load_summary(text)
 
-    def test_refuses_main(self) -> None:
-        with pytest.raises(MergeError, match="never merges into main"):
+    def test_refuses_main_unless_allowed(self) -> None:
+        with pytest.raises(MergeError, match="merging into main needs --allow-main"):
             merging.load_summary(summary_text(item(1), base="main"))
+
+    def test_reads_main_when_allowed(self) -> None:
+        assert merging.load_summary(summary_text(item(1), base="main"), allow_main=True).base == "main"
 
 
 class TestSelect:

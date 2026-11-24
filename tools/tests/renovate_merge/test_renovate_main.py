@@ -1,3 +1,4 @@
+import io
 import json
 import subprocess
 from pathlib import Path
@@ -39,11 +40,83 @@ def test_summary_writes_into_the_git_directory_by_default(github: FakeGitHub, tw
     assert (tmp_path / ".git" / "renovate-merge" / "summary.json").is_file()
 
 
-def test_summary_refuses_main(github: FakeGitHub, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+class Terminal(io.StringIO):
+    """A standard input that is a terminal and answers with what it was given."""
+
+    def isatty(self) -> bool:
+        return True
+
+
+@pytest.fixture
+def main_pulls(github: FakeGitHub, tmp_path: Path) -> Path:
+    github.add_pull(base="main")
+    github.add_pull(base="main", description=body("example/tool", "1.9.9", "2.0.0", BREAKING_NOTES))
+    assert cli.main(["summary", "--repo", str(tmp_path), "--base", "main", "--allow-main", "--out", str(tmp_path / "out")]) == 0
+    return tmp_path / "out" / "summary.json"
+
+
+def test_summary_refuses_main_without_the_flag(github: FakeGitHub, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    github.add_pull(base="main")
+
     assert cli.main(["summary", "--repo", str(tmp_path), "--base", "main", "--out", str(tmp_path / "out")]) == 1
 
-    assert "never merges there" in capsys.readouterr().err
+    assert "main is not read without --allow-main" in capsys.readouterr().err
     assert not (tmp_path / "out").exists()
+
+
+def test_summary_reads_the_pull_requests_into_main_with_the_flag(main_pulls: Path) -> None:
+    record = json.loads(main_pulls.read_text())
+
+    assert record["base"] == "main"
+    assert [(item["number"], item["level"]) for item in record["pulls"]] == [(1, "none"), (2, "breaking")]
+    assert (main_pulls.parent / "summary.md").read_text().startswith("# Renovate pull requests into `main`")
+
+
+def test_merge_refuses_a_summary_of_main_without_the_flag(github: FakeGitHub, main_pulls: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["merge", str(main_pulls), "--repo", str(tmp_path)]) == 1
+
+    assert "merging into main needs --allow-main" in capsys.readouterr().err
+    assert github.merged() == []
+
+
+def test_merge_refuses_the_flag_with_yes_and_merges_nothing(github: FakeGitHub, main_pulls: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert cli.main(["merge", str(main_pulls), "--repo", str(tmp_path), "--allow-main", "--yes"]) == 1
+
+    assert "--allow-main cannot be combined with --yes" in capsys.readouterr().err
+    assert github.merged() == []
+
+
+def test_merge_into_main_merges_once_the_branch_name_is_typed(
+    github: FakeGitHub, main_pulls: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("sys.stdin", Terminal("main\n"))
+
+    assert cli.main(["merge", str(main_pulls), "--repo", str(tmp_path), "--allow-main"]) == 0
+
+    assert github.merged() == [1]
+    assert "Type 'main' to merge them" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("typed", [pytest.param("yes\n", id="yes"), pytest.param("\n", id="nothing")])
+def test_merge_into_main_merges_nothing_unless_the_branch_name_is_typed(
+    github: FakeGitHub, main_pulls: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, typed: str
+) -> None:
+    monkeypatch.setattr("sys.stdin", Terminal(typed))
+
+    assert cli.main(["merge", str(main_pulls), "--repo", str(tmp_path), "--allow-main"]) == 1
+
+    assert github.merged() == []
+
+
+def test_merge_into_another_branch_is_still_confirmed_with_yes(
+    github: FakeGitHub, two_pulls: tuple[int, int], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = write_summary(github, tmp_path)
+    monkeypatch.setattr("sys.stdin", Terminal("yes\n"))
+
+    assert cli.main(["merge", str(path), "--repo", str(tmp_path)]) == 0
+
+    assert github.merged() == [1]
 
 
 def test_merge_with_no_numbers_merges_only_the_pull_requests_at_level_none(

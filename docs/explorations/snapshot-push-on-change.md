@@ -29,8 +29,12 @@ follow the change, without one push per secret when a rotation touches six?
   [rotation read-watcher](../topics/security/openbao/rotation-read-watcher.md)
   already follows `docker logs -f openbao` on `security` and matches
   `request`-type lines by path and operation. A write should be visible the same
-  way, with a different operation; the operation names a write carries in a real
-  capture are still to be checked. The audit entry names the path and the
+  way, with a different operation. A capture of the KV version 2 mount's audit
+  entries shows the names: a write to a key that does not exist is `create`, the
+  CLI's `kv patch` is `patch`, a delete of a key's latest version is `delete` on
+  `secret/data/<path>`, and `kv metadata delete` is `delete` on
+  `secret/metadata/<path>`. An overwrite of an existing key is expected to be
+  `update` and has not been captured. The audit entry names the path and the
   operation; the values are hashed.
 - Rotation and bootstrap code that writes secrets is in this repo
   ([`rotate-secret.yaml`](../../ansible/playbooks/rotate-secret.yaml),
@@ -47,6 +51,11 @@ follow the change, without one push per secret when a rotation touches six?
 - The destination keeps every snapshot and the write credential cannot delete,
   so each push is a stored object. The cost of extra pushes is storage and
   noise, not loss.
+- Entries that are not changes also appear. Each CLI call first makes a `read`
+  of `sys/internal/ui/mounts/<path>`, a login is an `update` on a path under
+  `auth/approle`, and a request that policy denies is logged with its error on the
+  request entry itself, so a counted change is a request on a `secret/data` or
+  `secret/metadata` path, with a writing operation and no error.
 - Unknown: which paths changing should count. A token renewal or a lease write
   is not a change a restore needs. The raft database itself also changes on
   every login, so a size or index comparison of the database says nothing.

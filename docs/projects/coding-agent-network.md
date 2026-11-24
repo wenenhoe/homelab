@@ -54,7 +54,7 @@ Update at the start and end of each PR that works a stage.
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-Until Stage 1 lands, these are untested: a VM tagged 30 reaching the gateway, the zone's flows ([`operator-vlan30-ssh`](../topics/infra/tofu/opnsense-gateway.md#zone-policy) and [`tailscale-vlan30-ssh`](../topics/infra/tofu/opnsense-gateway.md#zone-policy)) and default-deny inside VLAN 30. The scratch kit shows only that a scratch gateway built with the seed's VLANs has VLAN 30's interface (the `seed-vlans` run); [`scratch-gateway-runs.md`](../topics/infra/scratch-gateway-runs.md#untested-until-vlan-30-has-a-zone) says what each remaining check needs. Stage 1's exit condition is the first run of a `canary-vm`-style spec for the new zone.
+The play carries the zone, its [`operator-vlan30-ssh`](../topics/infra/tofu/opnsense-gateway.md#zone-policy) and [`tailscale-vlan30-ssh`](../topics/infra/tofu/opnsense-gateway.md#zone-policy) flows and the zone's flows in the flow list, and [`coding-zone`](../topics/infra/scratch-gateway-runs.md#the-coding-agent-zone-run) is the run that shows them from a VM tagged 30. Stage 1 is done when that run's first pass has `--check --diff` reporting no change and every one of its steps passing; no other run shows a VM tagged 30 reaching the gateway or default-deny inside VLAN 30.
 
 ### Stage 2 — tailnet route
 

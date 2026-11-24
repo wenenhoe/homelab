@@ -93,6 +93,18 @@ gateway:
         destination: host_services
         protocol: TCP
         port: "1688"
+      - name: operator hosts to the coding-agent host over SSH
+        zones: [desktops, management]
+        source: operator_hosts
+        destination: host_coding_agent
+        protocol: TCP
+        port: "22"
+      - name: tailscale router to the coding-agent host over SSH
+        zones: [services]
+        source: host_tailscale
+        destination: host_coding_agent
+        protocol: TCP
+        port: "22"
       - name: operator hosts to the DMZ canary over SSH
         zones: [desktops, management]
         source: operator_hosts

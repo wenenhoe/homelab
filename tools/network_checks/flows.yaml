@@ -27,6 +27,7 @@ zones:
   isolated: {subnet: 192.168.50.0/24, canary: 192.168.50.8}
   experimental: {subnet: 192.168.55.0/24, canary: 192.168.55.8}
   dmz: {subnet: 192.168.35.0/24, canary: 192.168.35.8}
+  coding: {subnet: 192.168.30.0/24, canary: 192.168.30.8}
 
 flows:
   # Every zone asks its own gateway address for DNS, time and an echo (the play's DNS, NTP and ping rules to the gateway).
@@ -144,6 +145,20 @@ flows:
     kind: ping
     expect: allow
     tags: [smoke, dmz]
+  # The coding-agent zone asks its gateway for time and an echo only: the gateway's resolver forwards the internal zones, so the play
+  # does not pass the zone's DNS to it. The zone's resolver is the egress proxies' VM's, which the egress project adds.
+  - id: coding-gateway-ntp
+    from: coding
+    to: {address: 192.168.30.1, port: 123}
+    kind: ntp
+    expect: allow
+    tags: [smoke, coding]
+  - id: coding-gateway-ping
+    from: coding
+    to: {address: 192.168.30.1}
+    kind: ping
+    expect: allow
+    tags: [smoke, coding]
 
   # A canary reaches itself on 22. It shows the canary is up and listening, which is what a deny aimed at its address needs
   # for a control: the zone's own traffic is switched on the bridge and never reaches the gateway.
@@ -183,6 +198,12 @@ flows:
     kind: connect
     expect: allow
     tags: [dmz]
+  - id: coding-canary-ssh
+    from: coding
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: allow
+    tags: [coding]
 
   # Internet over 443 from the zones that have it. The isolated zone has none, and its control is a zone that does.
   - id: services-internet-https
@@ -222,6 +243,13 @@ flows:
     kind: connect
     expect: allow
     tags: [dmz]
+  - id: coding-internet-denied
+    from: coding
+    to: {address: 1.1.1.1, port: 443}
+    kind: connect
+    expect: deny
+    control: services-internet-https
+    tags: [cross-zone]
 
   # Default-deny between zones: no zone's canary reaches another zone's canary. The control is that canary reaching itself.
   - id: services-to-management-canary-denied
@@ -434,6 +462,90 @@ flows:
     expect: deny
     control: experimental-canary-ssh
     tags: [cross-zone]
+  - id: services-to-coding-canary-denied
+    from: services
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: coding-canary-ssh
+    tags: [cross-zone]
+  - id: management-to-coding-canary-denied
+    from: management
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: coding-canary-ssh
+    tags: [cross-zone]
+  - id: desktops-to-coding-canary-denied
+    from: desktops
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: coding-canary-ssh
+    tags: [cross-zone]
+  - id: isolated-to-coding-canary-denied
+    from: isolated
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: coding-canary-ssh
+    tags: [cross-zone]
+  - id: experimental-to-coding-canary-denied
+    from: experimental
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: coding-canary-ssh
+    tags: [cross-zone]
+  - id: dmz-to-coding-canary-denied
+    from: dmz
+    to: {address: 192.168.30.8, port: 22}
+    kind: connect
+    expect: deny
+    control: coding-canary-ssh
+    tags: [cross-zone]
+  - id: coding-to-services-canary-denied
+    from: coding
+    to: {address: 192.168.20.8, port: 22}
+    kind: connect
+    expect: deny
+    control: services-canary-ssh
+    tags: [cross-zone]
+  - id: coding-to-management-canary-denied
+    from: coding
+    to: {address: 192.168.25.8, port: 22}
+    kind: connect
+    expect: deny
+    control: management-canary-ssh
+    tags: [cross-zone]
+  - id: coding-to-desktops-canary-denied
+    from: coding
+    to: {address: 192.168.40.8, port: 22}
+    kind: connect
+    expect: deny
+    control: desktops-canary-ssh
+    tags: [cross-zone]
+  - id: coding-to-isolated-canary-denied
+    from: coding
+    to: {address: 192.168.50.8, port: 22}
+    kind: connect
+    expect: deny
+    control: isolated-canary-ssh
+    tags: [cross-zone]
+  - id: coding-to-experimental-canary-denied
+    from: coding
+    to: {address: 192.168.55.8, port: 22}
+    kind: connect
+    expect: deny
+    control: experimental-canary-ssh
+    tags: [cross-zone]
+  - id: coding-to-dmz-canary-denied
+    from: coding
+    to: {address: 192.168.35.8, port: 22}
+    kind: connect
+    expect: deny
+    control: dmz-canary-ssh
+    tags: [cross-zone]
 
   # The secrets store's port is open to the operator hosts only. The control is a canary in its own zone reaching it.
   - id: services-security-vault
@@ -472,6 +584,13 @@ flows:
     tags: [cross-zone]
   - id: dmz-to-security-vault-denied
     from: dmz
+    to: {address: 192.168.20.5, port: 8200}
+    kind: connect
+    expect: deny
+    control: services-security-vault
+    tags: [cross-zone]
+  - id: coding-to-security-vault-denied
+    from: coding
     to: {address: 192.168.20.5, port: 8200}
     kind: connect
     expect: deny
@@ -516,6 +635,13 @@ flows:
     expect: deny
     control: desktops-play-minecraft
     tags: [cross-zone, listener]
+  - id: coding-to-play-minecraft-denied
+    from: coding
+    to: {address: 192.168.20.4, port: 25565}
+    kind: connect
+    expect: deny
+    control: desktops-play-minecraft
+    tags: [cross-zone, listener]
   - id: desktops-services-kms
     from: desktops
     to: {address: 192.168.20.3, port: 1688}
@@ -545,6 +671,13 @@ flows:
     tags: [cross-zone, listener]
   - id: dmz-to-services-kms-denied
     from: dmz
+    to: {address: 192.168.20.3, port: 1688}
+    kind: connect
+    expect: deny
+    control: desktops-services-kms
+    tags: [cross-zone, listener]
+  - id: coding-to-services-kms-denied
+    from: coding
     to: {address: 192.168.20.3, port: 1688}
     kind: connect
     expect: deny
@@ -581,3 +714,35 @@ flows:
     expect: deny
     control: desktops-proxmox-node-api
     tags: [cross-zone, node]
+  - id: coding-to-proxmox-node-ssh-denied
+    from: coding
+    to: {address: 10.0.0.254, port: 22}
+    kind: connect
+    expect: deny
+    control: desktops-proxmox-node-ssh
+    tags: [cross-zone, node]
+  - id: coding-to-proxmox-node-api-denied
+    from: coding
+    to: {address: 10.0.0.254, port: 8006}
+    kind: connect
+    expect: deny
+    control: desktops-proxmox-node-api
+    tags: [cross-zone, node]
+
+  # The play passes no DNS from the coding-agent zone to its gateway, whose resolver forwards the internal zones. The control is the desktops
+  # canary asking the same address, which its zone's rule for the gateway's own addresses passes.
+  - id: desktops-coding-gateway-dns
+    from: desktops
+    to: {address: 192.168.30.1, port: 53, protocol: udp}
+    kind: dns
+    query: example.com
+    expect: allow
+    tags: [cross-zone]
+  - id: coding-gateway-dns-denied
+    from: coding
+    to: {address: 192.168.30.1, port: 53, protocol: udp}
+    kind: dns
+    query: example.com
+    expect: deny
+    control: desktops-coding-gateway-dns
+    tags: [cross-zone]

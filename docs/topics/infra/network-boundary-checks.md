@@ -56,19 +56,20 @@ The exit status is zero only if every flow in the run passed. A selection that h
 
 ## The flows in the list
 
-The list declares the six zones of the gateway's play, each with a canary at host part 08 of its subnet (`192.168.20.8` for services, `.25.8` for management, and so on). The Tofu canary VMs sit at those addresses ([`ubuntu-vms.md`](tofu/ubuntu-vms.md#canary-vms)), and tests fail when the zones differ from the play's or a canary's VMID from the list. It holds these flows:
+The list declares the seven zones of the gateway's play, each with a canary at host part 08 of its subnet (`192.168.20.8` for services, `.25.8` for management, and so on). The Tofu canary VMs sit at those addresses ([`ubuntu-vms.md`](tofu/ubuntu-vms.md#canary-vms)), and tests fail when the zones differ from the play's or a canary's VMID from the list. It holds these flows:
 
 | Flows | From | What they show |
 | :--- | :--- | :--- |
-| `<zone>-gateway-dns`, `-ntp`, `-ping` | Every zone | The gateway's address in the canary's own zone answers a query for `example.com`, a time request and an echo. These are the `smoke` flows |
+| `<zone>-gateway-dns`, `-ntp`, `-ping` | Every zone but coding | The gateway's address in the canary's own zone answers a query for `example.com`, a time request and an echo. These are the `smoke` flows. The coding zone has `-ntp` and `-ping` only |
+| `coding-gateway-dns-denied`, `desktops-coding-gateway-dns` | Coding, then desktops | The gateway's address in the coding zone answers no query from the coding canary and answers one from the desktops canary, which is the control. The gateway's resolver forwards the internal zones, so the play does not pass the coding zone's DNS to it |
 | `<zone>-canary-ssh` | Every zone | The canary reaches itself on 22. It is the control for the denies aimed at that canary |
-| `<zone>-internet-https`, `isolated-internet-denied` | Every zone | Port 443 on an outside address connects from every zone that has Internet, and not from the isolated zone |
+| `<zone>-internet-https`, `isolated-internet-denied`, `coding-internet-denied` | Every zone | Port 443 on an outside address connects from every zone that has Internet, and not from the isolated or coding zone |
 | `<from>-to-<to>-canary-denied` | Every ordered pair of zones | No canary reaches another zone's canary on 22: the default-deny between zones, stated for each pair |
-| `services-security-vault`, `<zone>-to-security-vault-denied` | Services, then the other four | The secrets store's port connects from inside its own zone and from no other zone's canary |
-| `desktops-proxmox-node-ssh`, `desktops-proxmox-node-api`, `dmz-to-proxmox-node-ssh-denied`, `dmz-to-proxmox-node-api-denied` | Desktops, then the DMZ | The node's SSH and API ports connect from the desktops canary and from no DMZ host: the DMZ's rules deny every private range, and the node's management address is inside one. The allow flows are the denies' controls, so the denies pass only where the play admits the desktops canary as an operator host and the node answers the gateway's WAN address ([the DMZ probe](scratch-gateway-runs.md#the-dmz-probe)) |
+| `services-security-vault`, `<zone>-to-security-vault-denied` | Services, then every other zone | The secrets store's port connects from inside its own zone and from no other zone's canary |
+| `desktops-proxmox-node-ssh`, `desktops-proxmox-node-api`, `<zone>-to-proxmox-node-ssh-denied`, `<zone>-to-proxmox-node-api-denied` | Desktops, then the DMZ and the coding zone | The node's SSH and API ports connect from the desktops canary and from no DMZ or coding host: neither zone's rules pass a private range, and the node's management address is inside one. The allow flows are the denies' controls, so the denies pass only where the play admits the desktops canary as an operator host and the node answers the gateway's WAN address ([the DMZ probe](scratch-gateway-runs.md#the-dmz-probe), [the coding-agent zone run](scratch-gateway-runs.md#the-coding-agent-zone-run)) |
 | `desktops-play-minecraft`, `desktops-services-kms`, and a `<zone>-to-…-denied` for each other zone without the host | Desktops, then the zones without the host | The Minecraft port on `play` and the KMS port on `services` connect from the desktops zone and from no other. They carry the `listener` tag, because they pass only while something listens on the host |
 
-A flow carries its source zone as a tag, so `--tag services` runs the flows of the services canary alone. A deny whose control is tried from another zone's canary is tagged `cross-zone` and runs only once both canaries exist. A flow to the Proxmox node carries the `node` tag and no zone's, since it passes only on a gateway whose play admits the canary to the node.
+A flow carries its source zone as a tag, so `--tag services` runs the flows of the services canary alone. A deny whose control is tried from another zone's canary is tagged `cross-zone` and runs only once both canaries exist; the allow flow that is a control only for a deny of the coding zone's DNS is tagged `cross-zone` too, so no run of the desktops zone's own flows depends on it. A flow to the Proxmox node carries the `node` tag and no zone's, since it passes only on a gateway whose play admits the canary to the node.
 
 What the list does not hold yet:
 

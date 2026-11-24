@@ -13,6 +13,7 @@ allowed_paths:
   - docs/topics/infra/tailnet-policy.md
   - docs/topics/infra/network-boundary-checks.md
   - docs/topics/infra/scratch-gateway-runs.md
+  - docs/topics/infra/tofu/opnsense-gateway.md
   - docs/topics/infra/tofu/opnsense-scratch-gateway.md
   - docs/topics/infra/tofu/ubuntu-vms.md
   - ansible/roles/opnsense_gateway/**

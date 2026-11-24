@@ -166,18 +166,21 @@ def merge(
     dry_run: bool = False,
     sleep: Callable[[float], None] = time.sleep,
     progress: Progress = silent,
+    require: frozenset[str] = frozenset(),
 ) -> list[Outcome]:
     """Merge `chosen` in number order once `confirm` agrees to the list. A pull request that cannot be merged is reported and the rest go on.
 
-    `dry_run` reads each from GitHub as it stands and merges nothing, waits for nothing and asks nothing.
+    `dry_run` reads each from GitHub as it stands and merges nothing, waits for nothing and asks nothing. `require` names the checks to wait
+    for in place of the ones the rulesets require, for a repository whose plan does not serve its rulesets.
     """
     if not chosen:
         raise MergeError("no pull request to merge: none is at level `none`; name the ones you have read")
     try:
         gh.read(repo, "auth", "status", "--hostname", "github.com", sleep=sleep)
-        required = required_checks(repo, summary.base, sleep)
+        required = require or required_checks(repo, summary.base, sleep)
     except (gh.GhError, LandError) as error:
-        raise MergeError(str(error)) from error
+        hint = "" if require else "; name the checks to wait for with --require-check"
+        raise MergeError(f"{error}{hint}") from error
     if not dry_run and not confirm(chosen):
         raise MergeError("not confirmed; nothing was merged")
     outcomes: list[Outcome] = []

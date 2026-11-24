@@ -219,6 +219,39 @@ class TestMerge:
         with pytest.raises(MergeError, match="no required status checks"):
             go(tmp_path, summary, list(summary.pulls.values()))
 
+    def test_rulesets_that_cannot_be_read_stop_the_run_and_point_at_require_check(self, github: FakeGitHub, tmp_path: Path) -> None:
+        number = github.add_pull()
+        state = github.state()
+        state["rules_error"] = "Upgrade to GitHub Pro or make this repository public to enable this feature. (HTTP 403)"
+        github.save(state)
+        summary = summary_of(item(number))
+
+        with pytest.raises(MergeError, match=r"HTTP 403.*--require-check"):
+            go(tmp_path, summary, list(summary.pulls.values()))
+
+        assert github.merged() == []
+
+    def test_waits_for_the_checks_it_is_told_to_and_reads_no_rulesets(self, github: FakeGitHub, tmp_path: Path) -> None:
+        number = github.add_pull(checks=[[["lint", "pass"], ["tests", "pending"]], [["lint", "pass"], ["tests", "pass"]]])
+        state = github.state()
+        state["rules_error"] = "HTTP 403"
+        github.save(state)
+        summary = summary_of(item(number))
+
+        outcomes = merging.merge(tmp_path, summary, list(summary.pulls.values()), lambda _: True, sleep=lambda _: None, require=frozenset({"lint", "tests"}))
+
+        assert outcomes[0].merged
+        assert not [call for call in github.calls() if call[:1] == ["api"]]
+
+    def test_a_named_check_that_failed_leaves_the_pull_request(self, github: FakeGitHub, tmp_path: Path) -> None:
+        number = github.add_pull(checks=[[["lint", "pass"], ["tests", "fail"]]])
+        summary = summary_of(item(number))
+
+        outcomes = merging.merge(tmp_path, summary, list(summary.pulls.values()), lambda _: True, sleep=lambda _: None, require=frozenset({"lint", "tests"}))
+
+        assert (outcomes[0].merged, outcomes[0].reason) == (False, "required checks failed: tests")
+        assert github.merged() == []
+
     def test_nothing_chosen_is_an_error_that_says_what_to_do(self, github: FakeGitHub, tmp_path: Path) -> None:
         with pytest.raises(MergeError, match="name the ones you have read"):
             go(tmp_path, summary_of(item(1, "breaking")), [])

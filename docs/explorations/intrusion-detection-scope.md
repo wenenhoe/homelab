@@ -5,7 +5,7 @@ type: exploration
 status: open
 summary: "Whether detection lives only on the OPNsense perimeter or also on each VM, without inspecting the lab's own TLS."
 topic: security-hardening
-related: [ADR-0047, ADR-0053, ADR-0089, ADR-0094]
+related: [ADR-0045, ADR-0047, ADR-0053, ADR-0089, ADR-0094]
 ---
 
 # Where should intrusion detection run, and how much of the lab should it see?
@@ -20,6 +20,11 @@ through pf. The open question is scope, not tooling.
 
 ## What bears on it
 
+- **Collection is another decision.** [ADR 0045 (Security event
+  pipeline)](../decisions/0045-security-event-collection-and-alerting/revision-000.md)
+  is `working` and leans toward a security-event pipeline with host agents. This
+  question is where detection runs, how much it sees and whether it acts on what
+  it finds, and it stays open beside that one.
 - **Perimeter only** puts CrowdSec on OPNsense alone, reading its own firewall
   and WAN logs. It catches scanning and brute-force patterns at the edge. It is
   blind to a request that looks fine at the firewall and is malicious at the

@@ -1,12 +1,13 @@
-"""python3 -m renovate_merge summary [--repo DIR] [--base BRANCH] [--out DIR] [--notes-characters N]
-python3 -m renovate_merge merge SUMMARY.json [PR ...] [--repo DIR] [--yes] [--dry-run]
+"""python3 -m renovate_merge summary [--repo DIR] [--base BRANCH] [--out DIR] [--notes-characters N] [--allow-main]
+python3 -m renovate_merge merge SUMMARY.json [PR ...] [--repo DIR] [--yes | --allow-main] [--dry-run]
 python3 -m renovate_merge promote [--repo DIR] [--yes] [--dry-run]
 
 `summary` reads Renovate's open pull requests into BRANCH (default `maintenance`), prints their updates and release notes with
 the lines that look like breaking changes marked, and writes `summary.md` and `summary.json` to OUT (default: `renovate-merge/` in the
 git directory). `merge` merges the pull requests of a summary.json: those named, or with none named every one at level `none`, each only
 while its head is the commit the summary read and once the required checks have passed. It uses the maintainer's own `gh` login and
-never merges into `main`. `promote` opens the pull request that promotes `maintenance` into `main`, with a table of what the batch
+refuses `main` as a branch unless `--allow-main` is given to both commands; with it `merge` asks for the branch name to be typed and
+refuses `--yes`. `promote` opens the pull request that promotes `maintenance` into `main`, with a table of what the batch
 holds, and stops there: the merge deploys, so it is made by hand.
 """
 
@@ -24,7 +25,7 @@ from land_series.run import CommandError, checked
 from renovate_merge import promote, report
 from renovate_merge.collect import collect
 from renovate_merge.gh import GhError
-from renovate_merge.merge import MergeError, Outcome, Reviewed, load_summary, merge, select
+from renovate_merge.merge import PROTECTED_BRANCHES, MergeError, Outcome, Reviewed, load_summary, merge, select
 
 DEFAULT_BASE = "maintenance"
 OUT_DIRECTORY = "renovate-merge"
@@ -38,19 +39,20 @@ def default_out(repo: Path) -> Path:
     return Path(checked(["git", "-C", str(repo), "rev-parse", "--absolute-git-dir"]).text) / OUT_DIRECTORY
 
 
-def ask(chosen: Sequence[Reviewed]) -> bool:
-    """Ask on the terminal once for the whole list; with no terminal to ask on, refuse."""
+def ask(chosen: Sequence[Reviewed], base: str) -> bool:
+    """Ask on the terminal once for the whole list; with no terminal to ask on, refuse. A merge into a protected branch is confirmed by typing its name."""
     if not sys.stdin.isatty():
         return False
-    print("Merge these once their required checks pass:")
+    answer = base if base in PROTECTED_BRANCHES else "yes"
+    print(f"Merge these into {base} once their required checks pass:")
     for pull in chosen:
         print(f"  #{pull.number}  {pull.level:<8}  {pull.title}")
-    return input("Type 'yes' to merge them: ").strip() == "yes"
+    return input(f"Type '{answer}' to merge them: ").strip() == answer
 
 
 def summarise(args: argparse.Namespace) -> int:
-    if args.base == "main":
-        say("renovate_merge: Renovate's pull requests do not target main, and this tool never merges there")
+    if args.base in PROTECTED_BRANCHES and not args.allow_main:
+        say(f"renovate_merge: {args.base} is not read without --allow-main: a merge there can be a deploy")
         return 1
     now = datetime.now(UTC)
     pulls = collect(args.repo, args.base)
@@ -71,9 +73,12 @@ def outcomes_status(outcomes: Sequence[Outcome]) -> int:
 
 
 def merging(args: argparse.Namespace) -> int:
-    summary = load_summary(args.summary.read_text(encoding="utf-8"))
+    if args.allow_main and args.yes:
+        say("renovate_merge: --allow-main cannot be combined with --yes: a merge into main is confirmed by typing the branch name")
+        return 1
+    summary = load_summary(args.summary.read_text(encoding="utf-8"), args.allow_main)
     chosen = select(summary, args.pulls)
-    confirm = (lambda _: True) if args.yes else ask
+    confirm = (lambda _: True) if args.yes else (lambda pulls: ask(pulls, summary.base))
     outcomes = merge(args.repo, summary, chosen, confirm, dry_run=args.dry_run, progress=say)
     status = outcomes_status(outcomes)
     return 0 if args.dry_run else status
@@ -104,6 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     summary.add_argument("--repo", type=Path, default=Path())
     summary.add_argument("--base", default=DEFAULT_BASE)
     summary.add_argument("--out", type=Path, default=None)
+    summary.add_argument("--allow-main", action="store_true", help="read pull requests into main, for a repository where a merge there deploys nothing")
     summary.add_argument("--notes-characters", type=int, default=report.DEFAULT_NOTES_CHARACTERS, help="how much of each package's release notes to print")
     merging_parser = commands.add_parser("merge", help="merge the pull requests of a summary")
     merging_parser.add_argument("summary", type=Path, help="the summary.json written by `summary`")
@@ -112,6 +118,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     merging_parser.add_argument("--repo", type=Path, default=Path())
     merging_parser.add_argument("--yes", action="store_true", help="merge without asking")
+    merging_parser.add_argument("--allow-main", action="store_true", help="merge a summary of main, confirmed by typing main; not with --yes")
     merging_parser.add_argument("--dry-run", action="store_true", help="report what each pull request would do and merge nothing")
     promoting_parser = commands.add_parser("promote", help="open the pull request that promotes maintenance into main")
     promoting_parser.add_argument("--repo", type=Path, default=Path())

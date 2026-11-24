@@ -14,7 +14,7 @@ uv run python -m renovate_merge promote --repo ..                    # open the 
 
 ## The summary
 
-`summary` lists the open pull requests into `maintenance` (`--base` names another branch; `main` is refused) whose head branch starts with `renovate/`, is in this repository, and whose author's login names Renovate. For each it reads the description Renovate wrote:
+`summary` lists the open pull requests into `maintenance` (`--base` names another branch; `main` is refused unless [`--allow-main`](#a-repository-whose-main-deploys-nothing) is given) whose head branch starts with `renovate/`, is in this repository, and whose author's login names Renovate. For each it reads the description Renovate wrote:
 
 - The **table of updates**: each package with the version it moves from and to. A digest, even one that starts with a digit, is not a version, and a pin or lockfile row with no old version is not listed. A version after a range operator (`==6.0.3`, `^1.2.3`) is read as that version. A change of the first number is `major`; a change of the second number of a `0.x` version is `pre-1.0 minor`, since semver lets that break.
 - The **release notes** section, with Renovate's HTML wrapping removed. A pin, a digest refresh or a lockfile update has none.
@@ -40,9 +40,20 @@ It first checks that `gh` is logged in and reads, once, the checks the rulesets 
 2. Waits until every required check has passed, polling every 20 seconds for up to about 90 minutes. A required check not reported yet is waited for, a skipped one counts as passed, and one that failed or was cancelled leaves the pull request open.
 3. Runs `gh pr merge --merge --delete-branch --match-head-commit <that commit>`. GitHub refuses a merge whose head is not the commit named, so a push between the last read and the merge cannot slip in.
 
-A pull request that is left, for any reason, is reported with the reason and the run goes on to the next; the run exits non-zero when any was left. It never passes `--admin`: `maintenance` requires a pull request and the checks and no review, so a pull request whose checks passed merges without the bypass, and one GitHub refuses stays open with GitHub's own reason. It never merges into `main`, whatever the summary says: a merge there is a deploy.
+A pull request that is left, for any reason, is reported with the reason and the run goes on to the next; the run exits non-zero when any was left. It never passes `--admin`: `maintenance` requires a pull request and the checks and no review, so a pull request whose checks passed merges without the bypass, and one GitHub refuses stays open with GitHub's own reason. It does not merge into `main`, whatever the summary says, unless `--allow-main` is given to `merge` as well: a merge there can be a deploy.
 
 `--dry-run` reads each pull request as it stands, prints whether it would merge, still has checks to pass or failed, and merges and asks nothing.
+
+## A repository whose `main` deploys nothing
+
+In this repository a merge to `main` is a deploy, which is why `main` is refused as a base. The tool also serves a repository where Renovate's pull requests target `main` and nothing deploys from it. There `--allow-main` is given to both commands:
+
+```bash
+uv run python -m renovate_merge summary --repo PATH --base main --allow-main
+uv run python -m renovate_merge merge SUMMARY.json --repo PATH --allow-main
+```
+
+The flag is not read from `summary.json`: a summary that names `main` is refused by `merge` without it, so a file cannot grant it to itself. With the flag `merge` asks for the branch name to be typed (`Type 'main' to merge them:`, not `yes`), and `--yes` is refused with it, so a merge into `main` is never unattended. Everything else is as above, including the wait for the required checks, which `merge` reads from the rulesets and not from classic branch protection, and the absence of `--admin`. `promote` only knows `maintenance` and `main` and is not used there.
 
 ## Promoting
 

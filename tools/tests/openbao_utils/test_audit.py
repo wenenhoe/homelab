@@ -263,6 +263,13 @@ class TestAuditB2:
         assert "ACTIVE (break-glass restore key" in printed
         assert "ORPHAN" not in printed
 
+    def test_two_keys_with_the_break_glass_name_are_flagged_not_trusted(self, listed_keys):
+        printed = listed_keys(_b2_key("first-id", "openbao-snapshot-readonly"), _b2_key("second-id", "openbao-snapshot-readonly"))
+
+        assert printed.count("CHECK (2 carry the break-glass name") == 2
+        assert "ACTIVE (break-glass" not in printed
+        assert "ORPHAN" not in printed
+
     def test_genuinely_unknown_key_is_still_flagged_orphan(self, listed_keys):
         printed = listed_keys(_b2_key("mystery-id", "some-leftover-key"))
 
@@ -320,6 +327,17 @@ class TestAuditR2:
     def test_openbao_snapshot_readonly_token_is_included_and_active(self):
         printed = _run_r2_with_tokens([{"id": "some-other-id", "name": "openbao-snapshot-readonly", "status": "active"}])
         assert "ACTIVE (break-glass restore key" in printed
+        assert "ORPHAN" not in printed
+
+    def test_two_tokens_with_the_break_glass_name_are_flagged_not_trusted(self):
+        printed = _run_r2_with_tokens(
+            [
+                {"id": "first-id", "name": "openbao-snapshot-readonly", "status": "active"},
+                {"id": "second-id", "name": "openbao-snapshot-readonly", "status": "active"},
+            ]
+        )
+        assert printed.count("CHECK (2 carry the break-glass name") == 2
+        assert "ACTIVE (break-glass" not in printed
         assert "ORPHAN" not in printed
 
     def test_token_outside_known_naming_is_excluded_from_the_count_entirely(self):

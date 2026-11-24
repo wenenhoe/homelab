@@ -133,6 +133,16 @@ def audit_oci() -> None:
                 print(f"      or Console: Identity & Security > Users > homelab-cloud-sync-{leaf} > Customer Secret Keys > Delete")
 
 
+BREAK_GLASS_NAME = "openbao-snapshot-readonly"
+
+
+def _break_glass_marker(count: int) -> str:
+    """ADR 0111 has one break-glass credential per provider. Matching by name cannot tell two apart, so more than one is flagged, not trusted."""
+    if count == 1:
+        return "ACTIVE (break-glass restore key, ADR 0111 - matched by name, not cache, since it's never cached)"
+    return f"CHECK ({count} carry the break-glass name and ADR 0111 has one - matched by name only, so which is live cannot be told)"
+
+
 # --- B2: list keys via the rotation key -----------------------------------
 
 
@@ -152,11 +162,12 @@ def audit_b2() -> None:
         rotation_key_id: "rotation key",
     }
     print(f"  {len(keys)} key(s) on the account:")
+    break_glass_count = sum(1 for key in keys if key.key_name == BREAK_GLASS_NAME and key.id_ not in active)
     for key in keys:
         key_id = key.id_
         if key_id in active:
             marker = f"ACTIVE ({active[key_id]})"
-        elif key.key_name == "openbao-snapshot-readonly":
+        elif key.key_name == BREAK_GLASS_NAME:
             # ADR 0111: this credential is never cached anywhere by
             # design (create_snapshot_readonly_keys.py prints it once,
             # straight to the break-glass password-manager entry) - a
@@ -165,7 +176,7 @@ def audit_b2() -> None:
             # than a cache match (a genuine orphan could reuse this
             # name), but this tool already only flags, never deletes -
             # see its own module docstring.
-            marker = "ACTIVE (break-glass restore key, ADR 0111 - matched by name, not cache, since it's never cached)"
+            marker = _break_glass_marker(break_glass_count)
         else:
             marker = "ORPHAN"
         print(f"    {key_id}  name={key.key_name}  [{marker}]")
@@ -205,17 +216,16 @@ def audit_r2() -> None:
     # TOKEN_NAME_R2, create_snapshot_readonly_keys.py's own token_name) -
     # excluding them from this filter meant neither ever showed up here
     # at all, orphan or not.
-    tokens = [
-        t for t in body["result"] if t["name"].startswith("homelab-cloud-sync-r2-") or t["name"] in ("openbao-snapshot-write", "openbao-snapshot-readonly")
-    ]
+    tokens = [t for t in body["result"] if t["name"].startswith("homelab-cloud-sync-r2-") or t["name"] in ("openbao-snapshot-write", BREAK_GLASS_NAME)]
     print(f"  {len(tokens)} homelab-cloud-sync-r2-*/openbao-snapshot-* token(s):")
+    break_glass_count = sum(1 for t in tokens if t["name"] == BREAK_GLASS_NAME and t["id"] not in active)
     for t in tokens:
         if t["id"] in active:
             marker = f"ACTIVE ({active[t['id']]})"
-        elif t["name"] == "openbao-snapshot-readonly":
+        elif t["name"] == BREAK_GLASS_NAME:
             # ADR 0111: never cached anywhere by design - see audit_b2's
             # identical comment on why this is matched by name instead.
-            marker = "ACTIVE (break-glass restore key, ADR 0111 - matched by name, not cache, since it's never cached)"
+            marker = _break_glass_marker(break_glass_count)
         else:
             marker = "ORPHAN"
         print(f"    {t['id']}  name={t['name']}  status={t['status']}  [{marker}]")

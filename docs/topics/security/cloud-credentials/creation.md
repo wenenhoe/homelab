@@ -50,7 +50,10 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   exception: ADR 0111's break-glass `openbao-snapshot-readonly`
   credential is never cached anywhere by design, so it's matched by its
   known provider-side name instead of a cache lookup — a weaker check,
-  but this tool only ever flags, never deletes. Flags only; deleting
+  but this tool only ever flags, never deletes. ADR 0111 has one such
+  credential per provider, so when more than one key carries that name
+  the listing marks each `CHECK` instead of `ACTIVE`: the name cannot
+  say which is live, so the stale ones are found in the provider's console. Flags only; deleting
   anything it finds is a separate, deliberate step.
 - **`tools/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2

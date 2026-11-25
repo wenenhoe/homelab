@@ -226,8 +226,9 @@ as its VLAN; change them to yours.
    tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh ~/opnsense-seed --lan-ip LAN_ADDRESS --operator-host HOST_ADDRESS
    ```
 
-   The preflight's `dns` check fails from any zone but `services`, since the play denies direct DNS
-   to a zone with Internet. Run `python -m rebuild_check.dns` from a `services` host instead.
+   From any zone but `services` the preflight notes its `dns` check and does not run it, since the
+   play denies direct DNS to a zone with Internet. Run `python -m rebuild_check.dns` from a
+   `services` host as the note says.
    `--lan-ip` is the gateway's address on the untagged LAN, a network of its own: the script refuses
    one that overlaps a VLAN's `192.168.<tag>.0/24`. Read the old LAN address and the operator host's
    from the old gateway (GUI, Interfaces, LAN) before it stops.

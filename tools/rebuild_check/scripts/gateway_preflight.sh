@@ -4,7 +4,8 @@
 # Usage: gateway_preflight.sh before | create
 #   before  the window is not open and the old gateway still runs: the root module plans no change, the
 #           image is on the node, VM 201 is the gateway and can be snapshotted, nothing in the dump storage
-#           would stop the dump, and both DNS servers answer and agree
+#           would stop the dump, and both DNS servers answer and agree (noted and not checked on a host
+#           outside the servers' zone, which the gateway denies direct DNS)
 #   create  the old VM is dumped and destroyed and the create is next: the plan adds the gateway VM and its
 #           seed file and nothing else, the image is on the node, VM 201 is gone, the dump is there to roll
 #           back to, and the Tofu user holds the privilege a startup order needs
@@ -183,8 +184,14 @@ check_grant() {
   fi
 }
 
+# The gateway denies direct DNS from other zones, so only a host in the servers' zone can ask them.
 check_dns() {
-  if (cd "$tools" && python3 -m rebuild_check.dns) > "$work/dns.log" 2>&1; then
+  local outside
+  if ! outside=$(cd "$tools" && python3 -m rebuild_check.dns --source-outside 2> "$work/dns.log"); then
+    bad "dns: could not tell which network this host asks from: $(tail -n 1 "$work/dns.log")"
+  elif [ -n "$outside" ]; then
+    note "dns: not checked, since this host asks from $outside, outside the services zone; on a services host run: cd tools && python3 -m rebuild_check.dns"
+  elif (cd "$tools" && python3 -m rebuild_check.dns) > "$work/dns.log" 2>&1; then
     ok "dns: both servers answer and agree"
   else
     bad "dns: $(tail -n 3 "$work/dns.log" | tr '\n' ' ')"

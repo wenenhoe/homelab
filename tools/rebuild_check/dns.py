@@ -9,13 +9,20 @@ address on both, and for a host Tofu built that address is the one in the genera
 
 Usage:
     cd tools && python3 -m rebuild_check.dns [host ...]
+    cd tools && python3 -m rebuild_check.dns --source-outside
 
 With no host, every host in inventory.yaml's managed_hosts and network_infra is checked. Needs `dig` on the
 machine it runs on, and changes nothing. Exits 1 when any check fails.
+
+The gateway denies direct DNS from other zones, so only a host on the servers' own network can ask them.
+`--source-outside` runs no check: it prints the address this machine would ask from when that is outside the
+servers' network, and nothing when it is inside.
 """
 
 from __future__ import annotations
 
+import ipaddress
+import socket
 import subprocess
 import sys
 from collections.abc import Callable
@@ -58,6 +65,25 @@ def dig_runner(server: str, name: str, record_type: str) -> tuple[int, str]:
         check=False,
     )
     return result.returncode, result.stdout
+
+
+def source_toward(server: str) -> str:
+    """The address this machine would send from to reach `server`. Connecting a UDP socket sends nothing."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.connect((server, 53))
+        return probe.getsockname()[0]
+
+
+def source_outside(servers: Servers) -> str | None:
+    """The address this machine would ask from, when it is outside the /24 of the primary server's zone."""
+    source = source_toward(servers.primary)
+    network = ipaddress.ip_network(f"{servers.primary}/24", strict=False)
+    return None if ipaddress.ip_address(source) in network else source
+
+
+def lab_servers() -> Servers:
+    group_vars = yaml.safe_load(GROUP_VARS.read_text())
+    return Servers(group_vars["dns_primary_address"], group_vars["dns_secondary_address"])
 
 
 def soa_serial(dig: Dig, server: str, zone: str) -> tuple[str | None, str]:
@@ -148,7 +174,6 @@ def plan_for(hosts: list[str]) -> Plan:
     domain = main_domain()
     host_domain = f"internal.{domain}"
     lan_domain = f"lan.{domain}"
-    group_vars = yaml.safe_load(GROUP_VARS.read_text())
     inventory = yaml.safe_load(INVENTORY_PATH.read_text())["all"]["children"]
     known = [name for group in ("managed_hosts", "network_infra") for name in (inventory.get(group) or {}).get("hosts") or {}]
     generated = {}
@@ -161,14 +186,17 @@ def plan_for(hosts: list[str]) -> Plan:
     for host in hosts or known:
         names[f"{host}.{host_domain}"] = generated.get(host, {}).get("ansible_host")
     names[f"s3.store.{lan_domain}"] = None
-    servers = Servers(group_vars["dns_primary_address"], group_vars["dns_secondary_address"])
-    return Plan(servers=servers, zones=(host_domain, lan_domain), names=names)
+    return Plan(servers=lab_servers(), zones=(host_domain, lan_domain), names=names)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    if args == ["--source-outside"]:
+        if source := source_outside(lab_servers()):
+            print(source)
+        return 0
     if any(arg.startswith("-") for arg in args):
-        print("usage: python3 -m rebuild_check.dns [host ...]", file=sys.stderr)
+        print("usage: python3 -m rebuild_check.dns [host ...] | --source-outside", file=sys.stderr)
         return 2
     return report(run_checks(dig_runner, plan_for(args)))
 

@@ -8,7 +8,8 @@ the pin), noreboot (the update job ends with done, not a reboot), stuck (the upd
 ends), badversion (the version is unchanged after the update), keylost (the key is refused
 after the update), authopen (a wrong secret is accepted after the update), silentreboot (the gateway goes down as the update job ends and
 comes back with no job log, so the script never sees the reboot status), slowreboot (the gateway is unreachable for several seconds after the update
-and a request made meanwhile waits for it to come back and is then answered, as TCP retries do).
+and a request made meanwhile waits for it to come back and is then answered, as TCP retries do), slowstatus (the firmware status answers after a few
+seconds, as it does while it probes the mirror).
 """
 
 from __future__ import annotations
@@ -96,6 +97,8 @@ class FakeApi:
                 if path == "diagnostics/system/system_information":
                     return self.reply({"name": "OPNsense", "versions": [state["version"]]})
                 if path == "core/firmware/status" and method == "POST":
+                    if fault == "slowstatus":
+                        time.sleep(3.0)
                     if fault == "nomirror":
                         return self.reply({"status": "error", "status_msg": "Could not connect to the mirror."})
                     behind = not state["version"].startswith(api.latest)

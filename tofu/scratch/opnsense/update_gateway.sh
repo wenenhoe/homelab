@@ -11,7 +11,8 @@
 # Environment: GW_IP / GW_PORT (default LAN_IP / 443), ALLOW_LATEST=1,
 #   SERIAL_SOCKET (checks the console answers with a login prompt or its menu after a reboot),
 #   POLL (seconds between polls, default 5), UPDATE_TIMEOUT / UP_TIMEOUT (seconds), UP_PROBE_TIMEOUT (seconds a poll of
-#   the API waits for an answer, default 5; API_TIMEOUT, default 60, applies to every other call).
+#   the API waits for an answer, default 5; API_TIMEOUT, default 60, applies to every other call except the firmware status, which probes the
+#   mirror and gets STATUS_TIMEOUT, default 300).
 # Prints "CHECK name: PASS|FAIL" lines; the exit status is the number of FAIL lines.
 set -u
 # shellcheck disable=SC1090
@@ -106,7 +107,7 @@ cfg() { # cfg LABEL -> 0 when both hold
 : > "$dir/config-checks.txt"
 
 # --- the gateway reaches its update mirror (this is what vmbr9 could not give)
-post core/firmware/status > "$dir/fw-status-before.json" 2> /dev/null
+API_TIMEOUT=${STATUS_TIMEOUT:-300} post core/firmware/status > "$dir/fw-status-before.json" 2> /dev/null
 st=$(jget "$dir/fw-status-before.json" status)
 cur=$(jget "$dir/fw-status-before.json" product.product_version)
 latest=$(jget "$dir/fw-status-before.json" product.product_latest)
@@ -157,7 +158,7 @@ else
     *) check "the update job finished" 1 ;;
   esac
   wait_state up "$up_timeout"; check "the API answers again after the update" $?
-  post core/firmware/status > "$dir/fw-status-after.json" 2> /dev/null
+  API_TIMEOUT=${STATUS_TIMEOUT:-300} post core/firmware/status > "$dir/fw-status-after.json" 2> /dev/null
   after=$(jget "$dir/fw-status-after.json" product.product_version)
   note "release now $after (firmware status '$(jget "$dir/fw-status-after.json" status)': $(jget "$dir/fw-status-after.json" status_msg))"
   if [ "${after%%_*}" = "$want" ]; then check "the gateway runs $want after the update" 0; else check "the gateway runs $want after the update" 1; fi

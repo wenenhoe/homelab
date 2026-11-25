@@ -159,6 +159,10 @@ exit
 ssh security 'sudo systemctl is-system-running'
 ```
 
+`check-command-blocks` checks what a script can decide of this
+([`doc-checks.md`](docs/topics/documentation/doc-checks.md#command-block-check));
+whether a value is secret, and where a file lands, are for the author.
+
 ## Verification before writing it down
 
 - Quote a doc's or config's own line when its exact expected format

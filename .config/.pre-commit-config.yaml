@@ -267,6 +267,17 @@ repos:
         additional_dependencies: [pyyaml==6.0.4]
         pass_filenames: false
         always_run: true
+      - id: check-command-blocks
+        name: check-command-blocks
+        description: >-
+          Command blocks in the docs are safe to paste and keep secrets out of
+          the command text, as AGENTS.md states - see
+          tools/doc_scripts/check_command_blocks.py. Stdlib-only, so it needs no
+          extra dependencies.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_command_blocks' --
+        language: python
+        pass_filenames: false
+        always_run: true
       - id: check-doc-change
         name: check-doc-change
         description: >-

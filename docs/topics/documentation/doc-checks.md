@@ -1,6 +1,6 @@
 # Doc Checks
 
-The hooks and jobs that keep the docs consistent with the files and config they describe: index generation, the drift check, the moved-file and retired-number checks, and the Mermaid render check. The checks on project and decision records are in [Project and Record Checks](project-checks.md). How they sit in the pipeline is in [CI: PR Checks](../engineering/ci/pipeline.md).
+The hooks and jobs that keep the docs consistent with the files and config they describe: index generation, the drift check, the moved-file, retired-number and command-block checks, and the Mermaid render check. The checks on project and decision records are in [Project and Record Checks](project-checks.md). How they sit in the pipeline is in [CI: PR Checks](../engineering/ci/pipeline.md).
 
 ## Doc index generation
 
@@ -222,6 +222,31 @@ hook cannot tell that the trailer is there, and does not need to: it fails
 until the number is fixed.
 
 It reads the working tree only, so it works in a shallow clone.
+
+## Command-block check
+
+[`tools/doc_scripts/check_command_blocks.py`](../../../tools/doc_scripts/check_command_blocks.py), a local pre-commit hook like the
+drift check, so CI runs it in `pre-commit-checks`. It holds the fenced blocks
+of every tracked or new markdown file outside `docs/decisions/` to the part of
+[`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator) a script
+can decide:
+
+| Fails on | In |
+| :--- | :--- |
+| A fence that names no language | Every fence |
+| A `<placeholder>`, a `{{ variable }}` or a bare `...` where a value goes | Shell fences (`sh`, `bash`, `shell`) |
+| A second `# [n/m]` segment | Shell fences |
+| A command that waits for input with a command after it | Shell fences |
+| A literal value assigned to a secret-named variable, such as one ending `_TOKEN` | Shell fences |
+| `curl -u` or `--user` | Shell fences |
+
+Comments are not read, apart from the segment markers, and a `text` fence holds
+a usage synopsis or output that nobody pastes. The commands it knows to wait
+for input are `read`, `openbao_utils.shell` and `unseal`, an interactive `ssh`
+or `sudo -i`, `gpg` key generation and `docker run -it`; a `read` fed by a pipe
+or a redirection is not one. Whether a value is secret, where a file lands and a
+password prompt of `sudo` or `ssh` are left to review. It reads the working tree
+only, so it works in a shallow clone.
 
 ## Mermaid render check
 

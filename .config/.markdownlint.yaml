@@ -5,9 +5,8 @@ default: true
 # should fight.
 MD013: false
 
-# Plain-text tree/output diagrams (e.g. README.md's Repository Layout,
-# docs/topics/deploy/adding-an-app.md's directory listing) are deliberately fenced without
-# a language tag throughout this repo.
+# check-command-blocks requires a language on every fence outside
+# docs/decisions/, whose revisions are not edited for it.
 MD040: false
 
 # Compact `- description:` list items immediately followed by an indented

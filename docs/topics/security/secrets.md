@@ -126,8 +126,14 @@ delivered the root instead
 file-cache-backed value without the script:
 
 ```sh
-printf '%s' '<value>' > ansible/files/secrets/<catalog-key>
-chmod 600 ansible/files/secrets/<catalog-key>
+# from the repo root: paste alone; it waits for the catalog key, then the value, hidden
+read -r -p 'catalog key: ' key; read -rsp 'value: ' value; echo
+```
+
+```sh
+(umask 077; printf '%s' "$value" > "ansible/files/secrets/$key")
+chmod 600 "ansible/files/secrets/$key"
+unset value
 ```
 
 Beszel's key/token can't be known ahead of time — see the manual

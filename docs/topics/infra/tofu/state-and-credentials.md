@@ -93,12 +93,22 @@ occasion, download the newest object under `state/` from `opentofu-state-b2` wit
 S3 client, then:
 
 ```sh
-gpg --decrypt <name>.json.gpg > recovered.json
-. ~/.config/tofu/state-backend.env
-tofu -chdir=tofu state push recovered.json
+# from the repo root: paste alone; it waits for the downloaded file's path
+read -r -p 'path of the state-*.json.gpg: ' copy
 ```
 
-Delete `recovered.json` afterwards; it is the state in plaintext.
+```sh
+# paste alone; gpg may ask for the passphrase. The plaintext goes outside the checkout, mode 0600
+recovered=$(mktemp) && gpg --yes --output "$recovered" --decrypt "$copy"
+```
+
+```sh
+. ~/.config/tofu/state-backend.env
+tofu -chdir=tofu state push "$recovered"
+shred -u "$recovered"
+```
+
+The last line removes the state in plaintext; run it if the push fails and you stop there.
 
 ### Migrating the local state
 

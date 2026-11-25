@@ -179,12 +179,19 @@ gateway runs from the operator host, which reaches the gateway's port 443 on the
 needs no more than the seed admits:
 
 ```sh
-printf 'API_KEY=%q\nAPI_SECRET=%q\nLAN_IP=ADDRESS\n' KEY SECRET > ~/.opnsense-update.env   # mode 0600, removed after
-bash tofu/scratch/opnsense/update_gateway.sh ~/.opnsense-update.env CERT 26.1.11 OUTPUT_DIR
+# from the repo root: paste alone; it waits for the key and secret, hidden, then the gateway's LAN address
+read -rsp 'opnsense_api_key: ' key; echo; read -rsp 'opnsense_api_secret: ' secret; echo; read -r -p 'gateway LAN address: ' lan_ip
 ```
 
-`KEY` and `SECRET` are the credentials file's `opnsense_api_key` and `opnsense_api_secret`,
-and `CERT` is the `gateway-cert.pem` the first boot wrote. The gateway reboots, and the
+```sh
+(umask 077; printf 'API_KEY=%q\nAPI_SECRET=%q\nLAN_IP=%q\n' "$key" "$secret" "$lan_ip" > ~/.opnsense-update.env)
+unset key secret
+bash tofu/scratch/opnsense/update_gateway.sh ~/.opnsense-update.env ~/opnsense-firstboot/gateway-cert.pem 26.1.11 ~/opnsense-update
+rm ~/.opnsense-update.env
+```
+
+The key and secret are the credentials file's `opnsense_api_key` and `opnsense_api_secret`,
+and `gateway-cert.pem` is the file the first boot wrote. The gateway reboots, and the
 script fails unless it answers on 26.1.11 afterwards with the seeded key still accepted.
 Before the play has written its rules the operator host reaches only port 443, so the
 snapshot a run of the play is preceded by is taken on the node, with `qm snapshot`, and not

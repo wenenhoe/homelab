@@ -63,12 +63,19 @@ config holds no secret, so it can be world-readable.
 ## Proving an alert
 
 An endpoint alerts after one failed result and resolves on the next success, so a deliberate failure push shows its group's topic
-without stopping a job. Take the job's token from OpenBao inside a `vault-bootstrap` session, and pass it to `curl` as a config on
+without stopping a job. Take the job's token from OpenBao inside a `controller` AppRole session ([`auth.md`](../security/openbao/auth.md)), and pass it to `curl` as a config on
 stdin so it is not in an argument:
 
+With `GATUS_URL` set to `gatus_url`:
+
 ```sh
-URL="$GATUS_URL/api/v1/endpoints/<group>_<id>/external"
-t=$(bao kv get -mount=secret -field=value hosts/<host>/gatus-token-<id>)
+# paste alone; it waits for the endpoint's group and id, and the host the job runs on
+read -r -p 'group: ' group; read -r -p 'job id: ' id; read -r -p 'job host: ' host
+```
+
+```sh
+URL="$GATUS_URL/api/v1/endpoints/${group}_$id/external"
+t=$(bao kv get -mount=secret -field=value "hosts/$host/gatus-token-$id")
 printf 'header = "Authorization: Bearer %s"\n' "$t" | curl -fsS -X POST -K - "$URL?success=false"
 # the alert arrives in the group's topic; then resolve it:
 printf 'header = "Authorization: Bearer %s"\n' "$t" | curl -fsS -X POST -K - "$URL?success=true"
@@ -92,10 +99,15 @@ Gatus's own `security.basic` gates the dashboard's data, with the username `admi
 deploy instead of leaving the dashboard open. Produce it with:
 
 ```sh
-htpasswd -niBC 9 "" | cut -d: -f2 | tr -d '\n' | base64 -w0
+# paste alone; it waits for the password, hidden
+read -rsp 'dashboard password: ' PW; echo
 ```
 
-which reads the password from stdin, then store it with `cd tools && python3 -m openbao_utils.bootstrap`.
+```sh
+printf '%s\n' "$PW" | htpasswd -niBC 9 "" | cut -d: -f2 | tr -d '\n' | base64 -w0; unset PW
+```
+
+`htpasswd -i` reads stdin without hiding it, so the password is piped in. Then store the output with `cd tools && python3 -m openbao_utils.bootstrap`.
 
 The Caddy route sets `auth: false`, like `beszel-hub`: pushes are `POST`s from systemd units and cron
 jobs on every host, which Tinyauth's `forward_auth` would redirect to a login page. The push route is protected by the
@@ -217,11 +229,19 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 
 ## Checking the endpoints
 
-With `GATUS_URL` set to `gatus_url` (no trailing slash, which makes the path `//api` and a `404`) and the dashboard password in `PW`, list each endpoint's latest result:
+List each endpoint's latest result. `GATUS_URL` is `gatus_url` with no trailing slash, which would make the path `//api` and a `404`:
 
 ```sh
-curl -su "admin:$PW" "$GATUS_URL/api/v1/endpoints/statuses?pageSize=100" \
+# paste alone; it waits for the URL, then the password, hidden
+read -r -p 'GATUS_URL: ' GATUS_URL; read -rsp 'dashboard password: ' PW; echo
+```
+
+```sh
+# the password reaches curl on stdin, escaped for its config syntax, and not as an argument
+printf 'user = "admin:%s"\n' "$(printf '%s' "$PW" | sed 's/[\\"]/\\&/g')" \
+  | curl -s -K - "$GATUS_URL/api/v1/endpoints/statuses?pageSize=100" \
   | jq -r '.[] | [.group, .name, (if (.results|length)==0 then "NO RESULT" else (.results[-1].success|tostring) end)] | @tsv' | sort
+unset PW
 ```
 
 An endpoint that has never been pushed to is missing from the list until its first interval passes. Use `tostring`: `jq`'s `//` treats `false` as absent, so `.success // "NO RESULT"` shows a failed check as `NO RESULT`.

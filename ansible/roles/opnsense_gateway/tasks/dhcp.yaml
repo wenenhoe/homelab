@@ -48,6 +48,11 @@
     subnet: "192.168.{{ opnsense_gateway_zone.vlan }}.0/24"
     pools: ["{{ opnsense_gateway_zone_pool }}"]
     description: "{{ opnsense_gateway_zone.name }} zone"
+    # With auto-collect on, the scope's generated option data holds only the domain name, so a client gets no router
+    # and no resolver. The zone's gateway address names both; a zone with gateway_dns: false offers no resolver.
+    auto_options: false
+    gateway: ["{{ opnsense_gateway_zone_prefix }}.1"]
+    dns: "{{ ['%s.1' % opnsense_gateway_zone_prefix] if opnsense_gateway_zone.gateway_dns | bool else [] }}"
     reload: true
   vars:
     opnsense_gateway_zone_prefix: "192.168.{{ opnsense_gateway_zone.vlan }}"

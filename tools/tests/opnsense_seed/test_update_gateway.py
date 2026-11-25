@@ -132,6 +132,18 @@ def test_an_unreachable_mirror_fails(update):
     assert not updated(api)
 
 
+def test_a_firmware_status_slower_than_the_api_timeout_is_still_read(update):
+    status, output, _ = update("slowstatus", version="26.1.11_10", env={"API_TIMEOUT": "1"})
+    assert status == 0, output
+    assert "CHECK the gateway reaches its update mirror: PASS" in output
+
+
+def test_a_firmware_status_slower_than_its_own_timeout_fails_the_mirror_check(update):
+    status, output, _ = update("slowstatus", version="26.1.11_10", env={"STATUS_TIMEOUT": "1"})
+    assert status != 0
+    assert "CHECK the gateway reaches its update mirror: FAIL" in output
+
+
 def test_an_update_that_leaves_the_version_unchanged_fails(update):
     status, output, _ = update("badversion")
     assert status != 0

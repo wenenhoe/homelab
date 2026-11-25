@@ -56,8 +56,15 @@ BASE = Path(__file__).with_name("config.xml.sample")
 # third octet is the tag and whose gateway address is .1. They are in ascending
 # order, so the Nth smallest tag is interface optN. The gateway play's zones name
 # their interfaces by that order, and 30 and 45 have no zone yet, so their
-# interfaces carry none of its rules.
-DEFAULT_VLANS = (20, 25, 30, 35, 40, 45, 50, 55)
+# interfaces carry none of its rules. VLAN 10 is the scratch gateways' WAN zone
+# and sits first, so it is opt1 and every other zone is one further on.
+WAN_ZONE_VLAN = 10
+DEFAULT_VLANS = (10, 20, 25, 30, 35, 40, 45, 50, 55)
+# A scratch gateway's WAN is leased from the WAN zone's /24, so its seed cannot carry VLAN 10 as an interface. A placeholder
+# holds the interface's position, which keeps every other zone on the interface the play names. 11 is no block's tag
+# (a multiple of 5), so no VM sits in it.
+SCRATCH_PLACEHOLDER_VLAN = 11
+SCRATCH_VLANS = tuple(SCRATCH_PLACEHOLDER_VLAN if tag == WAN_ZONE_VLAN else tag for tag in DEFAULT_VLANS)
 VLAN_NAMESPACE = uuid.UUID("5d0c7a52-3c1e-4a53-9a0f-6a4a3f0f6a11")
 ASSIGNMENT = re.compile(r'^\s*(\w+)\s*=\s*"([^"\\]*)"\s*(?:#.*)?$')
 
@@ -300,7 +307,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--lan-prefix", default="24")
     ap.add_argument("--wan-if", default="vtnet0", help="the device of the module's first NIC")
     ap.add_argument("--lan-if", default="vtnet1", help="the device of the module's second NIC")
-    ap.add_argument("--vlans", default=",".join(map(str, DEFAULT_VLANS)), help="comma-separated VLAN tags to add on the LAN device, none when empty")
+    vlan_list = ap.add_mutually_exclusive_group()
+    vlan_list.add_argument("--vlans", default=",".join(map(str, DEFAULT_VLANS)), help="comma-separated VLAN tags to add on the LAN device, none when empty")
+    vlan_list.add_argument(
+        "--scratch",
+        action="store_true",
+        help=(
+            f"add the scratch gateway's VLANs ({','.join(map(str, SCRATCH_VLANS))}): "
+            f"the default list with {SCRATCH_PLACEHOLDER_VLAN} in place of {WAN_ZONE_VLAN}"
+        ),
+    )
     ap.add_argument("--hostname", default="OPNsense")
     ap.add_argument("--domain", default="internal", help="with the hostname, the management name the play verifies the GUI certificate for")
     ap.add_argument("--api-user", default="ansible")
@@ -316,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
 
     try:
-        vlans = [int(tag) for tag in a.vlans.split(",") if tag.strip()]
+        vlans = list(SCRATCH_VLANS) if a.scratch else [int(tag) for tag in a.vlans.split(",") if tag.strip()]
     except ValueError:
         ap.error(f"--vlans takes comma-separated numbers, got {a.vlans!r}")
     creds = ensure_credentials(Path(a.credentials).expanduser())

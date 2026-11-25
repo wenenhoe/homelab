@@ -178,14 +178,16 @@ line_of() {
   assert_output --partial "TF_VAR_vm_id=599"
 }
 
-@test "the seed keeps its own VLAN list unless SEED_VLANS names one" {
+@test "the seed takes its scratch VLAN list unless SEED_VLANS names one" {
   run -0 "$SCRIPT" up "$OUT" "$URL" "$SUM"
   run calls_to build_seed
+  assert_output --partial "--scratch"
   refute_output --partial "--vlans"
   : > "$CALLS"
-  SEED_VLANS=20,25,40,50,55,30 run -0 "$SCRIPT" up "$BATS_TEST_TMPDIR/out-30" "$URL" "$SUM"
+  SEED_VLANS=11,20,25,40,50,55,30 run -0 "$SCRIPT" up "$BATS_TEST_TMPDIR/out-30" "$URL" "$SUM"
   run calls_to build_seed
-  assert_output --partial "--vlans 20,25,40,50,55,30"
+  assert_output --partial "--vlans 11,20,25,40,50,55,30"
+  refute_output --partial "--scratch"
 }
 
 @test "up refuses a SEED_VLANS that is not a list of tags, before it builds anything" {

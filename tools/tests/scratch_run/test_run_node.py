@@ -112,7 +112,7 @@ def test_up_passes_the_seed_vlans_and_the_pinned_release_and_writes_the_plays_va
     assert json.loads((out / "extra-vars.json").read_text()) == rehearsal.play_vars
 
 
-def test_up_without_vlans_leaves_the_seeds_own_list(out, runner, rehearsal):
+def test_up_without_vlans_takes_the_seeds_scratch_list(out, runner, rehearsal):
     made = backend(out, runner)
     made.up(rehearsal)
     assert "SEED_VLANS" not in runner.calls[0][1]
@@ -133,6 +133,7 @@ def test_the_play_runs_from_the_ansible_directory_with_no_proxy_and_the_backends
         "opnsense_gateway_ca_file": str(made.cert),
         "opnsense_gateway_api_port": 8443,
         "opnsense_gateway_credentials_file": str(made.creds),
+        "opnsense_gateway_scratch_wan": False,
     }
     assert "HTTPS_PROXY" not in env and env["ANSIBLE_NOCOLOR"] == "1" and env["PYTHONUNBUFFERED"] == "1" and cwd == made.repo / "ansible"
 
@@ -170,7 +171,7 @@ def test_the_stray_playbook_gets_the_desktops_zones_interface_from_the_roles_lis
     made.stray(rehearsal)
     argv = runner.calls[0][0]
     assert argv[1].endswith("acceptance/stray_rule.yaml")
-    assert json.loads(argv[3]) == {"ca_file": str(made.cert), "api_port": 8443, "credentials": str(made.creds), "interface": "opt5"}
+    assert json.loads(argv[3]) == {"ca_file": str(made.cert), "api_port": 8443, "credentials": str(made.creds), "interface": "opt6"}
 
 
 def test_the_first_flow_step_builds_the_canaries_and_the_next_does_not(out, runner):

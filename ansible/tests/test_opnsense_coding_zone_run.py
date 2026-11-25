@@ -49,6 +49,7 @@ def test_the_flows_are_the_plays_own_with_one_row_that_admits_the_operator_hosts
 
     assert flows[:-1] == defaults["opnsense_gateway_flows"]
     assert flows[-1] == ADDED_ROW
+    assert "scratch_wan" in flows[-2]  # the play's last flow is the scratch zone's, which a scratch run switches off
 
 
 def test_the_added_row_is_the_only_flow_that_reaches_the_zones_canary(spec, defaults):
@@ -63,7 +64,7 @@ def test_the_zones_canary_is_a_scratch_vm_on_a_gateway_seeded_with_the_zones_vla
 
     assert spec["canary_vm"] == {"zone": "coding"}
     assert zone["vlan"] in spec["gateway"]["vlans"]
-    assert {zone["vlan"] for zone in defaults["opnsense_gateway_zones"]} <= set(spec["gateway"]["vlans"])
+    assert {zone["vlan"] for zone in defaults["opnsense_gateway_zones"] if "scratch_wan" not in zone} <= set(spec["gateway"]["vlans"])
 
 
 def test_the_operator_hosts_hold_the_runners_host_and_the_desktops_canary_and_not_the_zones_canary(spec, flow_list):
@@ -77,7 +78,7 @@ def test_the_operator_hosts_hold_the_runners_host_and_the_desktops_canary_and_no
 def test_every_deny_from_the_zone_is_tried_by_a_step_and_each_of_its_controls_is_an_allow(spec, flow_list):
     by_id = flows_by_id(flow_list)
     tried = set(step(spec, "coding-isolation")["flows"]["ids"]) | set(step(spec, "node-probe")["flows"]["ids"])
-    from_the_zone = {flow_id for flow_id, flow in by_id.items() if flow["from"] == "coding" and flow["expect"] == "deny"}
+    from_the_zone = {flow_id for flow_id, flow in by_id.items() if flow["from"] == "coding" and flow["expect"] == "deny" and "scratch" not in flow_id}
 
     assert from_the_zone <= tried
     assert {by_id[by_id[flow_id]["control"]]["expect"] for flow_id in tried} == {"allow"}
@@ -86,7 +87,11 @@ def test_every_deny_from_the_zone_is_tried_by_a_step_and_each_of_its_controls_is
 def test_the_isolation_step_tries_each_other_zones_canary_against_the_zones_canary_except_the_one_the_added_row_admits(spec, flow_list):
     by_id = flows_by_id(flow_list)
     admitted = set(spec["gateway"]["play_vars"]["opnsense_gateway_operator_hosts"])
-    into = {flow_id for flow_id, flow in by_id.items() if flow["to"]["address"] == flow_list["zones"]["coding"]["canary"] and flow["expect"] == "deny"}
+    into = {
+        flow_id
+        for flow_id, flow in by_id.items()
+        if flow["to"]["address"] == flow_list["zones"]["coding"]["canary"] and flow["expect"] == "deny" and flow["from"] != "scratch"
+    }
     tried = set(step(spec, "coding-isolation")["flows"]["ids"])
 
     assert into

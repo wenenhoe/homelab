@@ -18,7 +18,7 @@ class TestPlan:
     def test_the_committed_flow_list_gets_a_plan_for_every_zone(self):
         plan = scratch_plan.build_plan(load_flow_list(FLOWS_PATH), scratch_plan.zone_vlans())
 
-        assert [zone["name"] for zone in plan["zones"]] == list(load_flow_list(FLOWS_PATH).zones)
+        assert [zone["name"] for zone in plan["zones"]] == [name for name in load_flow_list(FLOWS_PATH).zones if name != "scratch"]
         assert all(zone["gateway"].endswith(".1") and zone["canary"].endswith(".8") for zone in plan["zones"])
 
     def test_a_service_the_flows_reach_in_a_zone_becomes_a_stand_in_host_there(self, flows_path):

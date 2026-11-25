@@ -18,7 +18,7 @@
 #   VM_ID (default 501), LAN_BRIDGE (an isolated bridge with no ports, default vmbr9),
 #   WAN_BRIDGE (default vmbr1), WAN_VLAN_ID (tag of the WAN NIC when the route out is on a
 #   VLAN), SEED_VLANS (comma-separated VLAN tags the seed adds on the LAN device, for a zone
-#   the seed does not carry yet, such as 20,25,30,35,40,45,50,55,60; unset keeps the seed's own list),
+#   the seed does not carry yet, such as 11,20,25,30,35,40,45,50,55,60; unset takes the seed's scratch list),
 #   TOFU (default tofu), SSH_CONTROL_PATH (socket of an ssh master connection opened
 #   by hand, for a node that takes a password), WANT_VERSION (default 26.1.11),
 #   ALLOW_LATEST=1, LOCAL_PORT (default 8443), UPLOAD_IMAGE=1, PURGE_IMAGE=1, MIN_FREE_KB (free
@@ -68,6 +68,9 @@ image_url=${3:-}
 image_checksum=${4:-}
 upload_image=${UPLOAD_IMAGE:-0}
 seed_vlans=${SEED_VLANS:-}
+# The seed's scratch list holds a placeholder where the production list holds the zone that leases a scratch gateway its WAN, so the WAN's /24 is not an interface's.
+seed_list=(--scratch)
+[ -z "$seed_vlans" ] || seed_list=(--vlans "$seed_vlans")
 export TF_VAR_image_cache_dir=$out/image-cache
 export TF_VAR_seed_image_path=$out/seed/seed.img
 export TF_VAR_lan_bridge=$lan_bridge
@@ -83,7 +86,7 @@ preflight() {
   [[ "$image_url" =~ ^https://[A-Za-z0-9._~:/%+-]+\.img\.bz2$ && "${image_url##*/}" == *-nano-* ]] || die "IMAGE_URL must be an https:// URL of an OPNsense nano .img.bz2 file"
   [[ "$image_checksum" =~ ^[0-9a-f]{64}$ ]] || die "IMAGE_CHECKSUM must be 64 lowercase hexadecimal characters"
   : "${PROXMOX_ENDPOINT:?}" "${PROXMOX_API_TOKEN:?}"
-  [ -z "$seed_vlans" ] || [[ "$seed_vlans" =~ ^[0-9]+(,[0-9]+)*$ ]] || die "SEED_VLANS must be comma-separated VLAN tags, such as 20,25,30,35,40,45,50,55,60"
+  [ -z "$seed_vlans" ] || [[ "$seed_vlans" =~ ^[0-9]+(,[0-9]+)*$ ]] || die "SEED_VLANS must be comma-separated VLAN tags, such as 11,20,25,30,35,40,45,50,55,60"
   local t tools=(openssl xmllint sfdisk mformat python3 "$tofu") node_tools="python3 curl openssl pvesh bunzip2"
   [ "$upload_image" != 1 ] || tools+=(curl bunzip2)
   for t in "${tools[@]}"; do
@@ -173,7 +176,7 @@ up() {
     stage_image
     export TF_VAR_image_volume_id=$store:import/$image_name
   fi
-  "$mod/seed/build_seed.sh" "$out/seed" --lan-ip "$lan_ip" --credentials "$creds" --operator-host "$node_ip" --wan-dhcp-hostname opn-scratch ${seed_vlans:+--vlans "$seed_vlans"} > "$out/build-seed.txt"
+  "$mod/seed/build_seed.sh" "$out/seed" --lan-ip "$lan_ip" --credentials "$creds" --operator-host "$node_ip" --wan-dhcp-hostname opn-scratch "${seed_list[@]}" > "$out/build-seed.txt"
   local rd attempt
   rd=$(node "mktemp -d /tmp/opn-scratch.XXXXXX")
   printf 'vmid=%q\nlan_bridge=%q\nnode_dir=%q\nlocal_port=%q\nimage_volume=%q\nimage_file=%q\nimage_url=%q\nimage_checksum=%q\n' \

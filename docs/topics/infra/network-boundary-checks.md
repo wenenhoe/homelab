@@ -56,7 +56,7 @@ The exit status is zero only if every flow in the run passed. A selection that h
 
 ## The flows in the list
 
-The list declares the seven zones of the gateway's play, each with a canary at host part 08 of its subnet (`192.168.20.8` for services, `.25.8` for management, and so on). The Tofu canary VMs sit at those addresses ([`ubuntu-vms.md`](tofu/ubuntu-vms.md#canary-vms)), and tests fail when the zones differ from the play's or a canary's VMID from the list. It holds these flows:
+The list declares the eight zones of the gateway's play, each with a canary at host part 08 of its subnet (`192.168.20.8` for services, `.25.8` for management, and so on). The Tofu canary VMs sit at those addresses ([`ubuntu-vms.md`](tofu/ubuntu-vms.md#canary-vms)), and tests fail when the zones differ from the play's or a canary's VMID from the list. It holds these flows:
 
 | Flows | From | What they show |
 | :--- | :--- | :--- |
@@ -65,6 +65,7 @@ The list declares the seven zones of the gateway's play, each with a canary at h
 | `<zone>-canary-ssh` | Every zone | The canary reaches itself on 22. It is the control for the denies aimed at that canary |
 | `<zone>-internet-https`, `isolated-internet-denied`, `coding-internet-denied` | Every zone | Port 443 on an outside address connects from every zone that has Internet, and not from the isolated or coding zone |
 | `<from>-to-<to>-canary-denied` | Every ordered pair of zones | No canary reaches another zone's canary on 22: the default-deny between zones, stated for each pair |
+| `scratch-*` | The scratch zone | The zone that leases a scratch gateway on the node its WAN (VLAN 10, [`opnsense-gateway.md`](tofu/opnsense-gateway.md#zones-and-interfaces)): the same smoke, SSH, Internet and pair flows as any zone, and its canary at `.8` is refused the node's ports beside the desktops canary's controls, since only the reserved address `192.168.10.2` passes. A scratch gateway has no interface for the zone, so no scratch run tries these flows and the plan builds no canary for it; they are shown on a gateway that carries it |
 | `services-security-vault`, `<zone>-to-security-vault-denied` | Services, then every other zone | The secrets store's port connects from inside its own zone and from no other zone's canary |
 | `desktops-proxmox-node-ssh`, `desktops-proxmox-node-api`, `<zone>-to-proxmox-node-ssh-denied`, `<zone>-to-proxmox-node-api-denied` | Desktops, then the DMZ and the coding zone | The node's SSH and API ports connect from the desktops canary and from no DMZ or coding host: neither zone's rules pass a private range, and the node's management address is inside one. The allow flows are the denies' controls, so the denies pass only where the play admits the desktops canary as an operator host and the node answers the gateway's WAN address ([the DMZ probe](scratch-gateway-runs.md#the-dmz-probe), [the coding-agent zone run](scratch-gateway-runs.md#the-coding-agent-zone-run)) |
 | `desktops-play-minecraft`, `desktops-services-kms`, and a `<zone>-to-…-denied` for each other zone without the host | Desktops, then the zones without the host | The Minecraft port on `play` and the KMS port on `services` connect from the desktops zone and from no other. They carry the `listener` tag, because they pass only while something listens on the host |

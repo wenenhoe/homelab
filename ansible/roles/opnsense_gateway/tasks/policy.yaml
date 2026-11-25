@@ -4,6 +4,17 @@
 # Rules on a zone's interface are the only rules there, so whatever they do not
 # pass is denied; the guard rule is floating and quick and comes first.
 
+# The zones and flows the play writes: those marked scratch_wan only while opnsense_gateway_scratch_wan
+# is true, kept last so a switch changes no other rule's sequence. dhcp.yaml reads these too.
+- name: Choose the zones and flows the play writes
+  ansible.builtin.set_fact:
+    opnsense_gateway_live_zones: >-
+      {{ opnsense_gateway_zones | rejectattr('scratch_wan', 'defined') | list
+      + (opnsense_gateway_zones | selectattr('scratch_wan', 'defined') | list if opnsense_gateway_scratch_wan | bool else []) }}
+    opnsense_gateway_live_flows: >-
+      {{ opnsense_gateway_flows | rejectattr('scratch_wan', 'defined') | list
+      + (opnsense_gateway_flows | selectattr('scratch_wan', 'defined') | list if opnsense_gateway_scratch_wan | bool else []) }}
+
 - name: Require the addresses the guard rule admits
   ansible.builtin.assert:
     that:
@@ -56,7 +67,7 @@
     content: ["192.168.{{ opnsense_gateway_zone.vlan }}.0/24"]
     description: "{{ opnsense_gateway_zone.name }} zone"
     reload: true
-  loop: "{{ opnsense_gateway_zones }}"
+  loop: "{{ opnsense_gateway_live_zones }}"
   loop_control:
     loop_var: opnsense_gateway_zone
     label: "{{ opnsense_gateway_zone.name }}"
@@ -98,7 +109,7 @@
     sequence: "{{ opnsense_gateway_sequences.guard }}"
     action: pass
     quick: true
-    interface: "{{ opnsense_gateway_zones | map(attribute='interface') | list }}"
+    interface: "{{ opnsense_gateway_live_zones | map(attribute='interface') | list }}"
     direction: in
     ip_protocol: inet
     protocol: TCP
@@ -116,7 +127,7 @@
     state: "{{ 'present' if opnsense_gateway_cd_agent_management | bool else 'absent' }}"
     action: pass
     quick: true
-    interface: "{{ opnsense_gateway_zones | selectattr('name', 'eq', opnsense_gateway_cd_agent_zone) | map(attribute='interface') | list }}"
+    interface: "{{ opnsense_gateway_live_zones | selectattr('name', 'eq', opnsense_gateway_cd_agent_zone) | map(attribute='interface') | list }}"
     direction: in
     ip_protocol: inet
     protocol: TCP
@@ -131,8 +142,8 @@
 - name: Pair each zone with the services it may ask of the gateway
   ansible.builtin.set_fact:
     opnsense_gateway_service_pairs: >-
-      {{ (opnsense_gateway_zones | selectattr('gateway_dns') | product(opnsense_gateway_zone_services) | list)
-      + (opnsense_gateway_zones | rejectattr('gateway_dns')
+      {{ (opnsense_gateway_live_zones | selectattr('gateway_dns') | product(opnsense_gateway_zone_services) | list)
+      + (opnsense_gateway_live_zones | rejectattr('gateway_dns')
       | product(opnsense_gateway_zone_services | rejectattr('dns') | list) | list) }}
 
 - name: Let each zone ask the gateway for the services it may
@@ -165,7 +176,7 @@
     enabled: "{{ opnsense_gateway_flow.enabled | default(true) }}"
     action: pass
     quick: true
-    interface: "{{ opnsense_gateway_zones | selectattr('name', 'in', opnsense_gateway_flow.zones) | map(attribute='interface') | list }}"
+    interface: "{{ opnsense_gateway_live_zones | selectattr('name', 'in', opnsense_gateway_flow.zones) | map(attribute='interface') | list }}"
     direction: in
     ip_protocol: inet
     protocol: "{{ opnsense_gateway_flow.protocol }}"
@@ -174,7 +185,7 @@
     destination_port: "{{ opnsense_gateway_flow.port }}"
     log: false
     reload: true
-  loop: "{{ opnsense_gateway_flows }}"
+  loop: "{{ opnsense_gateway_live_flows }}"
   loop_control:
     loop_var: opnsense_gateway_flow
     index_var: opnsense_gateway_flow_index
@@ -197,7 +208,7 @@
     destination_port: direct_dns_ports
     log: false
     reload: true
-  loop: "{{ opnsense_gateway_zones }}"
+  loop: "{{ opnsense_gateway_live_zones }}"
   loop_control:
     loop_var: opnsense_gateway_zone
     label: "{{ opnsense_gateway_zone.name }}"
@@ -219,7 +230,7 @@
     destination_net: private_networks
     log: false
     reload: true
-  loop: "{{ opnsense_gateway_zones }}"
+  loop: "{{ opnsense_gateway_live_zones }}"
   loop_control:
     loop_var: opnsense_gateway_zone
     label: "{{ opnsense_gateway_zone.name }}"
@@ -269,10 +280,10 @@
       {%- for pair in opnsense_gateway_service_pairs -%}
       {%- set _ = wanted.append(opnsense_gateway_rule_names.zone_service | format(pair.0.name, pair.1.name)) -%}
       {%- endfor -%}
-      {%- for flow in opnsense_gateway_flows -%}
+      {%- for flow in opnsense_gateway_live_flows -%}
       {%- set _ = wanted.append(flow.name) -%}
       {%- endfor -%}
-      {%- for zone in opnsense_gateway_zones if zone.internet | bool -%}
+      {%- for zone in opnsense_gateway_live_zones if zone.internet | bool -%}
       {%- set _ = wanted.append(opnsense_gateway_rule_names.direct_dns | format(zone.name)) -%}
       {%- set _ = wanted.append(opnsense_gateway_rule_names.internet | format(zone.name)) -%}
       {%- endfor -%}

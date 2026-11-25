@@ -22,7 +22,7 @@ description: >-
 canary_vm:
   zone: coding
 gateway:
-  vlans: [20, 25, 30, 35, 40, 45, 50, 55]
+  vlans: [11, 20, 25, 30, 35, 40, 45, 50, 55]
   play_vars:
     opnsense_gateway_operator_hosts: [192.168.40.250, 192.168.40.8]
     opnsense_gateway_operator_not_listed_ok: true
@@ -112,6 +112,13 @@ gateway:
         destination: host_coding_agent
         protocol: TCP
         port: "22"
+      - name: scratch gateway to the Proxmox node
+        zones: [scratch]
+        scratch_wan: true
+        source: host_scratch_gateway
+        destination: host_proxmox_node
+        protocol: TCP
+        port: proxmox_node_ports
       - name: operator hosts to the coding-agent canary over SSH
         zones: [desktops, management]
         source: operator_hosts

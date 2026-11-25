@@ -28,6 +28,8 @@ def test_the_vmid_of_a_zones_canary_is_the_one_whose_scheme_address_is_its_canar
 def test_a_vmid_agrees_with_the_modules_own_scheme_for_every_zone(subtests):
     flow_list, vlans = load_flow_list(), zone_vlans()
     for name, zone in flow_list.zones.items():
+        if name not in vlans:
+            continue  # the zone a scratch gateway does not carry has no canary VM
         with subtests.test(zone=name):
             found = vm_id(name, flow_list, vlans)
             assert (found // 50 * 5, f"192.168.{found // 50 * 5}.{found % 50}") == (vlans[name], str(zone.canary))

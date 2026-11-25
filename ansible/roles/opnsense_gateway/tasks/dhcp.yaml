@@ -1,12 +1,19 @@
 ---
 # Kea serves only the zones whose clients Tofu does not place (ADR 0089); the
 # rest get static addresses from cloud-init. A zone not marked dhcp: true is
-# left alone, so a scope made by hand there is not touched.
+# left alone, so a scope made by hand there is not touched. The zones are the live ones
+# policy.yaml chose, which holds the scratch zone only while opnsense_gateway_scratch_wan is true.
+
+# The operator's reservations, and the scratch gateway's while its zone is written.
+- name: Gather the reservations to keep
+  ansible.builtin.set_fact:
+    opnsense_gateway_reservations: >-
+      {{ opnsense_gateway_dhcp_reservations + ([opnsense_gateway_scratch_gateway] if opnsense_gateway_scratch_wan | bool else []) }}
 
 - name: Require reservations that sit in a zone Kea serves, outside its pool
   ansible.builtin.assert:
     that:
-      - opnsense_gateway_reservation.zone in opnsense_gateway_zones | selectattr('dhcp') | map(attribute='name') | list
+      - opnsense_gateway_reservation.zone in opnsense_gateway_live_zones | selectattr('dhcp') | map(attribute='name') | list
       - opnsense_gateway_reservation.address is match(opnsense_gateway_reservation_prefix ~ '\d{1,3}$')
       - opnsense_gateway_reservation.address.split('.')[-1] | int not in range(opnsense_gateway_dhcp_pool.first, opnsense_gateway_dhcp_pool.last + 1)
       - opnsense_gateway_reservation.address.split('.')[-1] | int not in [0, 1, 255]
@@ -17,9 +24,9 @@
       in that zone's 192.168.<vlan>.0/24 outside the pool and not .0, .1 or .255, and a MAC as aa:bb:cc:dd:ee:ff.
   vars:
     opnsense_gateway_reservation_zone: >-
-      {{ opnsense_gateway_zones | selectattr('name', 'eq', opnsense_gateway_reservation.zone) | first | default({'vlan': 0}) }}
+      {{ opnsense_gateway_live_zones | selectattr('name', 'eq', opnsense_gateway_reservation.zone) | first | default({'vlan': 0}) }}
     opnsense_gateway_reservation_prefix: "192\\.168\\.{{ opnsense_gateway_reservation_zone.vlan }}\\."
-  loop: "{{ opnsense_gateway_dhcp_reservations }}"
+  loop: "{{ opnsense_gateway_reservations }}"
   loop_control:
     loop_var: opnsense_gateway_reservation
     label: "{{ opnsense_gateway_reservation.name }}"
@@ -37,7 +44,7 @@
 - name: Turn Kea on for the zones it serves
   oxlorg.opnsense.dhcp_general:
     enabled: true
-    interfaces: "{{ opnsense_gateway_zones | selectattr('dhcp') | map(attribute='interface') | list }}"
+    interfaces: "{{ opnsense_gateway_live_zones | selectattr('dhcp') | map(attribute='interface') | list }}"
     socket_type: raw
     fw_rules: true
     lifetime: 4000
@@ -58,7 +65,7 @@
     opnsense_gateway_zone_prefix: "192.168.{{ opnsense_gateway_zone.vlan }}"
     opnsense_gateway_zone_pool: >-
       {{ opnsense_gateway_zone_prefix }}.{{ opnsense_gateway_dhcp_pool.first }}-{{ opnsense_gateway_zone_prefix }}.{{ opnsense_gateway_dhcp_pool.last }}
-  loop: "{{ opnsense_gateway_zones | selectattr('dhcp') | list }}"
+  loop: "{{ opnsense_gateway_live_zones | selectattr('dhcp') | list }}"
   loop_control:
     loop_var: opnsense_gateway_zone
     label: "{{ opnsense_gateway_zone.name }}"
@@ -67,11 +74,11 @@
   oxlorg.opnsense.dhcp_reservation:
     ip: "{{ opnsense_gateway_reservation.address }}"
     mac: "{{ opnsense_gateway_reservation.mac }}"
-    subnet: "192.168.{{ opnsense_gateway_zones | selectattr('name', 'eq', opnsense_gateway_reservation.zone) | map(attribute='vlan') | first }}.0/24"
+    subnet: "192.168.{{ opnsense_gateway_live_zones | selectattr('name', 'eq', opnsense_gateway_reservation.zone) | map(attribute='vlan') | first }}.0/24"
     hostname: "{{ opnsense_gateway_reservation.name }}"
     description: "{{ opnsense_gateway_reservation.name }}"
     reload: true
-  loop: "{{ opnsense_gateway_dhcp_reservations }}"
+  loop: "{{ opnsense_gateway_reservations }}"
   loop_control:
     loop_var: opnsense_gateway_reservation
     label: "{{ opnsense_gateway_reservation.name }}"

@@ -1,15 +1,16 @@
 ---
-# The rehearsal on a scratch gateway built with the seed's own eight VLANs, which include VLAN 30 and VLAN 45 between and beside the six
-# of the play's zones. The play has no zone for either yet, so this shows that the gateway has all eight VLAN interfaces, and that the two
+# The rehearsal on a scratch gateway built with the seed's scratch list: nine VLANs, the first a placeholder where the production seed holds the
+# WAN zone, and VLAN 30 and VLAN 45 between and beside the six of the play's other zones. The play has no zone for the placeholder or for VLAN 45,
+# and its WAN zone is switched off, so this shows that the gateway has all nine VLAN interfaces, and that the two
 # without a zone leave what the play applies, and the flows of the zones it reaches, as they are. It says nothing about VLAN 30's or
 # VLAN 45's own traffic: no canary sits in either and no flow names them. The `vlans` step counts the gateway's VLAN interfaces; the API
-# user cannot read the tags themselves. test_run_spec.py fails when the list does not start with the seed's.
+# user cannot read the tags themselves. test_run_spec.py fails when the list does not start with the seed's scratch list.
 name: seed-vlans
 description: >-
-  A scratch gateway built with the seed's own VLANs, 20, 25, 30, 35, 40, 45, 50 and 55: the gateway has eight VLAN interfaces, the play applies and a second
-  run with --check reports no change, and every flow of the services and desktops zones passes.
+  A scratch gateway built with the seed's scratch VLANs, 11, 20, 25, 30, 35, 40, 45, 50 and 55: the gateway has nine VLAN interfaces, the play applies and a
+  second run with --check reports no change, and every flow of the services and desktops zones passes.
 gateway:
-  vlans: [20, 25, 30, 35, 40, 45, 50, 55]
+  vlans: [11, 20, 25, 30, 35, 40, 45, 50, 55]
   play_vars:
     opnsense_gateway_operator_hosts: [192.168.40.250]
     opnsense_gateway_operator_not_listed_ok: true

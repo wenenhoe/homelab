@@ -91,7 +91,8 @@ A flow is known by its name in the first column, which other docs cite by a link
 | `cd-agent-security` | CD agent | `security` | 8200 | AppRole login | Written but off, as [`cd-agent-vlan20-ssh`](#zone-policy) |
 | `cd-agent-storage` | CD agent | `storage` | 443 | Rotated write key for `redeploy-storage` | `cd-agent-host.md`. Written but off, as [`cd-agent-security`](#zone-policy); it also waits for the remote state backend's port when the key serves the state bucket |
 | `tailscale-vlan30-ssh` | Tailscale subnet router (VLAN 20) | VLAN 30 host (as [`operator-vlan30-ssh`](#zone-policy)), VM 252 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |
-| `internet-wan` | VLANs 20, 40 and 55 (the experimental block with Internet) | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
+| `scratch-node` | The scratch gateway (`host_scratch_gateway`, `192.168.10.2`) | The node's WAN-side address | 22, 8006 | A scratch gateway on the node updates through its WAN and shows, beside a control, that the DMZ and coding zones are refused the node's management ports. No other address in VLAN 10 reaches the node, and no flow enters or leaves the zone for another one. Written only while `opnsense_gateway_scratch_wan` is true | [ADR 0120](../../../decisions/0120-where-a-scratch-gateway-on-the-node-gets-its-wan/revision-000.md) |
+| `internet-wan` | VLANs 10, 20, 40 and 55 (the experimental block with Internet) | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
 | `management-wan` | VLAN 25 | WAN | Any, for now, except direct DNS as in [`internet-wan`](#zone-policy) | ADR 0058 wants only the proxy's allowlist here, and the proxy does not exist yet | ADR 0058, [`coding-agent-egress.md`](../../../projects/coding-agent-egress.md) |
 
 Not on the list, so denied: any flow from VLAN 30 to another zone, to the WAN or to the gateway's DNS (ADR 0053), and any flow into VLAN 30 other than [`operator-vlan30-ssh`](#zone-policy) and [`tailscale-vlan30-ssh`](#zone-policy); from VLAN 50 (the experimental block without Internet) and VLAN 55 to another zone or, for VLAN 50, to the WAN, and from any zone to the gateway's management ports other than [`operator-gateway`](#zone-policy) and [`cd-agent-gateway`](#zone-policy).
@@ -107,8 +108,9 @@ The untagged `lan` network (`192.168.0.0/24`, with its own DHCP range) retires a
 ## Zones and interfaces
 
 The seed assigns VLAN interfaces at the gateway's first boot only, in ascending order of VLAN:
-20, 25, 30, 35, 40, 45, 50 and 55 are `opt1` to `opt8`, and the play names every zone's
-interface by that order. A zone whose project has not landed has its interface and none of its
+10, 20, 25, 30, 35, 40, 45, 50 and 55 are `opt1` to `opt9`, and the play names every zone's
+interface by that order. A gateway built before VLAN 10 joined the list holds `opt1` to `opt8` for 20 to 55,
+so the play is applied only to a gateway built from the current seed. A zone whose project has not landed has its interface and none of its
 rules, until that project adds them to the play. A zone is never built by hand on the live
 gateway: the play is applied to it, so a hand-built zone would be removed as drift.
 
@@ -119,6 +121,7 @@ gateway: the play is applied to it, so a hand-built zone would be removed as dri
 - [`coding-agent-egress.md`](../../../projects/coding-agent-egress.md) adds VLAN 45, the egress
   zone, and generates the two proxies' allowlists from one source in the repo.
 - VLAN 35, the DMZ, is in the play with its interface and the rules every zone gets; the rules for the host it will hold are still [`gatehouse.md`](../../../projects/gatehouse.md)'s to add.
+- VLAN 10, the `scratch` zone, leases a scratch gateway built on the node its WAN: an address and a route from Kea, the gateway's resolver, the Internet rule every zone with Internet has and one flow, [`scratch-node`](#zone-policy). Its reserved address is `host_scratch_gateway`, the one MAC of VMID 501's first NIC (`opnsense_gateway_scratch_gateway`). The zone is written only while `opnsense_gateway_scratch_wan` is true, which it is by default. A scratch gateway's seed holds a placeholder (VLAN 11) at `opt1`, so the scratch runs set the variable to false, and a spec cannot set it. The scratch seed's list is the production list with 11 in place of 10 ([`patch_config.py`](../../../../tofu/modules/proxmox_opnsense_vm/seed/patch_config.py)), which keeps every other zone on its interface.
 
 ## What a clean check means
 

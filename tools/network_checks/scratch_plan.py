@@ -25,15 +25,18 @@ RUNNER_MAC = "bc:24:11:00:01:91"
 
 
 def zone_vlans(path: Path = GATEWAY_DEFAULTS) -> dict[str, int]:
-    return {zone["name"]: zone["vlan"] for zone in yaml.safe_load(path.read_text())["opnsense_gateway_zones"]}
+    """The VLAN of each zone a scratch gateway carries: the play's zones but those it switches off for a scratch run, which have no interface there."""
+    return {zone["name"]: zone["vlan"] for zone in yaml.safe_load(path.read_text())["opnsense_gateway_zones"] if "scratch_wan" not in zone}
 
 
 def build_plan(flow_list: FlowList, vlans: dict[str, int], runner_address: str = RUNNER_ADDRESS, runner_mac: str = RUNNER_MAC) -> dict:
-    """The zones with their canary, gateway and stand-in hosts, and the runner's host."""
+    """The zones with their canary, gateway and stand-in hosts, and the runner's host. A zone with no VLAN in `vlans` is left out."""
     runner = ipaddress.IPv4Address(runner_address)
     zones = []
     runner_zone = None
     for name, zone in flow_list.zones.items():
+        if name not in vlans:
+            continue
         gateway = zone.subnet.network_address + 1
         stand_ins = sorted(
             {

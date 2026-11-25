@@ -545,6 +545,228 @@
    "bot": false,
    "group": "tools/",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "54a528eb064705d9aad1f2ea144e471320b15962",
+   "date": "2026-11-24T13:03:59+08:00",
+   "kind": "pr",
+   "pr": 1074,
+   "title": "state what the files show for bentopdf and openbao",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "aa7e3d9d958a965efb3aeb37ab9a3882d2643638",
+   "date": "2026-11-24T13:07:11+08:00",
+   "kind": "pr",
+   "pr": 1075,
+   "title": "bind the fakes and assert what a mint sends",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2743f9d1296d3316c2b5683c45d1f062bf8826c7",
+   "date": "2026-11-24T13:10:21+08:00",
+   "kind": "pr",
+   "pr": 1076,
+   "title": "flag two keys that carry the break-glass name",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "51ba04c477aac88cb563fb8ccb96af2f7db36be3",
+   "date": "2026-11-24T13:40:53+08:00",
+   "kind": "pr",
+   "pr": 1077,
+   "title": "state which links cobalt accepts",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "495f60b72b7ddbcdd9dfaf11d83967f54a8c671c",
+   "date": "2026-11-24T15:37:25+08:00",
+   "kind": "pr",
+   "pr": 1078,
+   "title": "drop two questions, link one to ADR 0045",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "0870568454e2c31ec1a48bd9a6951c77a5504748",
+   "date": "2026-11-24T15:39:33+08:00",
+   "kind": "pr",
+   "pr": 1079,
+   "title": "drop six open questions",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "539067dfd81283bf3203d2368784a657fd3c2b8d",
+   "date": "2026-11-24T18:19:07+08:00",
+   "kind": "pr",
+   "pr": 1080,
+   "title": "state which repository a question is opened in",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "3fef6127e9bd0a242aee65aeefc54537487d2101",
+   "date": "2026-11-24T18:52:11+08:00",
+   "kind": "pr",
+   "pr": 1081,
+   "title": "name the zone and its flows in a service record's exposure",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": [
+    [
+     "adr",
+     "ADR 0100 r002 \u00b7 recording how a system is integrated",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "7b7e9aa988aeda9f51321bdcdb9a25417b3099c9",
+   "date": "2026-11-24T19:12:57+08:00",
+   "kind": "pr",
+   "pr": 1082,
+   "title": "stage the proxy rules and drift check, and chain the first",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-drift-check",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "f0127b78395f00181817ec68c1d6b9bc9e0b67d4",
+   "date": "2026-11-24T21:51:59+08:00",
+   "kind": "pr",
+   "pr": 1083,
+   "title": "add the planned host sizes to the node capacity question",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d78148b63e3be8ad7c691ac33f86c4b406442691",
+   "date": "2026-11-24T21:55:13+08:00",
+   "kind": "pr",
+   "pr": 1084,
+   "title": "read and merge main behind --allow-main",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "43a484e6111fa09a4e69c884a41ace6973cf73b0",
+   "date": "2026-11-24T22:30:05+08:00",
+   "kind": "pr",
+   "pr": 1085,
+   "title": "wait for checks named with --require-check",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "f144b18c6bce82d8bd985afd38148075821c12ec",
+   "date": "2026-11-24T22:37:35+08:00",
+   "kind": "pr",
+   "pr": 1086,
+   "title": "weigh where the coding-agent host runs",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "b5b8ac30b642b7d2fc0e2fb47aefbce171bef8ad",
+   "date": "2026-11-25T00:31:20+08:00",
+   "kind": "pr",
+   "pr": 1087,
+   "title": "name the audit operations a secrets-store write carries",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "563918b8979695685d25183f2ea1df84aa3ca848",
+   "date": "2026-11-25T00:33:28+08:00",
+   "kind": "pr",
+   "pr": 1088,
+   "title": "weigh a check mode for the deploy playbook",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "911ac09bc2b8f8aa652cfb1e6618fa8c6531a9b1",
+   "date": "2026-11-25T00:47:05+08:00",
+   "kind": "pr",
+   "pr": 1089,
+   "title": "widen the coding-agent network project's scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coding-agent-network",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "282dab6b5d7d65bbfbc5ee4f88c8556c4ec8db1f",
+   "date": "2026-11-25T00:51:39+08:00",
+   "kind": "pr",
+   "pr": 1090,
+   "title": "add the coding-agent zone",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: coding-agent-network",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "343bc4c26fa25efd2b786cb54ce6bfdf8192c87c",
+   "date": "2026-11-25T01:01:02+08:00",
+   "kind": "pr",
+   "pr": 1091,
+   "title": "say where the coding-agent network project stands",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coding-agent-network",
+   "events": []
   }
  ]
 }

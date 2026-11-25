@@ -34,7 +34,7 @@ PROXMOX_API_TOKEN=user@pam!tokenid=secret
 {IMAGE_URL}=https://pkg.opnsense.org/releases/26.1/OPNsense-26.1.6-nano-amd64.img.bz2
 {IMAGE_CHECKSUM}=
 
-# Anything else scratch_gateway.sh reads can go here too: VM_ID, LAN_BRIDGE, WAN_BRIDGE, LOCAL_PORT, WANT_VERSION.
+# Anything else scratch_gateway.sh reads can go here too: VM_ID, LAN_BRIDGE, WAN_BRIDGE, WAN_VLAN_ID, LOCAL_PORT, WANT_VERSION.
 """
 
 

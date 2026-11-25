@@ -12,7 +12,7 @@ tofu/scratch/opnsense/acceptance/acceptance.sh OUT_DIR IMAGE_URL IMAGE_CHECKSUM
 
 ## Bridges
 
-The scratch bridges mirror the production pair: `vmbr0` is the real WAN and `vmbr1` the real VLAN-aware LAN, while `vmbr9` is the scratch gateway's VLAN-aware LAN and `vmbr8` its plain one. The scratch WAN stays on `vmbr1` with `WAN_VLAN_ID`, and `vmbr0` is refused.
+The scratch bridges mirror the production pair: `vmbr0` is the real WAN and `vmbr1` the real VLAN-aware LAN, while `vmbr9` is the scratch gateway's VLAN-aware LAN and `vmbr8` its plain one. The scratch WAN is on `vmbr1`, tagged VLAN 10 by default (`WAN_VLAN_ID`), where the production gateway's scratch zone leases it an address, a route out and the gateway's resolver, and `vmbr0` is refused.
 
 ## Building it
 
@@ -38,7 +38,8 @@ not the staged image.
 | Setting | Default | Notes |
 | :--- | :--- | :--- |
 | `LAN_BRIDGE` | `vmbr9` | Must exist with no ports and no address and be usable by the API token (`SDN.Use` on `/sdn/zones/localnetwork/<bridge>`), because the seed's LAN serves DHCP. The node takes `192.168.77.10` on it to reach the gateway. It must also be VLAN-aware (`bridge-vlan-aware yes`) for a run with a canary VM, which the run's preflight checks; `vmbr8`, a plain bridge, serves any run without one |
-| `WAN_BRIDGE` | `vmbr1` | Untagged, or tagged with `WAN_VLAN_ID`, where a DHCP server gives it an address and a route out. The production WAN bridge is refused |
+| `WAN_BRIDGE` | `vmbr1` | The bridge of the WAN NIC, tagged with `WAN_VLAN_ID`. The production WAN bridge is refused |
+| `WAN_VLAN_ID` | 10 | The WAN NIC's tag: the production gateway's scratch zone, which leases the WAN `192.168.10.2` (reserved for VMID 501's MAC, the one a default run has, and the only address the zone passes to the node's SSH and API ports), a route out and the gateway's resolver. `none` leaves the NIC untagged, for a DHCP server on another network. A gateway rebuilt before the zone existed has no lease for tag 10. The zone denies direct DNS, so the script builds the seed with `--forward-dns`: Unbound forwards every query to the lease's nameserver, the zone's resolver, and does not recurse from the root servers |
 | `LOCAL_PORT` | 8443 | The ssh forward to the gateway's GUI port. The operator host must resolve `OPNsense.internal` to `127.0.0.1` and have no proxy variables set |
 | `WANT_VERSION` | The pinned release | |
 | `SEED_VLANS` | The seed's scratch list (11, 20, 25, 30, 35, 40, 45, 50, 55) | Comma-separated VLAN tags the seed adds on the LAN device, such as `11,20,25,30,35,40,45,50,55,60`, for a zone the seed does not carry yet. The scratch list is the production list with a placeholder, 11, where the production seed holds VLAN 10, the zone that leases a scratch gateway its WAN: the WAN's `192.168.10.0/24` is then no interface's, and every other zone stays on the interface the play names. The play names each zone's interface by its VLAN's position in that list, so a list should start with it, in its order: another start puts the play's rules on other VLANs. The play's `opnsense_gateway_zones` has no entry for an added tag, so its interface carries none of the play's rules |

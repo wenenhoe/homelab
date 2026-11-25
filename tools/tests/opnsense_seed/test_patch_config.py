@@ -262,6 +262,19 @@ class TestVlans:
         assert list(patch_config.DEFAULT_VLANS) == sorted(patch_config.DEFAULT_VLANS)
         assert seed().find("interfaces/opt1/if").text == f"vlan0.{patch_config.WAN_ZONE_VLAN}"
 
+    def test_unbound_resolves_by_recursion_unless_it_is_told_to_forward(self):
+        assert seed().find("unbound/forwarding") is None
+        assert seed(forward_dns=True).find("unbound/forwarding") is not None
+        assert seed(forward_dns=True).findtext("unbound/enable") == "1"
+
+    def test_forward_dns_reaches_the_written_seed(self, credentials_path, tmp_path_factory):
+        write_credentials(credentials_path, assignments())
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+        argv = ["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--operator-host", "192.168.77.10"]
+
+        assert patch_config.main([*argv, "--forward-dns"]) == 0
+        assert ET.parse(out).getroot().find("unbound/forwarding") is not None  # noqa: S314 - the file this test just wrote
+
     def test_the_scratch_list_differs_from_the_default_by_the_wan_zone_alone(self):
         scratch, default = patch_config.SCRATCH_VLANS, patch_config.DEFAULT_VLANS
 

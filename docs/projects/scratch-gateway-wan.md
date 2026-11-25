@@ -50,7 +50,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | The seed carries VLAN 10 as its first interface, the play writes the zone with a switch both scratch backends turn off, and the scratch seed holds a placeholder in VLAN 10's position | In progress | The tests that compare the zone list with the seed pass, `--check --diff` on a scratch gateway reports no change with the zone switched off, and the zone's flows are in the flow list |
-| 2 | The kit defaults the WAN to VLAN 10 | Not started | Every spec's `--check-spec` and preflight pass, and the docs describe the WAN |
+| 2 | The kit defaults the WAN to VLAN 10 | In progress | Every spec's `--check-spec` and preflight pass, and the docs describe the WAN |
 
 The production gateway gets its VLAN 10 interface, and every other zone's interface one further on, when it is next rebuilt from the seed. The play is applied to no gateway built before that. The rebuild and the zone's first apply to it are operational runs, not stages, and the `coding-zone` run's first pass on a node-backend scratch gateway closes the project.
 

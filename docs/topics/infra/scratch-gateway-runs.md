@@ -30,8 +30,8 @@ A spec is a YAML file under [`tofu/scratch/opnsense/runs/`](../../../tofu/scratc
 | Key | Meaning |
 | :--- | :--- |
 | `name`, `description` | The run's name, which is also its results directory, and what it shows |
-| `gateway.vlans` | Optional. The seed's VLAN list, passed to `scratch_gateway.sh` as `SEED_VLANS`; unset, the seed keeps its own list |
-| `gateway.play_vars` | Optional. The play's `-e` variables, each starting `opnsense_gateway_`. The three the backend sets (the CA file, the API port and the credentials file) are refused |
+| `gateway.vlans` | Optional. The seed's VLAN list, passed to `scratch_gateway.sh` as `SEED_VLANS`; unset, the seed takes its scratch list. A committed list starts with the scratch list |
+| `gateway.play_vars` | Optional. The play's `-e` variables, each starting `opnsense_gateway_`. The four the backend sets (the CA file, the API port, the credentials file and `opnsense_gateway_scratch_wan`, which it sets to false) are refused |
 | `canary_vm` | Optional. `zone`: the zone whose canary a scratch VM replaces (see [the canary VM](#the-canary-vm)). A `vm` step needs it and it needs a `vm` step |
 | `block_rule` | Optional. `source`, `destination`, `protocol` (`TCP` or `UDP`) and `port` of the quick block rule the block steps add and lift ([`block_rule.yaml`](../../../tofu/scratch/opnsense/boundary/block_rule.yaml)) |
 | `steps` | The steps, in order |
@@ -47,7 +47,7 @@ A step has an `id` and exactly one of these:
 | `vlans: check` | Asks the gateway's API for its interfaces and passes when it has exactly the VLAN interfaces `gateway.vlans` seeds (below); the spec must set `gateway.vlans` | None |
 | `stray: present` | Adds a firewall rule the play does not write, on the desktops zone's interface, behind the play's back ([`stray_rule.yaml`](../../../tofu/scratch/opnsense/acceptance/stray_rule.yaml)). Between `play: check` with `expect: changed` and a `play: apply` it shows the play reports and removes such a rule | None: it passes when the playbook succeeds |
 
-The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, which the seed keeps ascending, so a gateway seeded with eight VLANs has `opt1` to `opt8`. The step shows that the seed took the spec's list (eight interfaces and not seven); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
+The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, which the seed keeps ascending, so a gateway seeded with nine VLANs has `opt1` to `opt9`. The step shows that the seed took the spec's list (nine interfaces and not eight); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
 
 A failed step does not stop the run: the later steps still run, so one archive shows everything, and the gateway is removed on every path unless `--keep` is given. The terminal shows each step as it starts, the log of each command as it prints (indented, and kept in the step's file), and for each step its time; the run ends with a table of the times and their total. Most of a run is the `up` step, which builds the gateway and updates its firmware, so its log is the one to watch.
 
@@ -124,7 +124,7 @@ The backend needs only the tools, `sudo -n` and a usable `/dev/kvm`, so any host
 
 ## The DMZ probe
 
-[`dmz-probe`](../../../tofu/scratch/opnsense/runs/dmz-probe.yaml) seeds the gateway with the DMZ's VLAN 35, the fourth of the seed's VLANs and the play's `dmz` zone, and shows two things from a canary in it. The canary's own flows pass: the gateway's DNS, time and echo, its own SSH port and Internet over 443. And the zone's rules deny what they should: the services and desktops canaries are refused from it, the services canary cannot reach it, and the Proxmox node's management address (`host_proxmox_node` in the play) is refused on 22 and 8006.
+[`dmz-probe`](../../../tofu/scratch/opnsense/runs/dmz-probe.yaml) seeds the gateway with the DMZ's VLAN 35, the fifth of the seed's VLANs and the play's `dmz` zone, and shows two things from a canary in it. The canary's own flows pass: the gateway's DNS, time and echo, its own SSH port and Internet over 443. And the zone's rules deny what they should: the services and desktops canaries are refused from it, the services canary cannot reach it, and the Proxmox node's management address (`host_proxmox_node` in the play) is refused on 22 and 8006.
 
 The node's refusals count only beside their controls, which are the desktops canary reaching the same two ports (`node` in the [flow list](network-boundary-checks.md#the-flows-in-the-list)). The spec admits that canary as an operator host for it, and the run needs what the controls need:
 
@@ -141,7 +141,7 @@ The runner reaches the DMZ canary only through a row that admits the operator ho
 
 ## The coding-agent zone run
 
-[`coding-zone`](../../../tofu/scratch/opnsense/runs/coding-zone.yaml) seeds the gateway with the seed's eight VLANs, the play's `coding` zone among them (VLAN 30, no Internet, no DNS from the gateway), and replaces the zone's canary with a scratch VM (VMID 308, as [the canary VM](#the-canary-vm) says). It shows three things from that VM:
+[`coding-zone`](../../../tofu/scratch/opnsense/runs/coding-zone.yaml) seeds the gateway with the seed's nine scratch VLANs, the play's `coding` zone among them (VLAN 30, no Internet, no DNS from the gateway), and replaces the zone's canary with a scratch VM (VMID 308, as [the canary VM](#the-canary-vm) says). It shows three things from that VM:
 
 - **The tagged-VM path.** The VM answers the runner's ssh through the gateway, so its tag, the bridge, the zone's rules and its address work, and the zone's own flows pass: time and echo to its gateway, and its own SSH port.
 - **Default-deny in both directions.** No other zone's canary reaches the VM, and it reaches none of theirs, the secrets store, the Minecraft and KMS hosts, an outside address on 443 or its gateway's DNS. Each refusal counts beside its control.

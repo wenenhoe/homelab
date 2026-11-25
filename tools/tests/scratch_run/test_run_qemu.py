@@ -618,9 +618,9 @@ def test_the_lan_addresses_are_those_scratch_gateway_sh_gives_the_seed_and_the_n
 
 def test_the_seed_is_built_with_the_flags_scratch_gateway_sh_gives_it():
     line = next(line for line in read("tofu/scratch/opnsense/scratch_gateway.sh").splitlines() if "build_seed.sh" in line)
-    assert (
-        f'--lan-ip "$lan_ip" --credentials "$creds" --operator-host "$node_ip" --wan-dhcp-hostname {WAN_HOSTNAME}' in line and '--vlans "$seed_vlans"' in line
-    )
+    assert f'--lan-ip "$lan_ip" --credentials "$creds" --operator-host "$node_ip" --wan-dhcp-hostname {WAN_HOSTNAME}' in line and '"${seed_list[@]}"' in line
+    script = read("tofu/scratch/opnsense/scratch_gateway.sh")
+    assert "seed_list=(--scratch)" in script and 'seed_list=(--vlans "$seed_vlans")' in script
 
 
 def test_the_seed_disk_is_the_one_first_boot_sh_answers_the_importer_with():

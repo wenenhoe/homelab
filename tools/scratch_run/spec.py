@@ -53,8 +53,8 @@ NO_EXPECT = {
 }
 EXPECTS = {"play": ("ok", "unchanged", "changed"), "flows": ("pass", "fail")}
 DEFAULT_EXPECT = {"apply": "ok", "check": "unchanged", "flows": "pass"}
-# The backend sets these three itself, so a spec that sets them would be overridden or would override.
-BACKEND_VARS = ("opnsense_gateway_ca_file", "opnsense_gateway_api_port", "opnsense_gateway_credentials_file")
+# The backend sets these itself, so a spec that sets them would be overridden or would override.
+BACKEND_VARS = ("opnsense_gateway_ca_file", "opnsense_gateway_api_port", "opnsense_gateway_credentials_file", "opnsense_gateway_scratch_wan")
 PLAY_VAR_PREFIX = "opnsense_gateway_"
 
 

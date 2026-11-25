@@ -10,12 +10,12 @@
 # desktops canary too, since that is an operator host here, so the run leaves that canary's own way into the DMZ unasserted.
 name: dmz-probe
 description: >-
-  A scratch gateway seeded with the DMZ zone (VLAN 35) among the seed's eight VLANs: the gateway has eight VLAN interfaces, the play applies and a
+  A scratch gateway seeded with the DMZ zone (VLAN 35) among the seed's nine scratch VLANs: the gateway has nine VLAN interfaces, the play applies and a
   second run with --check reports no change, the DMZ canary's own flows pass, the services canary and the DMZ canary reach neither the other,
   the desktops canary is not reached from the DMZ, and the DMZ canary is refused the Proxmox node's SSH and API ports while the desktops canary
   reaches them.
 gateway:
-  vlans: [20, 25, 30, 35, 40, 45, 50, 55]
+  vlans: [11, 20, 25, 30, 35, 40, 45, 50, 55]
   play_vars:
     opnsense_gateway_operator_hosts: [192.168.40.250, 192.168.40.8]
     opnsense_gateway_operator_not_listed_ok: true
@@ -105,6 +105,13 @@ gateway:
         destination: host_coding_agent
         protocol: TCP
         port: "22"
+      - name: scratch gateway to the Proxmox node
+        zones: [scratch]
+        scratch_wan: true
+        source: host_scratch_gateway
+        destination: host_proxmox_node
+        protocol: TCP
+        port: proxmox_node_ports
       - name: operator hosts to the DMZ canary over SSH
         zones: [desktops, management]
         source: operator_hosts

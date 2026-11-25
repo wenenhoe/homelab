@@ -247,8 +247,7 @@ class QemuBackend(GatewaySteps):
             "--wan-dhcp-hostname",
             WAN_HOSTNAME,
         ]
-        if spec.vlans:
-            argv += ["--vlans", ",".join(str(vlan) for vlan in spec.vlans)]
+        argv += ["--vlans", ",".join(str(vlan) for vlan in spec.vlans)] if spec.vlans else ["--scratch"]
         status, output = self.run(argv, timeout=600)
         (self.out / "build-seed.txt").write_text(output)
         self._mask()

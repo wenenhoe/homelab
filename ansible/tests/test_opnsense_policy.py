@@ -222,7 +222,16 @@ def test_a_flow_that_rests_on_an_unconfirmed_decision_is_written_but_not_in_forc
 def test_kea_serves_the_zones_whose_clients_tofu_does_not_place(defaults):
     dhcp = {zone["name"]: zone["dhcp"] for zone in defaults["opnsense_gateway_zones"]}
 
-    assert dhcp == {"services": False, "management": False, "desktops": True, "isolated": True, "experimental": True, "dmz": False, "coding": False}
+    assert dhcp == {
+        "services": False,
+        "management": False,
+        "desktops": True,
+        "isolated": True,
+        "experimental": True,
+        "dmz": False,
+        "coding": False,
+        "scratch": True,
+    }
 
 
 def test_each_kea_scope_offers_the_zones_gateway_as_router_and_as_resolver_where_the_zone_may_use_it(defaults):
@@ -353,19 +362,19 @@ def _expression(env, source, scope):
     return env.compile_expression(source.removeprefix("{{").removesuffix("}}").strip())(**scope)
 
 
-def _scope(defaults: dict, *, cd_agent: bool) -> dict:
+def _scope(defaults: dict, *, cd_agent: bool, scratch_wan: bool = True) -> dict:
     """The role's defaults with the facts its tasks set, which the rule tasks and the removal read."""
-    scope = {**defaults, "opnsense_gateway_cd_agent_management": cd_agent}
+    scope = {**defaults, "opnsense_gateway_cd_agent_management": cd_agent, "opnsense_gateway_scratch_wan": scratch_wan}
     for task in _policy_tasks():
         for name, source in task.get("ansible.builtin.set_fact", {}).items():
             scope[name] = _expression(_rule_env(), source, scope)
     return scope
 
 
-def _written_descriptions(defaults: dict, *, cd_agent: bool) -> list[str]:
+def _written_descriptions(defaults: dict, *, cd_agent: bool, scratch_wan: bool = True) -> list[str]:
     """What the rule tasks write, by rendering each task's description over its own loop."""
     env = _rule_env()
-    scope = _scope(defaults, cd_agent=cd_agent)
+    scope = _scope(defaults, cd_agent=cd_agent, scratch_wan=scratch_wan)
     written = []
     for task in _policy_tasks():
         if "oxlorg.opnsense.rule" not in task or task["oxlorg.opnsense.rule"].get("state") == "absent":
@@ -381,17 +390,20 @@ def _written_descriptions(defaults: dict, *, cd_agent: bool) -> list[str]:
     return written
 
 
-def _wanted(defaults: dict, *, cd_agent: bool) -> list[str]:
+def _wanted(defaults: dict, *, cd_agent: bool, scratch_wan: bool = True) -> list[str]:
     import json
 
     removal = _policy_tasks()[-1]
-    scope = _scope(defaults, cd_agent=cd_agent)
+    scope = _scope(defaults, cd_agent=cd_agent, scratch_wan=scratch_wan)
     return json.loads(_rule_env().from_string(removal["vars"]["opnsense_gateway_wanted_rules"]).render(**scope))
 
 
+@pytest.mark.parametrize("scratch_wan", [False, True])
 @pytest.mark.parametrize("cd_agent", [False, True])
-def test_the_rules_the_removal_keeps_are_exactly_the_rules_the_tasks_write(defaults, cd_agent):
-    assert sorted(_wanted(defaults, cd_agent=cd_agent)) == sorted(_written_descriptions(defaults, cd_agent=cd_agent))
+def test_the_rules_the_removal_keeps_are_exactly_the_rules_the_tasks_write(defaults, cd_agent, scratch_wan):
+    assert sorted(_wanted(defaults, cd_agent=cd_agent, scratch_wan=scratch_wan)) == sorted(
+        _written_descriptions(defaults, cd_agent=cd_agent, scratch_wan=scratch_wan)
+    )
 
 
 def test_every_rule_the_play_writes_has_a_distinct_description_because_the_play_matches_by_it(defaults):
@@ -496,7 +508,7 @@ def _flow(defaults: dict, name: str) -> dict:
 def test_the_coding_zone_is_vlan_30_with_no_internet_no_dhcp_and_no_dns_from_the_gateway(defaults):
     zone = next(zone for zone in defaults["opnsense_gateway_zones"] if zone["name"] == "coding")
 
-    assert (zone["vlan"], zone["interface"]) == (30, "opt3")
+    assert (zone["vlan"], zone["interface"]) == (30, "opt4")
     assert (zone["internet"], zone["dhcp"], zone["gateway_dns"]) == (False, False, False)
 
 
@@ -547,8 +559,76 @@ def test_no_flow_reaches_into_the_coding_zone_but_the_two_that_name_its_host(def
     assert _flow(defaults, into[0])["source"] == "operator_hosts"
 
 
-def test_the_flows_the_coding_zone_adds_come_last_so_no_rule_already_on_the_gateway_changes_its_sequence(defaults):
-    assert [flow["name"] for flow in defaults["opnsense_gateway_flows"]][-2:] == [
+def test_the_flows_the_coding_zone_adds_come_before_the_scratch_zones_so_no_rule_already_on_the_gateway_changes_its_sequence(defaults):
+    assert [flow["name"] for flow in defaults["opnsense_gateway_flows"]][-3:-1] == [
         "operator hosts to the coding-agent host over SSH",
         "tailscale router to the coding-agent host over SSH",
     ]
+
+
+# The zone that serves a scratch gateway its WAN (ADR 0120).
+
+
+def test_the_scratch_zone_is_vlan_10_on_the_seeds_first_interface_with_internet_and_a_scope(defaults):
+    zone = next(zone for zone in defaults["opnsense_gateway_zones"] if zone["name"] == "scratch")
+
+    assert (zone["vlan"], zone["interface"]) == (patch_config.WAN_ZONE_VLAN, "opt1")
+    assert (zone["internet"], zone["dhcp"], zone["gateway_dns"]) == (True, True, True)
+    assert zone["scratch_wan"] is True
+
+
+def test_only_the_scratch_zone_and_its_flow_are_marked_as_switchable(defaults):
+    assert [zone["name"] for zone in defaults["opnsense_gateway_zones"] if "scratch_wan" in zone] == ["scratch"]
+    assert [flow["name"] for flow in defaults["opnsense_gateway_flows"] if "scratch_wan" in flow] == ["scratch gateway to the Proxmox node"]
+    assert defaults["opnsense_gateway_scratch_wan"] is True
+
+
+def test_the_scratch_gateways_address_is_reserved_in_its_zone_below_the_pool_and_has_the_mac_of_vmid_501s_wan_nic(defaults):
+    gateway = defaults["opnsense_gateway_scratch_gateway"]
+    last = int(gateway["address"].split(".")[-1])
+
+    assert gateway["zone"] == "scratch"
+    assert ipaddress.ip_address(gateway["address"]) in ipaddress.ip_network("192.168.10.0/24")
+    assert 2 <= last < defaults["opnsense_gateway_dhcp_pool"]["first"]
+    assert defaults["opnsense_gateway_hosts"]["host_scratch_gateway"] == gateway["address"]
+    vmid = 501
+    assert gateway["mac"] == f"bc:24:11:{vmid // 256:02x}:{vmid % 256:02x}:00"
+
+
+def test_the_only_flow_from_the_scratch_zone_is_its_gateway_to_the_nodes_ssh_and_api_ports(defaults):
+    flows = [flow for flow in defaults["opnsense_gateway_flows"] if "scratch" in flow["zones"]]
+
+    assert len(flows) == 1
+    assert (flows[0]["zones"], flows[0]["source"], flows[0]["destination"], flows[0]["port"]) == (
+        ["scratch"],
+        "host_scratch_gateway",
+        "host_proxmox_node",
+        "proxmox_node_ports",
+    )
+    assert not [flow for flow in defaults["opnsense_gateway_flows"] if flow["destination"] == "net_scratch"]
+
+
+def test_the_scratch_zone_and_everything_written_for_it_go_when_the_switch_is_off(defaults):
+    on, off = _scope(defaults, cd_agent=False), _scope(defaults, cd_agent=False, scratch_wan=False)
+
+    assert [zone["name"] for zone in on["opnsense_gateway_live_zones"]][-1] == "scratch"
+    assert "scratch" not in [zone["name"] for zone in off["opnsense_gateway_live_zones"]]
+    assert [zone["name"] for zone in off["opnsense_gateway_live_zones"]] == [
+        zone["name"] for zone in defaults["opnsense_gateway_zones"] if "scratch_wan" not in zone
+    ]
+    assert off["opnsense_gateway_live_flows"] == [flow for flow in defaults["opnsense_gateway_flows"] if "scratch_wan" not in flow]
+    assert {"scratch gateway to the Proxmox node", "scratch: Internet"} <= set(_wanted(defaults, cd_agent=False))
+    assert not [name for name in _wanted(defaults, cd_agent=False, scratch_wan=False) if "scratch" in name]
+
+
+def test_the_scratch_gateways_reservation_is_kept_only_while_the_zone_is_written():
+    tasks = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/dhcp.yaml").read_text())
+    gather = next(task for task in tasks if "ansible.builtin.set_fact" in task)
+    expression = gather["ansible.builtin.set_fact"]["opnsense_gateway_reservations"]
+    defaults = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/defaults/main.yaml").read_text())
+    mine = [{"name": "operator", "zone": "desktops", "address": "192.168.40.250", "mac": "bc:24:11:00:01:91"}]
+
+    for switch in (True, False):
+        scope = {**defaults, "opnsense_gateway_dhcp_reservations": mine, "opnsense_gateway_scratch_wan": switch}
+        kept = _expression(_rule_env(), expression, scope)
+        assert kept == mine + ([defaults["opnsense_gateway_scratch_gateway"]] if switch else [])

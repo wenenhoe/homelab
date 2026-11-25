@@ -195,6 +195,8 @@ class GatewaySteps:
             "opnsense_gateway_ca_file": str(self.cert),
             "opnsense_gateway_api_port": int(self.local_port),
             "opnsense_gateway_credentials_file": str(self.creds),
+            # The scratch seed holds a placeholder where the zone's interface is.
+            "opnsense_gateway_scratch_wan": False,
         }
         return ["-e", json.dumps(values | dict(extra))]
 

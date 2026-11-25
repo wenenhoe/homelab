@@ -210,13 +210,14 @@ class TestVlans:
     def test_gives_each_device_an_interface_whose_address_is_dot_one_of_its_subnet(self):
         interfaces = seed().find("interfaces")
 
-        assert [(i.findtext("if"), i.findtext("ipaddr"), i.findtext("subnet")) for i in (interfaces.find(f"opt{n}") for n in range(1, 9))] == [
-            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (20, 25, 30, 35, 40, 45, 50, 55)
+        assert [(i.findtext("if"), i.findtext("ipaddr"), i.findtext("subnet")) for i in (interfaces.find(f"opt{n}") for n in range(1, 10))] == [
+            (f"vlan0.{tag}", f"192.168.{tag}.1", "24") for tag in (10, 20, 25, 30, 35, 40, 45, 50, 55)
         ]
-        assert interfaces.find("opt9") is None
+        assert interfaces.find("opt10") is None
 
     def test_describes_each_zone_by_its_vmid_range(self):
         assert [v.findtext("descr") for v in seed().findall("vlans/vlan")] == [
+            "VM ID 100-149",
             "VM ID 200-249",
             "VM ID 250-299",
             "VM ID 300-349",
@@ -255,6 +256,26 @@ class TestVlans:
     def test_refuses_a_lan_network_that_overlaps_a_zone(self):
         with pytest.raises(SystemExit, match="overlaps VLAN 20"):
             seed(lan_ip="192.168.20.254")
+
+    def test_the_wan_zone_is_the_first_interface_and_the_list_is_ascending(self):
+        assert patch_config.DEFAULT_VLANS[0] == patch_config.WAN_ZONE_VLAN
+        assert list(patch_config.DEFAULT_VLANS) == sorted(patch_config.DEFAULT_VLANS)
+        assert seed().find("interfaces/opt1/if").text == f"vlan0.{patch_config.WAN_ZONE_VLAN}"
+
+    def test_the_scratch_list_differs_from_the_default_by_the_wan_zone_alone(self):
+        scratch, default = patch_config.SCRATCH_VLANS, patch_config.DEFAULT_VLANS
+
+        assert patch_config.WAN_ZONE_VLAN not in scratch
+        assert [(a, b) for a, b in zip(scratch, default, strict=True) if a != b] == [(patch_config.SCRATCH_PLACEHOLDER_VLAN, patch_config.WAN_ZONE_VLAN)]
+        assert patch_config.SCRATCH_PLACEHOLDER_VLAN % 5 != 0  # a scheme VLAN is a multiple of 5, so no VM block sits in it
+
+    def test_the_scratch_list_keeps_every_other_zone_on_its_interface(self):
+        scratch = seed(vlans=patch_config.SCRATCH_VLANS)
+        default = seed()
+
+        for number in range(2, len(patch_config.DEFAULT_VLANS) + 1):
+            assert scratch.findtext(f"interfaces/opt{number}/ipaddr") == default.findtext(f"interfaces/opt{number}/ipaddr")
+        assert scratch.findtext("interfaces/opt1/ipaddr") != default.findtext("interfaces/opt1/ipaddr")
 
     def test_the_lan_on_the_scratch_gateway_does_not_collide_with_a_zone(self):
         assert seed(lan_ip="192.168.77.1").find("vlans/vlan") is not None
@@ -371,6 +392,43 @@ class TestMain:
 
         written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
         assert [v.findtext("tag") for v in written.findall("vlans/vlan")] == ["20", "30"]
+
+    def test_scratch_takes_the_scratch_list(self, credentials_path, tmp_path_factory):
+        write_credentials(credentials_path, assignments())
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+
+        assert (
+            patch_config.main(
+                ["--out", str(out), "--credentials", str(credentials_path), "--lan-ip", "192.168.77.1", "--operator-host", "192.168.77.10", "--scratch"]
+            )
+            == 0
+        )
+
+        written = ET.parse(out).getroot()  # noqa: S314 - the file this test just wrote
+        assert [v.findtext("tag") for v in written.findall("vlans/vlan")] == [str(tag) for tag in patch_config.SCRATCH_VLANS]
+
+    def test_scratch_and_a_vlan_list_together_are_refused(self, credentials_path, tmp_path_factory, capsys):
+        out = tmp_path_factory.mktemp("out") / "config.xml"
+
+        with pytest.raises(SystemExit) as stopped:
+            patch_config.main(
+                [
+                    "--out",
+                    str(out),
+                    "--credentials",
+                    str(credentials_path),
+                    "--lan-ip",
+                    "192.168.77.1",
+                    "--operator-host",
+                    "192.168.77.10",
+                    "--scratch",
+                    "--vlans",
+                    "20",
+                ]
+            )
+
+        assert stopped.value.code == 2
+        assert "not allowed with" in capsys.readouterr().err
 
     def test_a_vlan_list_that_is_not_numbers_is_refused(self, credentials_path, tmp_path_factory, capsys):
         out = tmp_path_factory.mktemp("out") / "config.xml"

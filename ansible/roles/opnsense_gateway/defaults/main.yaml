@@ -27,19 +27,27 @@ opnsense_gateway_credentials_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/
 # has a Kea scope, which is only for zones whose clients Tofu does not place
 # (ADR 0089). A zone with gateway_dns: false may not ask the gateway for DNS:
 # the gateway's Unbound forwards the internal zones, so an answer from it would
-# show them. A zone's name is one lowercase word, the form the flow list's
+# show them. A zone with scratch_wan: true is written only while
+# opnsense_gateway_scratch_wan is true, and its flows (marked the same way) with it.
+# A zone's name is one lowercase word, the form the flow list's
 # zones take, and the two lists must agree
 # (tools/tests/network_checks/test_committed_flows.py).
 # ansible/tests/test_opnsense_policy.py fails when a zone's VLAN or interface
 # differs from the seed's.
 opnsense_gateway_zones:
-  - { name: services, vlan: 20, interface: opt1, internet: true, dhcp: false, gateway_dns: true }
-  - { name: management, vlan: 25, interface: opt2, internet: true, dhcp: false, gateway_dns: true }
-  - { name: desktops, vlan: 40, interface: opt5, internet: true, dhcp: true, gateway_dns: true }
-  - { name: isolated, vlan: 50, interface: opt7, internet: false, dhcp: true, gateway_dns: true }
-  - { name: experimental, vlan: 55, interface: opt8, internet: true, dhcp: true, gateway_dns: true }
-  - { name: dmz, vlan: 35, interface: opt4, internet: true, dhcp: false, gateway_dns: true }
-  - { name: coding, vlan: 30, interface: opt3, internet: false, dhcp: false, gateway_dns: false }
+  - { name: services, vlan: 20, interface: opt2, internet: true, dhcp: false, gateway_dns: true }
+  - { name: management, vlan: 25, interface: opt3, internet: true, dhcp: false, gateway_dns: true }
+  - { name: desktops, vlan: 40, interface: opt6, internet: true, dhcp: true, gateway_dns: true }
+  - { name: isolated, vlan: 50, interface: opt8, internet: false, dhcp: true, gateway_dns: true }
+  - { name: experimental, vlan: 55, interface: opt9, internet: true, dhcp: true, gateway_dns: true }
+  - { name: dmz, vlan: 35, interface: opt5, internet: true, dhcp: false, gateway_dns: true }
+  - { name: coding, vlan: 30, interface: opt4, internet: false, dhcp: false, gateway_dns: false }
+  - { name: scratch, vlan: 10, interface: opt1, internet: true, dhcp: true, gateway_dns: true, scratch_wan: true }
+
+# Whether the play writes the zone that serves a scratch gateway its WAN (ADR 0120). A scratch
+# gateway's seed holds a placeholder where the zone's interface is, so the scratch runs set this
+# to false and the play leaves that interface alone; a run cannot set it itself.
+opnsense_gateway_scratch_wan: true
 
 # opnsense_gateway_operator_hosts has no default: it is the list of addresses
 # the operator's work runs from, which the guard rule admits to the gateway's
@@ -77,6 +85,7 @@ opnsense_gateway_hosts:
   host_operator_252: 192.168.25.2
   host_coding_agent: 192.168.30.2
   host_proxmox_node: 10.0.0.254
+  host_scratch_gateway: 192.168.10.2
 
 # Flows between zones, each a pass rule on the source zone's interfaces. A flow
 # marked enabled: false is written but not in force, until the document it
@@ -165,6 +174,19 @@ opnsense_gateway_flows:
     destination: host_coding_agent
     protocol: TCP
     port: "22"
+  - name: scratch gateway to the Proxmox node
+    zones: [scratch]
+    scratch_wan: true
+    source: host_scratch_gateway
+    destination: host_proxmox_node
+    protocol: TCP
+    port: proxmox_node_ports
+
+# The scratch gateway's WAN as the node backend builds it: VMID 501's first NIC, whose MAC is
+# BC:24:11:{the VMID as four hex digits}:00 (docs/topics/infra/vm-provisioning.md#mac-address-scheme).
+# Kea reserves its address, which sits below the pool, and host_scratch_gateway repeats it for the
+# flow above. ansible/tests/test_opnsense_policy.py fails when the two differ.
+opnsense_gateway_scratch_gateway: { name: scratch-gateway, zone: scratch, address: 192.168.10.2, mac: "bc:24:11:01:f5:00" }
 
 # What the Internet rules keep out: the private ranges, which hold the zones,
 # the Proxmox node and the rest of the WAN's own network.

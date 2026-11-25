@@ -196,6 +196,29 @@ def test_a_flag_prints_the_usage_and_queries_nothing(capsys):
     assert "usage:" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    ("source", "printed"),
+    [
+        pytest.param("192.168.20.9", "", id="on-the-servers-network"),
+        pytest.param("192.168.40.250", "192.168.40.250\n", id="outside-it"),
+    ],
+)
+def test_source_outside_prints_the_address_only_when_it_is_off_the_servers_network(tmp_path, monkeypatch, capsys, source, printed):
+    group_vars = tmp_path / "all.yaml"
+    group_vars.write_text(yaml.safe_dump({"dns_primary_address": PRIMARY, "dns_secondary_address": SECONDARY}))
+    monkeypatch.setattr(dns, "GROUP_VARS", group_vars)
+    toward = create_autospec(dns.source_toward, return_value=source)
+    monkeypatch.setattr(dns, "source_toward", toward)
+
+    assert dns.main(["--source-outside"]) == 0
+    assert capsys.readouterr().out == printed
+    toward.assert_called_once_with(PRIMARY)
+
+
+def test_the_source_toward_a_server_is_the_address_the_machine_would_send_from():
+    assert dns.source_toward("127.0.0.53") == "127.0.0.1"
+
+
 def test_dig_asks_the_named_server_for_the_short_answer(monkeypatch):
     run = create_autospec(subprocess.run, return_value=subprocess.CompletedProcess([], 0, stdout="192.168.20.6\n"))
     monkeypatch.setattr(dns.subprocess, "run", run)

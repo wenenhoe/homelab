@@ -62,6 +62,10 @@ case "$*" in
     [ -z "${VOLUME_MISSING-}" ] || exit 1
     printf '%s\n' "$VOLUME"
     ;;
+  *"rebuild_check.dns --source-outside"*)
+    [ "${SOURCE_STATUS-0}" = 0 ] || { printf 'OSError: Network is unreachable\n' >&2; exit 1; }
+    [ -z "${OUTSIDE-}" ] || printf '%s\n' "$OUTSIDE"
+    ;;
   *"rebuild_check.dns"*)
     printf 'FAIL  zones_have_one_serial  the secondary is behind\n\n1/2 checks passed\n'
     exit "${DNS_STATUS-0}"
@@ -177,6 +181,23 @@ tofu -chdir=[^ ]+/tofu show -json [^ ]+/plan$"
   DNS_STATUS=1 run -1 "$SCRIPT" before
 
   assert_line --partial "FAIL  dns: FAIL  zones_have_one_serial  the secondary is behind"
+}
+
+@test "before: a host outside the servers' zone asks no server, says where to run the check and still passes" {
+  OUTSIDE=192.168.40.250 DNS_STATUS=1 run -0 "$SCRIPT" before
+
+  assert_line "note  dns: not checked, since this host asks from 192.168.40.250, outside the services zone; on a services host run: cd tools && python3 -m rebuild_check.dns"
+  assert_line "all checks passed"
+  run calls_to python3
+  refute_line "python3 -m rebuild_check.dns"
+}
+
+@test "before: a host whose source address cannot be told fails the dns check and asks no server" {
+  SOURCE_STATUS=1 run -1 "$SCRIPT" before
+
+  assert_line "FAIL  dns: could not tell which network this host asks from: OSError: Network is unreachable"
+  run calls_to python3
+  refute_line "python3 -m rebuild_check.dns"
 }
 
 @test "before: a grant that is already held is a note to revoke it, not a failure" {

@@ -78,6 +78,12 @@ mtools and `xmllint`. It starts from OPNsense's own sample `config.xml`
 | GUI login | A one-time password in front of it: a `TOTP` authentication server which the GUI uses, and a seed on root |
 | API user | One, holding only the privileges that cover the play's calls, the scratch update and the diagnostics (system information, firmware, aliases, filter rules, Kea DHCPv4, dnsmasq and Unbound), not `page-all` |
 
+A scratch gateway's seed can take two more of the builder's options. `--scratch` adds the scratch
+VLAN list instead of `--vlans`: the default list with the placeholder 11 where it has 10.
+`--forward-dns` makes Unbound forward to the nameserver the WAN's lease gives instead of
+resolving by recursion. Why a scratch gateway needs each is in
+[Scratch OPNsense gateway](opnsense-scratch-gateway.md#building-it).
+
 The operator-host rule is how the play's first apply reaches the gateway, before the play has written its guard rule, which names only the zone interfaces. It is a legacy rule, so the API neither lists nor removes it: remove it in the GUI's LAN rules once no host needs the untagged LAN to reach the gateway, at the latest when VM 401 is retired.
 
 OPNsense has no option left to keep console logins off the one-time-password rule,
@@ -226,8 +232,9 @@ as its VLAN; change them to yours.
    tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh ~/opnsense-seed --lan-ip LAN_ADDRESS --operator-host HOST_ADDRESS
    ```
 
-   The preflight's `dns` check fails from any zone but `services`, since the play denies direct DNS
-   to a zone with Internet. Run `python -m rebuild_check.dns` from a `services` host instead.
+   From any zone but `services` the preflight notes its `dns` check and does not run it, since the
+   play denies direct DNS to a zone with Internet. Run `python -m rebuild_check.dns` from a
+   `services` host as the note says.
    `--lan-ip` is the gateway's address on the untagged LAN, a network of its own: the script refuses
    one that overlaps a VLAN's `192.168.<tag>.0/24`. Read the old LAN address and the operator host's
    from the old gateway (GUI, Interfaces, LAN) before it stops.

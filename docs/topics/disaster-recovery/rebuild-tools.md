@@ -97,7 +97,7 @@ after it is dumped and destroyed and before the apply.
 | `snapshots` | `qm listsnapshot` answers for VM 201 | |
 | `dump` | The dump storage is mounted and holds no dump of VM 201, so `retire_vm.sh dump` will not refuse | The storage holds one non-empty dump of VM 201, the rollback |
 | `grant` | A note whether the Tofu user holds `Sys.Modify` on `/` | Fails unless it holds it, since the create's startup order is refused without it |
-| `dns` | [`rebuild_check.dns`](#rebuild_checkdns) passes | |
+| `dns` | [`rebuild_check.dns`](#rebuild_checkdns) passes. On a host outside the DNS servers' zone it is a note with the command to run from `services`, and no check | |
 
 `NODE` is the node's SSH target; a node that takes a password needs `SSH_CONTROL_PATH`, and the script
 says so once, with `ssh`'s own error, and skips the checks that read the node. The plan needs the
@@ -201,6 +201,11 @@ other looks fine.
 | :--- | :--- |
 | `zones_have_one_serial` | The host zone or the lan zone has a different SOA serial on the two servers, or a server does not answer or holds no such zone. A pass prints each zone's serial, so a run before a rebuild and one after can be compared |
 | `resolves_alike: <name>` | The two servers give different addresses for a host's name; for a host Tofu built, both give another address than the generated inventory's |
+
+The gateway denies direct DNS from other zones, so it passes only on a host in the servers' own
+zone, `services`. `--source-outside` runs no check and prints the address the machine would ask
+from when that is outside the zone, which is how
+[`gateway_preflight.sh`](#gateway_preflightsh) decides to skip it.
 
 With no host named it covers every host in `managed_hosts` and `network_infra`, and
 `s3.store` in the lan zone, which has no expected address and is checked for

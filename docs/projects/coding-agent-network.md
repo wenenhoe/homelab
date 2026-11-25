@@ -59,7 +59,6 @@ The play carries the zone, its [`operator-vlan30-ssh`](../topics/infra/tofu/opns
 ## Where things sit
 
 - **Merged for Stage 1:** the zone in the gateway's play (VLAN 30 as `opt3` on the gateway as it was then built and `opt4` from the current seed, no Internet, no DHCP, and the gateway's DNS withheld from it through the zone's `gateway_dns: false`), the two SSH flows into the host's address, the zone's flows in the flow list, and the `coding-zone` run spec with its tests. The play has been applied to the production gateway with the zone in it and a second `--check --diff` reported no change. The tailnet route has not been added and no flow has been run from the zone's canary.
-- **Not yet shown:** the `coding-zone` run has not passed. A scratch gateway on the node backend cannot get a WAN, so the run stops before the play is applied, and so does any other run that builds a gateway there. What serves that WAN is [`scratch-gateway-wan.md`](scratch-gateway-wan.md), and the cause is not this project's changes. Stage 1 stays `In progress` until the run passes. Two results to look at on its first pass beyond the `up` step are whether the `desktops-coding-gateway-dns` flow passes and whether the canary VM comes up on VLAN 30.
 - **Whether the host uses the zone:** where the host runs, on the node in this VLAN or on a cloud instance, is an open exploration. If it leaves the node, the zone has no host to protect and Stage 2 (applying the zone and the tailnet route) is not worth doing for it. The zone and its flows then stay in the play and the flow list as a restrictive zone the node can place a VM in later, and this project closes at Stage 1 with the closing checklist deciding what is kept.
 - **Stage 2** therefore waits on the host-placement question, and starts only if the host stays on the node.
 
@@ -81,7 +80,6 @@ VM 202 advertises the VLAN's route, and the tailnet policy grants it to the lapt
 
 ## Open items
 
-- What serves a scratch gateway's WAN on the node backend, [`scratch-gateway-wan.md`](scratch-gateway-wan.md), which blocks the exit run of Stage 1.
 - Whether the host runs on the node or on a cloud instance, an open exploration, which decides whether Stage 2 is built.
 
 ## Closing checklist

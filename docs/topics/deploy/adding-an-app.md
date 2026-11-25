@@ -189,7 +189,7 @@ know their routed hostname.
 ## 4. Deploy
 
 ```sh
-ansible-playbook deploy.yaml --limit <host>
+ansible-playbook playbooks/deploy.yaml --limit <host>,localhost
 ```
 
 The app is picked up by Play 4 (`compose_app` role), which provisions its directories/config and starts the stack, after Caddy and BIND9 are already routing/resolving for it.

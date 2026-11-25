@@ -38,7 +38,7 @@ instead of a human-exported root token).
 until `host_vars/security.yaml`'s hand-written `extra_records` CNAME
 for it is deployed — bind9 doesn't auto-generate one, since OpenBao
 deliberately has no `caddy:` route (`deployment.md`). Run
-`ansible-playbook deploy.yaml --tags infra` (re-renders/reloads DNS
+`ansible-playbook playbooks/deploy.yaml --tags infra` (re-renders/reloads DNS
 zone data only, no images touched) before testing a login from any
 host other than `security` itself — the runbook below works without it
 since it never leaves the `openbao` container's own network namespace.

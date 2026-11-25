@@ -38,7 +38,7 @@ it has any staged content — restoring exactly what Ansible manages and
 nothing else:
 
 ```sh
-ansible-playbook volume-reset.yaml --limit services,localhost \
+ansible-playbook playbooks/volume-reset.yaml --limit services,localhost \
   -e volume_reset_app=dashy -e volume_reset_volume=data \
   -e volume_reset_confirm=true
 ```
@@ -80,7 +80,7 @@ to a leftover `-wal` file can pick up stale data on next start. List all
 three explicitly in `volume_rm_paths`:
 
 ```sh
-ansible-playbook volume-file-rm.yaml --limit services,localhost \
+ansible-playbook playbooks/volume-file-rm.yaml --limit services,localhost \
   -e volume_rm_app=myapp -e volume_rm_volume=data \
   -e '{"volume_rm_paths": ["app.db", "app.db-wal", "app.db-shm"]}' \
   -e volume_rm_confirm=true
@@ -93,7 +93,7 @@ database file open while it's deleted out from under it.
 ## Preview before deleting
 
 ```sh
-ansible-playbook volume-file-rm.yaml --limit services,localhost \
+ansible-playbook playbooks/volume-file-rm.yaml --limit services,localhost \
   -e volume_rm_app=myapp -e volume_rm_volume=data \
   -e '{"volume_rm_paths": ["app.db"]}' \
   -e volume_rm_confirm=true --check

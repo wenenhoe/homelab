@@ -112,7 +112,7 @@ To reissue on purpose, remove the cert file and re-run the deploy; the
 failure message prints this command filled in for the app and host:
 
 ```sh
-ansible-playbook volume-file-rm.yaml --limit <host>,localhost \
+ansible-playbook playbooks/volume-file-rm.yaml --limit <host>,localhost \
   -e volume_rm_app=<app> -e volume_rm_volume=certs \
   -e '{"volume_rm_paths": ["fullchain.pem"]}' \
   -e volume_rm_confirm=true -e volume_rm_stop_app=false

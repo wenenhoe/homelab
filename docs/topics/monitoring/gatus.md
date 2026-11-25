@@ -212,7 +212,7 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 ## One-time setup
 
 1. Store `gatus-dashboard-password-bcrypt-base64` as above. `python3 -m openbao_utils.bootstrap` writes it to OpenBao directly, so it needs no deploy first; the deploy's secrets play fails without it.
-2. `ansible-playbook deploy.yaml --limit security,localhost`. The secrets play runs on `localhost`, so a limit of `security` alone skips it and the config has no tokens to render.
+2. `ansible-playbook playbooks/deploy.yaml --limit security,localhost`. The secrets play runs on `localhost`, so a limit of `security` alone skips it and the config has no tokens to render.
 3. Visit `{{ gatus_url }}` and log in as `admin`.
 
 ## Checking the endpoints

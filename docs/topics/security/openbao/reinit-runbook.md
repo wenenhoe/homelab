@@ -97,7 +97,7 @@ can't fix.
    own. Clean up the test policy with the root token, back on
    `security`: `bao policy delete _stage-test-policy`.
 5. `cd tools && python3 -m openbao_utils.restore <backup-dir>` -
-   **before** any `ansible-playbook deploy.yaml` run against the fresh
+   **before** any `ansible-playbook playbooks/deploy.yaml` run against the fresh
    Vault. Skipping this means the next `deploy.yaml` silently mints new
    random values for every `hex`/`uuid4` secret in the catalog
    (ADR 0025's Context explains why). Restores two things in one pass:

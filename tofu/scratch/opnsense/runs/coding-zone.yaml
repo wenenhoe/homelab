@@ -5,11 +5,11 @@
 # the first run in which a VM tagged 30 reaches the gateway. It also shows the zone's isolation both ways, that the gateway answers it no DNS,
 # and, beside a control, that it is refused the Proxmox node's management address on SSH and the API port.
 #
-# The play's flows hold no row from an operator host to the zone's canary (the host is the play's `host_coding_agent`, not the canary), so the
-# runner could not reach it. `opnsense_gateway_flows` here is the play's list with one row added at the end, which admits the operator hosts to
-# the zone over SSH, and test_opnsense_coding_zone_run.py fails when it differs from the defaults in anything else. The row exists only in
-# this scratch run. It admits the desktops canary too, since that is an operator host here (the node controls need it), so the run leaves the
-# desktops canary's own way into the zone unasserted.
+# The play's flows hold no row from an operator host to the zone's canary (the host is the play's `host_coding_agent`, not the canary), nor to the
+# canaries of the management, isolated, experimental and DMZ zones, so the runner could not reach them. `opnsense_gateway_flows` here is the
+# play's list with five rows added at the end, which admit the operator hosts to those zones over SSH, and test_opnsense_coding_zone_run.py fails
+# when it differs from the defaults in anything else. The rows exist only in this scratch run. They admit the desktops canary too, since that is
+# an operator host here (the node controls need it), so the run leaves the desktops canary's own way into the zones unasserted.
 #
 # Needs the node backend (a QEMU gateway has no VM canary and no route to the node), a VLAN-aware bridge, the Ubuntu template and a WAN that
 # reaches the node, as `canary-vm` and `dmz-probe` do between them.
@@ -123,6 +123,30 @@ gateway:
         zones: [desktops, management]
         source: operator_hosts
         destination: net_coding
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to the management canary over SSH
+        zones: [desktops]
+        source: operator_hosts
+        destination: net_management
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to the isolated canary over SSH
+        zones: [desktops]
+        source: operator_hosts
+        destination: net_isolated
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to the experimental canary over SSH
+        zones: [desktops]
+        source: operator_hosts
+        destination: net_experimental
+        protocol: TCP
+        port: "22"
+      - name: operator hosts to the dmz canary over SSH
+        zones: [desktops]
+        source: operator_hosts
+        destination: net_dmz
         protocol: TCP
         port: "22"
 steps:

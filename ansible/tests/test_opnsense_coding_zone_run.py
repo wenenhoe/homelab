@@ -19,6 +19,22 @@ ADDED_ROW = {
     "protocol": "TCP",
     "port": "22",
 }
+# The runner reaches each other zone's canary through one more row, since the play admits it to none of them.
+CANARY_ZONES = ("management", "isolated", "experimental", "dmz")
+ADDED_ROWS = [
+    ADDED_ROW,
+    *(
+        {
+            "name": f"operator hosts to the {zone} canary over SSH",
+            "zones": ["desktops"],
+            "source": "operator_hosts",
+            "destination": f"net_{zone}",
+            "protocol": "TCP",
+            "port": "22",
+        }
+        for zone in CANARY_ZONES
+    ),
+]
 
 
 @pytest.fixture(scope="module")
@@ -44,12 +60,22 @@ def step(spec: dict, step_id: str) -> dict:
     return next(item for item in spec["steps"] if item["id"] == step_id)
 
 
-def test_the_flows_are_the_plays_own_with_one_row_that_admits_the_operator_hosts_to_the_zone(spec, defaults):
+def test_the_flows_are_the_plays_own_with_the_rows_that_admit_the_operator_hosts_to_the_canaries(spec, defaults):
     flows = spec["gateway"]["play_vars"]["opnsense_gateway_flows"]
+    plays = defaults["opnsense_gateway_flows"]
 
-    assert flows[:-1] == defaults["opnsense_gateway_flows"]
-    assert flows[-1] == ADDED_ROW
-    assert "scratch_wan" in flows[-2]  # the play's last flow is the scratch zone's, which a scratch run switches off
+    assert flows[: len(plays)] == plays
+    assert flows[len(plays) :] == ADDED_ROWS
+    assert "scratch_wan" in plays[-1]  # the play's last flow is the scratch zone's, which a scratch run switches off
+
+
+def test_each_zone_the_isolation_step_names_has_a_row_that_admits_the_runner_to_its_canary(spec):
+    ids = step(spec, "coding-isolation")["flows"]["ids"]
+    named = {zone for zone in CANARY_ZONES if f"{zone}-to-coding-canary-denied" in ids}
+    admitted = {flow["destination"] for flow in spec["gateway"]["play_vars"]["opnsense_gateway_flows"] if flow["name"].endswith("canary over SSH")}
+
+    assert named == set(CANARY_ZONES)
+    assert {f"net_{zone}" for zone in named} <= admitted
 
 
 def test_the_added_row_is_the_only_flow_that_reaches_the_zones_canary(spec, defaults):

@@ -95,6 +95,18 @@ class TestAZoneWhoseCanaryIsAVm:
     def test_the_zone_host_holds_its_stand_ins_and_not_the_canary_address(self, plan):
         assert {host["name"]: host["addresses"] for host in scratch_canaries.hosts(plan)}["services"] == ["192.168.20.5"]
 
+    def test_a_zone_with_no_stand_in_gets_no_namespace_for_a_default_route_to_fail_in(self):
+        plan = scratch_plan.build_plan(load_flow_list(), scratch_plan.zone_vlans())
+        coding = next(zone for zone in plan["zones"] if zone["name"] == "coding")
+        assert coding["listeners"] == []
+        coding["canary"] = None
+
+        names = [host["name"] for host in scratch_canaries.hosts(plan)]
+
+        assert "coding" not in names
+        assert names[0] == scratch_canaries.RUNNER
+        assert {zone["name"] for zone in plan["zones"] if zone["name"] != "coding"} <= set(names)
+
     def test_no_sshd_starts_for_it_and_the_other_zones_keep_theirs(self, plan, tmp_path, monkeypatch):
         started = []
         monkeypatch.setattr(scratch_canaries.subprocess, "Popen", lambda command, **kwargs: started.append(command) or type("P", (), {"pid": 1})())

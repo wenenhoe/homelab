@@ -139,7 +139,7 @@ How the documentation is generated, checked and published.
 
 | Doc | Covers |
 | :--- | :--- |
-| [`doc-checks.md`](documentation/doc-checks.md) | Index generation, the docs drift check, the moved-file and retired-number checks, and the Mermaid render check. |
+| [`doc-checks.md`](documentation/doc-checks.md) | Index generation, the docs drift check, the moved-file, retired-number and command-block checks, and the Mermaid render check. |
 | [`project-checks.md`](documentation/project-checks.md) | The project scope, size, close and start checks, the accepted-records check, the one command that runs them, merge preparation, and the helpers that suggest a scope or a consolidation. |
 | [`doc-site.md`](documentation/doc-site.md) | The renderer that turns the generated views into a static site: the rows both outputs are built from, building the site, the anchors, the pinned stylesheet and its integrity attribute, the layout check, and the workflow that deploys it. |
 | [`progress-log.md`](documentation/progress-log.md) | The weekly and monthly record of what was merged to `main`, generated daily onto the `progress-log` branch: how to read it, what it decides by rule, how notes survive, and how to rebuild it. |

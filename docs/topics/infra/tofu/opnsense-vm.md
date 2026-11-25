@@ -336,9 +336,21 @@ as its VLAN; change them to yours.
      --ssh-command "ssh -i ~/.ssh/RUNNER_KEY -o BatchMode=yes" --tag services
    ```
 
-   `--tag smoke` and a run of the whole list include every zone's canary, so they report failed for
-   each zone that has none, and for every flow with `scratch` in its id, which needs a canary in
-   VLAN 10. Cleanup:
+   `--tag smoke` and a run of the whole list include every zone's canary, so name each zone that has
+   none with `--without-canary` ([the runner](../network-boundary-checks.md#the-probe-module-and-the-runner)).
+   Otherwise their flows report failed. `scratch` is always one of them, since production has no
+   canary in VLAN 10:
+
+   ```sh
+   # operator host, in tools/: the smoke flows, with the services canary alone
+   python -m network_checks.runner --ssh-user canary \
+     --ssh-command "ssh -i ~/.ssh/RUNNER_KEY -o BatchMode=yes" --tag smoke \
+     --without-canary management --without-canary desktops --without-canary isolated \
+     --without-canary experimental --without-canary dmz --without-canary coding \
+     --without-canary scratch
+   ```
+
+   Cleanup:
 
    ```sh
    # node

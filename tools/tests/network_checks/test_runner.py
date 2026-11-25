@@ -122,6 +122,35 @@ class TestSelect:
     def test_a_deny_brings_its_control_into_the_run(self, flow_list):
         assert self.ids(flow_list, [], ["three"]) == ["two", "three"]
 
+    @pytest.fixture
+    def across(self, write_flows) -> FlowList:
+        """alpha and beta each try an outside port, each reaches its canary, and each is refused the other's."""
+        flows = []
+        for zone, other in (("alpha", "beta"), ("beta", "alpha")):
+            flows += [
+                flow(f"{zone}-out", zone, 1),
+                {"id": f"{zone}-canary", "from": zone, "to": {"address": CANARIES[zone], "port": 22}, "kind": "connect", "expect": "allow"},
+                {
+                    "id": f"{zone}-to-{other}",
+                    "from": zone,
+                    "to": {"address": CANARIES[other], "port": 22},
+                    "kind": "connect",
+                    "expect": "deny",
+                    "control": f"{other}-canary",
+                },
+            ]
+        flows.append(flow("alpha-outside-denied", "alpha", 1, expect="deny", control="beta-out"))
+        return loaded(write_flows, flows)
+
+    def test_without_a_canary_leaves_out_the_flows_from_it_to_it_and_controlled_by_it(self, across):
+        selected = runner.select(across, [], [], without_canary=["beta"])
+
+        assert [chosen.id for chosen in selected] == ["alpha-out", "alpha-canary"]
+
+    def test_a_named_flow_that_needs_a_canary_left_out_is_refused(self, across):
+        with pytest.raises(ValueError, match="alpha-to-beta needs a canary that --without-canary leaves out"):
+            runner.select(across, [], ["alpha-to-beta"], without_canary=["beta"])
+
     def test_an_unknown_flow_id_is_refused(self, flow_list):
         with pytest.raises(ValueError, match="no flow has the id missing"):
             runner.select(flow_list, [], ["missing"])
@@ -314,6 +343,21 @@ class TestMain:
 
         assert code == 2
         assert message in capsys.readouterr().err
+        assert sessions() == []
+
+    def test_without_canary_tries_nothing_from_that_zone_and_says_how_many_flows_were_left_out(self, write_flows, args, sessions, port, capsys):
+        code = runner.main([*args, *self.flows_file(write_flows, "127.0.0.200", "127.0.0.1", port), "--without-canary", "beta"])
+
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "1 of 1 flows passed\nflows left out: 1, needing the canary of: beta\n" in out
+        assert sessions() == ["canary@127.0.0.2"]
+
+    def test_without_canary_of_an_unknown_zone_is_refused_before_any_session(self, write_flows, args, sessions, port, capsys):
+        code = runner.main([*args, *self.flows_file(write_flows, "127.0.0.200", "127.0.0.1", port), "--without-canary", "nowhere"])
+
+        assert code == 2
+        assert "--without-canary names a zone the flow list does not have: nowhere" in capsys.readouterr().err
         assert sessions() == []
 
     def test_a_flow_list_that_breaks_a_rule_is_not_run(self, write_flows, args, sessions, port, capsys):

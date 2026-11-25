@@ -9,6 +9,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import jinja2
 import pytest
 import yaml
 
@@ -222,6 +223,27 @@ def test_kea_serves_the_zones_whose_clients_tofu_does_not_place(defaults):
     dhcp = {zone["name"]: zone["dhcp"] for zone in defaults["opnsense_gateway_zones"]}
 
     assert dhcp == {"services": False, "management": False, "desktops": True, "isolated": True, "experimental": True, "dmz": False, "coding": False}
+
+
+def test_each_kea_scope_offers_the_zones_gateway_as_router_and_as_resolver_where_the_zone_may_use_it(defaults):
+    tasks = yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/dhcp.yaml").read_text())
+    scope = next(task for task in tasks if "oxlorg.opnsense.dhcp_subnet" in task)
+    args = scope["oxlorg.opnsense.dhcp_subnet"]
+    env = jinja2.Environment(undefined=jinja2.StrictUndefined)  # noqa: S701 - renders task values, not HTML
+    env.filters["bool"] = bool
+
+    def offered(zone: dict, key: str):
+        context = {"opnsense_gateway_zone": zone}
+        context["opnsense_gateway_zone_prefix"] = env.from_string(scope["vars"]["opnsense_gateway_zone_prefix"]).render(context)
+        value = args[key]
+        return yaml.safe_load(env.from_string(value).render(context)) if isinstance(value, str) else [env.from_string(item).render(context) for item in value]
+
+    assert args["auto_options"] is False
+    for zone in (zone for zone in defaults["opnsense_gateway_zones"] if zone["dhcp"]):
+        gateway = f"192.168.{zone['vlan']}.1"
+        assert offered(zone, "gateway") == [gateway]
+        assert offered(zone, "dns") == ([gateway] if zone["gateway_dns"] else [])
+    assert offered({"vlan": 30, "gateway_dns": False}, "dns") == []
 
 
 def test_the_pool_leaves_the_low_and_high_addresses_to_reservations_and_the_gateway(defaults):

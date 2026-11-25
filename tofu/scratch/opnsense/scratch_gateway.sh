@@ -16,8 +16,8 @@
 # Environment: NODE (ssh target, e.g. root@pve), PROXMOX_ENDPOINT, PROXMOX_API_TOKEN
 #   (user@realm!id=secret); optional PROXMOX_INSECURE=true, NODE_NAME (default pve),
 #   VM_ID (default 501), LAN_BRIDGE (an isolated bridge with no ports, default vmbr9),
-#   WAN_BRIDGE (default vmbr1), WAN_VLAN_ID (tag of the WAN NIC when the route out is on a
-#   VLAN), SEED_VLANS (comma-separated VLAN tags the seed adds on the LAN device, for a zone
+#   WAN_BRIDGE (default vmbr1), WAN_VLAN_ID (tag of the WAN NIC, default 10, the zone that leases
+#   a scratch gateway its WAN; `none` for an untagged WAN), SEED_VLANS (comma-separated VLAN tags the seed adds on the LAN device, for a zone
 #   the seed does not carry yet, such as 11,20,25,30,35,40,45,50,55,60; unset takes the seed's scratch list),
 #   TOFU (default tofu), SSH_CONTROL_PATH (socket of an ssh master connection opened
 #   by hand, for a node that takes a password), WANT_VERSION (default 26.1.11),
@@ -36,6 +36,10 @@ out=$(cd "$2" && pwd)
 vmid=${VM_ID:-501}
 lan_bridge=${LAN_BRIDGE:-vmbr9}
 wan_bridge=${WAN_BRIDGE:-vmbr1}
+# The default is the zone that leases a scratch gateway its WAN; `none` is an untagged WAN, which the settings file
+# can express, since it drops an empty value.
+wan_vlan=${WAN_VLAN_ID:-10}
+[ "$wan_vlan" != none ] || wan_vlan=
 want_version=${WANT_VERSION:-26.1.11}
 local_port=${LOCAL_PORT:-8443}
 tofu=${TOFU:-tofu}
@@ -71,11 +75,13 @@ seed_vlans=${SEED_VLANS:-}
 # The seed's scratch list holds a placeholder where the production list holds the zone that leases a scratch gateway its WAN, so the WAN's /24 is not an interface's.
 seed_list=(--scratch)
 [ -z "$seed_vlans" ] || seed_list=(--vlans "$seed_vlans")
+# The WAN's zone denies direct DNS, so the gateway's resolver forwards to the lease's nameserver, which is the zone's resolver.
+seed_list+=(--forward-dns)
 export TF_VAR_image_cache_dir=$out/image-cache
 export TF_VAR_seed_image_path=$out/seed/seed.img
 export TF_VAR_lan_bridge=$lan_bridge
 export TF_VAR_wan_bridge=$wan_bridge
-[ -z "${WAN_VLAN_ID:-}" ] || export TF_VAR_wan_vlan_id=$WAN_VLAN_ID
+[ -z "$wan_vlan" ] || export TF_VAR_wan_vlan_id=$wan_vlan
 # The provider writes an upload to a temporary file first, and /tmp is often a small tmpfs.
 export TMPDIR=$out/tmp
 store=${TF_VAR_image_datastore_id:-tofu-images}
@@ -100,6 +106,7 @@ preflight() {
   # The seed's LAN serves DHCP, so it must never share a bridge with anything real.
   [ -z "$(node "ls /sys/class/net/$lan_bridge/brif 2> /dev/null")" ] || die "$lan_bridge has ports attached; use an isolated bridge"
   [ "$wan_bridge" != "$lan_bridge" ] || die "WAN_BRIDGE must differ from the isolated LAN bridge $lan_bridge"
+  [ -z "$wan_vlan" ] || { [[ "$wan_vlan" =~ ^[0-9]+$ ]] && [ "$wan_vlan" -ge 1 ] && [ "$wan_vlan" -le 4094 ]; } || die "WAN_VLAN_ID must be a VLAN tag from 1 to 4094, or none for an untagged WAN"
   [ "$wan_bridge" != vmbr0 ] || die "WAN_BRIDGE=vmbr0 is the production WAN bridge; a scratch gateway must not be given it"
   node "test -d /sys/class/net/$wan_bridge" || die "$wan_bridge does not exist on the node"
   if node "qm status $vmid" > /dev/null 2>&1; then die "VM $vmid exists; destroy it first"; fi

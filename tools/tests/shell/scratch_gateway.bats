@@ -166,7 +166,20 @@ line_of() {
   assert_output --partial "TF_VAR_wan_bridge=vmbr1"
   assert_output --partial "TF_VAR_vm_id=501"
   assert_output --partial "TF_VAR_seed_image_path=$OUT/seed/seed.img"
+  assert_output --partial "TF_VAR_wan_vlan_id=10"
+}
+
+@test "the WAN is untagged when WAN_VLAN_ID is none" {
+  WAN_VLAN_ID=none run -0 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  run cat "$BATS_TEST_TMPDIR/tf-env"
   refute_output --partial "TF_VAR_wan_vlan_id"
+}
+
+@test "up refuses a WAN_VLAN_ID that is not a VLAN tag" {
+  WAN_VLAN_ID=ten run -1 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  assert_output --partial "WAN_VLAN_ID must be a VLAN tag from 1 to 4094"
+  WAN_VLAN_ID=4095 run -1 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  assert_output --partial "WAN_VLAN_ID must be a VLAN tag from 1 to 4094"
 }
 
 @test "WAN_VLAN_ID and the bridges are passed on" {
@@ -176,6 +189,16 @@ line_of() {
   assert_output --partial "TF_VAR_wan_bridge=vmbr2"
   assert_output --partial "TF_VAR_lan_bridge=vmbr8"
   assert_output --partial "TF_VAR_vm_id=599"
+}
+
+@test "the seed has Unbound forward to the WAN's nameserver, whichever VLAN list it takes" {
+  run -0 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  run calls_to build_seed
+  assert_output --partial "--forward-dns"
+  rm -rf "$OUT" "$BATS_TEST_TMPDIR/calls"
+  SEED_VLANS=20,30 run -0 "$SCRIPT" up "$OUT" "$URL" "$SUM"
+  run calls_to build_seed
+  assert_output --partial "--forward-dns"
 }
 
 @test "the seed takes its scratch VLAN list unless SEED_VLANS names one" {

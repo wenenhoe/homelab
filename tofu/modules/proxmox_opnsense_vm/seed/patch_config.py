@@ -222,6 +222,7 @@ def build_seed(
     operator_hosts: Sequence[str],
     timezone: str = DEFAULT_TIMEZONE,
     vlans: Sequence[int] = DEFAULT_VLANS,
+    forward_dns: bool = False,
 ) -> ET.ElementTree:
     tree = ET.parse(base)  # noqa: S314 - the sample configuration shipped beside this script
     root = tree.getroot()
@@ -287,6 +288,11 @@ def build_seed(
     remove(lan, "ipaddrv6", "subnetv6", "track6-interface", "track6-prefix-id")
     add_vlans(root, lan_if, lan_ip, lan_prefix, vlans)
 
+    # Unbound resolves by recursion unless this legacy marker is set, which the first boot's model migration (M1_0_2)
+    # turns into "use the system nameservers": a WAN that denies direct DNS then still has a resolver.
+    if forward_dns:
+        ET.SubElement(root.find("unbound"), "forwarding")
+
     # Management reach: the GUI and API listen on the LAN and the VLAN interfaces only (never the WAN), the gateway
     # admits no host to them by default, and the guard rule and the bootstrap rule below are the only admissions.
     webgui = system.find("webgui")
@@ -316,6 +322,11 @@ def main(argv: list[str] | None = None) -> int:
             f"add the scratch gateway's VLANs ({','.join(map(str, SCRATCH_VLANS))}): "
             f"the default list with {SCRATCH_PLACEHOLDER_VLAN} in place of {WAN_ZONE_VLAN}"
         ),
+    )
+    ap.add_argument(
+        "--forward-dns",
+        action="store_true",
+        help="make Unbound forward every query to the system nameservers, which the WAN's lease gives, instead of resolving by recursion",
     )
     ap.add_argument("--hostname", default="OPNsense")
     ap.add_argument("--domain", default="internal", help="with the hostname, the management name the play verifies the GUI certificate for")
@@ -350,6 +361,7 @@ def main(argv: list[str] | None = None) -> int:
         operator_hosts=a.operator_hosts,
         timezone=a.timezone,
         vlans=vlans,
+        forward_dns=a.forward_dns,
     )
     tree.write(a.out, encoding="UTF-8", xml_declaration=True)
     return 0

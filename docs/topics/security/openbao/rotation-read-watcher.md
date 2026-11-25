@@ -102,9 +102,11 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    without appearing on the terminal or in a command line:
 
    ```sh
-   # [1/3] controller: paste alone; it opens a shell and waits for the secret_id
-   cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
+   # [1/3] controller: paste alone; it waits for the role_id, then opens a shell and waits for the secret_id
+   cd tools && read -r -p 'vault-bootstrap role_id: ' rid && python3 -m openbao_utils.shell "$rid"; unset rid
+   ```
 
+   ```sh
    # [2/3] inside that shell: paste once its prompt is back
    bao read -field=role_id auth/approle/role/rotation-read-watcher/role-id \
      | ssh security 'sudo tee /etc/rotation-read-watcher/role_id > /dev/null'
@@ -115,7 +117,9 @@ again on the new VM, and `rebuild_check.host security` fails until they have
      && echo "secret_id written"
    unset new
    exit
+   ```
 
+   ```sh
    # [3/3] controller again: paste after the shell has exited
    ssh security 'sudo chmod 600 /etc/rotation-read-watcher/role_id /etc/rotation-read-watcher/secret_id'
    ```
@@ -129,10 +133,15 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    `127.0.0.1` and the leaf has no IP SAN, so the DNS name the certificate
    carries goes in a file beside the credentials, the same name
    [`auth.md`](auth.md) gives `bao` as `-tls-server-name`.
-   Write it from `security`, with the name's domain filled in; it is not a secret:
+   Write it from `controller`; it is not a secret:
 
    ```sh
-   ssh security 'printf "%s" "openbao.<caddy_domain>" | sudo tee /etc/rotation-read-watcher/server_name > /dev/null'
+   # paste alone; it waits for security's caddy_domain
+   read -r -p 'caddy_domain of security: ' caddy_domain
+   ```
+
+   ```sh
+   printf '%s' "openbao.$caddy_domain" | ssh security 'sudo tee /etc/rotation-read-watcher/server_name > /dev/null'
    ```
 
    Without the file, or with a name the certificate does not carry, the watcher
@@ -148,7 +157,9 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    ```sh
    # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
    cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   ```
 
+   ```sh
    # [2/2] inside that shell: paste once its prompt is back
    bao kv get -mount=secret -field=value hosts/security/gatus-token-rotation-read-watcher \
      | ssh security 'umask 077; cat > ~/.gatus-token-rotation'
@@ -196,10 +207,14 @@ again on the new VM, and `rebuild_check.host security` fails until they have
    ```sh
    # [1/3] security, a second terminal: leave it running to watch the alert arrive
    sudo journalctl -u rotation-read-watcher -f
+   ```
 
+   ```sh
    # [2/3] controller: paste alone; it opens a shell and waits for the secret_id
    cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   ```
 
+   ```sh
    # [3/3] inside that shell: paste once its prompt is back. Any one of the three
    # watched secrets works; the value is discarded rather than printed.
    bao kv get -mount=secret -field=value cloud_credentials/rotation/_rotation-key-cloudflare-r2-token > /dev/null

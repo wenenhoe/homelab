@@ -32,7 +32,7 @@ in `tools/` on `controller` and reads the four checked-in `.hcl` files from
 the checkout:
 
 ```sh
-cd_agent_ip=<cd_agent's fixed LAN IP>
+cd_agent_ip=192.168.25.3   # cd_agent's fixed LAN address
 for job in deploy rotation credential-expiry snapshot; do
   bao policy write "cd-agent-$job" - < "../docker/openbao/policies/cd-agent-$job.hcl"
   bao write "auth/approle/role/cd-agent-$job" \

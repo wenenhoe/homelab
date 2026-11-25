@@ -49,9 +49,10 @@ def ns_name(name: str) -> str:
 
 
 def hosts(plan: dict) -> list[dict]:
-    """The runner's host first, then each zone's: what gets a namespace."""
+    """The runner's host first, then each zone's: what gets a namespace. A zone whose canary a VM holds and that has no
+    stand-in host has nothing to put in one, and a namespace with no address cannot take its default route."""
     runner = plan["runner"]
-    return [{"name": RUNNER, "vlan": runner["vlan"], "gateway": runner["gateway"], "mac": runner["mac"], "addresses": [runner["address"]]}] + [
+    zones = [
         {
             "name": zone["name"],
             "vlan": zone["vlan"],
@@ -60,6 +61,9 @@ def hosts(plan: dict) -> list[dict]:
             "addresses": ([zone["canary"]] if zone["canary"] else []) + [item["address"] for item in zone["listeners"]],
         }
         for zone in plan["zones"]
+    ]
+    return [{"name": RUNNER, "vlan": runner["vlan"], "gateway": runner["gateway"], "mac": runner["mac"], "addresses": [runner["address"]]}] + [
+        zone for zone in zones if zone["addresses"]
     ]
 
 

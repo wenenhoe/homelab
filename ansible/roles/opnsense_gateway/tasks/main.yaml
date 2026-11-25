@@ -3,6 +3,23 @@
 # task connects to the gateway over SSH. Every check is read-only, so each runs
 # under --check too.
 
+# `-e name=false` passes the string "false", and `| bool` reads a misspelt value as false, which would
+# remove what the switch writes.
+- name: Require each switch to be a boolean
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', opnsense_gateway_switch) is boolean
+    quiet: true
+    fail_msg: >-
+      {{ opnsense_gateway_switch }} must be a boolean, and -e {{ opnsense_gateway_switch }}=VALUE passes a string.
+      Pass it as JSON: -e '{"{{ opnsense_gateway_switch }}": true}' or false.
+  loop:
+    - opnsense_gateway_scratch_wan
+    - opnsense_gateway_cd_agent_management
+    - opnsense_gateway_operator_not_listed_ok
+  loop_control:
+    loop_var: opnsense_gateway_switch
+
 - name: Require the gateway's certificate, as read from its console
   ansible.builtin.assert:
     that:

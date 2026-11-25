@@ -137,9 +137,15 @@ half and a contained half instead:
 4. Restore into it with the already-tested per-app `restore.yaml` —
    against the scratch inventory, with the real archive from step 2:
    ```sh
+   # paste alone; it waits for the decrypted_path step 2 printed
+   read -r -p 'decrypted_path: ' archive
+   ```
+
+   ```sh
+   # from ansible/
    ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
      -i inventory/scratch-firedrill.yaml --limit scratch-wastebin,localhost \
-     -e '{"restore_app": "wastebin", "restore_archive_local_path": "<result.decrypted_path from step 2>", "restore_volumes": ["wastebin_data"]}'
+     -e "{\"restore_app\": \"wastebin\", \"restore_archive_local_path\": \"$archive\", \"restore_volumes\": [\"wastebin_data\"]}"
    ```
    One JSON-object `-e` argument, not separate `-e key=value` pairs —
    see [`restore.md`](restore.md) for why that distinction actually

@@ -218,7 +218,8 @@ environment, as the deploy user on that app's host, from the
 `backup-agent` directory under `compose_deploy_dir`:
 
 ```sh
-docker exec --env-file conf.d/<app>.env backup-agent backup
+# paste alone; it waits for the app's name
+read -r -p 'app: ' app && docker exec --env-file "conf.d/$app.env" backup-agent backup
 ```
 
 One schedule file is one app and one archive. To back up every app on the

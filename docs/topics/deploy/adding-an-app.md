@@ -6,7 +6,7 @@ New apps are wired in through three places: a `docker/<app>/` directory, an `app
 
 Create a directory holding the app's Compose stack:
 
-```
+```text
 docker/<app>/
 ├── compose.yaml           # Required — or compose.yaml.j2, see below
 └── configs/               # Optional — Jinja2 templates rendered onto the host
@@ -189,7 +189,8 @@ know their routed hostname.
 ## 4. Deploy
 
 ```sh
-ansible-playbook playbooks/deploy.yaml --limit <host>,localhost
+# paste alone, from ansible/; it waits for the host that runs the app
+read -r -p 'host: ' host && ansible-playbook playbooks/deploy.yaml --limit "$host,localhost"
 ```
 
 The app is picked up by Play 4 (`compose_app` role), which provisions its directories/config and starts the stack, after Caddy and BIND9 are already routing/resolving for it.

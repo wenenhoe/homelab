@@ -169,10 +169,15 @@ installed unit. `--s3-versions` also lists the older versions a lifecycle rule
 has hidden:
 
 ```sh
+# paste alone; it waits for the app's host and name, then the cloud remote and bucket
+read -r -p 'host: ' host; read -r -p 'app: ' app; read -r -p 'remote: ' remote; read -r -p 'bucket: ' bucket
+```
+
+```sh
 IMG=$(grep -oP 'rclone/rclone:\S+' /etc/systemd/system/cloud-sync.service)
 R="docker run --rm -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro $IMG"
-$R lsl seaweedfs:homelab-backups/<host>-<app>
-$R lsl --s3-versions <remote>:<bucket>/<host>-<app>
+$R lsl "seaweedfs:homelab-backups/$host-$app"
+$R lsl --s3-versions "$remote:$bucket/$host-$app"
 ```
 
 ## Before first use
@@ -212,9 +217,14 @@ $R lsl --s3-versions <remote>:<bucket>/<host>-<app>
   unit runs, read from the unit on `storage` so the command follows what is
   running and needs no checkout of this repository:
   ```sh
+  # paste alone; it waits for the remote's name in rclone.conf
+  read -r -p 'remote: ' name
+  ```
+
+  ```sh
   IMG=$(grep -oP 'rclone/rclone:\S+' /etc/systemd/system/cloud-sync.service)
   docker run --rm \
     -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
-    "$IMG" lsd <name>:
+    "$IMG" lsd "$name:"
   ```
   Each remote name should list, or report an empty result without an error.

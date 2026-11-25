@@ -78,9 +78,12 @@ Both come from `RCLONE_CONFIG_OLD_*` and `RCLONE_CONFIG_NEW_*` variables in a
 and `force_path_style` `true` as the rendered `rclone.conf` sets:
 
 ```sh
-docker run --rm --network caddy-proxy --env-file <env file> \
+# on the new VM; env_file is the 0600 file described above
+env_file=~/bucket-copy.env
+IMG=$(grep -oP 'rclone/rclone:\S+' /etc/systemd/system/cloud-sync.service)
+docker run --rm --network caddy-proxy --env-file "$env_file" \
   --cap-drop ALL --security-opt no-new-privileges:true --read-only \
-  <the cloud-sync image> copy --immutable old:homelab-backups new:homelab-backups
+  "$IMG" copy --immutable old:homelab-backups new:homelab-backups
 ```
 
 Then `rclone check --size-only old:homelab-backups new:homelab-backups` with the

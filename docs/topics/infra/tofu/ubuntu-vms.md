@@ -126,9 +126,12 @@ Every Ubuntu VM is cloned from a template built from a prepared copy of the clou
 image. The script changes three things, fixed once in the image and not on each
 host: the initramfs, cloud-init's hosts template, and the timezone.
 
-```sh
-tofu/modules/proxmox_ubuntu_template/prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR TIMEZONE
+```text
+prepare_image.sh IMAGE_URL IMAGE_CHECKSUM OUT_DIR TIMEZONE
 ```
+
+The `ubuntu_image_prepare_command` output prints this command for the current pin
+([Modules](#modules)). The script is in `tofu/modules/proxmox_ubuntu_template/`.
 
 It runs as root or a user with `sudo` (whose password it asks for before it
 downloads anything), on a host with `curl`, `qemu-img` and util-linux (`losetup`,
@@ -251,12 +254,17 @@ one as a zone's canary and tear it down again.
 From the repo root, with the [credentials file](state-and-credentials.md#credentials-file):
 
 ```sh
+# paste alone; it waits for the internal zone and the SSH public key
+read -r -p 'internal zone: ' zone; read -r -p 'public key: ' public_key
+```
+
+```sh
 umask 077
 out="$HOME/scratch-vm"
 mkdir -p "$out"
 export TF_DATA_DIR="$out/.terraform"
-printf '%s\n' 'vm_id = 502' 'dns_domain = "<internal zone>"' \
-  'ssh_public_keys = ["<public key>"]' > "$out/scratch.tfvars"
+printf '%s\n' 'vm_id = 502' "dns_domain = \"$zone\"" \
+  "ssh_public_keys = [\"$public_key\"]" > "$out/scratch.tfvars"
 cd tofu/scratch/ubuntu
 tofu init -backend=false -input=false -lockfile=readonly
 tofu apply -state="$out/terraform.tfstate" \

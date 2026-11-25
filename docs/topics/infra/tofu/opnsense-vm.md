@@ -231,12 +231,27 @@ as its VLAN; change them to yours.
    ```sh
    # operator host
    NODE=root@pve tools/rebuild_check/scripts/gateway_preflight.sh before
+   ```
 
-   # a machine other than the operator host: moving the NIC drops the host's own connection
-   ssh root@pve 'bash -s -- 401 NAME net0 vmbr0 none' < tools/rebuild_check/scripts/move_vm_nic.sh
+   ```sh
+   # a machine other than the operator host: moving the NIC drops the host's own connection.
+   # Paste alone; it waits for the name VM 401 has in Proxmox
+   read -r -p 'name of VM 401: ' name
+   ```
 
+   ```sh
+   # same machine
+   ssh root@pve "bash -s -- 401 $name net0 vmbr0 none" < tools/rebuild_check/scripts/move_vm_nic.sh
+   ```
+
+   ```sh
+   # operator host: paste alone; it waits for the gateway's untagged LAN address and the host's
+   read -r -p 'LAN address: ' lan_address; read -r -p 'operator host address: ' host_address
+   ```
+
+   ```sh
    # operator host
-   tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh ~/opnsense-seed --lan-ip LAN_ADDRESS --operator-host HOST_ADDRESS
+   tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh ~/opnsense-seed --lan-ip "$lan_address" --operator-host "$host_address"
    ```
 
    From any zone but `services` the preflight notes its `dns` check and does not run it, since the
@@ -278,7 +293,12 @@ as its VLAN; change them to yours.
    fixed LAN address and map the gateway's name to the LAN address:
 
    ```sh
-   echo 'LAN_ADDRESS OPNsense.internal' | sudo tee -a /etc/hosts
+   # paste alone; it waits for the gateway's untagged LAN address
+   read -r -p 'LAN address: ' lan_address
+   ```
+
+   ```sh
+   echo "$lan_address OPNsense.internal" | sudo tee -a /etc/hosts
    ```
 
 6. **Update the gateway, snapshot it, run the play.** The update is
@@ -316,10 +336,19 @@ as its VLAN; change them to yours.
    ```sh
    # operator host
    sudo sed -i -E 's/^[0-9.]+([[:space:]]+OPNsense\.internal)/192.168.40.1\1/' /etc/hosts
+   ```
 
-   # web UI, or a machine that reaches the node: set the tag
-   ssh root@pve 'bash -s -- 401 NAME net0 vmbr1 40' < tools/rebuild_check/scripts/move_vm_nic.sh
+   ```sh
+   # web UI, or a machine that reaches the node: paste alone; it waits for the name of VM 401
+   read -r -p 'name of VM 401: ' name
+   ```
 
+   ```sh
+   # same machine: set the tag
+   ssh root@pve "bash -s -- 401 $name net0 vmbr1 40" < tools/rebuild_check/scripts/move_vm_nic.sh
+   ```
+
+   ```sh
    # operator host, Proxmox console: the connection is gone
    sudo netplan apply
 
@@ -334,9 +363,14 @@ as its VLAN; change them to yours.
    smoke flows do, and any lab host's name through the gateway:
 
    ```sh
+   # paste alone; it waits for any lab host's full name
+   read -r -p 'lab host name: ' lab_name
+   ```
+
+   ```sh
    # operator host
    dig +short example.com @192.168.40.1
-   dig +short LAB_HOST_NAME @192.168.40.1
+   dig +short "$lab_name" @192.168.40.1
    ping -c 2 192.168.40.1
    curl -sS -o /dev/null -w '%{http_code}\n' --max-time 5 https://1.1.1.1
    ```
@@ -345,9 +379,14 @@ as its VLAN; change them to yours.
    the public half of the runner's key), the runner tries that zone's flows from it:
 
    ```sh
+   # paste alone; it waits for the path of the runner's private key
+   read -r -p 'runner key: ' runner_key
+   ```
+
+   ```sh
    # operator host, in tools/
    python -m network_checks.runner --ssh-user canary \
-     --ssh-command "ssh -i ~/.ssh/RUNNER_KEY -o BatchMode=yes" --tag services
+     --ssh-command "ssh -i $runner_key -o BatchMode=yes" --tag services
    ```
 
    `--tag smoke` and a run of the whole list include every zone's canary, so name each zone that has
@@ -358,7 +397,7 @@ as its VLAN; change them to yours.
    ```sh
    # operator host, in tools/: the smoke flows, with the services canary alone
    python -m network_checks.runner --ssh-user canary \
-     --ssh-command "ssh -i ~/.ssh/RUNNER_KEY -o BatchMode=yes" --tag smoke \
+     --ssh-command "ssh -i $runner_key -o BatchMode=yes" --tag smoke \
      --without-canary management --without-canary desktops --without-canary isolated \
      --without-canary experimental --without-canary dmz --without-canary coding \
      --without-canary scratch

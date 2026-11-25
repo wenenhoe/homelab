@@ -7,9 +7,15 @@ all builds on).
 
 ## Generated secrets (`source: hex` / `source: uuid4`)
 
+```sh
+# paste alone; it waits for the secret's key in secret_catalog.yaml
+read -r -p 'secret name: ' name
 ```
+
+```sh
+# from ansible/
 ansible-playbook playbooks/rotate-secret.yaml \
-  -e secret_name=<key-from-secret_catalog.yaml> -e confirm=true
+  -e secret_name="$name" -e confirm=true
 ```
 
 Every `hex`/`uuid4` entry is required to have `store: openbao` (see
@@ -24,8 +30,13 @@ Either way this does **not** redeploy anything itself — check the table
 below for which `--limit` group the secret you rotated actually needs,
 then run:
 
+```sh
+# paste alone; it waits for the --limit group from the table below
+read -r -p 'group: ' group
 ```
-ansible-playbook playbooks/deploy.yaml --limit <group>,localhost
+
+```sh
+ansible-playbook playbooks/deploy.yaml --limit "$group,localhost"
 ```
 
 The `,localhost` matters: `deploy.yaml`'s secrets play runs on
@@ -77,7 +88,7 @@ hub key/agent token). Get the new value from wherever it actually comes
 from (each entry's `description` in `secret_catalog.yaml` says where),
 then:
 
-```
+```sh
 cd tools && python3 -m openbao_utils.bootstrap
 ```
 
@@ -87,9 +98,14 @@ mention at all.
 
 All three providers now have the same scripted rotate-with-verify-then-revoke path:
 
+```sh
+# paste alone; it waits for the provider (r2, b2 or oci) and the leaf (write, read or both)
+read -r -p 'provider: ' provider; read -r -p 'leaf: ' leaf
 ```
+
+```sh
 cd tools
-python3 -m cloud_credentials.create_leaf_keys --provider <r2|b2|oci> --rotate {write,read,both}
+python3 -m cloud_credentials.create_leaf_keys --provider "$provider" --rotate "$leaf"
 ```
 
 This creates the new key, verifies it actually works over the same
@@ -106,7 +122,7 @@ B2's/OCI's — a deliberate, accepted trade-off, not parity.
 - **Write leaf** (`cloud_sync`, all three providers): a real deployed
   systemd timer on `storage`, only re-rendered on the next
   `deploy.yaml` run. Needs:
-  ```
+  ```sh
   ansible-playbook playbooks/deploy.yaml --limit storage,localhost
   ```
   same `,localhost` reasoning as every row in the table above. On the
@@ -131,7 +147,7 @@ lldap's LDAPS keypair isn't a catalog secret — it's issued into the
 `lldap_certs` volume by `step_ca_cert`, and rotating it means forcing
 re-issuance, not deleting a cache file:
 
-```
+```sh
 ansible-playbook playbooks/volume-reset.yaml --limit security,localhost \
   -e volume_reset_app=lldap -e volume_reset_volume=certs \
   -e volume_reset_confirm=true

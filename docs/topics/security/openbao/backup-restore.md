@@ -136,7 +136,7 @@ Confirmed against a real running instance, not inferred from docs:
 
 ## Pulling a snapshot
 
-```sh
+```text
 tools/openbao_utils/scripts/snapshot-pull.sh [r2|b2] [OUTPUT]
 ```
 

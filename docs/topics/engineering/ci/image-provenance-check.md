@@ -18,7 +18,7 @@ signature or attestation that disappeared, or an identity that changed, shows up
 even when no pin did. Both run `python3 -m ci.provenance.verify` from `tools/`,
 and it can be run by hand the same way:
 
-```bash
+```text
 cd tools && python3 -m ci.provenance.verify [IMAGE ...]
 ```
 

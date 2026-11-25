@@ -67,7 +67,7 @@ mtools and `xmllint`. It starts from OPNsense's own sample `config.xml`
 | :--- | :--- |
 | NICs | `vtnet0` is the WAN, `vtnet1` the LAN |
 | LAN address | `--lan-ip` |
-| VLANs | A device `vlan0.<tag>` on the LAN device for each tag of `--vlans` (20, 25, 30, 35, 40, 45, 50 and 55 unless overridden), with an interface at `192.168.<tag>.1/24` |
+| VLANs | A device `vlan0.<tag>` on the LAN device for each tag of `--vlans` (10, 20, 25, 30, 35, 40, 45, 50 and 55 unless overridden; VLAN 10 is the first, so `opt1`), with an interface at `192.168.<tag>.1/24` |
 | Hostname and domain | Domain `OPNsense.internal` unless overridden: the name the play verifies the GUI certificate for |
 | Time zone | `--timezone`, `Asia/Singapore` by default, the inventory's `server_timezone` |
 | Management reach | Anti-lockout off, so the gateway admits no host to the GUI, API and SSH ports unless a rule does. The GUI and API listen on the LAN and the VLAN interfaces, never the WAN |
@@ -186,65 +186,175 @@ with the snapshot token over the API.
 
 ### Rebuilding the production gateway
 
-A rebuild replaces the VM with one built from the seed, so the whole lab is offline while the
-gateway is down. What it needs:
+A rebuild replaces VM 201 with one built from the seed, so the whole lab is offline while the
+gateway is down. Settle these first:
 
-- **Rehearsal.** A scratch gateway built from the same seed and the same play, with the same
-  `-e` variables, passes `tofu/scratch/opnsense/acceptance/acceptance.sh` (`--check` clean, the
-  stale-forward and stray-rule round trips, the GUI login and the API key's scope) and the flow
-  list's probes before the production gateway is touched. It does not apply the root module or
-  hold the live token's rights, which `gateway_preflight.sh` reads instead.
-- **The preflight.** `gateway_preflight.sh before` on the operator host, while the old gateway still
-  runs: the root module plans no change, the image is on the node, VM 201 is the gateway and can
-  be snapshotted, the dump storage is mounted and holds no dump of it, and both DNS servers answer
-  and agree. It changes nothing and says as a note whether the startup order's grant is held.
-- **The operator host.** It runs behind the gateway, so it loses the node, the host zone's DNS and
-  the Internet when the gateway stops. Before the window it takes a fixed address on the
-  untagged LAN for its return (the address `build_seed.sh` takes as `--operator-host`) and its NIC
-  moves to `vmbr0`, where it reaches the node without the gateway. The move is
-  [`move_vm_nic.sh`](../../disaster-recovery/rebuild-tools.md#move_vm_nicsh), run from a machine
-  other than the operator host, since it drops the host's own connection. Its hosts file maps the
-  node's name to the node, because the Proxmox endpoint is addressed by name and the gateway's DNS
-  is down. Whether the host should keep a path of its own is an open question.
-- **The router.** The rebuilt gateway carries the MACs the module derives from VMID 201, not the
-  old VM's, so the physical router sees a new WAN client. Check before the window whether it
-  holds a DHCP reservation or a port forward for the old WAN MAC and move it to the new one.
-- **The disk and machine type.** The rebuilt gateway is `q35`, with a disk at least as large as
-  what the old gateway uses.
-- **The variables** the play needs ([above](opnsense-gateway.md#variables-the-play-needs)) and the
-  [credentials file](state-and-credentials.md#credentials-file).
+- **Rehearsal.** A scratch gateway built from the same seed and the same play, with the same `-e`
+  variables, passes `tofu/scratch/opnsense/acceptance/acceptance.sh` and the flow list's probes. It
+  does not apply the root module or hold the live token's rights; `gateway_preflight.sh` reads those.
+- **The router.** The rebuilt gateway carries the MACs derived from VMID 201, not the old VM's, so the
+  physical router sees a new WAN client. Move any DHCP reservation or port forward for the old WAN MAC
+  to the new one.
+- **The VM.** `q35`, with a disk at least as large as the old gateway's.
+- **The play's variables** ([above](opnsense-gateway.md#variables-the-play-needs)) and the
+  [credentials file](state-and-credentials.md#credentials-file). Put the variables in a `0600` JSON
+  file and pass it with `-e @FILE`, so no secret or address list lands in the shell history. Delete it
+  afterwards.
+- **The operator host** runs behind the gateway, so it loses the node, the host zone's DNS and the
+  Internet while the gateway is down. Before the window it takes a fixed address on the untagged LAN
+  (the `--operator-host` address) and its NIC moves to `vmbr0`, where it reaches the node without the
+  gateway.
 
-The order:
+**The untagged LAN reaches nothing but the gateway.** From step 5 until step 7 the operator host is
+on it, and so is any other machine there: `ssh` to the node hangs, so `move_vm_nic.sh` and
+`qm snapshot` over `ssh` fail. Do those in the node's web UI (VM, Hardware, Network Device, VLAN Tag)
+or its console, or from a machine in a zone the gateway admits to the node.
 
-1. Run the preflight, move the operator host to `vmbr0` as above (`move_vm_nic.sh VMID NAME net0
-   vmbr0 none`) and build the seed (`seed/build_seed.sh ... --lan-ip ADDRESS --operator-host
-   ADDRESS`).
-2. Stop the gateway, then dump it and destroy it with
-   [`retire_vm.sh`](../../disaster-recovery/rebuild-tools.md) (`dump`, then `destroy`, each with the
-   VM's name).
-3. Grant the startup order's privilege ([above](#the-production-gateway)), run
-   `gateway_preflight.sh create`, then apply the root module with `opnsense_seed_image_path` to
-   create VM 201.
-4. Run `first_boot.sh`, then apply again without the seed variable.
-5. Move the operator host's NIC to `vmbr1`, untagged (`move_vm_nic.sh VMID NAME net0 vmbr1 none`),
-   with its fixed address, and map `OPNsense.internal` to the gateway's LAN address in its hosts
-   file.
-6. Update the gateway to the pinned release, snapshot it on the node, run the play with
-   `--check --diff`, then apply it with `opnsense_gateway_operator_not_listed_ok` set (the gateway
-   sees the operator host at its untagged address and the alias lists its VLAN address), and check
-   the play is clean again.
-7. Set the operator host's NIC tag to its VLAN (`move_vm_nic.sh VMID NAME net0 vmbr1 TAG`) and give
-   it its static address in the file netplan reads for it (the gateway's DHCP answer for the reservation carries no default route). Check
-   the gateway answers on 443 from it and that `--check` is clean from that address without the
-   override. The Proxmox console is the way in when it does not.
-8. Run the flow list's probes, delete the snapshots and revoke the grant. Delete the dump
-   (`drop-dump`) only when the hosts behind the gateway are confirmed healthy.
+The commands below use `NODE=root@pve`, VM 401 as the operator host and the desktops zone's VLAN 40
+as its VLAN; change them to yours.
+
+1. **Preflight, operator host, seed.**
+
+   ```sh
+   # operator host
+   NODE=root@pve tools/rebuild_check/scripts/gateway_preflight.sh before
+
+   # a machine other than the operator host: moving the NIC drops the host's own connection
+   ssh root@pve 'bash -s -- 401 NAME net0 vmbr0 none' < tools/rebuild_check/scripts/move_vm_nic.sh
+
+   # operator host
+   tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh ~/opnsense-seed --lan-ip LAN_ADDRESS --operator-host HOST_ADDRESS
+   ```
+
+   The preflight's `dns` check fails from any zone but `services`, since the play denies direct DNS
+   to a zone with Internet. Run `python -m rebuild_check.dns` from a `services` host instead.
+   `--lan-ip` is the gateway's address on the untagged LAN, a network of its own: the script refuses
+   one that overlaps a VLAN's `192.168.<tag>.0/24`. Read the old LAN address and the operator host's
+   from the old gateway (GUI, Interfaces, LAN) before it stops.
+
+2. **Stop, dump and destroy the old gateway.**
+
+   ```sh
+   ssh root@pve 'qm shutdown 201'
+   ssh root@pve 'bash -s -- dump 201 OPNsense' < tools/rebuild_check/scripts/retire_vm.sh
+   ssh root@pve 'bash -s -- destroy 201 OPNsense' < tools/rebuild_check/scripts/retire_vm.sh
+   ```
+
+3. **Grant the startup order's privilege and create the VM.**
+
+   ```sh
+   # node
+   pveum role add TofuStartup -privs "Sys.Modify"
+   pveum acl modify / --users tofu@pve --roles TofuStartup
+
+   # operator host, in tofu/, with Tofu's state settings sourced
+   NODE=root@pve ../tools/rebuild_check/scripts/gateway_preflight.sh create
+   tofu apply -var-file="$HOME/.config/tofu/credentials.tfvars" \
+     -var opnsense_seed_image_path="$HOME/opnsense-seed/seed.img"
+   ```
+
+4. **First boot, then apply again without the seed variable.**
+
+   ```sh
+   NODE=root@pve tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh 201 ~/opnsense-firstboot
+   cd tofu && tofu apply -var-file="$HOME/.config/tofu/credentials.tfvars"
+   ```
+
+5. **Move the operator host's NIC to `vmbr1`, untagged**, in the web UI (see above), give it its
+   fixed LAN address and map the gateway's name to the LAN address:
+
+   ```sh
+   echo 'LAN_ADDRESS OPNsense.internal' | sudo tee -a /etc/hosts
+   ```
+
+6. **Update the gateway, snapshot it, run the play.** The update is
+   [above](#the-production-gateway).
+
+   ```sh
+   # node console: ssh to the node hangs from the untagged LAN
+   qm snapshot 201 pre-play
+
+   # operator host, in ansible/
+   PLAY="-e opnsense_gateway_ca_file=$HOME/opnsense-firstboot/gateway-cert.pem -e @$HOME/.opnsense-play-vars.json"
+   ansible-playbook playbooks/opnsense.yaml --check --diff $PLAY
+   ansible-playbook playbooks/opnsense.yaml --diff $PLAY -e '{"opnsense_gateway_operator_not_listed_ok": true}'
+   ansible-playbook playbooks/opnsense.yaml --check --diff $PLAY -e '{"opnsense_gateway_operator_not_listed_ok": true}'
+   ```
+
+   The first `--check` stops at the Kea reservations on an empty gateway
+   ([why](opnsense-gateway.md#variables-the-play-needs)); read what it covered and apply. The
+   override is needed because the gateway sees the host at its untagged address and the alias lists
+   its VLAN address. The last `--check` must report no change.
+
+7. **Move the host to its VLAN.** Edit its netplan first and do not apply it: an address on the VLAN
+   is no use on the untagged LAN. The gateway's DHCP answer for a reservation carries no default
+   route, so the file sets one.
+
+   ```yaml
+       addresses: [HOST_VLAN_ADDRESS/24]
+       routes:
+         - to: default
+           via: 192.168.40.1
+       nameservers:
+         addresses: [192.168.40.1]
+   ```
+
+   ```sh
+   # operator host
+   sudo sed -i -E 's/^[0-9.]+([[:space:]]+OPNsense\.internal)/192.168.40.1\1/' /etc/hosts
+
+   # web UI, or a machine that reaches the node: set the tag
+   ssh root@pve 'bash -s -- 401 NAME net0 vmbr1 40' < tools/rebuild_check/scripts/move_vm_nic.sh
+
+   # operator host, Proxmox console: the connection is gone
+   sudo netplan apply
+
+   # operator host, in ansible/, without the override
+   curl -sk -o /dev/null -w '%{http_code}\n' https://OPNsense.internal/
+   ansible-playbook playbooks/opnsense.yaml --check --diff $PLAY
+   ```
+
+8. **Probe, clean up, revoke.** The runner needs a canary VM in each source zone, and the root
+   module builds one for `services` only ([`canaries.tf`](../../../../tofu/canaries.tf)). Without a
+   canary, try the operator host's own zone from the host itself, which is what the `desktops-*`
+   smoke flows do, and any lab host's name through the gateway:
+
+   ```sh
+   # operator host
+   dig +short example.com @192.168.40.1
+   dig +short LAB_HOST_NAME @192.168.40.1
+   ping -c 2 192.168.40.1
+   curl -sS -o /dev/null -w '%{http_code}\n' --max-time 5 https://1.1.1.1
+   ```
+
+   With the `services` canary built (`-var 'canary_ssh_public_keys=["KEY"]'` on the root apply, KEY
+   the public half of the runner's key), the runner tries that zone's flows from it:
+
+   ```sh
+   # operator host, in tools/
+   python -m network_checks.runner --ssh-user canary \
+     --ssh-command "ssh -i ~/.ssh/RUNNER_KEY -o BatchMode=yes" --tag services
+   ```
+
+   `--tag smoke` and a run of the whole list include every zone's canary, so they report failed for
+   each zone that has none, and for every flow with `scratch` in its id, which needs a canary in
+   VLAN 10. Cleanup:
+
+   ```sh
+   # node
+   qm listsnapshot 201
+   qm delsnapshot 201 pre-play
+   pveum acl delete / --users tofu@pve --roles TofuStartup
+   pveum role delete TofuStartup
+   ```
+
+   Delete the dump (`retire_vm.sh drop-dump 201 OPNsense`) only when the hosts behind the gateway
+   are confirmed healthy.
 
 **Rollback.** The dump is the way back: destroy the rebuilt VM and restore the dump to VMID 201 by
-hand with `qmrestore`, which brings the old VM's MACs back with it.
-`retire_vm.sh restore` is not that: it refuses a VMID below 900 and gives the copy new MACs.
-Inside the rebuild, a snapshot of the gateway before the update and another after it are the way
-back.
+hand with `qmrestore`, which brings the old VM's MACs back with it. `retire_vm.sh restore` is not
+that: it refuses a VMID below 900 and gives the copy new MACs. Inside the rebuild, a snapshot of the
+gateway before the update and another after it are the way back.
 
 The seed's legacy rule for the operator host's untagged address admits a host nobody uses once the
 operator host has moved to its VLAN. Remove it in the GUI's LAN rules at the latest when VM 401 is

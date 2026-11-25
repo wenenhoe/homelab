@@ -632,3 +632,32 @@ def test_the_scratch_gateways_reservation_is_kept_only_while_the_zone_is_written
         scope = {**defaults, "opnsense_gateway_dhcp_reservations": mine, "opnsense_gateway_scratch_wan": switch}
         kept = _expression(_rule_env(), expression, scope)
         assert kept == mine + ([defaults["opnsense_gateway_scratch_gateway"]] if switch else [])
+
+
+def _switch_task() -> dict:
+    return yaml.safe_load((REPO / "ansible/roles/opnsense_gateway/tasks/main.yaml").read_text())[0]
+
+
+def test_every_boolean_switch_of_the_role_is_checked_before_anything_else(defaults):
+    switches = {name for name, value in defaults.items() if isinstance(value, bool)}
+
+    assert switches
+    assert set(_switch_task()["loop"]) == switches
+
+
+@pytest.mark.parametrize(
+    ("value", "accepted"),
+    [
+        pytest.param(True, True, id="true"),
+        pytest.param(False, True, id="false"),
+        pytest.param("true", False, id="string-true"),
+        pytest.param("false", False, id="string-false"),
+        pytest.param("flase", False, id="misspelt"),
+    ],
+)
+def test_a_switch_is_accepted_only_as_a_real_boolean(value, accepted):
+    [condition] = _switch_task()["ansible.builtin.assert"]["that"]
+    env = _rule_env()
+    env.globals["lookup"] = lambda _plugin, name: {"opnsense_gateway_scratch_wan": value}[name]
+
+    assert env.compile_expression(condition)(opnsense_gateway_switch="opnsense_gateway_scratch_wan") is accepted

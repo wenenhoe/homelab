@@ -24,7 +24,7 @@ wrote: the only CA the play trusts. The operator host must resolve
 | `opnsense_gateway_dhcp_reservations=[...]` | Each reserved host's `name`, `zone`, `address` and `mac`, in a Kea zone and outside its pool. A host that takes its address from DHCP needs one before it can be named in `opnsense_gateway_operator_hosts` (the operator host does). Neither list is in the repo |
 
 A list or a boolean goes in as JSON (`-e '{"name":true}'`): `-e name=true` passes the string
-`"true"`, which a conditional of the role refuses.
+`"true"`, which the role's first check refuses for a boolean.
 
 `--check` on a gateway the play has never applied cannot finish: it creates nothing, so a
 reservation reports that its Kea subnet is not found. Apply once, then `--check` reports
@@ -34,13 +34,15 @@ no change.
 
 Before anything else the role checks:
 
-1. The credentials file (mode `0600`, holding `opnsense_api_key` and
+1. That each of its boolean variables is a real boolean, so a string is refused with the JSON
+   form to pass instead.
+2. The credentials file (mode `0600`, holding `opnsense_api_key` and
    `opnsense_api_secret`).
-2. That the installed `oxlorg.opnsense` collection is the pinned release.
-3. That `OPNsense.internal` resolves.
-4. That the seeded key authenticates over the pinned certificate. A renewed GUI
+3. That the installed `oxlorg.opnsense` collection is the pinned release.
+4. That `OPNsense.internal` resolves.
+5. That the seeded key authenticates over the pinned certificate. A renewed GUI
    certificate fails this until the console is read again.
-5. That the gateway runs the pinned release. The check asks the gateway for its
+6. That the gateway runs the pinned release. The check asks the gateway for its
    firmware status, which probes the OPNsense mirror, so the gateway needs its route
    out.
 

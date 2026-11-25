@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from network_checks import runner
 from network_checks.flow_list import FLOWS_PATH, FlowList, load_flow_list
 
 REPO = Path(__file__).resolve().parents[3]
@@ -78,3 +79,11 @@ def test_a_flow_to_the_proxmox_node_carries_the_node_tag_and_no_zone_tag(flow_li
 
     assert flows
     assert [flow.id for flow in flows if "node" not in flow.tags or set(flow.tags) & set(flow_list.zones)] == []
+
+
+def test_a_run_without_the_scratch_canary_leaves_out_the_flows_with_scratch_in_their_id_and_no_other(flow_list):
+    kept = {flow.id for flow in runner.select(flow_list, [], [], without_canary=["scratch"])}
+    left_out = {flow.id for flow in flow_list.flows} - kept
+
+    assert left_out
+    assert left_out == {flow.id for flow in flow_list.flows if "scratch" in flow.id}

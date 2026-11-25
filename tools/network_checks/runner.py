@@ -7,10 +7,12 @@ per flow back. Nothing is installed on the canary and it holds no credential or 
 
 An allow flow passes when its attempt succeeded. A deny flow passes only when the attempt failed and its control
 passed in the same run, since the destination or the canary may simply be down; the control of each selected deny
-is added to the run. A probe the runner could not run, a session that failed and a flow with no result all count
+is added to the run. `--without-canary` leaves out the flows that need a zone's canary, for a gateway on which that
+zone has none, and the run says how many it left out. A probe the runner could not run, a session that failed and a flow with no result all count
 as failed, and the exit status is zero only if every flow in the run passed.
 
-Usage (from tools/): python -m network_checks.runner --ssh-user USER [--ssh-user-for ZONE=USER] [--tag TAG] [--flow ID] [--ssh-command CMD]
+Usage (from tools/): python -m network_checks.runner --ssh-user USER [--ssh-user-for ZONE=USER] [--tag TAG] [--flow ID]
+    [--without-canary ZONE] [--ssh-command CMD]
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ import json
 import shlex
 import subprocess
 import sys
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,13 +45,25 @@ class Outcome:
     message: str
 
 
-def select(flow_list: FlowList, tags: list[str], ids: list[str]) -> list[Flow]:
-    """The flows to run: those with one of `tags` and those named in `ids`, or all when neither is given, then the
-    control of each selected deny, in the order of the flow list."""
+def need_canary(flow_list: FlowList, zones: Collection[str]) -> set[str]:
+    """The ids of the flows that cannot be shown without the canary of one of `zones`: those tried from it, those aimed
+    at its address, and the denies whose control is one of these."""
+    addresses = {flow_list.zones[zone].canary for zone in zones}
+    direct = {flow.id for flow in flow_list.flows if flow.source in zones or flow.destination.ip() in addresses}
+    return direct | {flow.id for flow in flow_list.flows if flow.control in direct}
+
+
+def select(flow_list: FlowList, tags: list[str], ids: list[str], without_canary: Collection[str] = ()) -> list[Flow]:
+    """The flows to run: those with one of `tags` and those named in `ids`, or all when neither is given, less those that
+    need the canary of a zone in `without_canary`, then the control of each selected deny, in the order of the flow list."""
     unknown = [flow_id for flow_id in ids if flow_id not in {flow.id for flow in flow_list.flows}]
     if unknown:
         raise ValueError(f"no flow has the id {', '.join(unknown)}")
-    chosen = {flow.id for flow in flow_list.flows if (not tags and not ids) or flow.id in ids or set(tags) & set(flow.tags)}
+    left_out = need_canary(flow_list, without_canary)
+    contradicted = [flow_id for flow_id in ids if flow_id in left_out]
+    if contradicted:
+        raise ValueError(f"{', '.join(contradicted)} needs a canary that --without-canary leaves out")
+    chosen = {flow.id for flow in flow_list.flows if (not tags and not ids) or flow.id in ids or set(tags) & set(flow.tags)} - left_out
     chosen |= {flow.control for flow in flow_list.flows if flow.id in chosen and flow.control}
     return [flow for flow in flow_list.flows if flow.id in chosen]
 
@@ -146,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--remote-python", default="python3", help="the canary's Python")
     parser.add_argument("--tag", action="append", default=[], help="run the flows with this tag (repeatable)")
     parser.add_argument("--flow", action="append", default=[], help="run this flow by id (repeatable)")
+    parser.add_argument("--without-canary", action="append", default=[], metavar="ZONE", help="leave out the flows that need this zone's canary (repeatable)")
     parser.add_argument("--flows", type=Path, default=FLOWS_PATH, help="the flow list (default: the committed one)")
     args = parser.parse_args(argv)
     zone_users = dict(item.partition("=")[::2] for item in args.ssh_user_for)
@@ -161,12 +176,16 @@ def main(argv: list[str] | None = None) -> int:
     if unknown:
         print(f"--ssh-user-for names a zone the flow list does not have: {', '.join(unknown)}", file=sys.stderr)
         return 2
+    unknown = sorted(set(args.without_canary) - set(flow_list.zones))
+    if unknown:
+        print(f"--without-canary names a zone the flow list does not have: {', '.join(unknown)}", file=sys.stderr)
+        return 2
     violations = rules.check(flow_list)
     if violations:
         print("\n".join(f"{v.name}: [{v.rule}] {v.message}" for v in violations), file=sys.stderr)
         return 2
     try:
-        flows = select(flow_list, args.tag, args.flow)
+        flows = select(flow_list, args.tag, args.flow, args.without_canary)
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -178,6 +197,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{'PASS' if outcome.passed else 'FAIL'} {outcome.flow_id}: {outcome.message}")
     failed = [outcome for outcome in outcomes if not outcome.passed]
     print(f"{len(outcomes) - len(failed)} of {len(outcomes)} flows passed")
+    if args.without_canary:
+        left_out = len(select(flow_list, args.tag, args.flow)) - len(flows)
+        print(f"flows left out: {left_out}, needing the canary of: {', '.join(sorted(set(args.without_canary)))}")
     return 1 if failed else 0
 
 

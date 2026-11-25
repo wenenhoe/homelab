@@ -120,25 +120,44 @@ describes.
 
 ## Command blocks for the operator
 
-A block the operator pastes, in a doc or a reply, never mixes a command that
-opens an interactive session (`openbao_utils.shell`, `ssh -t`, `sudo -i`) with
-the commands meant to run inside it: pasted whole, the later lines run after
-the session ends, in the wrong place. Split it into segments, each opened by a
-comment saying where it runs and when to paste it:
+A block the operator pastes, in a doc or a reply, is copied whole and run
+without editing:
+
+1. **One step per block.** A block names its language. A command that opens a
+   session (`openbao_utils.shell`, `ssh -t`, `sudo -i`) is never in a block
+   with the commands run inside it: pasted whole, the later lines run after the
+   session ends, in the wrong place. A block that belongs to such a sequence is
+   a segment, one segment to a block, its first line a comment saying where it
+   runs and when to paste it. Actions run on their own, a destructive one
+   above all, get a block each.
+2. **A command that waits for input ends its block**, or shares one line with
+   what uses the value. Otherwise the next pasted lines are read as the input.
+3. **A secret is never in the command text or an argument**, where shell
+   history and the process list keep it. Read it with `read -rs` or take it
+   from its source, pass it on stdin, by file or through the environment, and
+   `unset` it. A tool whose only form is an argument is said so where it is
+   used.
+4. **A file holding a secret** is created under `umask 077`, outside the
+   checkout or at a gitignored path, and removed when its use ends.
+5. **A value the operator chooses is a shell variable**, set at the top of the
+   block or read in the block before it, never a `<placeholder>`. A usage
+   synopsis, which is not run, is fenced as `text`.
 
 ```sh
-# [1/3] controller: paste alone; it opens a shell and waits for the secret_id
-cd tools && python3 -m openbao_utils.shell "<role_id>"
-
-# [2/3] inside that shell: paste once its prompt is back
-bao kv get -mount=secret -field=value hosts/<host>/<name> > /dev/null
-exit
-
-# [3/3] controller again: paste after the shell has exited
-ssh <host> 'sudo systemctl restart <unit>'
+# [1/3] controller: paste alone; it waits for the role_id, then opens a shell and waits for the secret_id
+cd tools && read -r -p 'role_id: ' rid && python3 -m openbao_utils.shell "$rid"; unset rid
 ```
 
-A block with no interactive step needs no segments.
+```sh
+# [2/3] inside that shell: paste once its prompt is back
+bao kv get -mount=secret -field=value hosts/security/lldap-jwt-secret > /dev/null
+exit
+```
+
+```sh
+# [3/3] controller again: paste after the shell has exited
+ssh security 'sudo systemctl is-system-running'
+```
 
 ## Verification before writing it down
 

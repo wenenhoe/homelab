@@ -7,10 +7,11 @@ A pull request in this repo is reviewed when the maintainer asks for one. The re
 Run it from a checkout of `homelab-security`, under your own `gh` login:
 
 ```bash
-python -m agent_review.request review <pr>
+# paste alone; it waits for the pull request's number
+read -r -p 'pull request: ' pr && python -m agent_review.request review "$pr"
 ```
 
-`<pr>` is the number of a pull request in this repo. The command reads the pull request here, checks it against the private repo's limits and, if it passes, starts the review workflow there. `--dry-run` does the reading and the checking and starts nothing. The limits and the rest of the command are in the private repo's own docs, and this doc does not copy them.
+`pr` is the number of a pull request in this repo. The command reads the pull request here, checks it against the private repo's limits and, if it passes, starts the review workflow there. `--dry-run` does the reading and the checking and starts nothing. The limits and the rest of the command are in the private repo's own docs, and this doc does not copy them.
 
 A request waits for a pull request that is a draft or whose required checks are not all passing, and is refused for one from a fork, a closed one and one that is too large; the private repo also limits how often a pull request, and the repo as a whole, is reviewed. The required checks are the ones this repo's branch ruleset names ([`branching.md`](../../engineering/branching.md#the-rulesets)), read at each request.
 

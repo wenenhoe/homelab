@@ -5,9 +5,17 @@ How a series of patches reaches `main` as pull requests with [`tools/land_series
 Run it from `tools/` in a clone of the repository, with `gh` logged in as a user who can bypass the `main-review` ruleset ([`branching.md`](branching.md#the-rulesets)):
 
 ```bash
+# paste alone; it waits for the series file's path, absolute or from tools/
+read -r -p 'series file: ' series
+```
+
+```bash
 cd tools
-uv run python -m land_series SERIES.series --repo ..            # replay, check, keep branches
-uv run python -m land_series SERIES.series --repo .. --land     # push, open, wait, confirm, merge
+uv run python -m land_series "$series" --repo ..            # replay, check, keep branches
+```
+
+```bash
+uv run python -m land_series "$series" --repo .. --land     # push, open, wait, confirm, merge
 ```
 
 ## The input

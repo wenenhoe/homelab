@@ -75,7 +75,14 @@ output; it is written to no file.
 ```sh
 cd ansible
 ansible-playbook playbooks/network-infra.yaml --limit tailscale,localhost -e network_infra_check=true --diff
-read -rs TAILSCALE_AUTHKEY; export TAILSCALE_AUTHKEY   # only to join a logged-out node
+```
+
+```sh
+# only to join a logged-out node: paste alone; it waits for the key, hidden
+read -rs TAILSCALE_AUTHKEY; export TAILSCALE_AUTHKEY
+```
+
+```sh
 ansible-playbook playbooks/network-infra.yaml --limit tailscale,localhost
 unset TAILSCALE_AUTHKEY
 ```

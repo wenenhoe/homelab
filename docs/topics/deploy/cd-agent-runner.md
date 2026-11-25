@@ -2,7 +2,7 @@
 
 [`tools/cd_agent/run_job.py`](../../../tools/cd_agent/run_job.py) is the poll, decide and run step of [ADR 0044 revision 0-c (CD agent trigger)](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md): one invocation is one run of one job. The `cd_agent` role installs it on the agent host and runs it from each job's timer ([`cd-agent-host.md`](cd-agent-host.md)). It imports only the standard library, so the host runs it with its own `python3` and no virtualenv.
 
-```sh
+```text
 cd tools && python3 -m cd_agent.run_job --repo-url URL --state-dir DIR [--cwd SUBDIR] [--on-change] -- COMMAND...
 ```
 
@@ -59,7 +59,7 @@ The tests in [`tools/tests/cd_agent/`](../../../tools/tests/cd_agent/test_run_jo
 
 A job that needs Python packages or Ansible collections runs [`tools/cd_agent/toolchain.py`](../../../tools/cd_agent/toolchain.py) as its command, with its real command after a `--`:
 
-```sh
+```text
 python3 -m cd_agent.toolchain [--collections FILE] [--python PATH] -- COMMAND...
 ```
 

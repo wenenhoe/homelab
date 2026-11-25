@@ -5,9 +5,23 @@ touching the real one, and the acceptance run that checks what the play leaves
 behind. Both run from the operator host.
 
 ```sh
-tofu/scratch/opnsense/scratch_gateway.sh up OUT_DIR IMAGE_URL IMAGE_CHECKSUM
-tofu/scratch/opnsense/scratch_gateway.sh down OUT_DIR
-tofu/scratch/opnsense/acceptance/acceptance.sh OUT_DIR IMAGE_URL IMAGE_CHECKSUM
+# paste alone; it waits for a directory outside the repository, the image URL and its checksum
+read -r -p 'OUT_DIR: ' out_dir; read -r -p 'IMAGE_URL: ' image_url; read -r -p 'IMAGE_CHECKSUM: ' image_checksum
+```
+
+```sh
+# from the repo root: build
+tofu/scratch/opnsense/scratch_gateway.sh up "$out_dir" "$image_url" "$image_checksum"
+```
+
+```sh
+# remove
+tofu/scratch/opnsense/scratch_gateway.sh down "$out_dir"
+```
+
+```sh
+# the acceptance run, which builds and removes its own gateway
+tofu/scratch/opnsense/acceptance/acceptance.sh "$out_dir" "$image_url" "$image_checksum"
 ```
 
 ## Bridges

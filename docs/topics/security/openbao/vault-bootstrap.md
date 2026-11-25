@@ -61,7 +61,8 @@ needs a login from the old one first, or a re-init
 ## Day-to-day use: minting a new AppRole
 
 ```sh
-cd tools && python3 -m openbao_utils.shell <vault-bootstrap role_id>
+# controller: paste alone; it waits for the role_id, then opens a shell and waits for the secret_id
+cd tools && read -r -p 'vault-bootstrap role_id: ' rid && python3 -m openbao_utils.shell "$rid"; unset rid
 ```
 
 Paste `secret_id` when prompted (from the password manager — see
@@ -73,13 +74,19 @@ interactive shell with `BAO_ADDR`/`BAO_CACERT`/
 below is plain native `bao`:
 
 ```sh
-bao policy write <new-role-name> - < ../docker/openbao/policies/<new-role-name>.hcl
-bao write auth/approle/role/<new-role-name> \
-  token_policies="<new-role-name>" \
-  token_ttl=<...> token_max_ttl=<...> \
-  secret_id_ttl=<...> secret_id_num_uses=<...>
-bao read auth/approle/role/<new-role-name>/role-id
-bao write -f auth/approle/role/<new-role-name>/secret-id
+# inside that shell: paste alone; it waits for the new role's name and limits
+read -r -p 'role name: ' role; read -r -p 'token_ttl: ' token_ttl; read -r -p 'token_max_ttl: ' token_max_ttl; read -r -p 'secret_id_ttl: ' secret_id_ttl; read -r -p 'secret_id_num_uses: ' secret_id_num_uses
+```
+
+```sh
+# same shell
+bao policy write "$role" - < "../docker/openbao/policies/$role.hcl"
+bao write "auth/approle/role/$role" \
+  token_policies="$role" \
+  token_ttl="$token_ttl" token_max_ttl="$token_max_ttl" \
+  secret_id_ttl="$secret_id_ttl" secret_id_num_uses="$secret_id_num_uses"
+bao read "auth/approle/role/$role/role-id"
+bao write -f "auth/approle/role/$role/secret-id"
 exit   # revokes the vault-bootstrap token
 ```
 
@@ -99,8 +106,8 @@ narrow AppRole), `vault-bootstrap` can produce one without a second
 re-init - the same self-escalation property above, deliberately used
 on purpose this one time:
 
-1. Log in with `vault-bootstrap`
-   (`cd tools && python3 -m openbao_utils.shell <vault-bootstrap role_id>`) —
+1. Log in with `vault-bootstrap`, as under
+   [Day-to-day use](#day-to-day-use-minting-a-new-approle) —
    the spawned shell is fully interactive, so step 4's unseal-key
    submissions need no special handling.
 2. `bao policy write vault-bootstrap-emergency -`: a copy of
@@ -120,17 +127,45 @@ on purpose this one time:
    left off this command keeps its current stored value. Re-supplying
    every field anyway is still worth doing for an explicit audit
    trail, just not required to avoid data loss.
-4. `bao operator generate-root -generate-otp`, then
-   `bao operator generate-root -init -otp="<otp>"` — returns a
-   `Nonce`. Submit each Shamir key with
-   `bao operator generate-root -otp="<otp>" -nonce="<nonce>"`, repeated
-   once per key up to the configured threshold (`-status` checks
-   progress without consuming a key). The final submission returns an
-   `Encoded Token`; decode it with
-   `bao operator generate-root -decode="<encoded>" -otp="<otp>"` for
-   the actual root token. Confirmed against this CLI's own `-h` output
-   and a live run.
-5. Use the root token for whatever the actual emergency need is.
+4. Start the generation, with the one-time password held in a variable:
+
+   ```sh
+   # inside that shell
+   otp=$(bao operator generate-root -generate-otp)
+   bao operator generate-root -init -otp="$otp"
+   ```
+
+   It prints a `Nonce`. Submit the Shamir keys one at a time, up to the
+   threshold (`-status` shows progress without consuming a key). With no key
+   argument, `bao` prompts for it:
+
+   ```sh
+   # paste alone; it waits for the nonce
+   read -r -p 'nonce: ' nonce
+   ```
+
+   ```sh
+   # once per key: paste alone; it waits for one unseal key, hidden
+   bao operator generate-root -nonce="$nonce"
+   ```
+
+   The final submission prints an `Encoded Token`. Decode it from stdin into a
+   variable, so the root token is never printed:
+
+   ```sh
+   # paste alone; it waits for the encoded token
+   read -rs -p 'encoded token: ' encoded; echo
+   ```
+
+   ```sh
+   root=$(printf '%s' "$encoded" | bao operator generate-root -decode=- -otp="$otp")
+   unset encoded
+   ```
+
+   `-otp` has no stdin form, so the one-time password is an argument; without
+   the encoded token it decodes nothing.
+5. Use the root token for whatever the actual emergency need is, passed as
+   `BAO_TOKEN="$root" bao ...`.
 6. Revert — three things, not one:
    - Rebind `vault-bootstrap` back to `token_policies="vault-bootstrap"`.
    - `bao policy delete vault-bootstrap-emergency` — deleting the
@@ -138,10 +173,15 @@ on purpose this one time:
      stays unless removed, sitting unattached and unused, which is
      exactly the kind of "slower-to-notice god-mode" this design
      exists to avoid.
-   - `bao token revoke <root token>` — a live, unrevoked root token
-     defeats the point of not holding a standing one. Confirm with
-     `bao token lookup <root token>`: permission-denied means it's
-     gone.
+   - Revoke the root token and confirm it is gone: a live, unrevoked root token
+     defeats the point of not holding a standing one. The lookup must answer
+     permission denied.
+
+     ```sh
+     BAO_TOKEN="$root" bao token revoke -self
+     BAO_TOKEN="$root" bao token lookup
+     unset root otp
+     ```
 
 **This makes `vault-bootstrap` a single point of failure for the
 mechanism above**, and worse than the pre-2.6.x world in one specific

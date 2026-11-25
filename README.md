@@ -28,7 +28,7 @@ Everything runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM d
 
 ## Repository Layout
 
-```
+```text
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
 ├── .github/                 # CI workflows, PR-check scripts, Renovate config

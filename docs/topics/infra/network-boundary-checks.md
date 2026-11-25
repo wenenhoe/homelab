@@ -39,7 +39,7 @@ Each flow is tried once, on a new connection, since a rule that cuts new connect
 
 [`runner.py`](../../../tools/network_checks/runner.py) runs from the host that runs the play:
 
-```sh
+```text
 cd tools
 python -m network_checks.runner --ssh-user USER [--ssh-user-for ZONE=USER] [--ssh-command "ssh -i KEY -o BatchMode=yes"] [--tag smoke] [--flow ID] [--without-canary ZONE]
 ```
@@ -92,16 +92,17 @@ The gateway has to be built with `192.168.40.250` in `opnsense_gateway_operator_
 ```sh
 # on the machine with the repository
 cd tools
+NODE=pve   # the Proxmox node
 ssh-keygen -t ed25519 -N '' -f ~/.ssh/scratch_runner
 python -m network_checks.scratch_plan > plan.json
-scp plan.json network_checks/scratch_canaries.py ~/.ssh/scratch_runner.pub root@NODE:
+scp plan.json network_checks/scratch_canaries.py ~/.ssh/scratch_runner.pub "root@$NODE:"
 
 # on the node, as root, with the scratch gateway up on vmbr9
 python3 scratch_canaries.py up plan.json vmbr9 /root/scratch-canaries scratch_runner.pub
 
 # on the machine with the repository
 python -m network_checks.runner --ssh-user root --tag services \
-  --ssh-command "ssh -i ~/.ssh/scratch_runner -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o 'ProxyCommand=ssh root@NODE python3 /root/scratch_canaries.py relay /root/scratch-canaries %h %p'"
+  --ssh-command "ssh -i ~/.ssh/scratch_runner -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o 'ProxyCommand=ssh root@$NODE python3 /root/scratch_canaries.py relay /root/scratch-canaries %h %p'"
 
 # on the node, to remove every namespace, link and process
 python3 scratch_canaries.py down
@@ -112,7 +113,13 @@ Which canaries the runner reaches depends on the gateway's rows. An operator hos
 To see the runner catch a missing rule, block one flow ahead of the zones' rules and run it again:
 
 ```sh
-ansible-playbook tofu/scratch/opnsense/boundary/block_rule.yaml -e repo=. -e ca_file=... -e api_port=... -e credentials=... \
+# paste alone; it waits for the scratch gateway's CA file, API port and credentials file
+read -r -p 'ca_file: ' ca_file; read -r -p 'api_port: ' api_port; read -r -p 'credentials: ' credentials
+```
+
+```sh
+# from the repo root
+ansible-playbook tofu/scratch/opnsense/boundary/block_rule.yaml -e repo=. -e ca_file="$ca_file" -e api_port="$api_port" -e credentials="$credentials" \
   -e block_source=192.168.20.0/24 -e block_destination=192.168.20.1 -e block_protocol=UDP -e block_port=53 -e block_state=present
 ```
 

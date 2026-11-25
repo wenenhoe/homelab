@@ -7,7 +7,7 @@ issue a clean shutdown instead of a hard power-off.
 
 The package ships `qemu-guest-agent.service` as a "static" unit:
 
-```
+```ini
 [Unit]
 BindsTo=dev-virtio\x2dports-org.qemu.guest_agent.0.device
 After=dev-virtio\x2dports-org.qemu.guest_agent.0.device

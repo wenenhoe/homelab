@@ -136,7 +136,7 @@ Confirmed against a real running instance, not inferred from docs:
 
 ## Pulling a snapshot
 
-```sh
+```text
 tools/openbao_utils/scripts/snapshot-pull.sh [r2|b2] [OUTPUT]
 ```
 
@@ -264,12 +264,19 @@ refuses the connection.
    [drill](#restore-drill) explains:
 
    ```sh
-   # [1/2] controller: paste alone; it opens a shell on security and waits
+   # [1/3] controller: paste alone; it opens a shell on security and waits
    ssh -t security
+   ```
 
-   # [2/2] inside that shell: paste once its prompt is back
+   ```sh
+   # [2/3] inside that shell: paste alone; it waits for the throwaway root token, hidden
    read -rs BAO_TOKEN && export BAO_TOKEN
-   docker exec -e BAO_TOKEN -e BAO_ADDR=https://127.0.0.1:8200 -e BAO_SKIP_VERIFY=true      openbao bao operator raft snapshot restore -force /tmp/restore.snap
+   ```
+
+   ```sh
+   # [3/3] same shell
+   docker exec -e BAO_TOKEN -e BAO_ADDR=https://127.0.0.1:8200 -e BAO_SKIP_VERIFY=true \
+     openbao bao operator raft snapshot restore -force /tmp/restore.snap
    docker exec openbao rm /tmp/restore.snap
    ```
 
@@ -289,9 +296,14 @@ refuses the connection.
    compare it with a host that already trusts the CA.
 
    ```sh
+   # paste alone; it waits for the full path of the decrypted step-ca archive
+   read -r -p 'security-step-ca archive (full path): ' archive
+   ```
+
+   ```sh
    cd ../ansible
    ansible-playbook playbooks/bootstrap-security.yaml --tags stage2 \
-     -e bootstrap_step_ca_archive=/path/to/security-step-ca-<time>.tar.gz
+     -e bootstrap_step_ca_archive="$archive"
    ```
 
 8. Stage 3 re-renders OpenBao on its normal address, removes the placeholder
@@ -321,12 +333,16 @@ the snapshot is restored it holds nothing, so wipe it and start again:
 ```sh
 # [1/3] controller: paste alone; it opens a shell on security and waits
 ssh security
+```
 
+```sh
 # [2/3] inside that shell: paste once its prompt is back
 cd /opt/stacks/openbao && docker compose down
 docker volume rm openbao_data
 exit
+```
 
+```sh
 # [3/3] controller again: paste after the shell has exited
 cd ansible && ansible-playbook playbooks/bootstrap-security.yaml --tags stage1
 cd ../tools && python3 -m openbao_utils.init

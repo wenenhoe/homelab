@@ -46,16 +46,29 @@ can't fix.
    nothing else can create it yet:
 
    ```sh
-   # [1/3] controller: paste alone
+   # [1/5] controller: paste alone
    scp docker/openbao/policies/vault-bootstrap.hcl security:/tmp/
+   ```
 
-   # [2/3] controller: paste alone; it opens a shell on security and waits
+   ```sh
+   # [2/5] controller: paste alone; it opens a shell on security and waits
    ssh security
+   ```
 
-   # [3/3] inside that shell: paste once its prompt is back
-   export BAO_TOKEN=<fresh root token from step 2>
+   ```sh
+   # [3/5] inside that shell: paste alone; it waits for the fresh root token from step 2, hidden
+   read -rsp 'root token: ' BAO_TOKEN; echo; export BAO_TOKEN
+   ```
+
+   ```sh
+   # [4/5] same shell: paste alone; it waits for security's caddy_domain
+   read -r -p 'caddy_domain of security: ' caddy_domain
+   ```
+
+   ```sh
+   # [5/5] same shell
    export BAO_ADDR=https://127.0.0.1:8200
-   export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
+   export BAO_TLS_SERVER_NAME="openbao.$caddy_domain"
    export BAO_CACERT=/etc/step-ca/root_ca.crt
 
    bao policy write vault-bootstrap - < /tmp/vault-bootstrap.hcl
@@ -83,9 +96,11 @@ can't fix.
    prompted:
 
    ```sh
-   # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
-   cd tools && python3 -m openbao_utils.shell "<role_id from above>"
+   # [1/2] controller: paste alone; it waits for the role_id above, then opens a shell and waits for the secret_id
+   cd tools && read -r -p 'vault-bootstrap role_id: ' rid && python3 -m openbao_utils.shell "$rid"; unset rid
+   ```
 
+   ```sh
    # [2/2] inside that shell: paste once its prompt is back
    bao policy write _stage-test-policy - <<< 'path "sys/health" { capabilities = ["read"] }'   # succeeds
    bao kv get -mount=secret hosts/security/lldap-jwt-secret                                    # denied
@@ -97,7 +112,7 @@ can't fix.
    own. Clean up the test policy with the root token, back on
    `security`: `bao policy delete _stage-test-policy`.
 5. `cd tools && python3 -m openbao_utils.restore <backup-dir>` -
-   **before** any `ansible-playbook deploy.yaml` run against the fresh
+   **before** any `ansible-playbook playbooks/deploy.yaml` run against the fresh
    Vault. Skipping this means the next `deploy.yaml` silently mints new
    random values for every `hex`/`uuid4` secret in the catalog
    (ADR 0025's Context explains why). Restores two things in one pass:
@@ -115,9 +130,11 @@ can't fix.
    `vault-bootstrap`:
 
    ```sh
-   # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
-   cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
+   # [1/2] controller: paste alone; it waits for the role_id, then opens a shell and waits for the secret_id
+   cd tools && read -r -p 'vault-bootstrap role_id: ' rid && python3 -m openbao_utils.shell "$rid"; unset rid
+   ```
 
+   ```sh
    # [2/2] inside that shell: paste once its prompt is back
    bao policy write rotation-read-watcher - < ../docker/openbao/policies/rotation-read-watcher.hcl
 
@@ -158,9 +175,9 @@ can't fix.
    ```sh
    cd tools
    python3 -m openbao_utils.dump
-   python3 -m openbao_utils.diff \
-     ~/secrets-backup-pre-reinit-<original-timestamp> \
-     ~/secrets-backup-pre-reinit-<this-run's-timestamp>
+   dumps=(~/secrets-backup-pre-reinit-*)   # named by UTC timestamp, so oldest first
+   printf '%s\n' "${dumps[@]}"             # expect the dump of step 1, then this one
+   python3 -m openbao_utils.diff "${dumps[0]}" "${dumps[-1]}"
    ```
 
    Expect `IDENTICAL`, no exceptions.

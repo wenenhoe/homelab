@@ -204,7 +204,8 @@ that chain could break `--tags images`/`--tags infra` silently. Verify
 manually before trusting a change to it:
 
 ```sh
-ansible-playbook deploy.yaml --tags images --limit <host> -vvv | grep "TASK \["
+# paste alone, from ansible/; it waits for the host to try
+read -r -p 'host: ' host && ansible-playbook playbooks/deploy.yaml --tags images --limit "$host,localhost" -vvv | grep "TASK \["
 ```
 
 and confirm only the expected tasks show up.

@@ -88,7 +88,7 @@ python3 -m molecule_cov.cli report --coverage-dir .data --role caddy \
 
 A drill-down row looks like this:
 
-```
+```text
 Status   Task                       Location      Loop          Branch          Per-scenario
 covered  Restart the service        tasks.yaml:42  -             never negated   default=covered
 covered  Copy config files          tasks.yaml:50  2 item(s) ok  -               default=covered

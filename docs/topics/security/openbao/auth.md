@@ -38,7 +38,7 @@ instead of a human-exported root token).
 until `host_vars/security.yaml`'s hand-written `extra_records` CNAME
 for it is deployed — bind9 doesn't auto-generate one, since OpenBao
 deliberately has no `caddy:` route (`deployment.md`). Run
-`ansible-playbook deploy.yaml --tags infra` (re-renders/reloads DNS
+`ansible-playbook playbooks/deploy.yaml --tags infra` (re-renders/reloads DNS
 zone data only, no images touched) before testing a login from any
 host other than `security` itself — the runbook below works without it
 since it never leaves the `openbao` container's own network namespace.
@@ -46,13 +46,24 @@ since it never leaves the `openbao` container's own network namespace.
 ## Runbook
 
 ```sh
-# [1/2] controller: paste alone; it opens a shell on security and waits
+# [1/4] controller: paste alone; it opens a shell on security and waits
 ssh security
+```
 
-# [2/2] inside that shell: paste once its prompt is back
-export BAO_TOKEN=<current root token, from the break-glass password-manager entry>
+```sh
+# [2/4] inside that shell: paste alone; it waits for the current root token (break-glass password-manager entry), hidden
+read -rsp 'root token: ' BAO_TOKEN; echo; export BAO_TOKEN
+```
+
+```sh
+# [3/4] same shell: paste alone; it waits for security's caddy_domain
+read -r -p 'caddy_domain of security: ' caddy_domain
+```
+
+```sh
+# [4/4] same shell
 export BAO_ADDR=https://127.0.0.1:8200
-export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
+export BAO_TLS_SERVER_NAME="openbao.$caddy_domain"
 export BAO_CACERT=/etc/step-ca/root_ca.crt
 ```
 
@@ -131,9 +142,19 @@ supplied explicitly (see
    keep both files together for consistency), `chmod 600` both:
 
    ```sh
-   printf '%s' '<role_id>'   > ansible/files/secrets/openbao-controller-role-id
-   printf '%s' '<secret_id>' > ansible/files/secrets/openbao-controller-secret-id
-   chmod 600 ansible/files/secrets/openbao-controller-{role,secret}-id
+   # controller, from the repo root: paste alone; it waits for the role_id, then the secret_id, hidden
+   read -r -p 'controller role_id: ' role_id; read -rsp 'controller secret_id: ' secret_id; echo
+   ```
+
+   ```sh
+   # same shell
+   (
+     umask 077
+     printf '%s' "$role_id" > ansible/files/secrets/openbao-controller-role-id
+     printf '%s' "$secret_id" > ansible/files/secrets/openbao-controller-secret-id
+     chmod 600 ansible/files/secrets/openbao-controller-{role,secret}-id
+   )
+   unset role_id secret_id
    ```
 
    Same offline discipline as every other credential in this repo:
@@ -221,8 +242,7 @@ through the `vault-bootstrap` AppRole
 
 ```sh
 cd tools
-printf 'vault-bootstrap role_id: '; read -r rid
-python3 -m openbao_utils.shell "$rid"; unset rid
+read -r -p 'vault-bootstrap role_id: ' rid && python3 -m openbao_utils.shell "$rid"; unset rid
 ```
 
 In the shell it spawns:

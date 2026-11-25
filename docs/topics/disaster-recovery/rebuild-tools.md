@@ -30,7 +30,8 @@ protection is off: a full pool fails every volume on it. Read the pool's `Data%`
 and `Meta%` before creating the volume:
 
 ```sh
-lvs -o lv_name,lv_size,data_percent,metadata_percent <vgname>
+vg=backup   # vgname of the storage.cfg entry
+lvs -o lv_name,lv_size,data_percent,metadata_percent "$vg"
 ```
 
 A dump is taken and deleted per host, so 100 GB holds the largest (`storage`'s: a
@@ -38,10 +39,11 @@ A dump is taken and deleted per host, so 100 GB holds the largest (`storage`'s: 
 Delete one host's dump before taking the next.
 
 ```sh
-lvcreate -V 100G -T <vgname>/<thinpool> -n vzdump
-mkfs.ext4 /dev/<vgname>/vzdump
+vg=backup; thinpool=backup   # vgname and thinpool of the storage.cfg entry
+lvcreate -V 100G -T "$vg/$thinpool" -n vzdump
+mkfs.ext4 "/dev/$vg/vzdump"
 mkdir -p /mnt/vzdump
-echo '/dev/<vgname>/vzdump /mnt/vzdump ext4 defaults,nofail 0 2' >> /etc/fstab
+echo "/dev/$vg/vzdump /mnt/vzdump ext4 defaults,nofail 0 2" >> /etc/fstab
 mount /mnt/vzdump
 pvesm add dir vzdump --path /mnt/vzdump --content backup --is_mountpoint yes
 ```
@@ -53,11 +55,24 @@ dump is deleted.
 
 ## retire_vm.sh
 
+One block per action, since each is run on its own:
+
 ```sh
-ssh root@<node> 'bash -s -- dump 204 play' < tools/rebuild_check/scripts/retire_vm.sh
-ssh root@<node> 'bash -s -- destroy 204 play' < tools/rebuild_check/scripts/retire_vm.sh
-ssh root@<node> 'bash -s -- drop-dump 204' < tools/rebuild_check/scripts/retire_vm.sh
-ssh root@<node> 'bash -s -- restore 204 904' < tools/rebuild_check/scripts/retire_vm.sh
+# from the repo root; the node's SSH target, then the dump
+NODE=root@pve
+ssh "$NODE" 'bash -s -- dump 204 play' < tools/rebuild_check/scripts/retire_vm.sh
+```
+
+```sh
+ssh "$NODE" 'bash -s -- destroy 204 play' < tools/rebuild_check/scripts/retire_vm.sh
+```
+
+```sh
+ssh "$NODE" 'bash -s -- drop-dump 204' < tools/rebuild_check/scripts/retire_vm.sh
+```
+
+```sh
+ssh "$NODE" 'bash -s -- restore 204 904' < tools/rebuild_check/scripts/retire_vm.sh
 ```
 
 The VMID is followed by the VM's name in Proxmox, which has to match, so a
@@ -114,8 +129,19 @@ covers the play.
 ## move_vm_nic.sh
 
 ```sh
-ssh root@<node> 'bash -s -- 401 <name> net0 vmbr0 none' < tools/rebuild_check/scripts/move_vm_nic.sh
-ssh root@<node> 'bash -s -- 401 <name> net0 vmbr1 25' < tools/rebuild_check/scripts/move_vm_nic.sh
+# paste alone; it waits for the name VM 401 has in Proxmox
+read -r -p 'name of VM 401: ' name
+```
+
+```sh
+# untagged on vmbr0
+NODE=root@pve
+ssh "$NODE" "bash -s -- 401 $name net0 vmbr0 none" < tools/rebuild_check/scripts/move_vm_nic.sh
+```
+
+```sh
+# or: VLAN 25 on vmbr1
+ssh "$NODE" "bash -s -- 401 $name net0 vmbr1 25" < tools/rebuild_check/scripts/move_vm_nic.sh
 ```
 
 Moves one NIC of a VM to a bridge and VLAN tag (`none` for untagged) and keeps its model, MAC address
@@ -130,7 +156,7 @@ so run it from a machine whose own session does not cross that NIC.
 ```sh
 ssh storage 'sudo python3 - --pin 192.168.20.7' < tools/rebuild_check/scripts/bucket_copy.py
 ssh storage 'sudo python3 - --pin 192.168.20.7 --check-only' < tools/rebuild_check/scripts/bucket_copy.py
-ssh storage 'sudo python3 - --from r2 --bucket <the r2 bucket>' < tools/rebuild_check/scripts/bucket_copy.py
+ssh storage 'sudo python3 - --from r2 --bucket homelab-backups' < tools/rebuild_check/scripts/bucket_copy.py
 ```
 
 It copies the `homelab-backups` bucket from another S3 endpoint into the SeaweedFS

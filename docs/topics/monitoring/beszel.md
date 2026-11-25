@@ -23,11 +23,11 @@ value doesn't block the first deploy. `beszel-agent`'s `.env` uses
 
 Sequence:
 
-1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty Vault values `openbao_utils/bootstrap.py` created for these two).
+1. `ansible-playbook playbooks/deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty Vault values `openbao_utils/bootstrap.py` created for these two).
 2. Visit `https://beszel.sec.{{ lan_domain }}`, create the hub admin account.
 3. **Settings → Keys**: run `cd tools && python3 -m openbao_utils.bootstrap` and paste the hub's public key in when prompted for `beszel-hub-key` (already-set entries are skipped, so re-running is safe — see [`secrets.md`](../security/secrets.md)).
 4. **Settings → Tokens**: create a universal token, set it as `beszel-agent-token` the same way.
-5. Re-run `ansible-playbook deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.
+5. Re-run `ansible-playbook playbooks/deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.
 
 ## Rotating the KEY and TOKEN
 
@@ -58,15 +58,26 @@ Sequence:
    `controller.hcl`), so `openbao_utils/bootstrap.py`'s own skip-if-already-set
    behavior doesn't get in the way here:
    `value=-` reads from stdin instead of the command line, which a
-   shell's own history file and process listing (`ps`) can both expose:
-   ```sh
-   # [1/2] controller: paste alone; it opens a shell and waits for the secret_id
-   cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   shell's own history file and process listing (`ps`) can both expose.
+   `printf '%s'` adds no newline, where `<<<` would store one:
 
-   # [2/2] inside that shell: paste once its prompt is back, one line at a time
-   # (each `read` waits for the value to be typed)
-   read -rs KEY; bao kv put -mount=secret hosts/all/beszel/beszel-hub-key value=- <<< "$KEY"; unset KEY
-   read -rs TOKEN; bao kv put -mount=secret hosts/all/beszel/beszel-agent-token value=- <<< "$TOKEN"; unset TOKEN
+   ```sh
+   # [1/4] controller: paste alone; it opens a shell and waits for the secret_id
+   cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   ```
+
+   ```sh
+   # [2/4] inside that shell: paste alone; it waits for the new KEY, hidden
+   read -rs KEY; printf '%s' "$KEY" | bao kv put -mount=secret hosts/all/beszel/beszel-hub-key value=-; unset KEY
+   ```
+
+   ```sh
+   # [3/4] same shell: paste alone; it waits for the new TOKEN, hidden
+   read -rs TOKEN; printf '%s' "$TOKEN" | bao kv put -mount=secret hosts/all/beszel/beszel-agent-token value=-; unset TOKEN
+   ```
+
+   ```sh
+   # [4/4] same shell
    exit
    ```
 5. `ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost` — **not** `security` alone. Every host in `app_hosts` (`services`, `security`, `play`, `storage`) runs an agent that needs the new KEY to verify the hub again.

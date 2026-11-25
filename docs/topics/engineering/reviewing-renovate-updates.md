@@ -7,8 +7,8 @@ Run it from `tools/` in a clone of the repository:
 ```bash
 cd tools
 uv run python -m renovate_merge summary --repo ..                   # read the pull requests, write the summary
-uv run python -m renovate_merge merge SUMMARY.json --repo ..        # merge those at level none
-uv run python -m renovate_merge merge SUMMARY.json 123 125 --repo ..  # merge these, whatever their level
+uv run python -m renovate_merge merge ../.git/renovate-merge/summary.json --repo ..          # merge those at level none
+uv run python -m renovate_merge merge ../.git/renovate-merge/summary.json 123 125 --repo ..  # merge these, whatever their level
 uv run python -m renovate_merge promote --repo ..                    # open the pull request into main, and stop
 ```
 
@@ -49,8 +49,10 @@ A pull request that is left, for any reason, is reported with the reason and the
 In this repository a merge to `main` is a deploy, which is why `main` is refused as a base. The tool also serves a repository where Renovate's pull requests target `main` and nothing deploys from it. There `--allow-main` is given to both commands:
 
 ```bash
-uv run python -m renovate_merge summary --repo PATH --base main --allow-main
-uv run python -m renovate_merge merge SUMMARY.json --repo PATH --allow-main
+repo=..                  # the checkout
+summary="$repo/.git/renovate-merge/summary.json"   # the file `summary` writes
+uv run python -m renovate_merge summary --repo "$repo" --base main --allow-main
+uv run python -m renovate_merge merge "$summary" --repo "$repo" --allow-main
 ```
 
 The flag is not read from `summary.json`: a summary that names `main` is refused by `merge` without it, so a file cannot grant it to itself. With the flag `merge` asks for the branch name to be typed (`Type 'main' to merge them:`, not `yes`), and `--yes` is refused with it, so a merge into `main` is never unattended. Everything else is as above, including the wait for the required checks and the absence of `--admin`. `promote` only knows `maintenance` and `main` and is not used there.
@@ -60,7 +62,12 @@ The flag is not read from `summary.json`: a summary that names `main` is refused
 `merge` reads the required checks from the branch rulesets. GitHub does not serve them for a private repository on a free plan (the call fails with HTTP 403), and classic branch protection is limited the same way, so there is nothing to read and GitHub requires nothing. `--require-check NAME`, repeated for each check, names the ones to wait for instead and skips the read:
 
 ```bash
-uv run python -m renovate_merge merge SUMMARY.json --repo PATH --allow-main --dry-run --require-check "<workflow>/<job>" --require-check "<workflow>/<job>"
+# paste alone; it waits for the summary file, the checkout and two check names (workflow/job)
+read -r -p 'summary file: ' summary; read -r -p 'checkout: ' repo; read -r -p 'first check: ' check_one; read -r -p 'second check: ' check_two
+```
+
+```bash
+uv run python -m renovate_merge merge "$summary" --repo "$repo" --allow-main --dry-run --require-check "$check_one" --require-check "$check_two"
 ```
 
 The names are the ones `gh pr checks <number>` prints. The wait is the same: a named check not reported yet is waited for, a skipped one counts as passed, and one that failed or was cancelled leaves the pull request open. A name no check ever reports is waited for until the time limit, so run `--dry-run` first: it says `checks still to pass` for a name that does not match. GitHub enforces nothing in such a repository, so the named checks are the only gate besides the head commit the summary read.

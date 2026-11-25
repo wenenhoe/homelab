@@ -73,16 +73,24 @@ docker run --rm -it --network caddy-proxy smallstep/step-cli sh
 Inside that shell:
 
 ```sh
-# Trust this CA's root — prompts for the fingerprint shown when step-ca
+# paste alone; it waits for the CA root's fingerprint, shown when step-ca
 # first initialized (`docker compose logs step-ca` on the host, or
-# `docker exec step-ca step certificate fingerprint /home/step/certs/root_ca.crt`).
-step ca bootstrap --ca-url https://step-ca:9000 --fingerprint <fingerprint>
+# `docker exec step-ca step certificate fingerprint /home/step/certs/root_ca.crt`),
+# then your lan_domain
+read -r -p 'fingerprint: ' fingerprint; read -r -p 'lan_domain: ' lan_domain
+```
 
+```sh
+# Trust this CA's root
+step ca bootstrap --ca-url https://step-ca:9000 --fingerprint "$fingerprint"
+```
+
+```sh
 # Issue a cert — prompts for STEP_CA_PROVISIONER_PASSWORD (auto-generated,
 # Vault-backed at secret/data/hosts/all/step-ca/step-ca-provisioner-password
 # — docs/topics/security/openbao/auth.md shows the shell.py kv get pattern for
 # reading a value like this back out).
-step ca certificate test-client.{{ lan_domain }} test.crt test.key \
+step ca certificate "test-client.$lan_domain" test.crt test.key \
   --provisioner internal-services
 ```
 
@@ -112,8 +120,14 @@ To reissue on purpose, remove the cert file and re-run the deploy; the
 failure message prints this command filled in for the app and host:
 
 ```sh
-ansible-playbook volume-file-rm.yaml --limit <host>,localhost \
-  -e volume_rm_app=<app> -e volume_rm_volume=certs \
+# paste alone; it waits for the app and its host
+read -r -p 'app: ' app; read -r -p 'host: ' host
+```
+
+```sh
+# from ansible/
+ansible-playbook playbooks/volume-file-rm.yaml --limit "$host,localhost" \
+  -e volume_rm_app="$app" -e volume_rm_volume=certs \
   -e '{"volume_rm_paths": ["fullchain.pem"]}' \
   -e volume_rm_confirm=true -e volume_rm_stop_app=false
 ```

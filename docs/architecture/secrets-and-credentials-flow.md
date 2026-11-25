@@ -25,7 +25,7 @@ flowchart LR
     controller -- "3 . kv put/get:<br/>hosts/*,<br/>cloud_credentials/{leaf,rotation}/*" --> openbao
 ```
 
-Every `ansible-playbook deploy.yaml` run and every
+Every `ansible-playbook playbooks/deploy.yaml` run and every
 `tools/cloud_credentials/*.py` invocation authenticates this way.
 `controller`'s AppRole has no CIDR bind — a laptop has no stable
 address to bind to

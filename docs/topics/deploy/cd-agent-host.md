@@ -88,7 +88,7 @@ Before it installs anything the role refuses a successor that is no job, success
 
 The role writes `/etc/ssh/sshd_config.d/00-cd-agent.conf`, validated with `sshd -t` before it is installed:
 
-```
+```text
 AllowUsers <cd_agent_admin_users>
 Match Address *,!<cd_agent_operator_address>
     DenyUsers *
@@ -97,7 +97,9 @@ Match Address *,!<cd_agent_operator_address>
 It sorts first, so it is read before any other drop-in, and `DenyUsers` takes precedence over an `AllowUsers` a later file adds. To check a host, ask `sshd` what applies to a connection from a given address:
 
 ```sh
-sshd -T -C user=<admin>,addr=<address>,host=probe,laddr=<this host>,lport=22 | grep -E '^(allow|deny)users'
+# the operator host's address; probe again with any other
+addr=192.168.25.2
+sshd -T -C "user=cdadmin,addr=$addr,host=probe,laddr=192.168.25.3,lport=22" | grep -E '^(allow|deny)users'
 ```
 
 The operator host's address prints `allowusers` only; any other address also prints `denyusers *`. This host's other listening ports are not the role's concern: nothing it installs listens. The probe from another host in the VLAN, which [`cd-agent.md`](../../projects/cd-agent.md) requires, is a separate check.

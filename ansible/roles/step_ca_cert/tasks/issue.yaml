@@ -49,7 +49,7 @@
 
       To reissue on purpose, remove the cert file and re-run this deploy:
 
-      ansible-playbook volume-file-rm.yaml
+      ansible-playbook playbooks/volume-file-rm.yaml
       --limit {{ inventory_hostname }},localhost
       -e volume_rm_app={{ step_ca_cert_app_name }}
       -e volume_rm_volume={{ step_ca_cert_certs_volume_name | regex_replace('^' ~ step_ca_cert_app_name ~ '_', '') }}

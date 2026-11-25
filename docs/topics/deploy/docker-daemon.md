@@ -49,7 +49,8 @@ reattach to the running containers, and they must be stopped by hand.
 
 ```sh
 sudo cat /etc/docker/daemon.json
-docker inspect --format '{{json .HostConfig.LogConfig}}' <container>
+container=dashy   # any container on the host
+docker inspect --format '{{json .HostConfig.LogConfig}}' "$container"
 docker info --format '{{.SecurityOptions}}'
 ```
 

@@ -131,17 +131,27 @@ Only needed for a first deploy or to rotate the key.
 Run on your own workstation, never on `storage` or an app host:
 
 ```sh
+# paste alone; answer its questions: RSA and RSA, size 4096, expiration 0
 gpg --full-generate-key
-# Key type: RSA and RSA, size: 4096, expiration: 0
-
-gpg --list-secret-keys --keyid-format=long
-# note the hex string after "rsa4096/"
-
-gpg --armor --export <key-id> > ansible/files/backup-gpg-public-key.asc
-gpg --armor --export-secret-keys <key-id> > homelab-backup-private.asc
 ```
 
-Store `homelab-backup-private.asc` offline (password manager, offline USB)
+```sh
+# note the hex string after "rsa4096/"
+gpg --list-secret-keys --keyid-format=long
+```
+
+```sh
+# paste alone; it waits for that hex string
+read -r -p 'key id: ' key_id
+```
+
+```sh
+# from the repo root; the private key goes to your home directory, not the checkout
+gpg --armor --export "$key_id" > ansible/files/backup-gpg-public-key.asc
+(umask 077; gpg --armor --export-secret-keys "$key_id" > ~/homelab-backup-private.asc)
+```
+
+Store `~/homelab-backup-private.asc` offline (password manager, offline USB)
 with a redundant copy — losing it makes every backup unrecoverable.
 
 ## What's backed up
@@ -208,7 +218,8 @@ environment, as the deploy user on that app's host, from the
 `backup-agent` directory under `compose_deploy_dir`:
 
 ```sh
-docker exec --env-file conf.d/<app>.env backup-agent backup
+# paste alone; it waits for the app's name
+read -r -p 'app: ' app && docker exec --env-file "conf.d/$app.env" backup-agent backup
 ```
 
 One schedule file is one app and one archive. To back up every app on the

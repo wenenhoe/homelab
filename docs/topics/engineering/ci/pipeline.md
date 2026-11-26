@@ -1,292 +1,130 @@
 # CI: PR Checks
 
-`.github/workflows/pr-checks.yml` runs on every PR into `main`,
-`maintenance` or `develop`, the three long-lived branches of
-[ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md).
-Which jobs block a merge is set by the repository rulesets on those branches
-([`branching.md`](../branching.md#the-rulesets)), not by anything in this
-repo; see [Requiring checks before merge](#requiring-checks-before-merge)
-below for the check names. This pipeline isn't a substitute
-for [Molecule](../../testing/molecule-testing.md): Molecule tests one role in
-isolation, this pipeline tests the parts Molecule can't (linting the
-whole tree, a real compose stack booting, and the actual
-`deploy.yaml`/`restore.yaml` ordering).
+`.github/workflows/pr-checks.yml` runs on every pull request into `main`, `maintenance` or `develop` ([ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). Which jobs block a merge is set by the [rulesets](../branching.md#the-rulesets), not in the repository. [Molecule](../../testing/molecule-testing.md) tests one role in isolation; this pipeline tests what it cannot: linting the whole tree, booting real compose stacks, and the `deploy.yaml` and `restore.yaml` ordering.
 
-How a change picks which jobs run is in [CI Change Scoping](change-scoping.md); the checks it runs are documented by kind, alongside this page: [CI Gates](gates.md) for the regression checks and gates over one kind of change, [Doc Checks](../../documentation/doc-checks.md) for index generation and drift and [Project and Record Checks](../../documentation/project-checks.md) for project and decision records, and [CI Scheduled Jobs](scheduled-jobs.md) for the Renovate window and Trivy.
+| For | Read |
+| :--- | :--- |
+| which jobs a change runs | [CI Change Scoping](change-scoping.md) |
+| the regression checks and gates | [CI Gates](gates.md) |
+| index generation and drift | [Doc Checks](../../documentation/doc-checks.md) |
+| project and decision records | [Project and Record Checks](../../documentation/project-checks.md) |
+| the Renovate window and Trivy | [CI Scheduled Jobs](scheduled-jobs.md) |
 
 ## Where the CI logic lives
 
-Anything with a pass/fail rule or a decision in it is Python under
-`tools/`, unit-tested in `tools/tests/`, and workflows and pre-commit only
-call it as `python -m <package>.<module>` from `tools/`
-([ADR 0064 (CI and doc check code)](../../../decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)).
-`tools/ci/` is what the workflows run:
+Anything with a pass/fail rule or a decision in it is Python under `tools/`, tested in `tools/tests/`. Workflows and pre-commit only call it, as `python -m <package>.<module>` from `tools/` ([ADR 0064 (CI and doc check code)](../../../decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)).
 
-- `ci.scope` — what a PR's diff needs run: the Molecule watch sets,
-  the legs those roles split into, no-op filtering, the compose-app and
-  Dockerfile lists.
-- `ci.gates` — checks with their own verdicts: the deploy-ordering
-  regression check, the compose health wait, the Renovate window,
-  `matrix-jobs-gate`, and the secret-catalog and app-catalog rules checks (see
-  [Secret catalog rules](gates.md#secret-catalog-rules) and
-  [App catalog rules](gates.md#app-catalog-rules)).
-- `ci.images` — the image registry and the CI image builds.
-- `ci.scan` — setup for the security scans (the Trivy config, and the gitleaks run over a PR's commits).
-- `ci.timing` — the scheduled Molecule timing run: which roles to time again, folding the timings into the recorded state, and the shard table report (see [Molecule timings](../../testing/molecule-timings.md)).
-- `ci.fixtures` — data a job seeds before a real run, derived from the repo
-  (the deploy-ordering check's secrets).
+| Package in `tools/ci/` | Holds |
+| :--- | :--- |
+| `ci.scope` | what a diff needs run: Molecule watch sets and legs, no-op filtering, compose-app and Dockerfile lists |
+| `ci.gates` | checks with their own verdicts, the [gates](gates.md) among them, and `matrix-jobs-gate` |
+| `ci.images` | the image registry, image checks and CI image builds |
+| `ci.checksums`, `ci.provenance` | that [pinned release hashes](release-checksum-check.md) and [image digests](image-provenance-check.md) are the publisher's |
+| `ci.scan` | setup for the security scans |
+| `ci.shell_tests` | the pinned Bats clones ([shell tests](../../testing/shell-tests.md)) |
+| `ci.timing` | the scheduled [Molecule timing run](../../testing/molecule-timings.md) |
+| `ci.fixtures` | data a job seeds before a real run, derived from the repo |
+| `ci.branches` | keeping the long-lived branches in step |
+| `ci.promotion` | the [promotion checklist](#promotion-checklist) |
 
-`tools/utils/secret_catalog.py` is the one reader of
-`secret_catalog.yaml`: the `openbao_utils` tools, the CI fixtures and the
-rules check all load it through `load_catalog`, which refuses a repeated
-secret name instead of keeping the last. It needs only PyYAML, so a
-pre-commit hook can import it. `tools/utils/app_catalog.py` does the same for
-`app_catalog.yaml`, and both use the duplicate-refusing loader in
-`tools/utils/unique_key_yaml.py`.
+`tools/utils/` has the one reader each of `secret_catalog.yaml` and `app_catalog.yaml`, both refusing a repeated name. They need only PyYAML, so a pre-commit hook can import them.
 
-`tools/doc_scripts/` is the documentation-workflow checks and generators
-of [ADR 0037 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-003.md):
-`generate_doc_indexes`, `check_doc_drift` and `check_doc_change` (which runs `check_project_scope`,
-`check_project_close`, `check_project_start` and `check_accepted_records`), with
-the helpers they share (`doc_frontmatter`, `doc_graph`, `doc_explorations`,
-`doc_scope`, `doc_close`, `doc_start`, `doc_frozen`, `doc_removed`, `doc_git`). The pre-commit hooks run
-them as `bash -c 'cd tools && python3 -m doc_scripts.<module>'`, in the
-hook's own environment with PyYAML, and the `project-checks` job runs
-them through `uv run`. They read `docs/` from the
-repository root, not the working directory. `check_mermaid`, the
-[Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check) of
-[ADR 0078 (Diagram render check)](../../../decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md),
-has no hook: the `mermaid-check` job runs it on the runner's own `python3`.
-`suggest_project_scope` and `suggest_adr_consolidation` are no checks and run
-nowhere in CI: the first prints what a project's `allowed_paths` is missing, as
-[Scope suggestions](../../documentation/project-checks.md#scope-suggestions) describes, and the second
-lists decision records worth condensing, merging or demoting, as
-[Consolidation suggestions](../../documentation/project-checks.md#consolidation-suggestions) describes.
+`tools/doc_scripts/` has the documentation checks and generators of [ADR 0037 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-003.md). They read `docs/` from the repository root, not the working directory.
 
-What stays in workflow YAML or `.github/scripts/` is what needs Actions
-(`uses:` steps, caches, registry login) or is a plain command sequence
-(`docker` orchestration such as `seed-lldap-ci-cert.sh`, image smoke
-tests, `pre-commit`, `pytest`, `molecule test`). `.github/scripts/` holds
-no Python, and `tools/tests/ci/test_layout.py` enforces that.
+| Module | Runs in |
+| :--- | :--- |
+| `generate_doc_indexes`, `check_doc_drift`, `check_doc_change` | pre-commit hooks; `check_doc_change` also in the `project-checks` job |
+| `check_mermaid` | the `mermaid-check` job only ([Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check), [ADR 0078 (Diagram render check)](../../../decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md)) |
+| `suggest_project_scope`, `suggest_adr_consolidation` | nowhere: they print advice ([scope](../../documentation/project-checks.md#scope-suggestions), [consolidation](../../documentation/project-checks.md#consolidation-suggestions)) |
 
-The modules jobs run on the runner's own `python3` (`ci.images.*`, `ci.json5`,
-`ci.gates.compose_health`, `ci.gates.renovate_window`,
-`ci.gates.matrix_gate`, `ci.checksums.*`, `ci.scan.*`, `ci.shell_tests.*`, `ci.output`, `ci.proc`, and
-`doc_scripts.check_mermaid`) are
-standard-library only, so those jobs install nothing;
-`tools/tests/ci/test_stdlib_only.py` enforces it, including that they still
-parse on an older Python than the repo's own. The rest run through
-`uv run`.
+Workflow YAML and `.github/scripts/` keep only what needs Actions (`uses:` steps, caches, registry login) or is a plain command sequence. `.github/scripts/` holds no Python, which `tools/tests/ci/test_layout.py` enforces.
+
+Some jobs run modules on the runner's own `python3` and install nothing. Those modules are standard-library only and parse on an older Python than the repository's, which [`test_stdlib_only.py`](../../../../tools/tests/ci/test_stdlib_only.py) lists and enforces. The rest run through `uv run`.
 
 ## Jobs
 
-| Job | Runs when | What it does |
-| :--- | :--- | :--- |
-| `warm-uv-cache` | always | Populates the shared uv package cache. See [Cache warming](#cache-warming). |
-| `warm-galaxy-cache` | always | Populates the shared Ansible Galaxy collections cache. See [Cache warming](#cache-warming). |
-| `warm-pre-commit-cache` | always | Populates the shared pre-commit hook-environment cache. See [Cache warming](#cache-warming). |
-| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except the push-stage `ansible-lint` and `check-doc-change-push`) against every file, then gitleaks over the PR's commits (the hook itself is skipped here: it only scans staged changes). |
-| `project-checks` | always | One step, `check_doc_change`, over the PR's merge-base diff: the project scope, close and start checks and the accepted records check. What each rule enforces is in [doc-checks.md](../../documentation/project-checks.md#the-four-project-and-record-checks-as-one-command). |
-| `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The push-stage hook that lints — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
-| `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/`, spread over the runner's cores by `pytest-xdist` (`-n auto --dist worksteal`) — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
-| `deploy-ordering-check` | deploy inputs changed (the `deploy_ordering` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | Runs the real `deploy.yaml` and `restore.yaml` against a CI inventory and checks the `ansible_host` resolution chain. See [Deploy-ordering-check](gates.md#deploy-ordering-check). |
-| `molecule` | any role touched | One matrix job per changed role, or per shard for the roles `.github/molecule-shards.yml` splits (see [Sharded roles](#sharded-roles)), running `./scripts/molecule-test-all.sh <role> [-s <scenario>...]`. Uploads the leg's coverage data and writes each scenario's run time to the job summary. See [`molecule-testing.md`](../../testing/molecule-testing.md). |
-| `molecule-coverage` | always | Merges every `molecule` leg's coverage data and gates each tested role's [coverage report](gates.md#molecule-coverage-gate) against its floor. Its steps do nothing when no role was tested. |
-| `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash or apt key fingerprint (`cd_agent`'s, `openbao_cli`'s, `docker`'s and `tailscale_node`'s `defaults/main.yaml`), changed | Each pinned release checksum is the one its publisher signed, attested or lists, and each pinned apt key is the one its vendor serves — see [Release checksum check](release-checksum-check.md). |
-| `provenance` | `tools/ci/provenance/**`, or a file that can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the scripts, workflow and Python constant a Renovate manager tracks), changed | Each pinned image digest is one its publisher signed or attested — see [Image provenance check](image-provenance-check.md). |
-| `shell-tests` | the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Fetches the pinned Bats clones and runs the shell tests on them, with the project's locked Python environment for the templates — see [Shell tests](../../testing/shell-tests.md). A change to the pin file or the tooling beside it also checks each pinned tag — see [Shell test pins](../../testing/shell-test-pins.md). |
-| `mermaid-check` | the `mermaid_check` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check). |
-| `renovate-config-check` | the `renovate_config` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | `.github/renovate.json5` is a valid Renovate repo config under the pinned Renovate image — see [Validating the config](renovate.md#validating-the-config). |
-| `doc-site` | the `doc_site` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep) | Builds the documentation site and checks its layout at phone widths, the two steps `pages.yml` runs before it deploys — see [The doc site renderer](../../documentation/doc-site.md#publishing). |
-| `tofu-checks` | anything under `tofu/` changed | In `tofu/`: `tofu fmt -check -recursive`, `tofu init -backend=false -lockfile=readonly`, `tofu validate` and `tofu test`, on the OpenTofu version the job pins, and the same init and validate again in `tofu/scratch/opnsense` and `tofu/scratch/ubuntu`, two more roots that share the first one's lock file. Needs no state, credentials or Proxmox: the tests mock the provider. |
-| `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
-| `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
-| `compose-syntax-check` | an excluded app's `compose*.yaml` touched (the `excluded_compose` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)), fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
-| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes`, the cache-warming jobs and `molecule-coverage` to succeed, into one fixed check name — see below. |
+| Job | Runs when | What it does | Required |
+| :--- | :--- | :--- | :--- |
+| `warm-uv-cache` | always | Populates the uv cache ([cache warming](#cache-warming)). | via gate |
+| `warm-galaxy-cache` | always | Populates the Ansible Galaxy collections cache. | via gate |
+| `warm-pre-commit-cache` | always | Populates the pre-commit hook-environment cache. | yes |
+| `pre-commit-checks` | always | Every commit-stage hook on every file, then gitleaks over the pull request's commits. | yes |
+| `project-checks` | always | `check_doc_change` over the merge-base diff: the [project and record checks](../../documentation/project-checks.md#the-four-project-and-record-checks-as-one-command). | yes |
+| `ansible-lint` | `ansible/**` or the lint config changed | The push-stage hook, over the whole `ansible/` tree. | yes |
+| `uv-lock` | `pyproject.toml` or `uv.lock` changed | `uv sync --locked`: an unregenerated or broken lockfile fails. | yes |
+| `python-unit-tests` | `python_unit_tests` | `pytest ansible/tests/ tools/tests/` over all cores, with provider calls and `rclone` mocked. | yes |
+| `deploy-ordering-check` | `deploy_ordering` | The real `deploy.yaml` and `restore.yaml` against a CI inventory ([deploy ordering](gates.md#deploy-ordering-check)). | yes |
+| `molecule` | any role touched | One leg per role, or per [shard](#sharded-roles), running [`molecule-test-all.sh`](../../testing/molecule-testing.md#running-scenarios) and uploading coverage and timings. | via gate |
+| `molecule-coverage` | always | Merges the legs' coverage and holds each tested role to its [floor](gates.md#molecule-coverage-gate); does nothing when none was tested. | via gate |
+| `release-checksums` | `tools/ci/checksums/**` or a file with a pinned release hash or apt key fingerprint changed | Pinned hashes and apt keys are the publisher's ([release checksum check](release-checksum-check.md)). | yes |
+| `provenance` | `tools/ci/provenance/**` or a file that can pin an image changed | Pinned digests are signed or attested by the publisher ([provenance check](image-provenance-check.md)). | yes |
+| `shell-tests` | `shell_tests` | Shell tests on the pinned Bats ([shell tests](../../testing/shell-tests.md)); a pin change also checks the [pinned tags](../../testing/shell-test-pins.md). | yes |
+| `mermaid-check` | `mermaid_check` | Every Mermaid block renders ([Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check)). | yes |
+| `renovate-config-check` | `renovate_config` | `renovate.json5` is valid ([validating the config](renovate.md#validating-the-config)). | yes |
+| `doc-site` | `doc_site` | Builds the site and checks its layout, as `pages.yml` does ([doc site](../../documentation/doc-site.md#publishing)). | yes |
+| `tofu-checks` | `tofu/**` changed | `fmt`, `init`, `validate` and `test` in `tofu/`, `init` and `validate` in the scratch roots; no state or credentials. | yes |
+| `compose-boot-test` | a non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Boots each changed app ([compose boot-test](gates.md#compose-boot-test)). | via gate |
+| `dockerfile-build-check` | a `docker/<app>/Dockerfile` touched | Builds each without pushing and smoke-tests it ([Dockerfile changes](gates.md#dockerfile-changes)). | via gate |
+| `compose-syntax-check` | `excluded_compose` | `docker compose config --quiet` on what boot-test excludes. | yes |
+| `matrix-jobs-gate` | always | One fixed check name for the matrix jobs and what they depend on ([below](#requiring-checks-before-merge)). | yes |
 
-Every job that runs steps sets `timeout-minutes`, so a hung step frees its
-runner after minutes instead of GitHub's six-hour default. A job that calls a
-reusable workflow can't set one; the called workflow's jobs carry theirs.
-[`test_workflow_timeouts.py`](../../../../tools/tests/ci/test_workflow_timeouts.py)
-fails a job that has none.
+A name alone in "Runs when" is an output of [change scoping](change-scoping.md#change-scoped-not-a-full-sweep). Two jobs are not in the table: `detect-changes`, which produces those outputs, and `trivy-scan` ([security scanning](../../security/policy/security-scanning.md)), which always runs and decides inside itself whether to run its Ansible check.
+
+Every job that runs steps sets `timeout-minutes`, which [`test_workflow_timeouts.py`](../../../../tools/tests/ci/test_workflow_timeouts.py) enforces; a job calling a reusable workflow cannot, so the called jobs carry theirs.
+
+The shape of the dependencies, with each job's exact `needs` in the workflow:
 
 ```mermaid
-flowchart TD
-    detect["detect-changes<br/>(always runs first)"]
-    warmuv["warm-uv-cache<br/>(always)"]
-    warmgalaxy["warm-galaxy-cache<br/>(always)"]
-    warmprecommit["warm-pre-commit-cache<br/>(always)"]
-    precommit["pre-commit-checks<br/>(always)"]
-    projectchecks["project-checks<br/>(always)"]
-    trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
-    lint["ansible-lint<br/>(ansible/** or lint config changed)"]
-    uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
-    pytest["python-unit-tests<br/>(controller-side Python changed)"]
-    deployorder["deploy-ordering-check<br/>(inventory/playbooks/secrets/restore changed)"]
-    relchk["release-checksums<br/>(pinned release hash or its checker changed)"]
-    provenance["provenance<br/>(pinned image reference or its checker changed)"]
-    mermaid["mermaid-check<br/>(markdown or its check changed)"]
-    renovatechk["renovate-config-check<br/>(Renovate config or its pin changed)"]
-    shellchk["shell-tests<br/>(shell script, shell test or pin changed)"]
-    docsite["doc-site<br/>(site code or what it is built from changed)"]
-    tofuchk["tofu-checks<br/>(anything under tofu/ changed)"]
-    molecule["molecule<br/>(any role touched — matrix)"]
-    molcov["molecule-coverage<br/>(always)"]
-    boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
-    synchk["compose-syntax-check<br/>(excluded app's compose file touched, fallback)"]
-    dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
-    gate["matrix-jobs-gate<br/>(always)"]
-
-    detect --> lint & uvlock & pytest & deployorder & relchk & provenance & mermaid & renovatechk & shellchk & docsite & tofuchk & molecule & boottest & synchk & dockerbuild
-    detect --> trivy
-    warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & shellchk & docsite & molecule & boottest
-    warmgalaxy --> deployorder & molecule & boottest
-    warmprecommit --> precommit & lint
-    detect --> molcov
-    warmuv --> molcov
-    molecule --> molcov
-    molecule --> gate
-    molcov --> gate
-    boottest --> gate
-    dockerbuild --> gate
-
-    style precommit stroke-dasharray: 5 5
-    style projectchecks stroke-dasharray: 5 5
-    style molcov stroke-dasharray: 5 5
-    style trivy stroke-dasharray: 5 5
-    style warmuv stroke-dasharray: 5 5
-    style warmgalaxy stroke-dasharray: 5 5
-    style warmprecommit stroke-dasharray: 5 5
+flowchart LR
+    detect["detect-changes"] --> scoped["change-scoped jobs"]
+    detect --> matrix["matrix jobs"]
+    detect --> trivy["trivy-scan"]
+    warm["cache-warming jobs"] --> always["pre-commit-checks, project-checks"]
+    warm --> scoped
+    warm --> matrix
+    matrix --> coverage["molecule-coverage"]
+    matrix --> gate["matrix-jobs-gate"]
+    coverage --> gate
 ```
 
-`pre-commit-checks` and `project-checks` run unconditionally and independently of
-`detect-changes` (dashed above) — its hooks span nearly every file
-type in the repo, so scoping it would defeat the point. `trivy-scan`
-also always runs as a job, but reads `detect-changes`' output to decide
-internally whether to run its Ansible-misconfig sub-check — see
-[security-scanning.md](../../security/policy/security-scanning.md). `warm-uv-cache`,
-`warm-galaxy-cache`, and `warm-pre-commit-cache` are dashed for the
-same reason: unconditional, independent of `detect-changes`, so a cold
-or evicted cache self-heals on any PR rather than only ones the diff
-happens to flag. See [Cache warming](#cache-warming).
+`pre-commit-checks` and `project-checks` do not wait on `detect-changes`: their checks span nearly every file type.
 
 ## Sharded roles
 
-A run takes as long as its slowest `molecule` leg, and a few roles have many
-or slow scenarios. [`.github/molecule-shards.yml`](../../../../.github/molecule-shards.yml)
-splits those roles into shards, each a list of scenarios, and `detect-changes`
-turns the queued roles into legs with
-[`ci.scope.molecule_shards`](../../../../tools/ci/scope/molecule_shards.py): a
-split role becomes one leg per shard (`secrets-1`, `secrets-2`, ...), any other
-role one leg running every scenario. Split roles are listed first, but
-Actions doesn't start matrix jobs in list order: when more jobs are queued than
-the plan's concurrent-job limit allows, a long leg can wait behind short ones.
-A run that queues every role is limited by that cap, not by its longest leg.
+A run takes as long as its slowest `molecule` leg. [`.github/molecule-shards.yml`](../../../../.github/molecule-shards.yml) splits the slow roles into shards, each a list of scenarios, and [`ci.scope.molecule_shards`](../../../../tools/ci/scope/molecule_shards.py) turns queued roles into legs: one per shard (`secrets-1`, `secrets-2`, ...) for a split role, one for any other.
 
-The table must cover each scenario of a split role exactly once. A scenario in
-no shard would never run, so `detect-changes` fails the run when a queued split
-role disagrees with the scenarios on disk, and
-`tools/tests/ci/scope/test_molecule_shards.py` checks the real table, which
-`python_unit_tests` runs when the table changes. Adding a scenario to a split
-role therefore means adding it to a shard in the same PR.
+- **Every scenario of a split role is in exactly one shard.** A scenario in none would never run, so `detect-changes` fails the run, and `tools/tests/ci/scope/test_molecule_shards.py` checks the table. Add a new scenario to a shard in the same pull request.
+- **Order is not guaranteed.** Split roles are listed first, but Actions may start a long leg behind short ones when the concurrent-job limit is reached. A run of every role is bounded by that limit, not by its longest leg.
+- **When to split.** The role's leg is the longest in a typical run, and its time is spread over scenarios; one dominant scenario cannot be split. Each leg also pays its own checkout and setup.
 
-Shards were balanced on measured scenario times, longest first. A scheduled run keeps those times current and proposes a better table; see [Molecule timings](../../testing/molecule-timings.md). A role is worth
-splitting when its leg is the longest in a typical run and its scenarios are
-spread evenly enough for the split to shorten it: a role dominated by one
-scenario can't get faster than that scenario. Each extra leg costs about 15
-seconds of checkout and setup. Coverage still gates per role: every leg uploads
-its data, and `molecule-coverage` merges it (see
-[Molecule coverage gate](gates.md#molecule-coverage-gate)).
+Shards are balanced on measured times, which a [scheduled run](../../testing/molecule-timings.md) keeps current and proposes changes from. [Coverage](gates.md#molecule-coverage-gate) still gates per role.
 
 ## Cache warming
 
-`warm-uv-cache`, `warm-galaxy-cache`, and `warm-pre-commit-cache` exist
-to give each of the three shared caches below exactly one job that's
-allowed to write to it, no matter how many other jobs in the run need
-what it holds.
+Each shared cache has one job that may write it. Every other job restores only. Without this, a pull request that changes a key (a Renovate bump, typically) has every consuming job miss and then race to save the same entry.
 
-All three caches are keyed on a hash of whatever file determines what
-needs installing (`uv.lock`/`pyproject.toml` for uv's own cache, inside
-`astral-sh/setup-uv`; `ansible/requirements.yml` and both
-`ansible/roles/molecule_helpers/` requirements files for the Ansible
-Galaxy collections cache; `.config/.pre-commit-config.yaml` — which
-pins every hook's own version — for pre-commit's hook-environment
-cache; the latter two inside `setup-uv-ansible`) — so the key already
-changes correctly whenever a dependency changes, Renovate bump or not.
-That was never the gap. The gap is that on a run where the key *is*
-new — most often a Renovate PR, since bumping a dependency (or, for
-pre-commit's cache, a hook version — Renovate's `pre-commit` manager
-bumps exactly this file) is the whole point of one — every job that
-consumes that cache misses at the same time and, before this, every
-one of them then tried to save the same new entry. `actions/cache`
-treats a losing save as a soft warning (cache key already exists), not
-a job failure, so this was never a correctness bug; it was a burst of
-simultaneous writers against GitHub's cache API, worst on exactly the
-PRs Renovate opens several of at once, and occasionally surfaced as
-connection resets rather than the expected warning.
+| Cache | Keyed on | Written by | Save input of `setup-uv-ansible` |
+| :--- | :--- | :--- | :--- |
+| uv packages | `uv.lock`, `pyproject.toml` | `warm-uv-cache` | `save-uv-cache` |
+| Ansible Galaxy collections | `ansible/requirements.yml` and `molecule_helpers`' two requirements files | `warm-galaxy-cache` | `save-galaxy-cache` |
+| pre-commit hook environments | `.config/.pre-commit-config.yaml` | `warm-pre-commit-cache` | `save-precommit-cache` |
 
-`setup-uv-ansible`'s `save-uv-cache`/`save-galaxy-cache`/
-`save-precommit-cache` inputs (all default `"false"`) gate saving
-only — every job still restores a cache that exists, regardless of
-these flags, so nothing here weakens the cache for jobs that don't
-populate it. Within `pr-checks.yml`, only `warm-uv-cache` sets
-`save-uv-cache: "true"`, only `warm-galaxy-cache` sets
-`save-galaxy-cache: "true"`, and only `warm-pre-commit-cache` sets
-`save-precommit-cache: "true"` ([Base-branch
-warming](#base-branch-warming) covers the one other writer, on
-`main`); every other cache-consuming job below depends on the
-relevant warm job(s)
-(`needs:`) and leaves all three at their default, so it only ever
-restores.
-
-All three warm jobs run unconditionally — no `if:`, no dependency on
-`detect-changes` — so a cold or evicted cache self-heals on any PR,
-not only ones a diff happens to flag as touching the dependency files.
-They run independently of each other, too: neither `warm-galaxy-cache`
-nor `warm-pre-commit-cache`'s own `uv sync` waits on `warm-uv-cache`
-finishing, so on a fully cold run all three may resolve uv's packages
-in parallel rather than serializing behind one another — a little
-redundant work, once, is cheaper than adding a hop to the critical
-path every PR pays. `warm-pre-commit-cache` only runs `pre-commit
-install-hooks`, never `pre-commit run` — building every hook's
-environment is the entire point, and it needs nothing (Docker
-included) that actually running a hook would.
-
-`warm-uv-cache` runs an unlocked `uv sync` (`locked` left at its default
-`"false"`): it only populates the shared cache. A stale lockfile would
-otherwise fail this job and skip everything that `needs:` it, burying
-`uv-lock`'s own diagnostic.
+- The warm jobs have no `if:` and do not wait on `detect-changes`, so an evicted cache is rebuilt on any pull request.
+- They do not wait on each other: on a cold run a little repeated work is cheaper than a longer critical path.
+- `warm-pre-commit-cache` runs `pre-commit install-hooks` only, so it needs no Docker.
+- `warm-uv-cache` syncs unlocked, so a stale lockfile fails `uv-lock`, with its own message, rather than skipping everything that needs the warm job.
 
 ### Base-branch warming
 
-The three warm jobs above run on `pull_request`, and GitHub scopes a
-cache saved by a pull-request run to that PR's merge ref
-(`refs/pull/<n>/merge`): only re-runs of the same PR can restore it.
-A second PR — even with byte-identical dependency files — never sees
-it, misses, and rebuilds all three caches from scratch. A run can
-restore entries saved on the PR's base branch, so `main` has to hold
-them ([GitHub's cache access
-rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache)).
+A cache saved by a pull-request run is visible only to that pull request; other pull requests can restore only what their base branch saved ([GitHub's cache access rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache)). [`warm-caches.yml`](../../../../.github/workflows/warm-caches.yml) therefore saves all three on `main`, in one job.
 
-`.github/workflows/warm-caches.yml` runs `setup-uv-ansible` with all
-three save flags on `main`, in one job (the three keys are distinct,
-so there is no same-key race to split writers over). Its triggers:
+| Trigger | Why |
+| :--- | :--- |
+| `push` to `main` | a merge that changes a key writes the new entry at once; there is no `paths:` list to drift from the keys |
+| `schedule`, [twice a week](scheduled-jobs.md) | a restore counts as access, so entries are not evicted for disuse |
+| `workflow_dispatch` | rebuild by hand after an eviction |
 
-- `push` to `main` — a merge that changes a cache key (a Renovate
-  bump) writes the new entry immediately. No `paths:` filter: the key
-  inputs already live in `setup-uv-ansible`'s `hashFiles(...)` calls,
-  and a second copy of that list here could drift from it. On a hit
-  the run restores and does no-op installs.
-- `schedule` (Sunday and Wednesday) — GitHub evicts entries
-  not accessed in 7 days, and the longest gap between runs is 4 days.
-  A restore hit counts as access, so the run keeps entries alive
-  without re-saving them.
-- `workflow_dispatch` — rebuild by hand after an eviction.
-
-The PR-side warm jobs stay: a PR that changes a key is still the first
-writer of that entry and its own jobs need it before merge. The entry
-is visible to that PR alone until the merge re-warms it on `main`.
+The pull-request warm jobs stay, since a pull request that changes a key needs the entry before it merges.
 
 ## Promotion checklist
 
@@ -308,74 +146,38 @@ Two kinds of change are applied by hand and have no rule: a new or changed Vault
 
 To add a rule, add a `Rule` to the table with a test in `tools/tests/ci/promotion/test_rules.py` for a path it asks for and one it does not.
 
-The workflow triggers on `pull_request_target`, so the workflow and the code it runs are `main`'s and a branch cannot edit them to use the `pull-requests: write` token. It checks nothing out of the pull request: the changed paths come from the pull request files API and are only matched against the globs, and a path is printed back only when it is made of plain characters. It takes effect once it is on `main`. From 2 December 2026 GitHub disables `pull_request_target` on public repositories unless an Actions policy allows it, so the repository needs a policy (Settings > Actions > Policies) that allows `pull_request_target` and targets `.github/workflows/promotion-checklist.yml` alone; a policy that restricts events is an allowlist, so it must not cover other workflows. Without it the run fails and the description keeps its last content. Keep the repository setting that lets Actions approve pull requests off, because this job's token could otherwise approve a promotion.
+The workflow triggers on `pull_request_target`, so the workflow and the code it runs are `main`'s and a branch cannot edit them to use the `pull-requests: write` token. It checks nothing out of the pull request: the changed paths come from the pull request files API and are only matched against the globs, and a path is printed back only when it is made of plain characters. It takes effect once it is on `main`.
+
+Two repository settings go with it:
+
+- **An Actions policy** (Settings > Actions > Policies) that allows `pull_request_target` and targets `.github/workflows/promotion-checklist.yml` alone, since GitHub otherwise disables that event on a public repository. A policy that restricts events is an allowlist, so it must not cover other workflows. Without it the run fails and the description keeps its last content.
+- **Letting Actions approve pull requests stays off**, because this job's token could otherwise approve a promotion.
 
 ## Requiring checks before merge
 
-The rulesets on `main`, `maintenance` and `develop` require the same 17
-checks ([`branching.md`](../branching.md#the-rulesets)). GitHub's rulesets
-(Settings > Rules) reference jobs by their check-run name: the job's name alone
-(`pre-commit-checks`, with no workflow name before it), or, for a job that
-calls a reusable workflow, the calling job and the called one
-(`trivy-scan / secret-scan`).
+The `main` and `maintenance-and-develop` [rulesets](../branching.md#the-rulesets) require the same checks: every job marked `yes` under [Jobs](#jobs), and `trivy-scan / ansible-misconfig-scan`. A ruleset names a check by its job's name alone, or, for a job that calls a reusable workflow, as the calling job and the called one. [Adding a required check](../branching.md#adding-a-required-check) has the command.
 
-`warm-pre-commit-cache`, `pre-commit-checks`, `project-checks`,
-`ansible-lint`, `uv-lock`, `python-unit-tests`,
-`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `renovate-config-check`, `shell-tests`, `doc-site`, `tofu-checks`, `compose-syntax-check`
-and `trivy-scan / ansible-misconfig-scan` are required directly, with
-`matrix-jobs-gate` below as the seventeenth; all are safe to
-require: each
-is gated by a job-level `if:` inside a workflow that always triggers on
-`pull_request`, not by a path filter on the trigger itself — a required
-check accepts a `skipped` conclusion, so an unrelated PR (e.g.
-docs-only) won't get stuck waiting on a `deploy-ordering-check` run that
-never needed to happen. The unsafe pattern (never used here) would be
-`paths-ignore`/`paths:` on the workflow's own `on:` trigger, which
-leaves the check permanently "Pending" instead of reporting `skipped`.
+To read what `main` requires now:
 
-A job whose `needs` failed also reports `skipped`, which a required check
-accepts. `matrix-jobs-gate` closes that for `detect-changes`,
-`warm-uv-cache` and `warm-galaxy-cache`, which it requires to succeed, so
-those two are not required on their own.
-`warm-pre-commit-cache` is the one warm job it does not cover, so it is
-required directly: without that, a failed warm leaves `pre-commit-checks`
-and `ansible-lint` skipped, and the merge passes.
+```sh
+id=$(gh api repos/wenenhoe/homelab/rulesets --jq '.[] | select(.name == "main") | .id')
+gh api "repos/wenenhoe/homelab/rulesets/$id" --jq '.rules[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context'
+```
 
-`trivy-scan / secret-scan` is not required: a pull request never enables it
-(`run-secrets` is off outside the weekly run), so it reports `skipped` every
-time. The secret scan that blocks a pull request is gitleaks, inside
-`pre-commit-checks`.
+| Not required | Why |
+| :--- | :--- |
+| `molecule`, `compose-boot-test`, `dockerfile-build-check` | A matrix posts one name per entry (`molecule (apt)`, `molecule (secrets-1)`), and the bare name only when skipped, so no name posts on every pull request. `matrix-jobs-gate` stands for them. |
+| `warm-uv-cache`, `warm-galaxy-cache`, `detect-changes`, `molecule-coverage` | `matrix-jobs-gate` requires them to succeed. |
+| `trivy-scan / secret-scan` | A pull request never enables it, so it always reports `skipped`; gitleaks in `pre-commit-checks` is the secret scan that blocks. |
 
-**`molecule`, `compose-boot-test` and `dockerfile-build-check` are the
-exception** — don't require them directly. All three use a matrix (one
-entry per changed role/app/Dockerfile), and
-when the matrix actually runs, each entry posts its own check name (e.g.
-`molecule (apt)` or `molecule (secrets-1)`), which varies by PR. There's no single name that's
-guaranteed to post for every PR: the base job name (`molecule`) only
-appears when the job is skipped entirely, never when it actually ran.
-Require `matrix-jobs-gate` instead — it depends on all three, runs
-regardless of whether they were skipped (`if: always()`), and fails
-if any genuinely failed (not skipped). It also depends on
-`detect-changes`, `warm-uv-cache` and `warm-galaxy-cache` and requires
-each to succeed: a failure there makes the matrix jobs report
-`skipped`, which would otherwise pass. One fixed name, correct for every
-PR shape.
+Requiring a job that is skipped by its own `if:` is safe, because a required check accepts `skipped`. A `paths:` filter on the workflow's `on:` trigger is not used: it leaves the check "Pending" for ever.
 
-The verdict is [`tools/ci/gates/matrix_gate.py`](../../../../tools/ci/gates/matrix_gate.py),
-given the whole `needs` context (`toJSON(needs)`) and the matrix jobs'
-names (`MATRIX_JOBS`). Matrix jobs pass on `success` or `skipped`; every
-other job in `needs` must be exactly `success`; any other value, including
-one the check has never seen, fails. It lists every failing job by name
-rather than stopping at the first, and a matrix job named but missing from
-`needs` is an error. `tools/tests/ci/gates/` parses the real workflow to
-keep the two lists honest: every job that uses a matrix (directly, or
-through a reusable workflow that does) must be in the gate's `needs` and in
-`MATRIX_JOBS`, and nothing else may be in `MATRIX_JOBS`. So adding a matrix
-job means adding it to both, and forgetting fails a test rather than
-weakening the gate.
+The same acceptance means a job whose `needs` failed, which also reports `skipped`, would pass. `matrix-jobs-gate` closes that for the jobs it covers. It does not cover `warm-pre-commit-cache`, so that one is required directly: a failed warm would otherwise skip `pre-commit-checks` and `ansible-lint` and let the merge through.
 
-The gate job checks out only `tools/ci` (`sparse-checkout`) and runs the
-module on the runner's `python3`, so it needs no uv and no dependencies. A
-checkout that fails fails the gate, and the merge stays blocked. Like every
-job in this workflow it runs the PR's own code; a PR that edits the gate
-also edits what checks it.
+The verdict is [`matrix_gate.py`](../../../../tools/ci/gates/matrix_gate.py), given the whole `needs` context and the matrix jobs' names (`MATRIX_JOBS`):
+
+- A matrix job passes on `success` or `skipped`. Every other job in `needs` must be `success`.
+- Any other value, including an unknown one, fails, as does a matrix job missing from `needs`.
+- A new matrix job goes in both `needs` and `MATRIX_JOBS`; a test reads the real workflow and fails otherwise.
+
+The job checks out only `tools/ci` and uses the runner's `python3`, and a failed checkout fails the gate. Like every job here it runs the pull request's own code, so a pull request that edits the gate edits what checks it.

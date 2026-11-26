@@ -86,7 +86,7 @@ Where a choice about a page is open, these decide it.
 
 ## Generated views
 
-`doc_scripts/generate_doc_indexes.py` builds each generated section as rows (`doc_scripts/view_model.py`): a `Table`, a `Note` where a table would be empty, `Groups` (a heading over several tables) or a `Grid` (numbers ten to a row). The views' markdown and the site's HTML are both formatted from those rows. A cell holds a link, an inline code span or bold text, with `|` escaped; `doc_site/markup.py` refuses anything else, so a view that gains it fails the build instead of showing wrongly.
+`doc_scripts/generate_doc_indexes.py` builds each generated section as rows (`doc_scripts/view_model.py`): a `Table`, a `Note` where a table would be empty, `Groups` (a heading over several tables) or a `Grid` (numbers ten to a row). The views' markdown and the site's HTML are both formatted from those rows. A cell holds a link, an inline code span or bold text, with `|` escaped; `doc_site/markup.py` refuses anything else, so a view that gains it fails the build instead of showing wrongly. From 992 pixels wide, code in the cell that titles a row wraps only between words, so a column never cuts a name.
 
 Each view's `# Title` and introduction come from [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros). On the page the introduction is split:
 

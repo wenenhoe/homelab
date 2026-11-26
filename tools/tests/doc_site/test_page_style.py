@@ -45,3 +45,22 @@ def test_a_heading_is_smaller_than_the_one_above_it_in_rank(tree, tmp_path):
 def test_the_header_starts_at_the_top_of_the_page(tree, tmp_path, width):
     with opened(site.build(tree, draw=drawn), tmp_path, "", width) as page:
         assert page.evaluate("document.querySelector('header.bar').getBoundingClientRect().top") == 0
+
+
+# The lines a code span's text is drawn on.
+LINES = """(element) => {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size;
+}"""
+
+
+def test_a_name_that_titles_a_row_of_a_view_is_not_cut(tree, tmp_path):
+    files = site.build(tree, draw=drawn)
+    long = "<code>seaweedfsandthensome</code>"
+    cells = "".join(f'<td class="field" data-label="C{n}">several words that all want some room of their own here</td>' for n in range(6))
+    table = f'<table><tbody><tr><td class="title" data-label="App">{long}</td>{cells}</tr></tbody></table>'
+    html = files["dr-coverage/index.html"].decode()
+    files["dr-coverage/index.html"] = html.replace("</main>", f'<section id="probe">{table}</section></main>').encode()
+    with opened(files, tmp_path, "dr-coverage/", 1040) as page:
+        assert page.locator("#probe td.title code").evaluate(LINES) == 1

@@ -71,14 +71,6 @@
        | reject('in', backup_agent_schedules | map(attribute='filename') | list)
        | list }}
 
-- name: Render backup-agent compose.yaml
-  ansible.builtin.template:
-    src: compose.yaml.j2
-    dest: "{{ backup_agent_deploy_dir }}/compose.yaml"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
-
 # The proxy's whole policy: it replaces the image's haproxy.cfg.template, so
 # nothing about which Docker API calls pass is left to environment flags.
 - name: Deploy the Docker API rules file for the proxy
@@ -97,6 +89,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
+  register: backup_agent_gpg_key_result
 
 - name: Deploy the failure-notification template (identifies which app's schedule failed)
   ansible.builtin.copy:
@@ -105,6 +98,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
+  register: backup_agent_notification_result
 
 - name: Render the shared env (settings common to every schedule)
   ansible.builtin.template:
@@ -127,7 +121,27 @@
   loop: "{{ backup_agent_schedules }}"
   loop_control:
     label: "{{ item.filename }}"
+  register: backup_agent_schedule_results
   no_log: true
+
+# Compose recreates a container when its own config changes, not when a file
+# mounted into it does: the agent reads conf.d and the key it names only at
+# start, and a replaced single-file mount still shows the old file.
+- name: Record a checksum of the files the agent mounts
+  ansible.builtin.set_fact:
+    backup_agent_files_checksum: >-
+      {{ ([backup_agent_gpg_key_result.checksum | default(''),
+           backup_agent_notification_result.checksum | default('')]
+          + (backup_agent_schedule_results.results | map(attribute='checksum', default='') | list))
+         | join(' ') | hash('sha256') }}
+
+- name: Render backup-agent compose.yaml
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ backup_agent_deploy_dir }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
 
 # `missing`, not the default `always`: the compose file pins each image to a
 # digest (ADR 0108), so a reference already on the host is the one to run.

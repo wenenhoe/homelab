@@ -34,7 +34,8 @@
     # mechanics already covered by the `default` scenario).
     backup_defaults:
       cron: "0 4 * * *"
-      retention_days: 7
+      # side_effect.yml runs this converge again with another value.
+      retention_days: "{{ no_stop_apps_retention_days | default(7) }}"
       compression: gz
       stop_during_backup: false
       cloud_targets: []

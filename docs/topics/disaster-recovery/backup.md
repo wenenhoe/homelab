@@ -36,6 +36,8 @@ flowchart LR
   to SeaweedFS. Each run tars and uploads the whole of that app's volumes (no
   delta sync), so a schedule's cost grows with its own app only. Schedules are
   independent, so there are no retention or cron conflicts to validate.
+- A deploy that changes a schedule file, the public key or the failure template
+  recreates the agent, through a label holding a checksum of those files.
 - `backup_agent`'s `compose.yaml` is the only templated compose file in this
   repo, since the mounted volumes differ per host.
 

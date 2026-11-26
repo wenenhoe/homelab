@@ -172,6 +172,7 @@ def test_a_list_beside_the_prose_stays_on_screen_and_scrolls_on_its_own(tree, tm
             browser.close()
 
 
+WIDE_TABLE = "\n| One | Two | Three |\n| --- | --- | --- |\n| a | b | c |\n"
 # The width of main's content, and the space on each side of main.
 COLUMN = """() => {
   const main = document.querySelector('main'), box = main.getBoundingClientRect(), style = getComputedStyle(main);
@@ -183,7 +184,7 @@ COLUMN = """() => {
 @pytest.mark.parametrize(
     ("network", "path", "width", "column"),
     [
-        pytest.param(SHORT, "topics/infra/network/", 1920, 848, id="no-list"),
+        pytest.param(SHORT + WIDE_TABLE, "topics/infra/network/", 1920, 848, id="wide-table"),
         pytest.param(LONG, "topics/infra/network/", 1000, 848, id="list-above"),
         pytest.param(LONG, "topics/infra/network/", 1920, 1120, id="list-beside"),
         pytest.param(SHORT, "decision-index/", 1920, 1120, id="view"),
@@ -204,6 +205,40 @@ def test_a_document_without_a_list_beside_it_is_a_centred_column(tree, tmp_path,
             content, left, right = page.evaluate(COLUMN)
             assert content == pytest.approx(column, abs=1)
             assert left == pytest.approx(right, abs=1)
+        finally:
+            browser.close()
+
+
+# The width of main's content, and of the reading measure in main's own font.
+MEASURE = """() => {
+  const main = document.querySelector('main'), style = getComputedStyle(main), probe = main.appendChild(document.createElement('div'));
+  probe.style.width = '72ch';
+  const measure = probe.getBoundingClientRect().width;
+  probe.remove();
+  const box = main.getBoundingClientRect();
+  return [box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), measure,
+    box.left, document.documentElement.clientWidth - box.right, document.querySelector('.bar-in').getBoundingClientRect().width];
+}"""
+
+
+@needs_chrome
+@pytest.mark.parametrize("path", [pytest.param("topics/infra/network/", id="document"), pytest.param("", id="home")])
+def test_a_page_with_only_prose_is_as_wide_as_the_reading_measure(tree, tmp_path, path):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=SHORT)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": 1920, "height": 800})
+            page.goto(f"{base}/{path}")
+            content, measure, left, right, header = page.evaluate(MEASURE)
+            assert content == pytest.approx(measure, abs=1)
+            assert left == pytest.approx(right, abs=1)
+            assert header > content + 200
         finally:
             browser.close()
 

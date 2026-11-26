@@ -64,19 +64,16 @@ half and a contained half instead:
    print('decrypted at:', result.decrypted_path)
    "
    ```
-3. Stand up a scratch host on an isolated segment where nothing
-   depends on it, such as VLAN 50 (`192.168.50.0/24`), the block
-   [`vm-provisioning.md`](../infra/vm-provisioning.md) reserves for
-   isolated experimentation. The host sits behind its own gateway, so
-   reach its SSH port through a port forward on that gateway's WAN
-   address, limited to the controller's address, and delete the forward
-   and its pass rule at teardown.
+3. Stand up a scratch host where nothing depends on it, such as VLAN 50
+   (`192.168.50.0/24`), the isolated block in
+   [`vm-provisioning.md`](../infra/vm-provisioning.md). It sits behind its
+   own gateway, so reach its SSH port through a port forward on that
+   gateway's WAN address, limited to the controller's address.
 
-   Give it its own throwaway name, on its own inventory file next to
-   `inventory/inventory.yaml` (`group_vars/all` loads from the inventory
-   file's directory) and never committed: add it to `.git/info/exclude`.
-   Never the real `inventory.yaml`, so there's no `--limit` typo that
-   could reach a real host.
+   Give it a throwaway name in its own inventory file next to
+   `inventory/inventory.yaml` (`group_vars/all` loads from that directory),
+   never the real one, so no `--limit` typo can reach a real host. Keep it
+   uncommitted through `.git/info/exclude`.
 
    ```yaml
    ---
@@ -154,25 +151,46 @@ half and a contained half instead:
    "About to STOP wastebin on scratch-wastebin...", with
    `wastebin_data` named once, before typing `yes`,
    as a last check that `-i`/`--limit` actually did what you expect.
-5. Confirm the app actually boots clean against the restored data —
-   not just that Ansible reported success. Compare the restored volume's
-   `state.db` with the archive's: the SHA-256 and the modification time
-   must match, since a fresh database can have the same size. Then tear
-   the scratch host down, `rm -rf ansible/files/restore/scratch/` to
-   clear the decrypted plaintext, and remove the host's `known_hosts`
-   entry.
+5. Confirm the app boots clean against the restored data, not just that Ansible
+   reported success. The restored `state.db` must match the archive's in SHA-256
+   and modification time, since a fresh database can have the same size. On the
+   controller, with `$archive` from step 4:
+
+   ```sh
+   TZ=UTC tar --full-time -tvzf "$archive" --wildcards '*/wastebin_data/state.db'
+   tar -xzOf "$archive" --wildcards '*/wastebin_data/state.db' | sha256sum
+   ```
+
+   On the scratch host:
+
+   ```sh
+   db="$(sudo docker volume inspect -f '{{.Mountpoint}}' wastebin_data)/state.db"
+   sudo env TZ=UTC stat -c %y "$db" && sudo sha256sum "$db"
+   ```
+
+   Then tear down: delete the gateway's forward and its pass rule, destroy the
+   scratch host, and on the controller clear the decrypted plaintext and the
+   host's key:
+
+   ```sh
+   # paste alone; it waits for the known_hosts name: [address]:port for a forwarded port
+   read -r -p 'known_hosts entry: ' entry
+   ```
+
+   ```sh
+   # from ansible/
+   rm -rf files/restore/scratch/
+   ssh-keygen -R "$entry"
+   ```
 6. Record the result in the private drill record, dated, and delete the scratch inventory
    file.
 
-This proves the part that was never provable any other way — a real
-backup decrypts with the real key and the `restore` role correctly
-reconstructs the app — without ever pointing the orchestrator itself
-at production. It doesn't exercise the full batch (step-ca-first
-ordering, abort-on-step-ca-failure, minecraft's two-phase restore);
-the automated scenario above already proves that *logic* against a
-throwaway target, so between the two, both the data path and the
-orchestration logic are covered — just never both at once, and never
-against real infrastructure at the same time.
+The drill proves that a real backup decrypts with the real key and that the
+`restore` role rebuilds the app, without pointing the orchestrator at production.
+It does not exercise the batch (step-ca-first ordering, the abort when step-ca
+fails, minecraft's two-phase restore); the automated scenarios cover that logic
+against a throwaway target. Data path and orchestration are both covered, never
+both at once.
 
 ## Results
 

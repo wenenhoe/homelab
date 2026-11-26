@@ -116,9 +116,16 @@ before the first run.
 ## Verifying
 
 ```sh
+# from ansible/
 ansible-playbook playbooks/maintenance.yaml --limit patched_hosts,localhost
 ```
 
-Runs `apt`/`fwupd` against every `patched_hosts` member, `qemu_guest_agent` against
+For the router itself, from the repo root's `tools/`:
+
+```sh
+cd tools && python3 -m rebuild_check.host tailscale
+```
+
+The maintenance playbook runs `apt`/`fwupd` against every `patched_hosts` member, `qemu_guest_agent` against
 `network_infra` only, and then the `host_hardening` baseline against every
 `patched_hosts` member. No `deploy.yaml` equivalent exists for this group.

@@ -73,9 +73,12 @@ The provider imports a disk only when it creates it and ignores a changed
 `import_from` on an existing one, so the template resource is replaced whenever
 the module's image inputs change.
 
-- A new image pin names a new volume and replaces the template on the next apply.
-  The first apply after the template was built from a download replaces it too,
-  since the tracking resource is new.
+| What changes | Why the template is replaced |
+| :--- | :--- |
+| The image pin | It names a new volume |
+| `timezone` | The zone is part of the image's name |
+| Template built from a download, first apply under the tracking resource | The tracking resource is new |
+
 - Tofu destroys the old template before it creates the new one, so the image volume
   has to be on the node first (`pvesm list tofu-images --content import`).
 - Replacing the template does not touch its clones, which hold their own disks, but
@@ -156,17 +159,16 @@ copies `dracut-default.network` to
 `/run/systemd/network/zzzz-dracut-default.network`, which asks every NIC for DHCP
 before cloud-init runs.
 
-- dracut includes that module only when another module needs the network, and the
-  image's generic initramfs has two: `dyn-netconf` and `iscsi`. Omitting
-  `dyn-netconf` alone left `network`, `systemd-networkd` and the file in a generic
-  build; omitting both leaves none of them.
-- Left in, cloud-init fails to rename the NIC to the name its network config uses
-  (`[busy] Error renaming ... from ens18 to eth0`), the netplan files it writes match
-  no device, and the VM keeps the DHCP lease in place of the static address from
-  `ip_config`. Upstream tracks the rename failure in
-  [cloud-init issue 6887](https://github.com/canonical/cloud-init/issues/6887).
-- Kea serves no VLAN 20 zone once the gateway play has rebuilt the gateway, so a VM
-  cloned from the stock image would have no address at all.
+That breaks the static address: cloud-init fails to rename the NIC
+(`[busy] Error renaming ... from ens18 to eth0`), its netplan files match no device,
+and the VM keeps the DHCP lease instead of the `ip_config` address
+([cloud-init issue 6887](https://github.com/canonical/cloud-init/issues/6887)). Kea
+serves no VLAN 20 once the gateway play has run, so such a VM would have no address
+at all.
+
+dracut includes the module only when another module needs the network, and the
+image's generic initramfs has two: `dyn-netconf` and `iscsi`. Both have to be
+omitted; omitting `dyn-netconf` alone leaves the file in a generic build.
 
 What the script does:
 
@@ -272,7 +274,13 @@ tofu apply -state="$out/terraform.tfstate" \
 tofu output -state="$out/terraform.tfstate" ssh
 ```
 
-`tofu destroy` with the same `-state` and `-var-file` flags removes the VM and its
-disks and leaves the template. A VM left running keeps its cores and memory, so
+To remove the VM and its disks, leaving the template, from `tofu/scratch/ubuntu`
+with the same shell variables:
+
+```sh
+tofu destroy -state="$out/terraform.tfstate" \
+  -var-file="$HOME/.config/tofu/credentials.tfvars" -var-file="$out/scratch.tfvars"
+```
+ A VM left running keeps its cores and memory, so
 destroy it when the work is done. The API token's role already covers it, since the
 VM is a clone like any other.

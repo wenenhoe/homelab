@@ -10,7 +10,13 @@
 notice the absence of a success. Each job pushes a heartbeat to its own Gatus *external endpoint*; if no push arrives
 within the endpoint's interval, Gatus records a failure and alerts into the Telegram topic that owns that kind of event
 (see [`telegram-notifications.md`](telegram-notifications.md)). Every endpoint and token is declared in this repo, so
-rebuilding Gatus recreates all of them with nothing done by hand in a UI.
+rebuilding Gatus recreates all of them with nothing done by hand in a UI. Nothing else monitors these jobs.
+
+```mermaid
+flowchart LR
+    J["Job succeeds"] -->|"push with its token"| E["Its external endpoint"]
+    E -->|"no push within<br/>the interval"| T["Its group's<br/>Telegram topic"]
+```
 
 ## Declaring a job
 
@@ -107,7 +113,11 @@ read -rsp 'dashboard password: ' PW; echo
 printf '%s\n' "$PW" | htpasswd -niBC 9 "" | cut -d: -f2 | tr -d '\n' | base64 -w0; unset PW
 ```
 
-`htpasswd -i` reads stdin without hiding it, so the password is piped in. Then store the output with `cd tools && python3 -m openbao_utils.bootstrap`.
+`htpasswd -i` reads stdin without hiding it, so the password is piped in. Then store the output when prompted:
+
+```sh
+cd tools && python3 -m openbao_utils.bootstrap
+```
 
 The Caddy route sets `auth: false`, like `beszel-hub`: pushes are `POST`s from systemd units and cron
 jobs on every host, which Tinyauth's `forward_auth` would redirect to a login page. The push route is protected by the
@@ -158,22 +168,20 @@ Three producers do not use the role:
 
 ### The backup freshness check
 
-`check-freshness.timer` runs hourly on each backup host, outside the backup container: `offen/docker-volume-backup`'s own
-exec-hook labels need Docker `exec` access, which the host's socket proxy deliberately refuses. It checks, with `rclone lsf
---max-age` (`rclone`, not `mc`, whose Docker Hub image MinIO archived), that every app's newest SeaweedFS object is within
-that app's own threshold, and pushes only if all of them are. It pushes once per host, not once per app: every app's
-credential is scoped to the host's own `{host}-*` prefix, so an app added to an existing host needs no new configuration.
-[ADR 0012 (Backup verification)](../../decisions/0012-verifying-backups-actually-land/revision-000.md) explains why it
-runs per host and not as one checker on `storage`.
+`check-freshness.timer` runs hourly on each backup host. It checks, with `rclone lsf --max-age`, that every app's
+newest SeaweedFS object is within that app's threshold, and pushes only if all are.
 
-An app's threshold comes from its own resolved cron, not from a value set by hand: the `cron_period_hours` filter in
-`ansible/filter_plugins/` gives the longest gap between two consecutive firings, and `backup_freshness_buffer_hours` is
-added for the backup's duration and scheduling slack. An app on a different cadence gets a threshold that matches it, and
-nothing falls out of sync if its cron changes. One stale app suppresses the whole host's push; which one is only visible
-in the unit's journal.
+- **Outside the backup container:** `docker-volume-backup`'s exec hooks need Docker `exec`, which the socket proxy
+  refuses.
+- **`rclone`, not `mc`:** MinIO archived `mc`'s Docker Hub image.
+- **One push per host:** every app's credential is scoped to the host's `{host}-*` prefix, so a new app on an existing
+  host needs no configuration. Why not one checker on `storage`:
+  [ADR 0012 (Backup verification)](../../decisions/0012-verifying-backups-actually-land/revision-000.md).
+- **Thresholds follow the cron:** the `cron_period_hours` filter (`ansible/filter_plugins/`) gives the longest gap
+  between two firings, plus `backup_freshness_buffer_hours` for duration and scheduling slack.
+- **One stale app suppresses the whole push;** which one is only visible in the unit's journal.
 
-The script's exit code separates three outcomes per app, because treating "nothing fresh yet" like a failure would alert
-on ordinary staleness constantly, when the missed heartbeat already covers it:
+"Nothing fresh yet" is not a failure, or ordinary staleness would alert constantly; the missed heartbeat covers it:
 
 | Outcome | Counts toward the push | Triggers `OnFailure=` |
 | :--- | :--- | :--- |
@@ -183,18 +191,26 @@ on ordinary staleness constantly, when the missed heartbeat already covers it:
 
 ### The `cert-renewer@` liveness push
 
-A renewal happens about every 480 hours, so a push per renewal could be noticed only after the certificate had expired.
-Instead `cert-renewer-heartbeat@<app>.timer` fires daily at 04:00, and its service runs
-`step certificate needs-renewal --expires-in 72h` against the app's certificate volume. Only exit code 1 (the
-certificate still has more than 72 hours left) makes the unit succeed and start the push; 0 (inside the margin), 2 (no
-certificate file) and 255, or docker failing to run the container, fail it and push nothing. A failed renewal still
-reports through `cert-renewer@`'s own `OnFailure=`, which this unit does not repeat. `cert-renewer@` no longer has an
-`OnSuccess=`.
+A renewal happens about every 480 hours, so a push per renewal could be noticed only after the certificate had
+expired. Instead `cert-renewer-heartbeat@<app>.timer` fires daily at 04:00 and runs
+`step certificate needs-renewal --expires-in 72h` against the app's certificate volume:
 
-The margin, `step_ca_cert_heartbeat_margin`, has to sit between two limits. Above 48 hours, so one late push is not an
-alert. Below the third of the certificate's life that a healthy certificate always has left (240 hours of the current 720),
-because a margin larger than that makes every certificate look overdue and the endpoint alert forever. ADR 0008's
-revision 1 shortens the lifetime, so recheck the margin when it lands.
+| Exit code | Means | Push |
+| :--- | :--- | :--- |
+| 1 | More than 72 hours left | Yes: the unit succeeds |
+| 0 | Inside the margin | No: the unit fails |
+| 2 | No certificate file | No: the unit fails |
+| 255, or docker cannot run the container | Error | No: the unit fails |
+
+A failed renewal still reports through `cert-renewer@`'s own `OnFailure=`, which this unit does not repeat.
+
+The margin, `step_ca_cert_heartbeat_margin`, sits between two limits:
+
+- Above 48 hours, so one late push is not an alert.
+- Below the third of the certificate's life that a healthy certificate always has left (240 hours of the current 720).
+  A larger margin makes every certificate look overdue, and the endpoint alerts forever.
+
+ADR 0008's revision 1 shortens the lifetime, so recheck the margin when it lands.
 
 ## The self-probe
 
@@ -224,7 +240,13 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 ## One-time setup
 
 1. Store `gatus-dashboard-password-bcrypt-base64` as above. `python3 -m openbao_utils.bootstrap` writes it to OpenBao directly, so it needs no deploy first; the deploy's secrets play fails without it.
-2. `ansible-playbook playbooks/deploy.yaml --limit security,localhost`. The secrets play runs on `localhost`, so a limit of `security` alone skips it and the config has no tokens to render.
+2. Deploy. The secrets play runs on `localhost`, so a limit of `security` alone skips it and the config has no tokens to render.
+
+   ```sh
+   # from ansible/
+   ansible-playbook playbooks/deploy.yaml --limit security,localhost
+   ```
+
 3. Visit `{{ gatus_url }}` and log in as `admin`.
 
 ## Checking the endpoints
@@ -245,8 +267,3 @@ unset PW
 ```
 
 An endpoint that has never been pushed to is missing from the list until its first interval passes. Use `tostring`: `jq`'s `//` treats `false` as absent, so `.success // "NO RESULT"` shows a failed check as `NO RESULT`.
-
-## State today
-
-`cloud_sync`, `cert-expiry-check`, the backup freshness check, the `rotation-read-watcher` heartbeat and the two `cert-renewer@`
-instances (through their daily liveness push) push to Gatus, and nothing else monitors them.

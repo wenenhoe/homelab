@@ -41,9 +41,12 @@ the secrets store or the certificate authority, or changes the authority's root.
 
 ## How each is run
 
-**Backup check.** `python3 ansible/scripts/restore_all.py --check` lists the newest archive of
-each app on every source and its age, and restores nothing
-([`rebuild-tools.md`](rebuild-tools.md#what-the-checks-look-at)).
+**Backup check.** Lists the newest archive of each app on every source and its age, and restores
+nothing ([what it checks](rebuild-tools.md#what-the-checks-look-at)). From the repo root:
+
+```sh
+python3 ansible/scripts/restore_all.py --check
+```
 
 **App restore.** The real fire drill in [`fire-drill.md`](fire-drill.md#real-fire-drill), on a scratch
 host. Pick the system whose newest restoring drill in the private drill record is oldest, and a
@@ -60,15 +63,42 @@ large app whose copy goes to the provider with a delete-after window
 **Host rebuild.** [`rebuild-runbook.md`](rebuild-runbook.md), for the host rebuilt longest ago.
 The host migration's rebuilds count as the first cycle.
 
-**Key custody.** Retrieve the offline private key, the break-glass read-only credential, the Tofu
-state encryption passphrase and the unseal shares from where they are kept, and count the shares. Then use
-them: decrypt a real app archive ([`backup.md`](backup.md#encryption)), pull and decrypt the latest
-secrets-store snapshot with
-[`snapshot-pull.sh`](../security/openbao/backup-restore.md#pulling-a-snapshot), and decrypt the newest object
-under `state/` in the state copy bucket ([State copy](../infra/tofu/state-and-credentials.md#state-copy)).
-Check the offline passphrase against the one in use without printing either: `sha256sum` of each must match.
-The shares are used in the restore drill and in the total-loss exercise, not here. Delete every decrypted
-file afterwards.
+**Key custody.** Retrieve from where they are kept the offline private key, the break-glass
+read-only credential, the Tofu state encryption passphrase and the unseal shares, and count the
+shares. Then use all but the shares, which are used in the restore drill and in the total-loss
+exercise:
+
+| Item | Proven by |
+| :--- | :--- |
+| Offline private key | Decrypting a real app archive ([`restore.md`](restore.md#manual-steps-first)) |
+| Break-glass read-only credential | Pulling and decrypting the latest secrets-store snapshot, as below |
+| Backup key, for the state copy | Decrypting the newest object under `state/` in the state copy bucket ([State copy](../infra/tofu/state-and-credentials.md#state-copy)) |
+| State encryption passphrase | The offline copy and the one in use have the same SHA-256, as below |
+
+```sh
+# from the repo root; asks for the credential and the key's passphrase, writes ~/restore.snap
+tools/openbao_utils/scripts/snapshot-pull.sh r2 ~/restore.snap
+```
+
+([What it asks for](../security/openbao/backup-restore.md#pulling-a-snapshot).) Compare the
+passphrase without printing either copy:
+
+```sh
+# paste alone; it waits for the offline passphrase, hidden
+read -rs -p 'offline passphrase: ' offline; echo
+```
+
+```sh
+# paste alone; it waits for the passphrase in use, hidden
+read -rs -p 'passphrase in use: ' live; echo
+```
+
+```sh
+[ "$(printf %s "$offline" | sha256sum)" = "$(printf %s "$live" | sha256sum)" ] && echo match || echo DIFFERENT
+unset offline live
+```
+
+Delete every decrypted file afterwards.
 
 **Tabletop.** Take the next scenario from the list, state it in a sentence, walk the runbooks as
 if it had happened, and write down what is missing or wrong. The scenarios are the loss of the
@@ -77,15 +107,21 @@ a compromised app host (the adversary [`backup-threat-model.md`](backup-threat-m
 and the loss of the workstation that holds the break-glass credentials. Each is walked once in
 two years.
 
-**Total loss.** In the isolated block, with no on-site copy: the secrets-store bootstrap
+**Total loss.** In the isolated block, with no on-site copy, each from the cloud copies: the
+secrets-store bootstrap
 ([`backup-restore.md`](../security/openbao/backup-restore.md#rebuilding-security)), then the
-storage host, then one app host, each from the cloud copies. It is staged because the node cannot
-hold the estate twice at once. If the chain does not fit in the isolated block, it is walked as a
-tabletop until it does, and the drill record says so.
+storage host, then one app host. It is staged because the node cannot hold the estate twice at
+once. If the chain does not fit in the isolated block, it is walked as a tabletop until it does,
+and the drill record says so.
 
-**Re-test.** The part of the above that the change touched: a new backed-up app gets an app restore;
-a change to the backup or restore roles gets one on each tier; an upgrade of the secrets store or
-the authority gets the bootstrap path; a new root gets a host rebuild, since every host's trust is involved.
+**Re-test.** The part of the above that the change touched:
+
+| Change | Re-test |
+| :--- | :--- |
+| A new backed-up app | An app restore |
+| The backup or restore roles | One app restore on each tier |
+| An upgrade of the secrets store or the authority | The bootstrap path |
+| A new root | A host rebuild, since every host's trust is involved |
 
 ## Recording
 

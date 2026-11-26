@@ -27,23 +27,22 @@ Two gates block the destructive steps, each covered by a
 ## Running a restore
 
 ```sh
-ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
-  -i inventory/inventory.yaml -i inventory/tofu-hosts.yaml --limit services,localhost \
-  -e '{"restore_app": "kms", "restore_archive_local_path": "/home/you/services-kms-2026-07-29T04-00-00.tar.gz", "restore_volumes": ["kms_data"]}'
+# paste alone; it waits for the decrypted archive's path (from the manual steps below)
+read -r -p 'archive: ' archive
 ```
 
-All of `restore_app`/`restore_archive_local_path`/`restore_volumes` need
-to be **one JSON-object `-e` argument**, not separate `-e key=value`
-pairs: `-e restore_volumes='["kms_data"]'` (the
-`key=value` form) leaves `restore_volumes` as the literal string
-`["kms_data"]`, not a list — Ansible only parses `-e`'s value as JSON
-when the whole `-e` argument is itself a JSON object. The pause
-prompt's own `{{ restore_volumes | join(', ') }}` then silently joins
-that string's individual *characters* instead of the volume name(s) —
-visible directly in the confirmation text if this regresses, so it's
-hard to miss before typing `yes`, but easy to miss in a script that
-never shows a human that prompt (see `ansible/scripts/restore_all.py`'s own
-`run_app_restore()`, fixed for exactly this).
+```sh
+# from ansible/; asks for yes before it touches anything
+ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
+  -i inventory/inventory.yaml -i inventory/tofu-hosts.yaml --limit services,localhost \
+  -e "{\"restore_app\": \"kms\", \"restore_archive_local_path\": \"$archive\", \"restore_volumes\": [\"kms_data\"]}"
+```
+
+Pass the three variables as **one JSON-object `-e` argument**. With separate
+`key=value` pairs (`-e restore_volumes='["kms_data"]'`) the value stays a string:
+Ansible parses `-e` as JSON only when the whole argument is a JSON object. The
+confirmation prompt then spells the volume name out character by character, so read
+it before typing `yes`. A run with `restore_confirm` set shows no prompt to read.
 
 Each archive holds exactly one app (one schedule = one app — see
 [Architecture in `backup.md`](backup.md#architecture)),
@@ -53,20 +52,33 @@ so `restore_volumes` only ever needs to list that one app's own volumes.
 
 The private key never touches a homelab host:
 
-1. Pull the object from the `homelab-backups` bucket — normally
-   SeaweedFS (filer UI, or an S3 client against
-   `https://s3.store.{{ lan_domain }}`). If `storage` itself is what's
-   lost — the actual scenario `cloud_sync` exists for — pull the same
-   object from whichever of R2/B2/OCI has it instead (each provider's
-   own console/CLI; `cloud_sync_targets` in `host_vars/storage.yaml`
-   has the bucket name for each, though that file is naturally also
-   gone if `storage` is what you lost — keep a copy of which
-   bucket/region each provider uses somewhere that survives a
-   `storage`-host loss). Same encrypted object either way — `cloud_sync`
-   copies it verbatim, nothing about it changes in transit.
-2. `gpg --decrypt` it into a plain `.tar.gz` (or `.tar`, for an app with
-   `compression: none`).
-3. Point `restore_archive_local_path` at that file.
+1. Pull the object from the `homelab-backups` bucket, normally from SeaweedFS
+   (filer UI, or an S3 client against `https://s3.store.{{ lan_domain }}`). If
+   `storage` itself is lost, pull the same object from R2, B2 or OCI, whichever
+   has it, through that provider's console or CLI: `cloud_sync` copies it
+   verbatim. `cloud_sync_targets` in `host_vars/storage.yaml` names each bucket;
+   keep a note of the buckets and regions somewhere that survives losing
+   `storage`.
+2. Decrypt it into a plain `.tar.gz` (`.tar` for an app with
+   `compression: none`):
+
+   ```sh
+   # paste alone; it waits for the downloaded object's path
+   read -r -p 'encrypted archive: ' enc
+   ```
+
+   ```sh
+   # gpg may ask for the passphrase; the plaintext goes to your home directory, mode 0600
+   archive="$HOME/$(basename "$enc" .gpg)"
+   (umask 077; gpg --output "$archive" --decrypt "$enc")
+   ```
+
+3. Point `restore_archive_local_path` at that file, as above, and delete it once
+   the restore is confirmed:
+
+   ```sh
+   shred -u "$archive"
+   ```
 
 ### What the playbook does
 
@@ -91,26 +103,15 @@ JSON-object `-e`:
 
 ## Batch restore (all apps, disaster-recovery scenario)
 
-The above is the per-app runbook — the tested primitive underneath, and
-still exactly what a single-app restore should use. `ansible/scripts/restore_all.py`
-is a thin orchestrator on top of it, for the "lost `services`/`security`/`play`
-outright" scenario: it discovers each in-scope app's latest backup itself
-(SeaweedFS first, falling back to that app's own cloud target(s) if
-SeaweedFS is unreachable), decrypts it, then calls the exact same
-`restore.yaml`/`restore` role above once per app, in order. It never
-bypasses the per-app gates described above — every call it makes still
-goes through the real playbook, confirmation included (see below).
+`ansible/scripts/restore_all.py` is a thin orchestrator over the per-app restore
+above, for losing `services`, `security` or `play` outright. It finds each app's
+latest backup, decrypts it and calls the same `restore.yaml` once per app, so the
+per-app gates still apply. A single-app restore should still use the playbook.
 
-In scope: every app with a `backup:` key in `app_catalog.yaml` — the
-same test `backup_agent` itself uses to decide what it backs up, so
-there's no separate list to keep in sync. That now includes
-`step-ca`, `kms`, `wastebin`, `beszel-hub`,
-`tinyauth`, `lldap`, and `minecraft`. To exclude an app you back up but
-never want auto-restored in a batch run, add it to
+In scope is every app with a `backup:` key in `app_catalog.yaml`, the same test
+`backup_agent` uses. To keep a backed-up app out of batch runs, add it to
 `restore_discovery_excluded_apps` in
-`ansible/roles/restore_discovery/defaults/main.yaml` (empty by
-default). step-ca is always ordered first when it's in scope — see
-step 4 below for why.
+`ansible/roles/restore_discovery/defaults/main.yaml`.
 
 ```sh
 python3 ansible/scripts/restore_all.py            # interactive: one batch summary, one 'yes'
@@ -118,28 +119,34 @@ python3 ansible/scripts/restore_all.py --yes      # unattended (fire-drill autom
 python3 ansible/scripts/restore_all.py --host security --skip step-ca   # one rebuilt host
 ```
 
-With no `--host` every host's apps are in scope, which is the lost-everything
-case. After one host's rebuild name it with `--host`: the other hosts' apps are
-live, and a restore stops and overwrites them. `--skip` leaves an app out, such as
-`step-ca` on a rebuilt `security`, whose archive was restored by hand before
-`deploy.yaml` could run. Both may be repeated, and a name the manifest does not
-hold stops the run before anything is discovered, as does a selection that leaves
-nothing. The summary names the hosts in scope before the single `yes`.
-`--check` is the read-only pre-flight: it lists each selected app's newest backup
-on every source with its age, downloads and restores nothing, and exits non-zero
-when an app has no source within `--max-age-hours` (30 by default). It also
-warns, without failing, about a source whose modification time of the newest
-archive is more than an hour from the instant the archive's name stamps. `step-ca`
-gates the rest of the batch only when the run covers it.
+| Option | Effect |
+| :--- | :--- |
+| none | Every host's apps: the lost-everything case |
+| `--host` | That host's apps only. Use it after a rebuild, since a restore stops and overwrites live apps. Repeatable |
+| `--skip` | Leaves an app out, such as `step-ca` on a rebuilt `security`, restored by hand before `deploy.yaml` could run. Repeatable |
+| `--yes` | Skips the batch confirmation |
+| `--check` | Read-only: lists each app's newest backup on every source with its age, and exits non-zero when an app has no source within `--max-age-hours` (30). Also warns, without failing, when an archive's modification time is over an hour from the instant its name stamps |
 
-Run this on the controller only — same machine/trust requirement as
-everything else in [the backup threat model](backup-threat-model.md):
-the GPG private key has to be there, and decryption has to be able to
-happen non-interactively (gpg-agent already unlocked, or a
-passphrase-less key) since nothing here ever prompts for a GPG
-passphrase itself.
+A name the manifest does not hold stops the run before discovery, as does a
+selection that leaves nothing. The summary names the hosts in scope before the
+single `yes`. `step-ca` gates the batch only when the run covers it.
+
+Run it on the controller only, the same trust requirement as everything in
+[the backup threat model](backup-threat-model.md): the GPG private key has to be
+there and decryption has to work without a prompt (gpg-agent already unlocked, or
+a passphrase-less key).
 
 What it does, in order:
+
+```mermaid
+flowchart TD
+    M["Render manifest and<br/>read-only rclone.conf"] --> D["Per app: find newest archive,<br/>download, decrypt"]
+    D --> C{"One batch<br/>confirmation"}
+    C -->|yes| S["Restore step-ca"]
+    S -->|fails| X["Abort the batch"]
+    S -->|succeeds| R["Restore the other apps;<br/>a failure stops only its app"]
+    R --> A["Audit log line,<br/>delete plaintext"]
+```
 
 1. Renders a controller-local manifest + a read-only `rclone.conf`
    (`ansible/roles/restore_discovery`, via

@@ -82,22 +82,39 @@ A flow is known by its name in the first column, which other docs cite by a link
 | Flow | From | To | Port | Why | Source |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `operator-gateway` | Operator host (VM 401 now, VM 252 later) | The gateway's address | 443 (API and GUI), 22 | The play, and the guard rule that comes first | ADR 0089 invariants |
-| `cd-agent-gateway` | CD agent (VM 253, `192.168.25.3`) | The gateway's address | 443 | CD workflows apply the gateway's play | Maintainer. Written but off (`opnsense_gateway_cd_agent_management` is false) until the CD agent runs and a revision of ADR 0089 admits it once its conditions are met; owner [`cd-agent.md`](../../../projects/cd-agent.md) |
+| `cd-agent-gateway` | CD agent (VM 253, `192.168.25.3`) | The gateway's address | 443 | CD workflows apply the gateway's play | Maintainer. Written but off ([notes](#flows-that-are-off)) |
 | `operator-vlan20-ssh` | Operator host | VLAN 20 hosts | 22 | Ansible plays | `inventory.yaml` |
 | `operator-security` | Operator host | `security` | 8200 | AppRole login and secret fetch | `secrets` role, `secrets-and-credentials-flow.md` |
-| `operator-storage` | Operator host | `storage` | 443 | Restore discovery | ADR 0058, `backup-and-restore-data-flow.md`. Tofu's state is held on R2, not `storage` ([ADR 0103](../../../decisions/0103-where-tofus-state-is-held/revision-000.md)), so only restore discovery needs it. Written but off (`enabled: false`) until the controller moves; owner [`operator-host-takeover.md`](../../../projects/operator-host-takeover.md), which enables it in that change |
+| `operator-storage` | Operator host | `storage` | 443 | Restore discovery | ADR 0058, `backup-and-restore-data-flow.md`. Written but off ([notes](#flows-that-are-off)) |
 | `operator-cd-agent-ssh` | Operator host | VM 253 | 22 | `playbooks/cd-agent.yaml` | `inventory.yaml` |
 | `operator-vlan30-ssh` | Operator host | VLAN 30 host (`host_coding_agent`, VM 302 at `192.168.30.2`) | 22 | Provisioning the coding-agent host | ADR 0053 |
 | `operator-node` | Operator host | The node's WAN-side address | 8006, 22 | Tofu's API calls, and the first-boot script's SSH. The node is not on any VLAN: it is reached through the gateway's outbound NAT | Maintainer |
-| `cd-agent-vlan20-ssh` | CD agent | VLAN 20 hosts | 22 | Deploys | Written but off until the CD agent's approles are settled against ADR 0044; owner [`cd-agent.md`](../../../projects/cd-agent.md) |
-| `cd-agent-security` | CD agent | `security` | 8200 | AppRole login | Written but off, as [`cd-agent-vlan20-ssh`](#zone-policy) |
-| `cd-agent-storage` | CD agent | `storage` | 443 | Rotated write key for `redeploy-storage` | `cd-agent-host.md`. Written but off, as [`cd-agent-security`](#zone-policy); it also waits for the remote state backend's port when the key serves the state bucket |
+| `cd-agent-vlan20-ssh` | CD agent | VLAN 20 hosts | 22 | Deploys | Written but off ([notes](#flows-that-are-off)) |
+| `cd-agent-security` | CD agent | `security` | 8200 | AppRole login | Written but off ([notes](#flows-that-are-off)) |
+| `cd-agent-storage` | CD agent | `storage` | 443 | Rotated write key for `redeploy-storage` | `cd-agent-host.md`. Written but off ([notes](#flows-that-are-off)) |
 | `tailscale-vlan30-ssh` | Tailscale subnet router (VLAN 20) | VLAN 30 host (as [`operator-vlan30-ssh`](#zone-policy)), VM 252 | 22 | The maintainer's route to those hosts from outside the lab, source-NATed to the router's address | ADR 0053, ADR 0058 |
-| `scratch-node` | The scratch gateway (`host_scratch_gateway`, `192.168.10.2`) | The node's WAN-side address | 22, 8006 | A scratch gateway on the node updates through its WAN and shows, beside a control, that the DMZ and coding zones are refused the node's management ports. No other address in VLAN 10 reaches the node, and no flow enters or leaves the zone for another one. Written only while `opnsense_gateway_scratch_wan` is true | [ADR 0120](../../../decisions/0120-where-a-scratch-gateway-on-the-node-gets-its-wan/revision-000.md) |
+| `scratch-node` | The scratch gateway (`host_scratch_gateway`, `192.168.10.2`) | The node's WAN-side address | 22, 8006 | A scratch gateway updates through its WAN and shows, beside a control, that DMZ and coding are refused the node's management ports. Written only while `opnsense_gateway_scratch_wan` is true | [ADR 0120](../../../decisions/0120-where-a-scratch-gateway-on-the-node-gets-its-wan/revision-000.md) |
 | `internet-wan` | VLANs 10, 20, 40 and 55 (the experimental block with Internet) | WAN | Any, except direct DNS on 53 and 853 | Registries, package mirrors, Caddy's DNS challenge, cloud targets, Telegram, Tailscale | ADR 0089 baseline. The destinations are not enumerated |
 | `management-wan` | VLAN 25 | WAN | Any, for now, except direct DNS as in [`internet-wan`](#zone-policy) | ADR 0058 wants only the proxy's allowlist here, and the proxy does not exist yet | ADR 0058, [`coding-agent-egress.md`](../../../projects/coding-agent-egress.md) |
 
-Not on the list, so denied: any flow from VLAN 30 to another zone, to the WAN or to the gateway's DNS (ADR 0053), and any flow into VLAN 30 other than [`operator-vlan30-ssh`](#zone-policy) and [`tailscale-vlan30-ssh`](#zone-policy); from VLAN 50 (the experimental block without Internet) and VLAN 55 to another zone or, for VLAN 50, to the WAN, and from any zone to the gateway's management ports other than [`operator-gateway`](#zone-policy) and [`cd-agent-gateway`](#zone-policy).
+### Flows that are off
+
+| Flow | Off until | Owner |
+| :--- | :--- | :--- |
+| [`operator-storage`](#zone-policy) | The controller moves; that change sets `enabled: true`. Only restore discovery needs the flow, since Tofu's state is on R2 ([ADR 0103](../../../decisions/0103-where-tofus-state-is-held/revision-000.md)) | [`operator-host-takeover.md`](../../../projects/operator-host-takeover.md) |
+| [`cd-agent-gateway`](#zone-policy) | The CD agent runs and a revision of ADR 0089 admits it, its conditions met (`opnsense_gateway_cd_agent_management` is false) | [`cd-agent.md`](../../../projects/cd-agent.md) |
+| [`cd-agent-vlan20-ssh`](#zone-policy), [`cd-agent-security`](#zone-policy) | The CD agent's approles are settled against ADR 0044 | [`cd-agent.md`](../../../projects/cd-agent.md) |
+| [`cd-agent-storage`](#zone-policy) | The same, and the remote state backend's port when the key serves the state bucket | [`cd-agent.md`](../../../projects/cd-agent.md) |
+
+### What is not listed
+
+Anything not on the list is denied, including:
+
+- From VLAN 30: any flow to another zone, to the WAN or to the gateway's DNS (ADR 0053).
+- Into VLAN 30: anything but [`operator-vlan30-ssh`](#zone-policy) and [`tailscale-vlan30-ssh`](#zone-policy).
+- From VLAN 50 (experimental, no Internet) and VLAN 55: any flow to another zone, and from VLAN 50 to the WAN.
+- To the gateway's management ports: anything but [`operator-gateway`](#zone-policy) and [`cd-agent-gateway`](#zone-policy).
+- VLAN 10: no flow enters it or leaves it for another zone, and no address in it but the reserved one reaches the node.
 
 The VLAN scheme gives one VLAN per block of 50 VMIDs ([`vm-provisioning.md`](../vm-provisioning.md#vmid--vlan--ip-scheme)), so the management zone is VMIDs 250 to 299 (VLAN 25, `192.168.25.0/24`), the coding-agent zone is 300 to 349 (VLAN 30, `192.168.30.0/24`) and the experimental block with Internet is 550 to 599 (VLAN 55, `192.168.55.0/24`). VLAN 50 keeps the isolated experimental hosts.
 
@@ -156,24 +173,16 @@ gateway's firewall, which has not been looked at. The drift check
 
 ## What a scratch gateway showed
 
-- `(self)` as a destination matches the gateway's own addresses.
-- The guard rule is evaluated before a floating block rule that follows it, and DNS, NTP and ping
-  reach the gateway from a host in each zone.
-- Automatic outbound NAT covers every zone with Internet access, and Kea answers in each zone it
-  serves, the reserved address included.
-- The sample configuration's dnsmasq holds UDP port 67 for the LAN, which keeps Kea from opening
-  its sockets, so the play turns it off.
-- A host in two zones resolves a name in each forwarded zone through the gateway from either
-  DNS server's answer.
-- The GUI refuses a password alone, a wrong code and the code after the password, and accepts the
-  code in front of it. The play, the update and the diagnostics work with the narrowed API key,
-  which is refused user management and the service list, and the first boot and the update work
-  against the unlocked console menu.
-- SSH is key-only whenever it is turned on, since the sample sets neither password authentication
-  nor root login, and the seed leaves the service off. A test pins both.
-- The API privileges match a path only by the spelling in the gateway's privilege table, so a
-  test checks every API path the repo calls against it, and the paths each collection module the
-  role calls asks for. The test fails when the role calls a module its list lacks.
+| Area | What holds |
+| :--- | :--- |
+| Rules | `(self)` as a destination matches the gateway's own addresses. The guard rule is evaluated before a floating block rule that follows it |
+| Reach | DNS, NTP and ping reach the gateway from a host in each zone. Automatic outbound NAT covers every zone with Internet |
+| Kea | Answers in each zone it serves, the reserved address included. The sample configuration's dnsmasq holds UDP 67 for the LAN, which keeps Kea from opening its sockets, so the play turns it off |
+| DNS | A host in two zones resolves a name in each forwarded zone through the gateway from either DNS server's answer |
+| Login | The GUI refuses a password alone, a wrong code and the code after the password, and accepts the code in front of it |
+| API key | The play, update and diagnostics work with the narrowed key, which is refused user management and the service list. The first boot and update work against the unlocked console menu |
+| SSH | Key-only whenever turned on (the sample sets neither password authentication nor root login), and the seed leaves it off. A test pins both |
+| Privileges | They match a path only by the spelling in the gateway's privilege table, so a test checks every API path the repo calls, and those of each collection module the role calls, against it. It also fails when the role calls a module its list lacks |
 
 ## Release changes
 

@@ -23,7 +23,12 @@ The protocol defaults to `tcp` for `connect` and `udp` for `ntp`; a `dns` flow s
 
 ## What the loader and rules enforce
 
-`network_checks.flow_list` refuses a file whose shape is wrong, and `network_checks.rules` refuses one that contradicts itself: ids are unique; every flow comes from a declared zone; every zone has an allow flow from its canary, so a dead canary cannot make its denies pass; a deny's control is an allow flow to the same destination, port and kind; and every ordered pair of declared zones has at least one flow, so a default-deny is stated and not assumed. The `check-flow-list` hook runs both ([`gates.md`](../engineering/ci/gates.md#flow-list-rules)).
+`network_checks.flow_list` refuses a file whose shape is wrong, and `network_checks.rules` one that contradicts itself. The `check-flow-list` hook runs both ([`gates.md`](../engineering/ci/gates.md#flow-list-rules)):
+
+- Ids are unique, and every flow comes from a declared zone.
+- Every zone has an allow flow from its canary, so a dead canary cannot make its denies pass.
+- A deny's control is an allow flow to the same destination, port and kind.
+- Every ordered pair of declared zones has at least one flow, so a default-deny is stated and not assumed.
 
 ## The probe module and the runner
 
@@ -44,17 +49,23 @@ cd tools
 python -m network_checks.runner --ssh-user USER [--ssh-user-for ZONE=USER] [--ssh-command "ssh -i KEY -o BatchMode=yes"] [--tag smoke] [--flow ID] [--without-canary ZONE]
 ```
 
-`--ssh-user-for` logs in to one zone's canary as another user, once per zone, for a canary whose account differs from the rest (a scratch VM has its own admin account, and a namespace canary takes `root`).
+| Option | Effect |
+| :--- | :--- |
+| `--ssh-user` | The login on the canaries |
+| `--ssh-user-for ZONE=USER` | Another user for one zone's canary, once per zone: a scratch VM has its own admin account, and a namespace canary takes `root` |
+| `--ssh-command` | The SSH command to use, for a key or options |
+| `--tag`, `--flow` | Select flows; all when neither is given |
+| `--without-canary ZONE` | Once per zone. Leaves out the flows that need that zone's canary: those tried from it, those aimed at its address, and the denies whose control is one of these. For a gateway that carries the zone with no canary there, where they would report failed. The run prints how many it left out, and naming one with `--flow` is refused |
 
-`--without-canary`, once per zone, leaves out the flows that cannot be shown without that zone's canary: those tried from it, those aimed at its address, and the denies whose control is one of these. It is for a gateway that carries the zone but has no canary there, where such a flow would report failed. The run prints how many flows it left out, and naming one of them with `--flow` is refused.
+It refuses a flow list that breaks a rule, selects the flows, drops those `--without-canary` leaves out, adds the control of each selected deny and opens one SSH session to each source zone's canary.
 
-It refuses a flow list that breaks a rule, selects the flows by tag or id (all when neither is given), drops those `--without-canary` leaves out and adds the control of each selected deny. It opens one SSH session to the canary of each source zone in the selection and decides each flow:
+| Flow | Passes when |
+| :--- | :--- |
+| Allow | Its attempt succeeded |
+| Deny | Its attempt failed **and** its control passed in the same run, since the destination or the canary may simply be down |
+| Either | Never, when the probe could not run, the session failed or timed out, or there is no result |
 
-- An allow flow passes when its attempt succeeded.
-- A deny flow passes only when its attempt failed and its control passed in the same run, since the destination or the canary may simply be down. A deny whose control failed is reported as failed.
-- A probe that could not be run, a session that failed or timed out, and a flow with no result all count as failed, whether the flow is an allow or a deny.
-
-The exit status is zero only if every flow in the run passed. A selection that holds no flow exits 2 and passes nothing.
+The exit status is zero only if every flow passed. A selection with no flow exits 2 and passes nothing.
 
 ## The flows in the list
 
@@ -62,15 +73,31 @@ The list declares the eight zones of the gateway's play, each with a canary at h
 
 | Flows | From | What they show |
 | :--- | :--- | :--- |
-| `<zone>-gateway-dns`, `-ntp`, `-ping` | Every zone but coding | The gateway's address in the canary's own zone answers a query for `example.com`, a time request and an echo. These are the `smoke` flows. The coding zone has `-ntp` and `-ping` only |
-| `coding-gateway-dns-denied`, `desktops-coding-gateway-dns` | Coding, then desktops | The gateway's address in the coding zone answers no query from the coding canary and answers one from the desktops canary, which is the control. The gateway's resolver forwards the internal zones, so the play does not pass the coding zone's DNS to it |
-| `<zone>-canary-ssh` | Every zone | The canary reaches itself on 22. It is the control for the denies aimed at that canary |
-| `<zone>-internet-https`, `isolated-internet-denied`, `coding-internet-denied` | Every zone | Port 443 on an outside address connects from every zone that has Internet, and not from the isolated or coding zone |
-| `<from>-to-<to>-canary-denied` | Every ordered pair of zones | No canary reaches another zone's canary on 22: the default-deny between zones, stated for each pair |
-| `scratch-*` | The scratch zone | The zone that leases a scratch gateway on the node its WAN (VLAN 10, [`opnsense-gateway.md`](tofu/opnsense-gateway.md#zones-and-interfaces)): the same smoke, SSH, Internet and pair flows as any zone, and its canary at `.8` is refused the node's ports beside the desktops canary's controls, since only the reserved address `192.168.10.2` passes. No run tries these flows: a scratch gateway has no interface for the zone, so the plan builds no canary for it, and production has none in VLAN 10, since no flow enters the zone ([ADR 0120](../../decisions/0120-where-a-scratch-gateway-on-the-node-gets-its-wan/revision-000.md)). A production run leaves them out with `--without-canary scratch`. The zone's rules are checked by the play's policy tests |
-| `services-security-vault`, `<zone>-to-security-vault-denied` | Services, then every other zone | The secrets store's port connects from inside its own zone and from no other zone's canary |
-| `desktops-proxmox-node-ssh`, `desktops-proxmox-node-api`, `<zone>-to-proxmox-node-ssh-denied`, `<zone>-to-proxmox-node-api-denied` | Desktops, then the DMZ and the coding zone | The node's SSH and API ports connect from the desktops canary and from no DMZ or coding host: neither zone's rules pass a private range, and the node's management address is inside one. The allow flows are the denies' controls, so the denies pass only where the play admits the desktops canary as an operator host and the node answers the gateway's WAN address ([the DMZ probe](scratch-gateway-runs.md#the-dmz-probe), [the coding-agent zone run](scratch-gateway-runs.md#the-coding-agent-zone-run)) |
-| `desktops-play-minecraft`, `desktops-services-kms`, and a `<zone>-to-…-denied` for each other zone without the host | Desktops, then the zones without the host | The Minecraft port on `play` and the KMS port on `services` connect from the desktops zone and from no other. They carry the `listener` tag, because they pass only while something listens on the host |
+| `<zone>-gateway-dns`, `-ntp`, `-ping` | Every zone but coding | The gateway answers DNS, time and echo in the canary's own zone. The `smoke` flows; coding has `-ntp` and `-ping` only |
+| `coding-gateway-dns-denied`, `desktops-coding-gateway-dns` | Coding, then desktops | The coding zone gets no DNS from the gateway, and the desktops control does |
+| `<zone>-canary-ssh` | Every zone | The canary reaches itself on 22: the control for denies aimed at it |
+| `<zone>-internet-https`, `isolated-internet-denied`, `coding-internet-denied` | Every zone | Outside port 443 connects from every zone with Internet, and not from isolated or coding |
+| `<from>-to-<to>-canary-denied` | Every ordered pair of zones | The default-deny between zones, stated for each pair |
+| `scratch-*` | The scratch zone | The [scratch zone](#the-scratch-zones-flows) |
+| `services-security-vault`, `<zone>-to-security-vault-denied` | Services, then every other zone | The secrets store's port connects from its own zone only |
+| `desktops-proxmox-node-ssh`, `-api`, `<zone>-to-proxmox-node-ssh-denied`, `-api-denied` | Desktops, then DMZ and coding | The node's SSH and API ports connect from desktops only ([below](#the-node-flows)) |
+| `desktops-play-minecraft`, `desktops-services-kms`, `<zone>-to-…-denied` | Desktops, then zones without the host | Minecraft on `play` and KMS on `services` connect from desktops only. Tagged `listener`: they pass only while something listens |
+
+### The coding zone's DNS
+
+The gateway's resolver forwards the internal zones, so the play does not pass the coding zone's DNS to it. The same query from the desktops canary is the control.
+
+### The scratch zone's flows
+
+The scratch zone leases a scratch gateway on the node its WAN (VLAN 10, [`opnsense-gateway.md`](tofu/opnsense-gateway.md#zones-and-interfaces)). It has the same smoke, SSH, Internet and pair flows as any zone, and its canary at `.8` is refused the node's ports beside the desktops canary's controls, since only the reserved `192.168.10.2` passes.
+
+No run tries them: a scratch gateway has no interface for the zone, so the plan builds no canary, and production has none in VLAN 10 since no flow enters the zone ([ADR 0120](../../decisions/0120-where-a-scratch-gateway-on-the-node-gets-its-wan/revision-000.md)). A production run leaves them out with `--without-canary scratch`; the play's policy tests check the zone's rules.
+
+### The node flows
+
+Neither the DMZ's nor the coding zone's rules pass a private range, and the node's management address is inside one. The allow flows are the denies' controls, so the denies pass only where the play admits the desktops canary as an operator host and the node answers the gateway's WAN address ([the DMZ probe](scratch-gateway-runs.md#the-dmz-probe), [the coding-agent zone run](scratch-gateway-runs.md#the-coding-agent-zone-run)).
+
+### Tags
 
 A flow carries its source zone as a tag, so `--tag services` runs the flows of the services canary alone. A deny whose control is tried from another zone's canary is tagged `cross-zone` and runs only once both canaries exist; the allow flow that is a control only for a deny of the coding zone's DNS is tagged `cross-zone` too, so no run of the desktops zone's own flows depends on it. A flow to the Proxmox node carries the `node` tag and no zone's, since it passes only on a gateway whose play admits the canary to the node.
 
@@ -96,14 +123,20 @@ NODE=pve   # the Proxmox node
 ssh-keygen -t ed25519 -N '' -f ~/.ssh/scratch_runner
 python -m network_checks.scratch_plan > plan.json
 scp plan.json network_checks/scratch_canaries.py ~/.ssh/scratch_runner.pub "root@$NODE:"
+```
 
+```sh
 # on the node, as root, with the scratch gateway up on vmbr9
 python3 scratch_canaries.py up plan.json vmbr9 /root/scratch-canaries scratch_runner.pub
+```
 
-# on the machine with the repository
+```sh
+# on the machine with the repository, in tools/
 python -m network_checks.runner --ssh-user root --tag services \
   --ssh-command "ssh -i ~/.ssh/scratch_runner -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o 'ProxyCommand=ssh root@$NODE python3 /root/scratch_canaries.py relay /root/scratch-canaries %h %p'"
+```
 
+```sh
 # on the node, to remove every namespace, link and process
 python3 scratch_canaries.py down
 ```

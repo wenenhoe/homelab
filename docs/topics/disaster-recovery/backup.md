@@ -24,46 +24,66 @@ to end is [`fire-drill.md`](fire-drill.md).
 
 ## Architecture
 
-- Volumes to back up are declared per-app via a `backup:` key on the app's
-  `app_catalog` entry — the agent has no per-app logic beyond that.
-- One `docker-volume-backup` container per host runs one schedule per
-  app, always to SeaweedFS. `docker-volume-backup` does full
-  tar-and-upload per run, no delta sync — a schedule's cost scales with
-  that one app's volume size, not with anything else sharing the
-  container.
-- Apps that need to be stopped for a consistent snapshot set
-  `docker-volume-backup.stop-during-backup=<app-name>` on their own
-  compose service (their own name, not a shared `true`) and
-  `backup.stop_during_backup: true` in `app_catalog.yaml`. Each such
-  app's schedule then sets `BACKUP_STOP_DURING_BACKUP_LABEL=<app-name>`
-  to match. That match is scoped per schedule file, not once for the
-  whole container: a schedule backing up app A never touches app B's
-  uptime, even though every app's schedules share one container.
-  The agent reaches the Docker API through a `docker-socket-proxy` sidecar,
-  which is only added to the compose file at all if at least one app on the
-  host needs stopping. The sidecar runs the stock image with no capability
-  flags: the role's `docker-api-rules.cfg` is mounted read-only over the
-  image's `haproxy.cfg.template` and names the calls the agent makes. It
-  passes `GET` of `/_ping`, `/version`, `/info` and `/containers/json`, and a
-  `POST` to `/containers/{id}/start` or `/stop` for a full 64-character
-  lower-case id, with or without an API version prefix, and refuses every
-  other call with a 403. Editing the file recreates the container, through a
-  label that carries its hash. See
-  [ADR 0004 (Docker API access)](../../decisions/0004-container-access-to-the-docker-api/revision-001.md)
-  for why anything needing Docker API access gets a scoped proxy sidecar
-  like this instead of the real socket, and for the calls.
-- `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the
-  only templated compose file in this repo) since mounted volumes vary
-  per host.
-- The container runs as root with every capability dropped except
-  `DAC_READ_SEARCH`, and `no-new-privileges` set. Every volume is mounted
-  read-only, so it only ever reads: the capability lets it open the schedule
-  files the deploy user owns and the files each app's own user owns, and
-  `DAC_OVERRIDE` is not needed. The `docker-socket-proxy` sidecar drops every
-  capability as well and adds none back, and sets `no-new-privileges`. See
-  [Container hardening](../deploy/adding-an-app.md#container-hardening).
-- No retention/cron conflict validation is needed — every schedule is
-  independent, so there's nothing to conflict.
+```mermaid
+flowchart LR
+    V["App volumes<br/>on each app host"] -->|"backup-agent:<br/>encrypt, upload"| S["SeaweedFS<br/>on storage"]
+    S -->|"cloud-sync:<br/>copy --immutable"| C["R2, B2, OCI"]
+```
+
+- Each app declares its volumes under the `backup:` key of its `app_catalog`
+  entry. The agent has no per-app logic.
+- One `docker-volume-backup` container per host runs one schedule per app, always
+  to SeaweedFS. Each run tars and uploads the whole of that app's volumes (no
+  delta sync), so a schedule's cost grows with its own app only. Schedules are
+  independent, so there are no retention or cron conflicts to validate.
+- `backup_agent`'s `compose.yaml` is the only templated compose file in this
+  repo, since the mounted volumes differ per host.
+
+### Stopping an app for a snapshot
+
+An app that must be stopped for a consistent snapshot sets two things, and the
+role renders the third:
+
+| Where | Setting |
+| :--- | :--- |
+| The app's compose service | Label `docker-volume-backup.stop-during-backup=<app-name>`: its own name, not a shared `true` |
+| The app's `app_catalog.yaml` entry | `backup.stop_during_backup: true` |
+| The app's schedule file (rendered) | `BACKUP_STOP_DURING_BACKUP_LABEL=<app-name>` |
+
+The label match is scoped per schedule file, not per container: backing up app A
+never stops app B, although all schedules share one container.
+
+### Docker API access
+
+The agent reaches the Docker API through a `docker-socket-proxy` sidecar, added
+only when some app on the host needs stopping. The sidecar runs the stock image
+with no capability flags; the role mounts `docker-api-rules.cfg` read-only over
+the image's `haproxy.cfg.template`. Editing that file recreates the container,
+through a label that carries its hash.
+
+| Method | Paths passed, with or without an API version prefix |
+| :--- | :--- |
+| `GET` | `/_ping`, `/version`, `/info`, `/containers/json` |
+| `POST` | `/containers/{id}/start` and `/stop`, for a full 64-character lower-case id |
+
+Every other call gets a 403, so the agent cannot create, exec into, kill, update
+or delete a container, or read a container's environment, files or logs. See
+[ADR 0004 (Docker API access)](../../decisions/0004-container-access-to-the-docker-api/revision-001.md)
+for why Docker API access goes through a scoped proxy instead of the socket.
+
+**Known limitation (single operator, trusted LAN):** the grant has no
+per-container ACL. The proxy can start or stop any container on the host by id,
+and list every container with its labels. Only `docker-volume-backup`'s label
+match scopes a schedule to its own app.
+
+### Container privileges
+
+The agent runs as root with every capability dropped except `DAC_READ_SEARCH`,
+and `no-new-privileges`. Every volume is mounted read-only; the capability lets it
+open the schedule files the deploy user owns and the files each app's user owns,
+so `DAC_OVERRIDE` is not needed. The proxy sidecar drops every capability, adds
+none back and sets `no-new-privileges`. See
+[Container hardening](../deploy/adding-an-app.md#container-hardening).
 
 ## Storage host
 
@@ -178,37 +198,19 @@ Schedule, retention, compression and whether the app is stopped come from
 `backup:` block sets them; see
 [`adding-an-app.md`](../deploy/adding-an-app.md#2-register-it-in-app_catalog).
 
-`lldap` is deliberately never stopped — it's the auth backend, and every
-other app behind Caddy/tinyauth loses login for the stop window, a
-bigger blast radius than the SQLite-consistency risk it'd guard against.
-`minecraft`'s `backups` volume is already RCON-quiesced by `itzg/mc-backup`
-before this ever reads it (`docker/minecraft/compose.yaml.j2`), so stopping
-`mc` here would add downtime with no consistency benefit. If a restore
-ever turns up a corrupt SQLite/LDAP file for `wastebin`/`lldap`, add
-`stop_during_backup: true` and the matching compose label (see
-Architecture above) rather than assuming it's needed by default.
+Why some apps differ:
 
-For the same reason, `minecraft` also sets `backup.compression: none` —
-`itzg/mc-backup` already gzips the archive `backup_agent` mounts, so
-`backup_agent`'s own default `gz` pass would just be re-compressing an
-already-compressed file for no size benefit. Every other app above uses
-the `gz` default since their sources are raw, uncompressed volume data.
+- **`lldap` is never stopped.** It is the auth backend, so stopping it takes login
+  away from every app behind Caddy and Tinyauth, a bigger blast radius than the
+  SQLite consistency risk it would guard against.
+- **`minecraft` is not stopped and sets `backup.compression: none`.**
+  `itzg/mc-backup` already quiesces the world over RCON and gzips the archive that
+  the agent mounts (`docker/minecraft/compose.yaml.j2`). The other apps are raw
+  volume data and use the `gz` default.
 
-**Migration note:** every app host previously also pushed directly to
-R2/B2/OCI (a design [the threat model](backup-threat-model.md) rules out). Any
-objects already sitting in those buckets from that period are now
-orphaned under a different path scheme than `cloud_sync` uses — nothing
-will prune them, and `cloud_sync` won't add to or recognize them.
-Harmless to leave; delete by hand if reclaiming the space matters.
-
-**Known limitation (single operator, trusted LAN):** `docker-socket-proxy`'s
-grant has no per-container ACL — it can start/stop any container on
-that host by id, and list every container with its labels, not just ones
-with a matching `stop-during-backup` label. The label match on the
-`docker-volume-backup` side is what actually scopes each schedule to its own
-app (see Architecture above); the proxy itself is a broader grant than that.
-It cannot create, exec into, kill, update or delete a container, read a
-container's environment, files or logs, or reach any other endpoint.
+If a restore ever turns up a corrupt SQLite or LDAP file for `wastebin` or
+`lldap`, add `stop_during_backup: true` and the matching label
+([above](#stopping-an-app-for-a-snapshot)).
 
 ## Running a backup now
 

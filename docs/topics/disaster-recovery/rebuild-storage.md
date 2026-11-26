@@ -62,6 +62,30 @@ Each step names the pull request or the host it runs on.
 | 8 | `deploy.yaml --limit storage,localhost` again | The bucket play now checks the new VM. Take each app host's on-demand backup, confirm it landed there, and run `sudo systemctl start cloud-sync.service` there: it must exit 0 |
 | 9 | Dump and destroy the old VM as the cycle's step 6 does; remove the forward to its address and its reservation from the live gateway | The old VM stays until every host's on-demand backup has reached the new one and a hand-started cloud sync has relayed it |
 
+### Commands
+
+```sh
+# step 3, from ansible/
+ansible-playbook playbooks/deploy.yaml --limit storage,localhost
+```
+
+```sh
+# step 5, from ansible/
+ansible-playbook playbooks/deploy.yaml --limit services,localhost --tags infra
+```
+
+```sh
+# step 7, from the repo root; pins the old address, here the pair's 192.168.20.6
+ssh storage 'sudo python3 - --pin 192.168.20.6' < tools/rebuild_check/scripts/bucket_copy.py
+```
+
+```sh
+# step 8, on storage; must exit 0
+sudo systemctl start cloud-sync.service
+```
+
+Step 4 is the step 7 command, before the flip.
+
 ### Copying
 
 [`bucket_copy.py`](rebuild-tools.md#bucket_copypy) does what this step describes.

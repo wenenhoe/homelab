@@ -2,6 +2,33 @@
 
 The `bind9` role runs an authoritative, non-recursive nameserver on the `services` host (`hosts: dns` in `deploy.yaml`) that serves every app host's internal zones. `storage`, the inventory's `dns_secondary` group, runs the same role as a [secondary](#a-secondary) for all of them, one host after the other in the same play.
 
+```mermaid
+flowchart TD
+    G["Gateway resolver"] -->|"forwards to either"| P["services<br/>primary"]
+    G --> S["storage<br/>secondary"]
+    P -->|"NOTIFY, then<br/>signed transfer"| S
+```
+
+## Checking both servers
+
+Compare serials and answers across the two servers
+([what it checks](../disaster-recovery/rebuild-tools.md#rebuild_checkdns)):
+
+```sh
+cd tools && python3 -m rebuild_check.dns
+```
+
+To ask one server for one name:
+
+```sh
+# paste alone; it waits for the name and the server's address
+read -r -p 'name: ' name; read -r -p 'server: ' server
+```
+
+```sh
+dig +short "$name" @"$server"
+```
+
 ## How zone data is gathered
 
 BIND9 itself carries no zone configuration — each app host declares its
@@ -35,12 +62,15 @@ rebuilds it. The role makes no distinction by who wrote the address, so
 `cd-agent`, which `inventory.yaml` addresses by IP, is named the same way.
 A host with no `ansible_host`, or one that names a host, gets none.
 
-The primary checks these records before it writes a zone file, and a failed
-check stops the deploy with the live zones untouched: a host name that is not
-one DNS label, a host that a static record in the zone also names (a
-resolver would hand out either address), and generated records with no zone
-named `host_domain` to hold them. The secondary renders no zone file, so it
-takes these records by transfer like the rest.
+The primary checks these records before it writes a zone file. A failed check stops
+the deploy with the live zones untouched:
+
+- A host name that is not one DNS label.
+- A host that a static record in the zone also names, since a resolver would hand
+  out either address.
+- Generated records with no zone named `host_domain` to hold them.
+
+The secondary renders no zone file, so it takes these records by transfer.
 
 The role generates no CNAME into this zone, since none of its names is a
 Caddy route; every CNAME it generates elsewhere points at a name in it, the
@@ -58,45 +88,36 @@ host: `bind9_secondary` is true on a host in `dns_secondary` and false on
 every other host that runs the role, and `bind9_transfers_enabled` is true
 on both once that group has a member.
 
-The secondary renders no zone file. It declares each zone in
-`bind9_all_zones` (the list the primary renders from) as `type secondary`,
-taken from `dns_primary_address` over the transfer key, and keeps what it
-receives in `/var/lib/bind`, the `records` volume, which the role hands to the `bind` user
-before the container starts, since a new volume belongs to root, and mounts it
-with `nocopy` so the container's first start does not give it back the image
-directory's owner. A restart therefore
-serves the zones it already holds without reaching the primary, while a
-secondary that has never completed a transfer answers `SERVFAIL` for them.
+The secondary renders no zone file:
 
-The key is the `dns-transfer-key` catalog entry (`hosts/all/dns`). It is 64
-hex characters, which BIND reads as the base64 secret of an `hmac-sha256`
-key, and the role renders it to `named.conf.key` on both hosts at mode
-`0640` for `bind:bind`, in its own task with `no_log`. With a secondary
-declared, the primary's `allow-transfer` names that key alone and it
-notifies `dns_secondary_address`, so a transfer without the key or under
-another secret is refused. With none declared it keeps
-`allow-transfer { none; }` and renders no key.
+- **Zones:** it declares each zone in `bind9_all_zones`, the list the primary renders
+  from, as `type secondary` of `dns_primary_address` over the transfer key.
+- **Storage:** it keeps what it receives in `/var/lib/bind`, the `records` volume. A new
+  volume belongs to root, so the role hands it to the `bind` user before the container
+  starts and mounts it `nocopy`, or the first start would give it back the image
+  directory's owner.
+- **Restart:** it serves the zones it holds without reaching the primary. A secondary
+  that has never completed a transfer answers `SERVFAIL`.
+- **Key:** the `dns-transfer-key` catalog entry (`hosts/all/dns`), 64 hex characters
+  that BIND reads as the base64 secret of an `hmac-sha256` key. The role renders it to
+  `named.conf.key` on both hosts, `0640` `bind:bind`, in its own `no_log` task.
+- **Access:** the primary's `allow-transfer` names that key alone and it notifies
+  `dns_secondary_address`, so a transfer without the key is refused. With no secondary
+  declared it keeps `allow-transfer { none; }` and renders no key.
 
-A change to a zone reaches the secondary within seconds: the primary
-restarts on a real change, sends a NOTIFY, and the secondary pulls the zone
-over a signed transfer. The NOTIFY is unsigned; the transfer that follows is
-not. The zone serial changes only with a zone's content
-([below](#serial-handling-without-spurious-reloads)), so the secondary
-transfers only a zone that really changed.
+A change reaches the secondary within seconds: the primary restarts on a real change and
+sends a NOTIFY, and the secondary pulls the zone. The NOTIFY is unsigned; the transfer is
+not. The serial changes only with a zone's content
+([below](#serial-handling-without-spurious-reloads)).
 
 ## Losing a server
 
-The gateway's resolver forwards the host zone and the `lan_domain` zones to
-`services` and to `storage` alike and queries either address, so neither is a
-single point of failure for a name.
-
-Stopping the `bind9` container on `services`, and then on `storage`, leaves
-every name resolving from the gateway interface of VLANs 20, 30 and 40: a
-host name, a service name in each service zone (a CNAME into the host zone,
-which the resolver follows by asking the surviving server again), and a name
-that does not exist, which answers `NXDOMAIN` rather than `SERVFAIL`. The
-survivor answers the same records when asked directly, and the stopped server
-answers again as soon as its container starts.
+The gateway's resolver queries either server, so neither is a single point of failure
+for a name. With the `bind9` container stopped on one, every name still resolves from
+the gateway interfaces of VLANs 20, 30 and 40: host names, service names (a CNAME into
+the host zone, which the resolver follows by asking the survivor) and a missing name,
+which answers `NXDOMAIN`, not `SERVFAIL`. The stopped server answers again as soon as
+its container starts.
 
 What a lost server changes:
 
@@ -112,17 +133,16 @@ What a lost server changes:
 
 ## Template outputs per run
 
-- **`named.conf.j2`** — the options, which differ by mode (see above).
-- **`named.conf.key.j2`** — the transfer key, rendered only once a secondary
-  is declared.
-- **`named.conf.local.j2`** — one zone block per entry in `bind9_all_zones`:
-  `type master` on the primary, `type secondary` on a secondary.
-- **`zone.db.j2`** — on the primary only, each zone's SOA header, static
-  `extra_records`, the host zone's generated `A` records, and **auto-generated CNAMEs**: for every app with a `routes` entry whose
-  hostname falls inside the zone, it emits a CNAME pointing at that
-  host's `host_fqdn`. Adding `routes: { default: { host: foo } }` to
-  an app in `host_vars` gets it both a routing rule and a DNS record, no
-  manual zone editing.
+| Template | Renders |
+| :--- | :--- |
+| `named.conf.j2` | The options, which differ by mode |
+| `named.conf.key.j2` | The transfer key, only once a secondary is declared |
+| `named.conf.local.j2` | One zone block per entry in `bind9_all_zones`: `type master` on the primary, `type secondary` on a secondary |
+| `zone.db.j2` | Primary only: each zone's SOA header, static `extra_records`, the host zone's generated `A` records and auto-generated CNAMEs |
+
+A CNAME to the host's `host_fqdn` is generated for every app `routes` entry whose
+hostname falls inside the zone. So `routes: { default: { host: foo } }` in `host_vars`
+gives an app both a routing rule and a DNS record.
 
 ## Serial handling without spurious reloads
 

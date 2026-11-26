@@ -8,6 +8,8 @@ main{min-width:0;overflow-wrap:break-word;padding-block:1rem 3rem}
 main>section{border:0;margin:0;padding:0}
 main h1{margin:1rem 0 .25rem;font-size:1.75rem}
 main h2{margin:2.25rem 0 .75rem;font-size:1.3rem}
+main h3{margin:1.5rem 0 .5rem;font-size:1.12rem}
+main h4{margin:1.25rem 0 .5rem;font-size:1rem}
 .lede,.caption{color:var(--text-light);margin:.25rem 0 1rem}
 .caption{margin-top:-.25rem}
 details.legend{margin:0 0 1rem}

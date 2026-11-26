@@ -37,7 +37,13 @@ def asset(files: dict[str, bytes], stem: str, extension: str) -> str:
 
 def test_the_site_is_these_files(tree):
     files = site.build(tree)
-    assert set(files) == PAGES | {"assets/simple-licence.txt", asset(files, "site", "css"), asset(files, "site", "js"), asset(files, "simple", "css")}
+    assert set(files) == PAGES | {
+        "assets/simple-licence.txt",
+        asset(files, "site", "css"),
+        asset(files, "site", "js"),
+        asset(files, "simple", "css"),
+        asset(files, "favicon", "svg"),
+    }
 
 
 def test_two_builds_of_one_tree_are_the_same_bytes(tree):

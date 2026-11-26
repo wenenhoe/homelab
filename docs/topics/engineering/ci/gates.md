@@ -67,6 +67,7 @@ Do not run these fixtures on the controller: they write into the real secret cac
 | About | Rule |
 | :--- | :--- |
 | app names | none appears twice |
+| `compose_apps` | every app a managed host lists has a catalog entry |
 | `routes` | each has an `upstream`; the old `caddy` key is refused |
 | `auth: false` | only for a route listed, with its reason, in `OPEN_ROUTES` |
 | `backup` block | names at least one volume, each declared in `volumes`; an app with nothing to back up has no block |

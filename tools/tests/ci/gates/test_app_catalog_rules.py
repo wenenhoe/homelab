@@ -306,6 +306,15 @@ class TestAgainstTheInventory:
     def test_a_catalog_and_inventory_that_agree_have_no_violations(self):
         assert broken_against(inventory()) == []
 
+    def test_every_listed_app_without_a_catalog_entry_is_reported_against_its_host(self):
+        inv = inventory(compose_apps={"alpha": [{"name": "web"}, {"name": "ghost"}], "beta": [{"name": "stray"}]})
+        found = rules.validate(GOOD, inv)
+        assert [(v.name, v.rule) for v in found] == [("alpha", "unknown-app"), ("beta", "unknown-app")]
+        assert ["`ghost`" in found[0].message, "`stray`" in found[1].message] == [True, True]
+
+    def test_a_catalog_entry_no_host_lists_is_accepted(self):
+        assert broken_against(inventory(compose_apps={"alpha": [{"name": "web"}], "beta": []})) == []
+
     def test_without_an_inventory_only_the_catalog_rules_run(self):
         assert rules.validate(GOOD) == []
         assert rules.validate(GOOD, None) == []
@@ -316,14 +325,14 @@ class TestAgainstTheInventory:
         assert [(v.name, v.rule, "`gcs`" in v.message, "`r2`" in v.message) for v in found] == [("web", "cloud-target", True, False)]
 
     def test_every_unknown_cloud_target_is_reported(self):
-        catalog = {"web": {**GOOD["web"], "backup": {"volumes": ["data"], "cloud_targets": ["x", "r2", "y"]}}}
+        catalog = {**GOOD, "web": {**GOOD["web"], "backup": {"volumes": ["data"], "cloud_targets": ["x", "r2", "y"]}}}
         assert broken_against(inventory(), catalog) == [("web", "cloud-target"), ("web", "cloud-target")]
 
     def test_an_unknown_cloud_target_in_the_defaults_is_refused_under_its_own_name(self):
         assert broken_against(inventory(defaults={**DEFAULTS, "cloud_targets": ["r2", "gcs"]})) == [("backup_defaults", "cloud-target")]
 
     def test_a_malformed_cloud_target_list_is_a_shape_problem_only(self):
-        catalog = {"web": {**GOOD["web"], "backup": {"volumes": ["data"], "cloud_targets": "r2"}}}
+        catalog = {**GOOD, "web": {**GOOD["web"], "backup": {"volumes": ["data"], "cloud_targets": "r2"}}}
         assert broken_against(inventory(), catalog) == [("web", "backup-shape")]
 
     def test_the_defaults_must_supply_every_setting_in_its_shape(self):
@@ -444,7 +453,9 @@ def run_main(tmp_path_factory, monkeypatch):
         if text is not None:
             path.write_text(text)
         out, err = io.StringIO(), io.StringIO()
-        loader = {"side_effect": inv} if isinstance(inv, Exception) else {"return_value": inv or inventory()}
+        # The catalogs these tests write name their own apps, so the stand-in hosts list none.
+        no_apps = inventory(compose_apps={"alpha": [], "beta": []})
+        loader = {"side_effect": inv} if isinstance(inv, Exception) else {"return_value": inv or no_apps}
         monkeypatch.setattr(rules, "CATALOG_PATH", path)
         monkeypatch.setattr(rules, "OPEN_ROUTES", open_routes or {})
         monkeypatch.setattr(rules, "load_backup_inventory", create_autospec(rules.load_backup_inventory, **loader))

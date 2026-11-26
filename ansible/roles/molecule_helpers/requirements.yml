@@ -18,7 +18,7 @@
 # instead of each scenario keeping its own identical copy.
 collections:
   - name: community.docker
-    version: "5.4.0"
+    version: "5.4.1"
   - name: ansible.posix
     version: "2.2.2"
   - name: amazon.aws

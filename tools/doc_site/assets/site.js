@@ -17,7 +17,7 @@
   }
   var list = document.querySelector('.toc details');
   if (list && window.matchMedia) {
-    var wide = window.matchMedia('(min-width: 1100px)');
+    var wide = window.matchMedia('(min-width: 1040px)');
     var sync = function () { list.open = wide.matches; };
     sync();
     wide.addEventListener('change', sync);

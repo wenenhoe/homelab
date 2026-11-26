@@ -121,8 +121,20 @@ def _tasks(tokens: list[Token]) -> None:
                 lists[-1].attrSet("class", "tasks")
 
 
+# A word of code in a key cell is kept whole only while that leaves its table room in the column: not beyond this many columns, where the
+# others need the width, nor beyond this many characters, as a request's path with its query has.
+MAX_WHOLE_COLUMNS = 3
+MAX_WHOLE_WORD = 40
+
+
+def _may_cut(inline: Token, columns: int) -> bool:
+    words = (word for child in inline.children or [] if child.type == "code_inline" for word in child.content.split())
+    return columns > MAX_WHOLE_COLUMNS or any(len(word) > MAX_WHOLE_WORD for word in words)
+
+
 def _tables(tokens: list[Token]) -> None:
-    """Each cell takes its column's header as a label and a `Status` cell is a pill, as in the views, so a wide table becomes cards."""
+    """Each cell takes its column's header as a label and a `Status` cell is a pill, as in the views, so a wide table becomes cards. The
+    first cell of a row is its `key`, unless the table has one column or its first is `#`, which numbers the rows and does not name them."""
     labels: list[str] = []
     column = 0
     for index, token in enumerate(tokens):
@@ -137,7 +149,9 @@ def _tables(tokens: list[Token]) -> None:
                 inline = tokens[index + 1]
                 empty = not inline.content.strip()
                 token.attrSet("data-label", label)
-                token.attrSet("class", "field none" if empty else "field")
+                keyed = column == 0 and len(labels) > 1 and labels[0] != "#"
+                kind = "none" if empty else ("key cut" if _may_cut(inline, len(labels)) else "key") if keyed else ""
+                token.attrSet("class", f"field {kind}".strip())
                 if label == "Status" and not empty:
                     inline.children.insert(0, _html(f'<span class="pill s-{status_key(inline.content)}">'))
                     inline.children.append(_html("</span>"))

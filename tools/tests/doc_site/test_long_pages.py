@@ -117,6 +117,121 @@ def test_the_list_is_closed_on_a_narrow_screen_and_open_on_a_wide_one(tree, tmp_
 
 
 @needs_chrome
+@pytest.mark.parametrize(("width", "beside"), [pytest.param(1040, True, id="breakpoint"), pytest.param(1039, False, id="below")])
+def test_the_list_moves_beside_the_prose_at_the_breakpoint(tree, tmp_path, width, beside):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=LONG)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": width, "height": 800})
+            page.goto(f"{base}/topics/infra/network/")
+            box = page.evaluate("[document.querySelector('.toc').getBoundingClientRect().left, document.querySelector('.doc').getBoundingClientRect().right]")
+            assert (box[0] >= box[1]) is beside
+            assert page.evaluate("document.querySelector('.toc details').open") is beside
+        finally:
+            browser.close()
+
+
+MANY = "# Many\n\n" + "".join(f"## Part {n}\n\n" + "Text.\n\n" * 5 for n in range(1, 31))
+# The contents list, where it is on the screen and how much of it is out of sight in its own box.
+LIST_BOX = """() => {
+  const list = document.querySelector('.toc');
+  const box = list.getBoundingClientRect();
+  return {top: box.top, bottom: box.bottom, hidden: list.scrollHeight - list.clientHeight};
+}"""
+
+
+@needs_chrome
+@pytest.mark.parametrize(("height", "top"), [pytest.param(800, 72, id="under-the-header"), pytest.param(420, 8, id="short-screen")])
+def test_a_list_beside_the_prose_stays_on_screen_and_scrolls_on_its_own(tree, tmp_path, height, top):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=MANY)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": 1280, "height": height})
+            page.goto(f"{base}/topics/infra/network/")
+            page.evaluate("window.scrollTo({top: document.documentElement.scrollHeight / 2, behavior: 'instant'})")
+            box = page.evaluate(LIST_BOX)
+            assert box["top"] == pytest.approx(top, abs=1)
+            assert box["bottom"] <= height
+            assert box["hidden"] > 0
+            assert page.locator("h2 .up").first.is_hidden()
+            page.set_viewport_size({"width": 390, "height": height})
+            assert page.locator("h2 .up").first.is_visible()
+        finally:
+            browser.close()
+
+
+# The width of main's content, and the space on each side of main.
+COLUMN = """() => {
+  const main = document.querySelector('main'), box = main.getBoundingClientRect(), style = getComputedStyle(main);
+  return [box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), box.left, document.documentElement.clientWidth - box.right];
+}"""
+
+
+@needs_chrome
+@pytest.mark.parametrize(
+    ("network", "path", "width", "column"),
+    [
+        pytest.param(SHORT, "topics/infra/network/", 1920, 848, id="no-list"),
+        pytest.param(LONG, "topics/infra/network/", 1000, 848, id="list-above"),
+        pytest.param(LONG, "topics/infra/network/", 1920, 1120, id="list-beside"),
+        pytest.param(SHORT, "decision-index/", 1920, 1120, id="view"),
+    ],
+)
+def test_a_document_without_a_list_beside_it_is_a_centred_column(tree, tmp_path, network, path, width, column):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=network)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": width, "height": 800})
+            page.goto(f"{base}/{path}")
+            content, left, right = page.evaluate(COLUMN)
+            assert content == pytest.approx(column, abs=1)
+            assert left == pytest.approx(right, abs=1)
+        finally:
+            browser.close()
+
+
+KEYED = "# Keys\n\n| Name | Does |\n| --- | --- |\n| `an_identifier_of_some_length` | " + "words " * 60 + "|\n"
+# The number of lines the first code span of a table takes.
+KEY_LINES = "() => document.querySelector('.doc td code').getClientRects().length"
+
+
+@needs_chrome
+def test_an_identifier_that_names_a_row_is_not_cut(tree, tmp_path):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=KEYED)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": 1040, "height": 800})
+            page.goto(f"{base}/topics/infra/network/")
+            assert page.evaluate(KEY_LINES) == 1
+        finally:
+            browser.close()
+
+
+@needs_chrome
 def test_a_site_with_a_long_page_and_tabs_fits_every_width(tree, tmp_path):
     pytest.importorskip("playwright")
     built(tree, network=LONG, readme=GROUPS)

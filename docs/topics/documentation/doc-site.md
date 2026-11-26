@@ -51,7 +51,7 @@ Where a choice about a page is open, these decide it.
 | **Show where you are** | A breadcrumb, the page's own entry in the navigation, and a contents list of its headings |
 | **Orient, don't hide** | Show a page's shape rather than folding its narrative away. Only a list of links is tabbed, by a rule that names the one page |
 | **Every state has an address** | A heading, a tab and a view's section open from their anchor. A filter's text has no address |
-| **Readable measure, full-width data** | See [the stylesheet](#the-stylesheet) |
+| **Readable measure, one column** | See [the stylesheet](#the-stylesheet) |
 | **Targets and contrast** | Menu, contents and tab links and copy buttons are at least 44 pixels tall; colours come from one set of tokens, light and dark. No check measures either, so read a page on a phone |
 
 ## Generated views
@@ -88,13 +88,13 @@ A document page is a repository file shown as it reads on GitHub. `doc_site/docu
 | A lineage with several revisions | all of them listed with state; the current and the one being read marked |
 | End of a decision page | links to the decisions before and after by number |
 | `##` and `###` headings | GitHub's anchors, listed in the menu |
-| Four or more menu headings | an "On this page" list, and a link back to it at each `##` |
+| Four or more menu headings | an "On this page" list, and where it is not beside the prose a link back to it at each `##` |
 | A link to a page of the site | stays on the site, anchor kept; any other file goes to GitHub |
 | `[ ]`, `[x]` list items | disabled checkboxes |
-| Tables | cards on a phone, each cell labelled; a `Status` cell is a pill |
+| Tables | cards on a phone, each cell labelled; a `Status` cell is a pill. From 992 pixels wide the first cell of a row is semibold and tinted, unless the table has one column or its first is `#`. In a table of two or three columns a code span in that cell wraps only between words, save a word over 40 characters |
 | Code blocks | wrapped, with a copy button |
 
-- **Contents list.** A `<details open>`, so it needs no script. From 1100 pixels wide it sits beside the prose; below that the script closes it. It does not stay on screen. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
+- **Contents list.** A `<details open>`, so it needs no script. From 1040 pixels wide it sits beside the prose and stays on screen, scrolling on its own when it is taller than the window, and the headings' links back to it are hidden; below that it is above the prose, where the script closes it. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
 - **Copy button.** Added in the top right corner where the browser has a clipboard (HTTPS or `localhost`). Its icon turns into a tick, or a cross if the write is refused, with the same said to a screen reader. It copies the block without the final newline, so a pasted last line is not run. Blocks are written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)).
 - **Navigation.** Planning, Projects, Decisions, Topics, Architecture and DR coverage; the home page has a tile for each.
 - **Section landings.** Projects opens on a list of projects by status and initiative, above its README; Decisions on the decision index, with the README as a guide in the breadcrumb; Topics and Architecture on their READMEs.
@@ -119,7 +119,13 @@ Every heading has the anchor GitHub gives it: lowercase, everything but letters,
 
 Pages use [Simple.css](https://simplecss.org/) (MIT) and diagrams use Mermaid, both vendored: nothing is fetched at build time or by a reader's browser. `site.css` and `site.js` in `tools/doc_site/assets/` are this repository's.
 
-Prose (paragraphs, lists, quotes, headings, the lede) keeps one reading measure; tables, code blocks and figures use the page's width, less the contents column. A view's lede, captions and legend run as wide as its table.
+Prose (paragraphs, lists, quotes, headings, the lede) keeps one reading measure; tables, code blocks and figures use the width of the column they are in.
+
+| Page | Column |
+| :--- | :--- |
+| A document page with its contents list beside the prose | the page's width, less the list's column |
+| Any other document page, the home page among them | at most 53rem, centred |
+| A generated view | the page's width; its lede, captions and legend run as wide as its table |
 
 | | Simple.css | Mermaid |
 | :--- | :--- | :--- |
@@ -157,7 +163,7 @@ With the site built above, from `tools/`:
 uv run python -m doc_site.layout "$site"
 ```
 
-It serves the site on `localhost` and opens every page in headless Chrome at each size of `VIEWPORTS` in [`layout.py`](../../../tools/doc_site/layout.py) (portrait phones, a small tablet, a wide screen and a landscape phone); a page with a contents list or tabs also at `WIDE_VIEWPORT`. It needs Chrome and `playwright` and downloads nothing. Every error names the page, width and element.
+It serves the site on `localhost` and opens every page in headless Chrome at each size of `VIEWPORTS` in [`layout.py`](../../../tools/doc_site/layout.py) (portrait phones, a small tablet, a wide screen and a landscape phone); a page with a contents list or tabs also at each of `WIDE_VIEWPORTS`, the narrowest width with the list beside the prose among them. It needs Chrome and `playwright` and downloads nothing. Every error names the page, width and element.
 
 A page fails when:
 

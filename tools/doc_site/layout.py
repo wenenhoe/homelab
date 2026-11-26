@@ -31,7 +31,7 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-from doc_site import chrome
+from doc_site import chrome, home
 
 # Two portrait phones, a tablet and a phone held sideways: 360 and 390 are common Android and iPhone portrait widths, 768 is a
 # small tablet, and 844 by 390 is an iPhone in landscape, where the height is what a bar that stays on screen eats into. The
@@ -176,13 +176,15 @@ def pages_of(directory: Path) -> list[str]:
 
 
 def page_of_document(path: str) -> str | None:
-    """The address of the page of the repository file `path`, or None when it is not a markdown file under `docs/`. A README is the page
-    of its directory and the README of `docs/` is the home page, as in `doc_site.site`."""
+    """The address of the page that shows the repository file `path`, or None when no page does. The root README and the home page's
+    template make the home page; otherwise a markdown file under `docs/` has a page, a README being that of its directory and the
+    README of `docs/` the guide, as in `doc_site.site`."""
+    if path in (home.README, home.TEMPLATE):
+        return "/"
     if not (path.startswith("docs/") and path.endswith(".md")):
         return None
     slug = path.removeprefix("docs/").removesuffix(".md")
-    slug = "" if slug == "README" else slug.removesuffix("/README")
-    return f"/{slug}/" if slug else "/"
+    return "/guide/" if slug == "README" else f"/{slug.removesuffix('/README')}/"
 
 
 def sample_of(directory: Path, changed: Sequence[str] = ()) -> list[str]:

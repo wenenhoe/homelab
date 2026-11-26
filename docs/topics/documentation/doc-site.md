@@ -1,6 +1,6 @@
 # The doc site renderer
 
-`tools/doc_site` turns the repository's docs and the three generated views ([`project-planning`](https://wenenhoe.github.io/homelab/project-planning/), [`decision-index`](https://wenenhoe.github.io/homelab/decision-index/) and [`dr-coverage`](https://wenenhoe.github.io/homelab/dr-coverage/)) into a small static site, built from `main` and deployed on every push ([ADR 0117 (Generated doc views)](../../decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md), [ADR 0119 (Docs as site pages)](../../decisions/0119-reading-the-documentation-tree-away-from-github/revision-000.md)). The views are not committed: a checkout writes them with the `generate-doc-indexes` hook ([`pre-commit.md`](../engineering/pre-commit.md)).
+`tools/doc_site` turns the repository's docs and the three generated views ([`project-planning`](https://wenenhoe.github.io/homelab/project-planning/), [`decision-index`](https://wenenhoe.github.io/homelab/decision-index/) and [`dr-coverage`](https://wenenhoe.github.io/homelab/dr-coverage/)) into a small static site, built from `main` and deployed on every push ([ADR 0117 (Generated doc views)](../../decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md), [ADR 0119 (Docs as site pages)](../../decisions/0119-reading-the-documentation-tree-away-from-github/revision-001.md)). The views are not committed: a checkout writes them with the `generate-doc-indexes` hook ([`pre-commit.md`](../engineering/pre-commit.md)).
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,8 @@ uv run python -m doc_site --commit "$(git rev-parse HEAD)" --out "$site"
 
 | Source | Page |
 | :--- | :--- |
-| `docs/README.md` | `/`, the home page |
+| parts of the root `README.md`, through [the home page's template](#the-home-page) | `/` |
+| `docs/README.md` | `guide/` |
 | a generated view | `<view>/` |
 | a project | `projects/<name>/` |
 | a topic doc | `topics/<path>/` |
@@ -45,6 +46,17 @@ uv run python -m doc_site --commit "$(git rev-parse HEAD)" --out "$site"
 | a section's README | the section's address |
 
 `TEMPLATE` files have no page.
+
+## The home page
+
+[`view_intros/home.md`](../../../tools/doc_scripts/view_intros/home.md) holds the page's title, what only the site says, and a slot for each part of the root [`README.md`](../../../README.md) the page shows. [`home.py`](../../../tools/doc_site/home.py) fills them, so the README is the one place that text is written.
+
+| Slot | Shows |
+| :--- | :--- |
+| `<!-- readme -->` | what precedes the README's first `##` section, without its title and badges |
+| `<!-- readme: <anchor> -->` | the `##` section with that anchor, heading and all |
+
+A slot that names no section stops the build, as does a relative link written in the template: the filled page's links are read from the repository's root. Below the text are a tile for each entry of the navigation. Unlike the other files in `view_intros/`, the template has no generated markdown file.
 
 ## Previewing a series
 
@@ -126,7 +138,7 @@ A document page is a repository file shown as it reads on GitHub. `doc_site/docu
 
 - **Contents list.** A `<details open>`, so it needs no script. From 1040 pixels wide it sits beside the prose and stays on screen, scrolling on its own when it is taller than the window, and the headings' links back to it are hidden; below that it is above the prose, where the script closes it. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
 - **Copy button.** Added in the top right corner where the browser has a clipboard (HTTPS or `localhost`). Its icon turns into a tick, or a cross if the write is refused, with the same said to a screen reader. It copies the block without the final newline, so a pasted last line is not run. Blocks are written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)).
-- **Navigation.** Planning, Projects, Decisions, Topics, Architecture and DR coverage; the home page has a tile for each.
+- **Navigation.** Planning, Projects, Decisions, Topics, Architecture and DR coverage; the home page has a tile for each, and the title in the header leads to it.
 - **Section landings.** Projects opens on a list of projects by status and initiative, above its README, with the projects not started in a block that is open in the markup and that the script closes below 992 pixels; Decisions on the decision index, with the README as a guide in the breadcrumb; Topics and Architecture on their READMEs.
 - **Breadcrumb.** The section, then where the page is in it, then the section's guide if it has one.
 - **Topics tabs.** Each `##` group of the Topics index is a tab, made from the README's own headings, with the same filter and no-stylesheet behaviour as By topic. `TABBED_DOCUMENTS` in `site.py` names this one page.

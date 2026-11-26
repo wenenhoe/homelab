@@ -18,13 +18,15 @@ from doc_scripts.generate_doc_indexes import generated_blocks, intro_path
 from doc_scripts.view_model import Block, Grid, Groups, Note, Table
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from doc_site import diagrams
+from doc_site import diagrams, home
 from doc_site.diagrams import DiagramError, Draw, Drawn
 from doc_site.documents import MARKER, Rendered, render
 from doc_site.markup import BRANCH, REPO_URL, Anchors, Heading, UnsupportedMarkup, blocks, inline, link_resolver, status_key
 from doc_site.summary import ROADMAP_COLUMNS, tiles
 
 PACKAGE = Path(__file__).resolve().parent
+# The page of `docs/README.md`.
+GUIDE = "guide"
 
 
 @dataclass(frozen=True)
@@ -251,20 +253,20 @@ class Document:
 
     @property
     def depth(self) -> int:
-        """How many directories under the site's root its page is: none for the home page, which `docs/README.md` is."""
-        return self.slug.count("/") + 1 if self.slug else 0
+        """How many directories under the site's root its page is."""
+        return self.slug.count("/") + 1
 
 
 def _slug(source: str) -> str:
-    """A document's directory on the site: its path under `docs/` without `.md`, and a README is its directory's page, so
-    `docs/README.md` is the home page and its slug is empty."""
+    """A document's directory on the site: its path under `docs/` without `.md`, and a README is its directory's page. The README of
+    `docs/` itself is `guide`, since the root of the site is the home page."""
     path = source.removeprefix("docs/").removesuffix(".md")
-    return "" if path == "README" else path.removesuffix("/README")
+    return GUIDE if path == "README" else path.removesuffix("/README")
 
 
 def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
     """The documents with a page of their own: the projects, the topic docs, the decision revisions and the architecture docs, with the README of
-    each directory that has one and the README of `docs/`, which is the home page."""
+    each directory that has one and the README of `docs/`."""
     projects = [(path, read_frontmatter(path)) for path in docs_in(root / "docs/projects")]
     decisions = [(revision.path, revision.fm) for lineage in lineages for revision in lineage.revisions]
     decisions += [(path, {}) for path in sorted((root / "docs/decisions").glob("*.md")) if not is_template(path.name)]
@@ -283,7 +285,7 @@ def _documents(root: Path, lineages: list[Lineage]) -> list[Document]:
 
 def _page_addresses(targets: dict[str, str], depth: int) -> dict[str, str]:
     """Each page's address from a page `depth` directories under the site's root; `targets` maps a source path to its directory."""
-    return {source: f"{'../' * depth}{slug}/" if slug else "../" * depth or "./" for source, slug in targets.items()}
+    return {source: f"{'../' * depth}{slug}/" for source, slug in targets.items()}
 
 
 VIEWBOX_WIDTH = re.compile(r'<svg\b[^>]*?\bviewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"')
@@ -603,7 +605,6 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
             .encode("utf-8")
         )
     pages: list[tuple[Document, Rendered]] = []
-    readme: dict | None = None
     for document in documents:
         resolve = link_resolver(document.source, _page_addresses(targets, document.depth), lambda path: (root / path).is_dir())
         pages.append((document, render((root / document.source).read_text(encoding="utf-8"), resolve, document.source)))
@@ -638,19 +639,10 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         contents = ""
         if document.source in TABBED_DOCUMENTS:
             body = _tabbed(body)
-        elif document.slug and len(headings) >= CONTENTS_MIN:
+        elif len(headings) >= CONTENTS_MIN:
             if CONTENTS_ID in {h.id for h in headings}:
                 raise ValueError(f"{document.source} has a heading with the anchor of the list of headings")
             contents, lead, body = _contents(headings), _links_back(lead), _links_back(body)
-        if not document.slug:
-            readme = {
-                "title": page.title,
-                "id": page.title_id,
-                "body": body,
-                "headings": page.headings,
-                "source_url": f"{REPO_URL}/blob/{BRANCH}/{document.source}",
-            }
-            continue
         files[f"{document.slug}/index.html"] = (
             env.get_template("document.html.j2")
             .render(
@@ -675,11 +667,17 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
             )
             .encode("utf-8")
         )
+    resolve = link_resolver(home.README, _page_addresses(targets, 0), lambda path: (root / path).is_dir())
+    front = render(home.markdown(root), resolve, home.TEMPLATE)
     files["index.html"] = (
         env.get_template("home.html.j2")
         .render(
             views=[{"href": f"{slug}/", "label": label, "blurb": HOME[slug]} for source, slug, label in NAV if source in targets],
-            readme=readme,
+            title=front.title,
+            title_id=front.title_id,
+            body=front.html,
+            headings=front.headings,
+            source_urls=[(source, f"{REPO_URL}/blob/{BRANCH}/{source}") for source in (home.README, home.TEMPLATE)],
             nav=nav(None, 0),
             base="",
             home="",

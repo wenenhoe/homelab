@@ -21,7 +21,7 @@ How `detect-changes` decides which jobs a PR queues: the scoped outputs it feeds
 | `python_unit_tests` | Controller-side Python and what its tests read: `tools/`, `ansible/tests/`, scripts, filter plugins, shared modules, workflows, the shard table, the lockfile | yes |
 | `mermaid_check` | A `.md` file or [`check_mermaid.py`](../../../../tools/doc_scripts/check_mermaid.py), which holds the image pin ([Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check)) | no |
 | `renovate_config` | `renovate.json5`, `renovate.yml` or the check ([validating the config](renovate.md#validating-the-config)) | no |
-| `doc_site` | The renderer, the generator and what it reads (all of `docs/`, the inventory), `pages.yml`, the lockfile ([publishing](../../documentation/doc-site.md#publishing)) | no |
+| `doc_site` | The renderer, the generator and what it reads (all of `docs/`, the root `README.md`, the inventory), `pages.yml`, the lockfile ([publishing](../../documentation/doc-site.md#publishing)) | no |
 | `tofu` | Anything under `tofu/`, the provider lock included ([`tofu-checks`](pipeline.md#jobs)) | no |
 | `shell_tests` | A `.sh` or `.sh.j2` file or the shell tests and their tooling ([in CI](../../testing/shell-tests.md#in-ci)) | no |
 | `shell_test_pins` | The Bats pins or their verifier; gates the pin check inside `shell-tests` ([where it runs](../../testing/shell-test-pins.md#where-it-runs)) | no |

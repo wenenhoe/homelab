@@ -23,16 +23,19 @@ flowchart TD
     record --> e0b(["exit 0"])
 ```
 
-In order:
+The parts the diagram does not show:
 
-1. Takes an exclusive lock on `DIR/lock`. If another run of the job holds it, exits `75` without fetching or running anything.
-2. Fetches `main`, and no other ref, anonymously into the bare repository `DIR/repo.git`. The URL must be `https` and carry no credentials. The fetch ignores the caller's `GIT_*` variables and every git config file, and allows no transport but `https`. Before each fetch the repository's own `config`, `hooks/`, `info/`, `worktrees/` and `objects/info/` are deleted and `config` is rewritten with the bare-repository settings alone, since the job user owns that directory. The unit starts Python with `-s -P`, so neither the job's user site directory nor its state directory (the working directory) is searched for modules.
-3. With `--on-change`, compares the fetched commit with the one in `DIR/deployed`. If they are equal it exits `0` without running anything. Any difference runs, including a `main` that was force-pushed to an earlier commit. A record that is missing or is not a full lowercase commit id counts as never deployed.
-4. Deletes `DIR/tree` and checks the fetched commit out there as a new detached worktree, so nothing a previous run edited or left behind is present.
-5. Runs `COMMAND` with `DIR/tree/SUBDIR` as its working directory, inheriting the environment plus `CD_AGENT_STATE_DIR` (the job's `DIR`), with output left on the process's own stdout and stderr. `SUBDIR` defaults to the root of the tree; a path that leaves the tree (an absolute path, `..`, or a symlink out) or is not a directory fails the run before `COMMAND` starts.
-6. With `--on-change`, writes the commit to `DIR/deployed` only if `COMMAND` exited `0`. A failed run records nothing, so the same commit runs again on the next invocation, and a failed newer commit leaves the last good commit recorded.
+| Step | Detail |
+| :--- | :--- |
+| Lock | Exclusive, on `DIR/lock` |
+| Fetch | `main` only, anonymously, into the bare `DIR/repo.git`; the URL is `https` with no credentials. `GIT_*` variables and every git config file are ignored, and only `https` is allowed |
+| Before each fetch | The repository's `config`, `hooks/`, `info/`, `worktrees/` and `objects/info/` are deleted and `config` rewritten, since the job user owns the directory. Python starts with `-s -P`, so no user site or working directory is searched |
+| `--on-change` | Compares with `DIR/deployed`; any difference runs, a force-push backwards included. A missing or malformed record counts as never deployed |
+| Checkout | `DIR/tree` is deleted and the commit checked out as a new detached worktree |
+| Command | Runs in `DIR/tree/SUBDIR` (default the root) with the environment plus `CD_AGENT_STATE_DIR`. A `--cwd` that leaves the tree or is not a directory fails first |
+| Record | Only on exit `0`, so a failed commit runs again and the last good one stays recorded |
 
-Without `--on-change` the run always uses the latest fetched `main` and writes no record: the shape for the maintenance, rotation and credential expiry jobs, which run on their own schedule rather than on a change.
+Without `--on-change` the run always uses the latest `main` and records nothing: the shape for maintenance, rotation and credential expiry, which run on their own schedule.
 
 ## Exit status
 
@@ -52,6 +55,14 @@ Without `--on-change` the run always uses the latest fetched `main` and writes n
 | `deployed` | The last commit `COMMAND` succeeded on; written only with `--on-change`. |
 | `lock` | The file the run holds its exclusive lock on. |
 | `toolchain/` | What [`toolchain.py`](#toolchain) builds for a command that asks for it: its own virtualenv, `uv` cache and Ansible collections. |
+
+To see what a job last did, on the agent host:
+
+```bash
+job=deploy
+sudo cat "/var/lib/cd-agent/$job/deployed"
+sudo journalctl -u "cd-agent-$job.service" -n 100 --no-pager
+```
 
 The tests in [`tools/tests/cd_agent/`](../../../tools/tests/cd_agent/test_run_job.py) run real `git fetch` against a local repository and assert each rule above.
 

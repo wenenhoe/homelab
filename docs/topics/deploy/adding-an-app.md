@@ -2,6 +2,14 @@
 
 New apps are wired in through three places: a `docker/<app>/` directory, an `app_catalog` entry, and a `compose_apps` entry on whichever host(s) should run it.
 
+```mermaid
+flowchart LR
+    dir["docker/app/ (compose and configs)"] --> deploy["deploy.yaml"]
+    catalog["app_catalog entry"] --> deploy
+    host["compose_apps on a host"] --> deploy
+    deploy --> run["stack, volumes, route and DNS name"]
+```
+
 ## 1. Add `docker/<app>/`
 
 Create a directory holding the app's Compose stack:
@@ -47,10 +55,17 @@ Every service sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]
 then adds back only what its process does. How to choose, what each capability
 is for, and how to verify a set is in
 [`container-hardening.md`](container-hardening.md). Before adding the pair to a
-new app, scan its image: `python -m container_hardening.scan_image IMAGE`, run
-from `tools/`, lists the setuid files, file capabilities and shell-script
-privilege helpers it carries
-([`scan_image.py`](../../../tools/container_hardening/scan_image.py)).
+new app, scan its image for setuid files, file capabilities and shell-script
+privilege helpers ([`scan_image.py`](../../../tools/container_hardening/scan_image.py); needs Docker):
+
+```bash
+# paste alone; it waits for the image, as compose.yaml names it
+read -r -p 'image: ' image
+```
+
+```bash
+cd tools && uv run python -m container_hardening.scan_image "$image"
+```
 
 The `check-compose-hardening` hook refuses a service without the pair, and a
 capability, host namespace, device or Docker socket mount with no entry and reason
@@ -136,7 +151,11 @@ app_catalog:
 | `restart_after` | Other catalog apps to restart when this one is recreated or restarted, for an app that holds a connection to it and fails on the dead one (tinyauth's LDAP connection to lldap). The `compose` role restarts each one whose directory is on the host, and the certificate renewer restarts them after its own restart of this app. |
 | `recovery_tier` | Only `1`, for a system every other restore depends on (the secrets store, the certificate authority, the storage host); leave it out of every other entry, whose tier follows from whether it has a `backup`. [ADR 0101 (DR exercise cadence)](../../decisions/0101-exercising-disaster-recovery/revision-000.md) sets how often each tier is exercised. |
 
-The `check-app-catalog` pre-commit hook rejects a route with `auth: false` that `OPEN_ROUTES` in `app_catalog_rules.py` does not list with its reason (and a listing that no longer matches an open route), a repeated app name, a route with no `upstream`, a `restart_after` that is not a list of other catalog apps, a `backup` block that names no volume or one its `volumes` doesn't declare, a backup setting of the wrong shape or a key that isn't one (here, in a host's own `backup:` override, or in `backup_defaults`), a cloud target `storage` doesn't define, and a host that would start backing up without its SeaweedFS secret pair and host variables. See [`ci/gates.md`](../engineering/ci/gates.md#app-catalog-rules).
+The `check-app-catalog` pre-commit hook enforces the catalog's invariants, such as a reason in `OPEN_ROUTES` for every `auth: false` route; [`ci/gates.md`](../engineering/ci/gates.md#app-catalog-rules) lists them. To run it:
+
+```bash
+pre-commit run check-app-catalog --all-files
+```
 
 ### The service record
 
@@ -193,7 +212,17 @@ know their routed hostname.
 read -r -p 'host: ' host && ansible-playbook playbooks/deploy.yaml --limit "$host,localhost"
 ```
 
-The app is picked up by Play 4 (`compose_app` role), which provisions its directories/config and starts the stack, after Caddy and BIND9 are already routing/resolving for it.
+The app is picked up by Play 4 (`compose_app` role), which provisions its directories and configs and starts the stack, after Caddy and BIND9 are already routing and resolving for it.
+
+Then check that the stack is up. Set the SSH target and app:
+
+```bash
+host=services
+app=dashy
+ssh "$host" "sudo docker compose -f /opt/stacks/$app/compose.yaml ps"
+```
+
+Restart the container once if you added capabilities (see [What CI covers](#what-ci-covers)).
 
 ## Multi-route apps
 

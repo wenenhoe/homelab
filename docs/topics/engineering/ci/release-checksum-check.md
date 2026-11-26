@@ -2,25 +2,20 @@
 
 Check that each pinned release hash is the publisher's. How it fits the pipeline is in [CI: PR Checks](pipeline.md); the scheduled-job overview is in [`scheduled-jobs.md`](scheduled-jobs.md).
 
-Each downloaded release this repo pins by sha256 (uv, rclone, the OpenBao
-CLI and the OPNsense scratch-gateway image) is checked against the publisher: the pinned hash must
-be the one the publisher signed, attested or lists, whoever copied it into the
-file. The decision is
-[ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-001.md).
-It runs in two places: the `release-checksums` job of `pr-checks.yml`, when a
-PR changes the verifier and its keys or one of the files holding a pin, and
-`check-release-checksums.yml`, once a week and on demand,
-so a publisher's key rotation or moved manifest shows up even when no pin
-changed. Both run `python3 -m ci.checksums.verify` from `tools/`, which is
-standard-library only apart from the `gpg`, `openssl` and `gh` the runner image provides,
-and which takes entry names to check just those. The job is not a matrix job,
-so it can be required directly; a PR that changes no pin reports it skipped.
+Each downloaded release this repo pins by sha256 (uv, rclone, the OpenBao CLI and the OPNsense image) must have the hash its publisher signed, attested or lists, whoever copied it in ([ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-001.md)).
 
-What is checked, per entry, is in
-[`tools/ci/checksums/registry.py`](../../../../tools/ci/checksums/registry.py),
-the registry of pins, with the files that hold each one and the address of its
-publisher's manifest or artifact. A test fails when a pin in the repository has
-no entry, so a new pin means a new entry.
+| Runs in | When |
+| :--- | :--- |
+| the `release-checksums` job of `pr-checks.yml` | a PR changes the verifier, its keys or a file holding a pin; [required directly](pipeline.md#requiring-checks-before-merge) |
+| `check-release-checksums.yml` | [on a schedule](scheduled-jobs.md) and on demand, so a rotated key or moved manifest shows without a pin changing |
+
+To run it by hand (it uses `gpg`, `openssl` and `gh`); name entries to check only those:
+
+```bash
+cd tools && python3 -m ci.checksums.verify
+```
+
+What is checked per entry, with the files holding each pin and the publisher's address, is [`registry.py`](../../../../tools/ci/checksums/registry.py). A test fails for a pin with no entry.
 
 ## Tiers
 
@@ -42,16 +37,24 @@ until the new key is reviewed and committed.
 
 An RSA key is a PEM file that holds exactly one public key and nothing else. Its
 fingerprint is the SHA-256 of the key's DER encoding, which is what
-`openssl pkey -pubin -in KEY.pem -outform DER | sha256sum` prints, and the check
-refuses the file when it holds another. OPNsense signs each release series with
+the block below prints, and the check refuses a file holding another. OPNsense signs each release series with
 its own key (`opnsense-26.1.pem` for 26.1), and the entry's URLs name the series,
 so a bump to the next series fails with a missing manifest until the entry, its
-address and its key are changed together.
+address and its key are changed together. From the repository root:
+
+```bash
+key=tools/ci/checksums/keys/opnsense-26.1.pem
+openssl pkey -pubin -in "$key" -outform DER | sha256sum
+```
 
 ## Apt signing keys
 
-The same two runs also check the apt keys the `docker` and `tailscale_node`
-roles pin by fingerprint, with `python3 -m ci.checksums.aptkeys` from `tools/`.
+The same two runs also check the apt keys the `docker` and `tailscale_node` roles pin by fingerprint:
+
+```bash
+cd tools && python3 -m ci.checksums.aptkeys
+```
+
 Each key is downloaded from the address its role uses and listed with `gpg`;
 the run fails unless it holds exactly one primary key and that key's
 fingerprint is the pinned one, and it fails for a vendor it can't reach. The

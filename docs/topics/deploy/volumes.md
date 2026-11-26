@@ -60,27 +60,16 @@ configs:
     dest: .env               # no volume named ".env" -> deployed directly, as always
 ```
 
-Classified once per app by the `app_deploy_plan` filter
-(`ansible/filter_plugins/`), stored in `init.yaml`'s
-`compose_app_deploy_plan` fact (`configs`/`scripts` split into
-`direct`/`seeded`, each in input order):
+The `app_deploy_plan` filter classifies each item once per app (`compose_app_deploy_plan`):
 
-- **Direct** items deploy straight to their final path, as before.
-- **Seeded** items render/copy to staging; Ansible's own checksum diff
-  against the previous staging file decides whether anything changed.
-- A script is a bare name: it is seeded into the app's `scripts` volume when
-  the app declares one, and otherwise deployed directly to `scripts/<name>`.
-- A `dest` that names a volume with nothing inside it (`data`, not
-  `data/<file>`) fails the run with an error naming the app and the volume,
-  rather than the config being skipped.
-- Any volume with a changed staged file gets bulk-copied in
-  (`seed_volume.yaml`: throwaway container, `cp -a /src/. /dest/`), which
-  feeds `compose_app_extra_changed` so the stack restarts only when its
-  config actually changed.
+| | Direct | Seeded |
+| :--- | :--- | :--- |
+| Which items | `dest` names no declared volume; a script when the app has no `scripts` volume | `dest` is inside a declared volume; a script when it has one |
+| Written to | the final path | `<app>/_staging/<volume>/` |
+| Change detection | by the task that writes it | checksum diff against the last staged copy |
+| Reaches the stack | as written | `seed_volume.yaml` copies the changed volume in (`cp -a /src/. /dest/`) and flags `compose_app_extra_changed`, so the stack restarts only on a change |
 
-The bulk copy only adds/overwrites what's in the staging tree — anything
-else already in the volume (e.g. an app's own runtime database next to
-its rendered config) is left untouched.
+A `dest` naming a volume with nothing inside it (`data`, not `data/<file>`) fails the run, naming the app and volume. The copy only adds or overwrites staged files, so an app's own runtime data in the volume is left alone.
 
 ## Self-managed apps (`bind9`, `caddy`)
 

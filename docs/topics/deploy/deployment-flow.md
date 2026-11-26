@@ -32,13 +32,7 @@ flowchart TD
     style p10 stroke-dasharray: 5 5
 ```
 
-`p8 -.-> p9` is drawn dashed because it is not a hard dependency: Play 9
-resolves every backup host's cloud targets via static `hostvars`, so it does
-not need Play 8 to have run. It sits after Play 8 as the next stage of the
-backup pipeline; see [Plays](#plays). `p9 -.-> p10` is dashed for the same
-reason: Play 10 needs no play before it to have succeeded, only to run after
-them so that it can read what every host recorded; see
-[The deploy report](#the-deploy-report).
+The two dashed edges are ordering, not dependencies: Play 9 reads each backup host's cloud targets from static `hostvars`, so it does not need Play 8, and Play 10 only needs to run after the plays whose results it reads ([the deploy report](#the-deploy-report)).
 
 ## Plays
 
@@ -50,11 +44,22 @@ them so that it can read what every host recorded; see
 | 3 | `dns` (`services` only) | Scrapes `dns_zones` from every `app_hosts` member, renders zone files, deploys BIND9 and repoints the host's own resolution at it. See [`bind9.md`](../services/bind9.md). | |
 | 4 | `managed_hosts` | Provisions directories and configs for, and starts, every app except `caddy`/`bind9` (Plays 2–3) and `openbao`, which deploys itself by a task at the start of this play ([`roles/openbao`](../../../ansible/roles/openbao)). | |
 | 5 | `storage` | Creates the `homelab-backups` bucket; SeaweedFS doesn't create one on first `PUT`. See [`backup.md`](../disaster-recovery/backup.md). | After SeaweedFS deploys in Play 4, and before Play 8, or the first upload fails with `NoSuchBucket`. |
-| 6 | `security` | Wires lldap, tinyauth and openbao into step-ca: `step_ca_client` caches the root cert, `step_ca_cert` issues lldap's LDAPS cert and installs its renewal timer, `tinyauth_ca_trust` seeds the CA bundle tinyauth needs, and a second `step_ca_cert` instance issues OpenBao's listener cert ([`deployment.md`](../security/openbao/deployment.md)). `step` runs via the `smallstep/step-cli` image ([`lldap.md`](../services/lldap.md)). | After lldap, step-ca, tinyauth and openbao deploy in Play 4. |
+| 6 | `security` | Wires lldap, tinyauth and openbao into step-ca ([below](#play-6-certificates)). | After lldap, step-ca, tinyauth and openbao deploy in Play 4. |
 | 7 | `security` | Ensures lldap's `observer` account exists ([`lldap.md`](../services/lldap.md#bootstrapping-the-observer-account)). | After lldap deploys in Play 4; independent of Play 6, since it needs only lldap's web port. |
 | 8 | `managed_hosts` | Deploys the backup agent; each host's schedules come from its `backup_plan` ([`backup.md`](../disaster-recovery/backup.md)). | Last among `managed_hosts` plays: it mounts other apps' named volumes as `external: true`, which needs Play 4's volumes and Play 5's bucket. |
 | 9 | `storage` | Installs `cloud-sync.timer` and `cloud-sync.service`, which relay SeaweedFS archives to R2/B2/OCI ([`backup.md`](../disaster-recovery/backup.md)). | Not a hard dependency on Play 8: it reads every backup host's `backup_plan` through static `hostvars`. It sits after Play 8 as the next backup stage. |
 | 10 | `localhost` | Prints one report of every host's apps by outcome, `caddy`, `bind9` and `openbao` included; see [The deploy report](#the-deploy-report). | Last, so it reads what every host recorded; `localhost`, so it prints once rather than once per host. |
+
+## Play 6: certificates
+
+| Role | Does |
+| :--- | :--- |
+| `step_ca_client` | Caches step-ca's root certificate on the host |
+| `step_ca_cert` (lldap) | Issues lldap's LDAPS certificate and installs its renewal timer |
+| `tinyauth_ca_trust` | Seeds the CA bundle tinyauth needs |
+| `step_ca_cert` (OpenBao) | Issues OpenBao's listener certificate ([`deployment.md`](../security/openbao/deployment.md)) |
+
+`step` runs from the `smallstep/step-cli` image ([`lldap.md`](../services/lldap.md)).
 
 ## Running Play 1 alone
 

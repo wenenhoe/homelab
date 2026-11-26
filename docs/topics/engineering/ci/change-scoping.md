@@ -4,52 +4,31 @@ How `detect-changes` decides which jobs a PR queues: the scoped outputs it feeds
 
 ## Change-scoped, not a full sweep
 
-`detect-changes` diffs the PR's base/head and feeds most other jobs a
-scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests.
-`pre-commit-checks` is the exception — it runs unconditionally on every
-PR regardless of what changed, since its hooks span nearly every file
-type in the repo. The scoped outputs:
+`detect-changes` diffs the PR's base and head and feeds most jobs a scoped input, so a docs-only PR runs no Molecule or boot test. `pre-commit-checks` always runs, since its hooks span nearly every file type. The path filters' exact globs, each with its reason, are in [`detect-changes-filters.yml`](../../../../.github/detect-changes-filters.yml); this table says what each output is for.
 
-| Output | Set when these change |
-| :--- | :--- |
-| `roles` | A file in a Molecule role's *watch set*: its own directory plus everything its scenarios read from outside it ([below](#molecule-watch-sets)). Some paths queue every role; see the note under the table. |
-| `compose_apps` | `docker/<app>/compose.yaml` or `compose.yaml.j2`, its `Dockerfile`, or a file under `docker/<app>/configs/` or `scripts/`, minus the exclusion list. A directory with no compose file isn't an app. The boot test's own scaffolding (`.github/scripts/seed-lldap-ci-cert.sh`, `_compose-boot-test.yml`, `ansible/playbooks/ci_boot_test.yaml`, `ansible/ci-inventory/`) queues `lldap`, which runs all of it. |
-| `dockerfiles` | `docker/<app>/Dockerfile`, or the image's `.github/image-smoke-tests/<app>.sh`, excluded apps included. See [Dockerfile changes](gates.md#dockerfile-changes). |
-| `excluded_compose` | A `compose*.yaml` (not a `.j2` template) of an excluded app that still exists. Gates `compose-syntax-check`; see [Compose boot-test](gates.md#compose-boot-test). |
-| `deploy_ordering` | `ansible/inventory/**`, `ansible/playbooks/**`, `ansible/roles/secrets/**`, `ansible/roles/restore/**`, `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`, `pyproject.toml`/`uv.lock`. |
-| `uv_lock` | `pyproject.toml`/`uv.lock`. |
-| `mermaid_check` | Any `.md` file, or `tools/doc_scripts/check_mermaid.py`, which holds the pinned image. Not narrowed by the comment-only rule below: a doc change is never a no-op. See [Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check). |
-| `renovate_config` | `.github/renovate.json5`, `.github/workflows/renovate.yml`, which holds the Renovate version pin, or `tools/ci/gates/renovate_config.py`. Not narrowed by the comment-only rule below. Gates `renovate-config-check`; see [Validating the config](renovate.md#validating-the-config). |
-| `doc_site` | `tools/doc_site/**`, `tools/doc_scripts/**`, `tools/utils/**`, `docs/**`, `ansible/inventory/**`, `.github/workflows/pages.yml`, `pyproject.toml` or `uv.lock`: the renderer, the generator, what the generator reads and what the build runs on. Not narrowed by the comment-only rule below. Gates `doc-site`; see [Publishing](../../documentation/doc-site.md#publishing). |
-| `tofu` | Anything under `tofu/`, which includes the committed provider lock file. Not narrowed by the comment-only rule below. Gates `tofu-checks`; see [the `tofu-checks` job](pipeline.md#jobs). |
-| `shell_tests` | Any `.sh` or `.sh.j2` file, `tools/tests/shell/**`, `tools/ci/shell_tests/**`, or `tools/ci/verification.py`. Not narrowed by the comment-only rule below. See [Shell tests](../../testing/shell-tests.md#in-ci). |
-| `shell_test_pins` | `tools/ci/shell_tests/**` or `tools/ci/verification.py`. Gates the pin check inside the `shell-tests` job. See [Shell test pins](../../testing/shell-test-pins.md#where-it-runs). |
-| `python_unit_tests` | `ansible/scripts/*.py`, `tools/**`, `tofu/scratch/opnsense/runs/*.yaml`, `tofu/modules/proxmox_opnsense_vm/seed/*.py`, `tofu/modules/proxmox_opnsense_vm/first_boot/*.py`, `tofu/modules/proxmox_opnsense_vm/*.tf`, `tofu/scratch/opnsense/update_gateway.sh`, `tofu/scratch/opnsense/image-pin.yaml`, `.github/workflows/**`, `.github/molecule-shards.yml`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/module_utils/**`, `ansible/roles/*/library/**`, `ansible/tests/**`, `docker/openbao/watcher/rotation_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
+| Output | Set when this changes | Comment-only changes ignored |
+| :--- | :--- | :--- |
+| `roles` | A file in a Molecule role's [watch set](#molecule-watch-sets), or a repo-wide path | yes |
+| `compose_apps` | An app's compose file, `Dockerfile`, `configs/` or `scripts/`, minus the exclusion list. The boot test's own scaffolding queues `lldap`, which runs all of it | no |
+| `dockerfiles` | An app's `Dockerfile` or image smoke test, excluded apps included ([Dockerfile changes](gates.md#dockerfile-changes)) | no |
+| `excluded_compose` | A compose file (not a `.j2` template) of an excluded app that still exists ([compose boot-test](gates.md#compose-boot-test)) | no |
+| `deploy_ordering` | The inventory, playbooks, the `secrets` and `restore` roles, the ordering gate and its fixtures, the lockfile | yes |
+| `uv_lock` | `pyproject.toml` or `uv.lock` | yes |
+| `ansible_lint` | `ansible/`, the ansible-lint config or the pre-commit config | no |
+| `trivy_ansible` | `ansible/` | no |
+| `release_checksums` | The checksum verifier and keys, or a file holding a pinned hash or apt key fingerprint ([release checksum check](release-checksum-check.md)) | no |
+| `image_provenance` | The provenance checker and keys, or a file that can pin an image ([provenance check](image-provenance-check.md)) | no |
+| `python_unit_tests` | Controller-side Python and what its tests read: `tools/`, `ansible/tests/`, scripts, filter plugins, shared modules, workflows, the shard table, the lockfile | yes |
+| `mermaid_check` | A `.md` file or [`check_mermaid.py`](../../../../tools/doc_scripts/check_mermaid.py), which holds the image pin ([Mermaid render check](../../documentation/doc-checks.md#mermaid-render-check)) | no |
+| `renovate_config` | `renovate.json5`, `renovate.yml` or the check ([validating the config](renovate.md#validating-the-config)) | no |
+| `doc_site` | The renderer, the generator and what it reads (all of `docs/`, the inventory), `pages.yml`, the lockfile ([publishing](../../documentation/doc-site.md#publishing)) | no |
+| `tofu` | Anything under `tofu/`, the provider lock included ([`tofu-checks`](pipeline.md#jobs)) | no |
+| `shell_tests` | A `.sh` or `.sh.j2` file or the shell tests and their tooling ([in CI](../../testing/shell-tests.md#in-ci)) | no |
+| `shell_test_pins` | The Bats pins or their verifier; gates the pin check inside `shell-tests` ([where it runs](../../testing/shell-test-pins.md#where-it-runs)) | no |
 
-A few paths map to *every* role: `ansible/requirements.yml` (a Galaxy
-collection bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core`
-version every Molecule run executes under), `.config/molecule/`, and
-everything that base config points every scenario at: `molecule_helpers/`'s
-two requirements files, `ansible/ansible.cfg` and the coverage callback
-plugin under `ansible/molecule-coverage/callback_plugins/`. The last
-group is read from the config, not listed (see
-[Molecule watch sets](#molecule-watch-sets)).
+`compose_apps` is computed by [`compose_apps.py`](../../../../tools/ci/scope/compose_apps.py), the one reader of the exclusion list. A directory with no compose file is not an app. The `compose` role stages `configs/` and `scripts/` before the stack boots, and the boot test builds the `Dockerfile` in place of the published image, so each changes what it exercises.
 
-`compose_apps` is computed by
-[`tools/ci/scope/compose_apps.py`](../../../../tools/ci/scope/compose_apps.py),
-the one reader of the exclusion list (see
-[Compose boot-test](gates.md#compose-boot-test)). The `compose` role renders
-and stages `configs/` and `scripts/` before the stack boots, and
-`compose-boot-test` builds the `Dockerfile` in place of the published image,
-so a change to any of them alters what it exercises.
-
-`python_unit_tests` covers plain controller-side Python, not Ansible roles,
-through the `pytest` suites in `ansible/tests/` and `tools/tests/`. That
-includes `rotation_read_watcher.py`, the one file outside either tree that
-`ansible/tests/` imports directly, through the `pythonpath` in
-`pyproject.toml`'s `[tool.pytest]`, and the shared module code in
-`ansible/module_utils/` and the modules in a role's `library/`, which
-`ansible/tests/` imports the same way.
+A few paths queue *every* role: `ansible/requirements.yml`, `pyproject.toml` and `uv.lock` (which pin `ansible-core`), `.config/molecule/`, and everything that base config points scenarios at (`molecule_helpers`' requirements files, `ansible.cfg`, the coverage callback plugin). The last group is read from the config on each run (`base_config_paths`), not listed.
 
 ### Molecule watch sets
 
@@ -68,150 +47,54 @@ flowchart TD
     watch -- "no" --> none(["queue no role"])
 ```
 
-`tools/ci/scope/molecule_scope.py` (run by `detect-changes`, tested in
-`tools/tests/ci/scope/`) builds each role's watch set from what its
-scenarios actually reference, then queues a role when a changed file
-falls inside it:
+[`molecule_scope.py`](../../../../tools/ci/scope/molecule_scope.py) builds each role's watch set from what its scenarios reference, and queues the role when a changed file falls inside it. Each queued role's log line names the file and why it matched. Tests are in `tools/tests/ci/scope/`.
 
-- the role's own directory;
-- every role it runs: `include_role`/`import_role` names, play `roles:`
-  entries and `meta` dependencies in the scenario's playbooks, the
-  role's own tasks/handlers/meta, and each included role's in turn. The
-  whole included role's directory is watched, so a change to `compose`
-  queues every role whose Molecule run exercises it, not just
-  `compose`'s own scenarios. A role with no scenario of its own (like
-  `molecule_helpers`, or a shared role nothing tests directly) is
-  watched but never queued;
-- each filter plugin in `ansible/filter_plugins/` that defines a filter
-  named in any of the files this watch set already covers (`| cron_period_hours`,
-  or the bare name in `map('...')`), so editing a filter queues the roles
-  that call it and not every role. The names are read from the dict literal
-  `FilterModule.filters()` returns, without importing the plugin, and must
-  stand alone: `compose_app_deploy_plan` is not a use of `app_deploy_plan`;
-- each shared module in `ansible/module_utils/` that a Python file already
-  in the watch set imports, as `ansible.module_utils.<name>` or
-  `from ansible.module_utils import <name>`. A role's own `library/` modules
-  are in its directory, so what they import is what ties the role to shared
-  code; a shared module that imports another passes the watch on, so editing
-  `openbao_kv.py` queues the roles whose modules use it and not every role.
-  The files are read as text, not imported;
-- each `molecule_helpers` task file a scenario pulls in with
-  `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
-  through the helper playbooks and task files that include further
-  helper task files or roles (`resolve_compose_apps.yaml` runs
-  `compose`'s `preinit.yaml`, so its consumers watch `compose` too, and it
-  names the `resolve_apps` filter, so they watch that plugin and no other
-  scenario does);
-- each `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
-  `molecule.yml` (the shared `prepare` playbooks);
-- the target of every symlink under `molecule/`. Scenarios link the
-  real `docker/<app>/` files and `molecule_helpers/fixtures/` into
-  their own `files/`, and git reports the target path, not the link;
-- files read by a path built from `playbook_dir`, which is the
-  scenario directory under Molecule: `playbook_dir ~ '/../x'`,
-  `{{ playbook_dir }}/../x`, and the same through any variable a
-  scenario defines as `{{ playbook_dir }}` or
-  `{{ (playbook_dir ~ '...') | realpath }}` (`project_root`,
-  `repo_root`), whether the path is written in the scenario or in the
-  role's own tasks and templates. The target need not exist: deleting a file
-  a scenario reads still queues that scenario. A variable used only as a base
-  directory (`project_root ~ '/ansible/files/key.asc'`) contributes the files
-  it is joined to, not the directory its definition names, so a role that
-  defines one doesn't end up watching everything under it. This is how
-  `inventory/group_vars/all/app_catalog.yaml`, `ansible/scripts/restore_all.py`,
-  `docker/openbao/policies/controller.hcl` and
-  `docker/seaweedfs/configs/s3-identity.json.j2` reach the scenarios
-  that read them.
+| In the watch set | Detail |
+| :--- | :--- |
+| The role's own directory | everything under it |
+| Every role it runs | `include_role`, `import_role`, play `roles:` and `meta` dependencies, followed in turn. The whole included role is watched, whatever `tasks_from` names. A role with no scenario is watched, never queued |
+| Filter plugins it calls | A plugin in `ansible/filter_plugins/` defining a name used in the watched files. Names come from the dict literal `FilterModule.filters()` returns, read without import and matched whole |
+| Shared modules it imports | `ansible/module_utils/` imports found by reading watched Python as text, followed through modules that import others |
+| `molecule_helpers` task files | Those a scenario includes, followed through further includes. `resolve_compose_apps.yaml` runs `compose`'s `preinit.yaml`, so its consumers watch `compose` and the `resolve_apps` filter |
+| Paths in `molecule.yml` | Each `${MOLECULE_PROJECT_DIRECTORY}/...` path, such as the shared prepare playbooks |
+| Symlink targets under `molecule/` | Scenarios link real `docker/<app>/` files and fixtures, and git reports the target |
+| Files read through `playbook_dir` | `playbook_dir ~ '/../x'` and the like, also through a variable defined from it (`project_root`, `repo_root`). A deleted target still queues the scenario. A variable used only as a base contributes the files joined to it, not its directory |
+
+The last row is how files such as `app_catalog.yaml`, `restore_all.py` and `docker/openbao/policies/controller.hcl` reach the scenarios that read them. Because a scenario linking `docker/seaweedfs/` files is queued when they change, that app's [boot-test exclusion](gates.md#compose-boot-test) stays correct.
+
+Fail-safes queue *more* when the scanner cannot tell who is affected:
+
+| Changed file | Queues |
+| :--- | :--- |
+| Under `molecule_helpers/`, referenced by no scenario | every role (a deleted one: none) |
+| Under `filter_plugins/` with unreadable names (deleted, nested, not `.py`, or built other than a dict literal) | every role; a readable plugin nobody calls queues none |
+| Under `module_utils/` that is not an existing top-level `.py` | every role; a module nobody imports queues none |
+| A repo-wide path (`GLOBAL_PATHS` and the base config's paths) | every role |
+
+A reference the scanner cannot resolve (a templated `include_role` name, a missing role or `tasks_from` file, a dangling symlink) fails `detect-changes` instead of being skipped. Left out on purpose: the roles directory, the coverage output, and the coverage thresholds and `molecule_cov` package, which the gate reads after the scenarios run and `pytest` covers. Not modelled: paths built any other way, and paths that leave the repository or are the role's own directory or an ancestor.
 
 ### Comments and formatting don't queue Molecule
 
-Before any of that matching, `detect-changes` drops a changed file whose
-*parsed* content is identical in base and head
-(`tools/ci/scope/semantic_diff.py`). A comment added, edited or
-removed, or a reformat (indentation, quoting, blank lines), queues no
-role, and doesn't trip the repo-wide or `molecule_helpers` fail-safes
-either. The log line says `comments/formatting only -> ignored`.
+Before any matching, `detect-changes` drops a changed file whose *parsed* content is the same in base and head ([`semantic_diff.py`](../../../../tools/ci/scope/semantic_diff.py)). A comment or reformat queues no role and trips no fail-safe, and the log says `comments/formatting only -> ignored`.
 
-The same rule gates three of the path-filter outputs
-(`tools/ci/scope/effective_changes.py`): `uv_lock`, `deploy_ordering`
-and `python_unit_tests` are true only if at least one file the filter
-matched changed for real. The filter step lists its matched files
-(`list-files: json`), and the `effective` step checks each one. So a
-comment in a test, or an edit to `[tool.ruff]`, no longer starts
-`python-unit-tests`, `uv-lock` or `deploy-ordering-check`. `ansible_lint`
-and `trivy_ansible` are never gated, and the script refuses to:
-ansible-lint honours `# noqa` and Trivy honours `#trivy:ignore`.
+The same rule gates `uv_lock`, `deploy_ordering` and `python_unit_tests` ([`effective_changes.py`](../../../../tools/ci/scope/effective_changes.py)): true only if a matched file changed for real. `ansible_lint` and `trivy_ansible` are never gated, because they read comments (`# noqa`, `#trivy:ignore`).
 
-It compares what the parser produces, not the text, so a `#` line
-inside a YAML block scalar (a script or config written into a file) is
-data and counts as a real change. Only files whose parser is the
-consumer are eligible:
+What the parser produces is compared, so a `#` line inside a YAML block scalar is data. Only files whose parser is the consumer are eligible:
 
-- YAML that Ansible, `ansible-galaxy` or Molecule loads: a role's
-  `tasks/`, `handlers/`, `defaults/`, `vars/`, `meta/`; a scenario's
-  own playbooks, `molecule.yml` and `host_vars/`/`group_vars/`;
-  `molecule_helpers`' playbooks and requirements files;
-  `ansible/requirements.yml`; `ansible/playbooks/`, `inventory/` and
-  `ci-inventory/`; `.config/molecule/`. YAML shipped as content (a
-  compose fixture, a file copied to a host) is not, since a comment
-  there can mean something to whatever reads it (`#cloud-config`).
-- Python, compared as its AST plus the shebang and any `coding:` line,
-  which the interpreter reads. A docstring is code.
-- `pyproject.toml` and `uv.lock`, compared as parsed TOML.
-  `pyproject.toml` is compared without `[tool.ruff]`, which only
-  configures a linter `pre-commit-checks` runs over every file anyway.
-  Every other table counts, including one added later, so an unknown
-  table errs toward running the checks.
+| Eligible | Compared as |
+| :--- | :--- |
+| YAML that Ansible, `ansible-galaxy` or Molecule loads (role, scenario, playbook, inventory and requirements files, `.config/molecule/`) | parsed YAML. YAML shipped as content (a compose fixture, a file copied to a host) is not eligible, since a comment can matter there (`#cloud-config`) |
+| Python | AST plus the shebang and `coding:` line; a docstring is code |
+| `pyproject.toml`, `uv.lock` | parsed TOML; `[tool.ruff]` is left out, every other table counts |
 
-Anything else (`.j2` templates, shell, compose files), a file added or
-deleted, a file that doesn't parse on either side, and a mode-only
-change are real changes. Everything not named above keeps its path-based trigger, so
-`ansible-lint`, `trivy-scan` and `pre-commit-checks` still see a
-comment-only change (a comment can be a `# noqa`, `# yamllint disable`
-or `#trivy:ignore`).
+Everything else (`.j2`, shell, compose files), an added or deleted file, a file that does not parse and a mode-only change are real changes.
 
-`tools/ci/scope/filter_scope.py` runs the same two steps (match, then keep the filter true only for a real change) on a local range of commits: `python -m ci.scope.filter_scope --base REV python_unit_tests` prints `<filter>=true|false`. [`land_series`](../landing-a-series.md#replay) uses it to run the unit tests only for a pull request CI would run them for. It matches globs with `pathlib`'s `full_match`, not paths-filter, so a glob that needs more than `*` and `**` has to be checked there.
+[`filter_scope.py`](../../../../tools/ci/scope/filter_scope.py) runs the same two steps on a local range of commits and prints `<filter>=true|false`:
 
-`ansible/roles/molecule_helpers/` isn't a normal role — it has no
-`molecule/` scenario of its own — so a change there queues only the
-roles whose watch set contains that file. Three fail-safes always queue
-*more*: a changed file under `molecule_helpers/` that no scenario
-references queues every role (a *deleted* one queues nothing: no scenario
-names it, or the scan would have failed, and a reference removed in the same
-change is in a scenario file that changed with it); a changed file under
-`ansible/filter_plugins/` whose filter names can't be read (deleted, a helper
-module, a plugin that builds `filters()` any way but a dict literal, or
-anything nested or not `.py`) queues every role, since there is no telling who
-called it, while a readable plugin no role calls queues nothing; a changed
-file under `ansible/module_utils/` that is not a top-level `.py` file that
-exists (deleted, nested, anything else) queues every role for the same reason,
-while a shared module no role imports queues nothing; and so does
-any repo-wide path: `GLOBAL_PATHS`
-plus every path in `.config/molecule/config.yml`, the base config deep-merged
-into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those
-are resolved from the config on each run (`base_config_paths`), so pointing
-`ANSIBLE_CONFIG` or `ANSIBLE_CALLBACK_PLUGINS` somewhere else moves the
-trigger with it. Left out: the roles directory (the per-role watch sets
-already cover it) and the gitignored coverage output directory. The
-coverage thresholds file and the `molecule_cov` gate package are read after
-the scenarios run, by the gate, so they don't queue any role; `pytest` covers
-`molecule_cov`. A reference the scanner can't resolve (a templated `include_role` name, a
-role that isn't a directory under `ansible/roles/`, a dangling symlink,
-a `tasks_from` naming no file) fails `detect-changes` rather than being
-skipped. Each queued role's log line in `detect-changes` names the
-changed file and why it matched.
+```bash
+cd tools && uv run python -m ci.scope.filter_scope --base origin/main python_unit_tests
+```
 
-Not modelled: paths built any other way (a variable not defined as
-above, or a literal continued with `~`), which are ignored, as are
-computed paths that leave the repo or are the role's own directory or an
-ancestor of it. Roles are watched whole-directory
-rather than by `tasks_from`, so a change to any file in an included
-role queues its consumers.
+[`land_series`](../landing-a-series.md#replay) uses it to run the unit tests only where CI would. It matches globs with `pathlib`'s `full_match`, not paths-filter, so a glob needing more than `*` and `**` has to be checked there.
 
-Because a scenario that links `docker/seaweedfs/` files is queued when
-they change, the `seaweedfs` `compose-boot-test-exclusions.txt` entry
-in [Compose boot-test](gates.md#compose-boot-test) stays correct — see there for the SeaweedFS-specific case.
-
-`detect-changes` runs the scanner with `uv run python -m ci.scope.molecule_scope` from `tools/`, so it sets up uv
-(no `needs:` on `warm-uv-cache`, and unlocked, for the reasons under
-[Cache warming](pipeline.md#cache-warming)).
+`detect-changes` runs the scanner with `uv run`, so it sets up uv itself, unlocked and with no `needs:` on `warm-uv-cache` ([cache warming](pipeline.md#cache-warming)).

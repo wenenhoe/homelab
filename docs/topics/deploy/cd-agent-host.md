@@ -24,6 +24,31 @@ The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the 
 
 Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). `storage` takes a rotated write key only when `deploy.yaml` next renders its `rclone.conf`, which is what `redeploy-storage` does. The 8th at 02:00 is clear of `maintenance` (the 1st and 15th) and leaves the redeploy finished before `cloud_sync`'s 06:00 run. `rotation` keeps the default timeout, which is also the lifetime of its AppRole token ([`openbao-cd-agent-approles.md`](../security/openbao/openbao-cd-agent-approles.md#creating-the-roles)).
 
+To see the schedule, run a job now and follow it, on the agent host:
+
+```bash
+systemctl list-timers 'cd-agent-*'
+```
+
+```bash
+job=credential-expiry
+sudo systemctl start "cd-agent-$job.service"
+```
+
+```bash
+job=credential-expiry
+sudo journalctl -u "cd-agent-$job.service" -n 100 --no-pager
+```
+
+How a rotation reaches `storage`:
+
+```mermaid
+flowchart LR
+    rotation["rotation job"] -- "ends, success or not" --> redeploy["redeploy-storage"]
+    redeploy --> conf["storage's rclone.conf rendered"]
+    conf --> sync["cloud_sync uses the new key"]
+```
+
 ## Variables
 
 These four have no default, and the role stops on the first check that finds one missing or malformed:
@@ -114,9 +139,14 @@ The role installs `git`, `python3`, `unzip`, `openssh-client`, `openssh-server` 
 
 ## Heartbeats
 
-A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push-<id>.service` that its own unit starts with `OnSuccess=` and never `OnFailure=`, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. No job names one yet: the `credential-expiry` job's endpoint is added when the host is deployed, because an endpoint nothing pushes to alerts once its first interval passes.
+A job with `heartbeat: <id>` (a `heartbeat_jobs` id) gets a root-run `gatus-push-<id>.service` that its unit starts on success only, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. No job names one yet, because an endpoint nothing pushes to alerts after its first interval.
 
-To give `credential-expiry` its heartbeat, add `{id: cd-agent-credential-expiry, group: backups, period_minutes: 10080}` to `heartbeat_jobs`, a `gatus-token-cd-agent-credential-expiry` entry (`source: hex`, `length: 64`, `store: openbao`, `scope: hosts/security`) to the secret catalog, and `heartbeat: cd-agent-credential-expiry` to the job. Deploy `security` (`--limit security,localhost`) and then apply this role.
+To give `credential-expiry` one:
+
+1. Add `{id: cd-agent-credential-expiry, group: backups, period_minutes: 10080}` to `heartbeat_jobs`.
+2. Add `gatus-token-cd-agent-credential-expiry` to the secret catalog (`source: hex`, `length: 64`, `store: openbao`, `scope: hosts/security`).
+3. Add `heartbeat: cd-agent-credential-expiry` to the job.
+4. Deploy `security` (`--limit security,localhost`), then apply this role.
 
 The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, after the role has run. `sudo` on the host needs a terminal, so the token goes into a temporary file first, from a `vault-bootstrap` session on the operator host ([`openbao-cd-agent-approles.md`](../security/openbao/openbao-cd-agent-approles.md)):
 

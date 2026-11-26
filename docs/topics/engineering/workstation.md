@@ -21,15 +21,31 @@ The maintainer's laptop is the workstation: a WSL2 instance on Windows where the
 - [`uv`](https://docs.astral.sh/uv/getting-started/installation/), installed inside WSL2.
 - A clone of the repository in the WSL2 home directory, not under `/mnt/c`.
 
+To check the setup, in WSL2:
+
+```bash
+systemctl is-system-running; systemctl is-active docker
+docker run --rm hello-world
+free -h; uv --version
+```
+
 ## Running the checks
 
 From the clone, once `uv sync` has created the environment:
 
-| Check | Command | Run from |
-| :--- | :--- | :--- |
-| Every hook | `uv run pre-commit run --all-files` | the repo root |
-| One Molecule scenario | `uv run molecule test` | the role's directory |
-| Unit tests | `uv run pytest ansible/tests/ tools/tests/` | the repo root |
+Every hook and the unit tests, from the repository root:
+
+```bash
+uv run pre-commit run --all-files
+uv run pytest ansible/tests/ tools/tests/
+```
+
+One role's Molecule scenarios, from the repository root:
+
+```bash
+role=apt
+cd "ansible/roles/$role" && uv run molecule test
+```
 
 The checks need no credential: CI runs the same ones on hosted runners with no secrets. The `generate-doc-indexes` hook writes the generated views, which git ignores and no commit holds ([`pre-commit.md`](pre-commit.md)).
 

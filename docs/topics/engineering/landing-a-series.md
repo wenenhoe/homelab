@@ -18,6 +18,16 @@ uv run python -m land_series "$series" --repo ..            # replay, check, kee
 uv run python -m land_series "$series" --repo .. --land     # push, open, wait, confirm, merge
 ```
 
+```mermaid
+flowchart TD
+    file[".series file"] --> replay["replay: apply and check each commit"]
+    replay --> branches["local series/slug branches"]
+    branches --> review["you review"]
+    review --> land["--land: push, open, wait for checks"]
+    land --> confirm["you confirm"]
+    confirm --> merge["merge, then the next pull request"]
+```
+
 ## The input
 
 One plain-text `.series` file, or several: the tool takes more than one and reads them as one series.
@@ -26,6 +36,17 @@ One plain-text `.series` file, or several: the tool takes more than one and read
 - Optionally, in the manifest, a `# base: <branch>` comment line (`# base: develop`) naming the branch the series lands on, so the choice travels with the file. `--base` overrides it, files that name different bases are refused, and a series with neither lands on `main`. [`branching.md`](branching.md#choosing-the-branch-for-a-change) says which branch a change belongs on; the maintainer runs the command, so the choice stays theirs.
 - Optionally, in the manifest, a `# title <number>: <subject>` comment line (`# title 0004: feat(tofu): declare the production gateway`) naming the title of the pull request with that number, as [ADR 0118 (Layer pull request title)](../../decisions/0118-the-title-of-a-layers-pull-request/revision-000.md) decides. The title is a subject of the usual form ([`conventions.md`](conventions.md#commits)), so it is refused when it is longer than 72 characters or is not one, when the manifest lists no such number, and when a number is given two titles, in one file or in two. A layer with no title line is titled by its first commit's subject.
 - Then the patches, a single mbox of `git format-patch` messages in the manifest's order. Write them as plain `git format-patch` output: ordinary `diff --git` headers, readable paths, and no encoded or binary bodies, so each patch can be read in full before it is replayed, which the stop list below relies on.
+
+For example, two commits in one pull request:
+
+```text
+0004a gateway-vm
+0004b gateway-vm
+# title 0004: feat(tofu): declare the production gateway
+
+From 1a2b3c4... Mon Sep 17 00:00:00 2001
+...
+```
 
 A number is a pull request and each letter is a commit in it. Commits that share a number share a slug, and a slug belongs to one number; the tool refuses anything else. Pull requests land in number order. A slug is lowercase kebab-case, and `main`, `maintenance` and `develop` are refused. A slug is not reused from an earlier series: it is the name of the pull request's branch. Keep a pull request to a few commits that each stand alone: a squash would lose each change's blame, and a long list is noise. [Cutting a series](#cutting-a-series) says what is a commit and what is a layer, and [Naming a layer](#naming-a-layer) its slug and its title.
 
@@ -101,6 +122,17 @@ Progress goes to stderr: what the tool is doing to which pull request, and the p
 ## Advice on a review
 
 After the replay, and again before each merge prompt of `--land`, the tool applies the criteria of [`pr-review.md`](../security/policy/pr-review.md#when-it-is-worth-asking) to each pull request's own commits and prints `Worth asking for a review:` with the criteria that tripped, the files that tripped them and a pointer to how to ask. A pull request that trips none gets no line. It is advice: it changes no exit status and stops nothing, a diff it cannot read gives none, and `--yes` skips the merge prompt and so its advice too.
+
+## When a run stops
+
+| Message or state | What to do |
+| :--- | :--- |
+| A kept branch changed, or is checked out | Switch to another branch and rerun the replay |
+| A layer asks for confirmation (stop list) | Read the patch, then type `yes`; without a terminal it stops |
+| `--land`: the branch is built on another tree than the base's | Run the replay again |
+| A pre-push hook fails | Fix the cause and run `--land` again, or replay if the series changed |
+| A required check failed, or 90 minutes passed | Read the pull request's checks; `--land` again continues |
+| GitHub refuses the merge | Act on its reason; the pull request stays open and `--land` continues |
 
 ## Not for
 

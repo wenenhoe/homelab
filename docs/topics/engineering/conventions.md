@@ -9,18 +9,12 @@ same as [`docs/README.md`](../../README.md) describes for any other topic.
 
 ## Naming case: Ansible-world vs Docker/systemd-world
 
-Ansible identifiers — role names (`ansible/roles/*`), most playbook
-filenames — are `snake_case`: `backup_agent`, `caddy_cert_expiry`,
-`step_ca_cert`. Docker/systemd identifiers — `docker/<app>/` directory
-names, compose service names, systemd unit filenames — are
-`kebab-case`: `beszel-agent`, `step-ca`, `cloud-sync.timer`. Match the
-world you're naming something for, not the file format it happens to
-be written in (a `.yaml` playbook is Ansible-world; a `.service.j2`
-template's *rendered filename* is systemd-world even though the
-template itself lives under an Ansible role).
+| World | Case | Examples |
+| :--- | :--- | :--- |
+| Ansible: role names (`ansible/roles/*`), most playbook filenames | `snake_case` | `backup_agent`, `caddy_cert_expiry`, `step_ca_cert` |
+| Docker and systemd: `docker/<app>/` directories, compose service names, unit filenames | `kebab-case` | `beszel-agent`, `step-ca`, `cloud-sync.timer` |
 
-Known exception: `ansible/playbooks/ci_boot_test.yaml` is snake_case
-and hasn't been renamed to match the rest of `playbooks/`.
+Match the world being named, not the file format: a `.yaml` playbook is Ansible's, and a `.service.j2` template's rendered filename is systemd's though the template sits under a role. One exception: `ansible/playbooks/ci_boot_test.yaml` has not been renamed.
 
 ## Where compose files live
 
@@ -104,43 +98,20 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   tests import from is added there. `strict = true` in that table makes
   an unknown option or marker, or a duplicate parametrize id, fail the
   run.
-- **Fixtures.** `secrets_dir` (`tools/tests/conftest.py`) points
-  `utils.repo.SECRETS_DIR` at an empty directory.
-  `fake_vault` (`tools/tests/cloud_credentials/conftest.py`) stands in
-  for Vault I/O at the layer `secret_store.py` reads and writes through;
-  `vault` and `rotation_vault` wrap it with `seed()`/`get()`/`delete()`
-  defaulting to the `leaf` or `rotation` category.
-  `root` is an empty directory standing in for a repository root, defined
-  in `tools/tests/doc_scripts/conftest.py` and in
-  `tools/tests/ci/conftest.py`.
-  `response(status_code, json_body, text)` (`tools/tests/_responses.py`)
-  builds a real `requests.Response`; use it wherever the code under test
-  reads one, in `tools/tests/`.
-  `http_session` is a real `requests.Session` whose network methods are
-  autospec'd stand-ins (`stubbed_session()` in `tools/tests/_sessions.py`,
-  for a helper that cannot take a fixture); `session_class` also replaces
-  `requests.Session` with a class that returns it. A test sets
-  `.return_value` on the method it expects the code to call.
-  `b2_api` (`tools/tests/conftest.py`) is the same for
-  b2sdk: a real `B2Api` over an in-memory account with its network calls
-  stubbed, and `full_application_key()`, `application_key()` and
-  `bucket()` in `_b2_objects.py` build the real key and bucket objects.
-  `hvac_client` (`tools/tests/conftest.py`) is a real `hvac.Client` with
-  every request stubbed at the adapter and the calls the code makes
-  stubbed on top; its `token` starts as `None`, so a `VAULT_TOKEN` in the
-  environment never reaches a test.
-  `ssh_client` (`tools/tests/conftest.py`) is a real `paramiko.SSHClient`
-  with connect, exec_command and close stubbed and `known_hosts` never
-  read; `exec_result()` and `pty_result()` in `_ssh_objects.py` build the
-  three real streams `exec_command` returns. `identity_domains_client`
-  (`tools/tests/conftest.py`) is the real OCI
-  `IdentityDomainsClient` the repo's own factory builds, every service
-  call stubbed; `customer_secret_key()`, `customer_secret_keys_response()`,
-  `apps_response()` and `response()` in `_oci_objects.py` build the SDK's
-  own models. Both fixtures, like the other stubbed clients, serve every
-  test directory. Its
-  service methods take `**kwargs`, so the test's assertion on the call
-  pins what the code sends.
+- **Fixtures.** Use the shared ones:
+
+  | Fixture | Defined in `tools/tests/` | Gives |
+  | :--- | :--- | :--- |
+  | `secrets_dir` | `conftest.py` | `utils.repo.SECRETS_DIR` pointed at an empty directory |
+  | `fake_vault`, `vault`, `rotation_vault` | `cloud_credentials/conftest.py` | a stand-in for Vault I/O at the layer `secret_store.py` uses; the last two add `seed()`, `get()`, `delete()` for the `leaf` or `rotation` category |
+  | `root` | `doc_scripts/conftest.py`, `ci/conftest.py` | an empty stand-in repository root |
+  | `response(...)` | `_responses.py` | a real `requests.Response` |
+  | `http_session`, `session_class` | `_sessions.py` helpers | a real `requests.Session` with autospec'd network methods; `session_class` also replaces the class. Set `.return_value` on the expected method |
+  | `b2_api` | `conftest.py`, `_b2_objects.py` | a real `B2Api` over an in-memory account, with key and bucket builders |
+  | `hvac_client` | `conftest.py` | a real `hvac.Client` with every request stubbed; `token` starts `None`, so `VAULT_TOKEN` never reaches a test |
+  | `ssh_client` | `conftest.py`, `_ssh_objects.py` | a real `paramiko.SSHClient` with connect, exec and close stubbed, and builders for the exec streams |
+  | `identity_domains_client` | `conftest.py`, `_oci_objects.py` | the OCI client the repo's factory builds, every service call stubbed, with SDK model builders. Its methods take `**kwargs`, so assert the call |
+
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,
@@ -223,6 +194,20 @@ Every patch the maintainer applies has one form, whichever repository it is for.
 - **Scope.** The name of what the commit changes, spelled as it is on disk and without its extension: `scratch_run`, `cloud_sync`, `opnsense-vm`, never a respelling of it. `projects`, `decisions` and `explorations` scope a doc of that directory; a topic doc takes the component it describes, or its directory under `docs/topics` when it describes none. A change with no single name has no scope.
 - **Dates.** `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` come from `TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800`. A bare `date` prints UTC.
 - **Trailer.** The message ends with one `Co-Authored-By: <model name> <noreply@anthropic.com>` line, naming the model that wrote the work, and no other trailer. A session link does not go in a commit message or a pull request's text.
+
+Put together, with the subject and model name read first:
+
+```bash
+# paste alone; it waits for the subject, then the model name
+read -r -p 'subject: ' subject; read -r -p 'model name: ' model
+```
+
+```bash
+IFS='|' read -r name email <<<"$(git log --no-merges --format='%an|%ae' | grep -v '\[bot\]' | head -1)"
+now=$(TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800)
+GIT_AUTHOR_DATE="$now" GIT_COMMITTER_DATE="$now" git -c user.name="$name" -c user.email="$email" \
+  commit -m "$subject" -m "Co-Authored-By: $model <noreply@anthropic.com>"
+```
 
 ## Not yet a convention
 

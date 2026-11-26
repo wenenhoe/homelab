@@ -4,41 +4,24 @@ Check that each pinned image digest is one its publisher signed or attested.
 How it fits the pipeline is in [CI: PR Checks](pipeline.md); the scheduled-job
 overview is in [`scheduled-jobs.md`](scheduled-jobs.md).
 
-Every image this repo deploys is pinned as `name:tag@sha256:digest`, which
-shows an image is the one that was pinned and not that the digest is the one the
-publisher built: Renovate records whatever the registry served. The check
-verifies each pinned digest against a statement its publisher made, with the
-signer fixed in this repository, so a pull request that moves a pin to someone
-else's image fails whatever opened it. The decision is
-[ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-001.md).
-It runs in two places: the `provenance` job of `pr-checks.yml`, when a PR changes
-the checker, its registry or keys, or a file that can hold a pinned image
-reference, and `check-image-provenance.yml`, once a week and on demand, so a
-signature or attestation that disappeared, or an identity that changed, shows up
-even when no pin did. Both run `python3 -m ci.provenance.verify` from `tools/`,
-and it can be run by hand the same way:
+Every deployed image is pinned as `name:tag@sha256:digest`, which shows an image is the one pinned, not that its publisher built it: Renovate records whatever the registry served. The check verifies each pinned digest against a statement its publisher made, with the signer fixed here, so a pull request that moves a pin to someone else's image fails whatever opened it ([ADR 0107 (Pinned artifact provenance)](../../../decisions/0107-knowing-a-pinned-artifact-is-the-publishers/revision-001.md)).
 
-```text
-cd tools && python3 -m ci.provenance.verify [IMAGE ...]
+| Runs in | When |
+| :--- | :--- |
+| the `provenance` job of `pr-checks.yml` | a PR changes the checker, its registry or keys, or a file that can pin an image; [required directly](pipeline.md#requiring-checks-before-merge) |
+| `check-image-provenance.yml` | [on a schedule](scheduled-jobs.md) and on demand, so a vanished statement or changed identity shows without a pin changing |
+
+To run it by hand, all entries or the one named as the registry writes it (it needs `gh` with `GH_TOKEN` for attested entries and `docker` for signed ones):
+
+```bash
+cd tools && python3 -m ci.provenance.verify
 ```
 
-It is standard-library only apart from the tools it calls: `gh`, which the runner
-image provides and which `GH_TOKEN` authenticates for attested entries, and
-`docker`, which runs `cosign` for signed ones. Naming an image, as its registry
-entry writes it, checks just that one. The job is not a matrix job, so it can be
-required directly; a PR that changes no image reference reports it skipped. The
-weekly run's token is the workflow's own read-only `GITHUB_TOKEN`, and no workflow
-installs a binary. Hosts are unchanged: a host pulls the pinned digest, and none
-has `gh`, `cosign` or a path to a signer.
+```bash
+cd tools && python3 -m ci.provenance.verify ghcr.io/wenenhoe/wastebin
+```
 
-`cosign` runs as the image named by `COSIGN_IMAGE` in
-[`verify.py`](../../../../tools/ci/provenance/verify.py), pinned by digest, tracked
-by a Renovate manager and checked like any other pinned image by
-[`image-tag-check.md`](image-tag-check.md). It stays at version 3 or later: version
-2 finds no signature on some images that version 3 verifies. The container drops
-every capability, caches its trust root under `/tmp` because the image runs as
-non-root and distroless, and sees nothing of the tree except a signed entry's one
-key file, mounted read-only.
+`cosign` runs as the image `COSIGN_IMAGE` in [`verify.py`](../../../../tools/ci/provenance/verify.py) names, digest-pinned, bumped by Renovate and [tag-checked](image-tag-check.md). It stays at version 3 or later, since version 2 misses signatures version 3 finds. The container drops every capability, caches its trust root under `/tmp` and sees nothing of the tree but a signed entry's key file, read-only. Hosts only pull the pinned digest.
 
 What is checked, per image repository, is in
 [`tools/ci/provenance/registry.py`](../../../../tools/ci/provenance/registry.py):
@@ -86,23 +69,15 @@ verify` itself refuses an identity without an issuer in keyless mode.
 
 ## The repository's own images
 
-Each `build-*-image.yml` attests the digest it pushes with `actions/attest`,
-pinned to a commit, naming the image without a tag and passing the digest
-`docker/build-push-action` reports. The attestation is also pushed to the
-registry beside the image. Only the build job holds `id-token: write` and
-`attestations: write`, on top of the `contents: read` and `packages: write` it
-already had; the storage record the action can create is turned off, since it
-would need a further permission nothing here uses.
+Each `build-*-image.yml` attests the digest it pushes with `actions/attest`, pinned to a commit, naming the image without a tag, and pushes the attestation to the registry. Only the build job holds `id-token: write` and `attestations: write`. [`test_provenance_build_workflows.py`](../../../../tools/tests/ci/provenance/test_provenance_build_workflows.py) holds the permissions, the action's pin and each subject.
 
-The compose pins for `caddy-digitalocean`, `gatus` and `wastebin`, and the
-platform image every DinD Molecule scenario names (`molecule-dind`), pin
-attested digests, so their entries are *attested* for `wenenhoe/homelab`. A pin that moves to a digest
-built before the workflow attested fails the check.
+The compose pins for `caddy-digitalocean`, `gatus` and `wastebin` and the `molecule-dind` image pin attested digests, so their entries are *attested* for `wenenhoe/homelab`. A pin to a digest built before the workflow attested fails.
 
-Verify a build by hand with `gh attestation verify
-oci://ghcr.io/wenenhoe/<name>@<digest> --repo wenenhoe/homelab`.
-[`test_provenance_build_workflows.py`](../../../../tools/tests/ci/provenance/test_provenance_build_workflows.py)
-holds the permissions, the action's pin and the subject each workflow names.
+To verify a build by hand:
+
+```bash
+read -r -p 'image@digest (such as wastebin@sha256:...): ' ref && gh attestation verify "oci://ghcr.io/wenenhoe/$ref" --repo wenenhoe/homelab
+```
 
 ## Which digests
 
@@ -122,30 +97,12 @@ repository has no pinned digest is reported as a notice and passes.
 
 ## A call that gets no answer
 
-Neither tool's exit status separates a missing statement from a registry or
-API that did not answer, so a digest that could not be verified fails its
-entry, as in [`release-checksum-check.md`](release-checksum-check.md) and
-unlike the image tag check, where a silent registry is a warning. Each call is
-made up to `ATTEMPTS` times (see
-[`verification.py`](../../../../tools/ci/verification.py)), pausing longer
-between attempts, so a failure that passes on a second try does not fail a run
-and a statement that is missing fails every attempt. A tool that is not
-installed fails at once. A publisher that moves or rotates its signing identity
-fails the entry until a human reviews it.
+Neither tool's exit status tells a missing statement from an unanswered registry or API, so an unverified digest fails its entry, as in the [release checksum check](release-checksum-check.md) and unlike the image tag check.
 
-The same module makes the release checksum check's `gh attestation verify`
-call, so both checks retry it identically. That check's downloads are retried
-separately, on a 429, a 5xx or a network error, and use the same pauses.
-
-Failures are per digest and the run reports every entry before it exits
-non-zero, each as an `::error::` annotation naming the digest and the files that
-pin it, and writes the same lines to the job summary under `GITHUB_STEP_SUMMARY`
-when it runs in Actions.
+- Each call is tried up to `ATTEMPTS` times with growing pauses ([`verification.py`](../../../../tools/ci/verification.py)); a missing tool fails at once.
+- The release checksum check retries its `gh attestation verify` the same way.
+- The run reports every digest before exiting non-zero, as `::error::` annotations naming the pinning files, and in the job summary.
 
 ## Tests
 
-The tests double `gh` and `cosign` with stand-ins that exit 0 only for the
-repository, identity or issuer the real tool would accept, so an entry that
-names another one must fail. They cover a failing exit, a retry that passes, a
-missing tool, an identity, an issuer or a repository other than the entry's,
-and a key that is not committed. They do not reach a registry or GitHub.
+Stand-ins for `gh` and `cosign` exit 0 only for the repository, identity or issuer the real tool would accept, so an entry naming another must fail. Nothing reaches a registry or GitHub.

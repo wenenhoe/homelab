@@ -10,6 +10,18 @@ The repository has three long-lived branches ([ADR 0076 (Branch separation)](../
 
 Every pull request into any of the three runs the same checks ([`pipeline.md`](ci/pipeline.md)). Merges are merge commits on all three, so a promoted commit stays an ancestor of `main`.
 
+```mermaid
+flowchart LR
+    renovate["Renovate PRs"] --> maintenance
+    work["development"] --> develop
+    maintenance -- "promotion PR" --> main
+    develop -- "promotion PR" --> main
+    fix["safe change or urgent fix"] -- PR --> main
+    main -- "CD agent deploys" --> prod["production"]
+    main -- "realign" --> maintenance
+    main -- "realign" --> develop
+```
+
 ## The rulesets
 
 Repository rulesets (Settings > Rules) enforce this; none of it is in the repository. The rules, and who may bypass them:
@@ -48,8 +60,11 @@ The last line of each round prints the checks the ruleset now requires, which is
 
 A merge to `main` is a deploy once the CD agent is live, so the branch follows from whether the change can be deployed at that moment:
 
-- A change that is safe to deploy the moment it merges goes to `main`.
-- A change that is not goes to `develop`: one that needs a manual step first, depends on something not yet in place, or leaves production half-changed until a later change lands. It is promoted when the whole is ready.
+| The change | Goes to |
+| :--- | :--- |
+| Safe to deploy the moment it merges | `main` |
+| Needs a manual step first, depends on something not yet in place, or leaves production half-changed until a later change lands | `develop`, promoted when the whole is ready |
+| A dependency update | `maintenance`, where Renovate puts it |
 
 A series file records the choice with `# base: develop` in its manifest ([`landing-a-series.md`](landing-a-series.md#the-input)); with no line it lands on `main`. A series lands on one branch, so a change that has parts of both kinds is written as two series.
 

@@ -5,7 +5,15 @@ host in `app_hosts` (`security`, `services`, `play`, `storage`), including `secu
 
 ## Connection model
 
-Hub and agent can talk over SSH (hub -> agent) or WebSocket (agent -> hub). This setup uses WebSocket: each agent makes an outbound connection to `beszel_hub_url`, authenticated by a `TOKEN` (identifies which system is connecting) and a `KEY` (the hub's public ED25519 key, so the agent can verify it's talking to the real hub). The agent runs with `DISABLE_SSH=true`, so it opens no listening port at all despite running on the host network. Nothing needs an inbound port opened on `services` or `play`, and it isn't affected by `iptables -P FORWARD DROP` hardening the way SSH mode can be — see [Beszel's security docs](https://beszel.dev/guide/security) for the full handshake.
+Hub and agent can talk over SSH (hub to agent) or WebSocket (agent to hub). This setup uses WebSocket, each agent connecting out to `beszel_hub_url`:
+
+| Setting | Does |
+| :--- | :--- |
+| `TOKEN` | Identifies which system is connecting |
+| `KEY` | The hub's public ED25519 key, so the agent can verify it reaches the real hub |
+| `DISABLE_SSH=true` | The agent opens no listening port, although it runs on the host network |
+
+So `services` and `play` need no inbound port open, and `iptables -P FORWARD DROP` hardening does not affect it as it can SSH mode. The handshake is in [Beszel's security docs](https://beszel.dev/guide/security).
 
 ## Why the hub skips Tinyauth
 
@@ -23,35 +31,54 @@ value doesn't block the first deploy. `beszel-agent`'s `.env` uses
 
 Sequence:
 
-1. `ansible-playbook playbooks/deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty Vault values `openbao_utils/bootstrap.py` created for these two).
-2. Visit `https://beszel.sec.{{ lan_domain }}`, create the hub admin account.
-3. **Settings → Keys**: run `cd tools && python3 -m openbao_utils.bootstrap` and paste the hub's public key in when prompted for `beszel-hub-key` (already-set entries are skipped, so re-running is safe — see [`secrets.md`](../security/secrets.md)).
-4. **Settings → Tokens**: create a universal token, set it as `beszel-agent-token` the same way.
-5. Re-run `ansible-playbook playbooks/deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.
+1. Deploy. The hub starts normally; the agents sit in a harmless auth-retry loop, since `openbao_utils/bootstrap.py` created both values empty.
+
+   ```sh
+   # from ansible/
+   ansible-playbook playbooks/deploy.yaml
+   ```
+
+2. Visit `https://beszel.sec.{{ lan_domain }}` and create the hub admin account.
+3. Copy the hub's public key from **Settings → Keys**, and a new universal token from **Settings → Tokens**. Store both, as `beszel-hub-key` and `beszel-agent-token`, when prompted (entries already set are skipped, so re-running is safe, see [`secrets.md`](../security/secrets.md)):
+
+   ```sh
+   cd tools && python3 -m openbao_utils.bootstrap
+   ```
+
+4. Deploy again with the command of step 1. Every agent's `.env` renders with the real values, and each host registers itself on its first successful handshake.
 
 ## Rotating the KEY and TOKEN
 
-Unlike a plain `secret_catalog.yaml` entry, there's no narrower way
-to replace just the KEY or just the TOKEN — both live inside the hub's
-own PocketBase database, in its `data` volume, alongside the admin
-account, every system's historical monitoring data, and notification
-config (`Settings → Notifications`, also DB-resident). Rotating either
-one means wiping that whole volume and redoing the bootstrap sequence
-above from scratch — there's no way to keep the history and only
-replace the keypair. Check the hub's own `Settings → Keys` for a
-regenerate option before doing this; if one exists there, it's a much
-smaller blast radius than the below.
+Both live in the hub's own PocketBase database, in its `data` volume, with the admin
+account, every system's history and the notification config. So neither can be
+replaced alone: rotating either means wiping the volume and bootstrapping again,
+losing the history. Check the hub's `Settings → Keys` for a regenerate option first,
+which would be a much smaller blast radius.
 
-Sequence:
+1. Wipe the hub back to an un-booted state, previewing first:
 
-1. `ansible-playbook playbooks/volume-reset.yaml --limit security,localhost -e volume_reset_app=beszel-hub -e volume_reset_volume=data -e volume_reset_confirm=true` (`--check` first to preview) — wipes the hub back to a genuinely un-booted state.
-2. `ansible-playbook playbooks/deploy.yaml --limit security,localhost` — hub restarts empty; every agent fleet-wide drops back into the same harmless auth-retry loop as first-time setup.
-3. New admin account; get a new KEY from `Settings → Keys` and a new
-   TOKEN from `Settings → Tokens` (same UI steps as the bootstrap
-   sequence's 2–4 above, but don't re-run `openbao_utils/bootstrap.py` for
-   this part — it skips any already-set entry, blank or not, so it
-   won't touch either value here; step 4 below overwrites them
-   directly instead).
+   ```sh
+   # from ansible/: preview
+   ansible-playbook playbooks/volume-reset.yaml --limit security,localhost \
+     -e volume_reset_app=beszel-hub -e volume_reset_volume=data -e volume_reset_confirm=true --check
+   ```
+
+   ```sh
+   # from ansible/: destructive
+   ansible-playbook playbooks/volume-reset.yaml --limit security,localhost \
+     -e volume_reset_app=beszel-hub -e volume_reset_volume=data -e volume_reset_confirm=true
+   ```
+
+2. Restart the hub empty. Every agent drops back into the auth-retry loop.
+
+   ```sh
+   # from ansible/
+   ansible-playbook playbooks/deploy.yaml --limit security,localhost
+   ```
+
+3. Create the admin account again and copy a new KEY and TOKEN, as in steps 2 and 3
+   of the bootstrap. Do not run `openbao_utils/bootstrap.py` here: it skips any
+   entry already set, so it would change neither. Step 4 overwrites them.
 4. Overwrite both Vault values directly — this is an update to an
    existing path, which `controller`'s AppRole can do (its policy grants
    `update` on `secret/data/hosts/*`, just not `delete` — see
@@ -80,8 +107,14 @@ Sequence:
    # [4/4] same shell
    exit
    ```
-5. `ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost` — **not** `security` alone. Every host in `app_hosts` (`services`, `security`, `play`, `storage`) runs an agent that needs the new KEY to verify the hub again.
-6. Confirm every host reappears as a connected system on the hub's dashboard, then re-add the Telegram notification channel from "Alert notifications" below — it lived in the wiped DB too and won't come back on its own.
+5. Deploy to every host in `app_hosts`, **not** `security` alone: each runs an agent that needs the new KEY.
+
+   ```sh
+   # from ansible/
+   ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost
+   ```
+
+6. Confirm every host reappears as a connected system on the dashboard, then re-add the [notification channel](#alert-notifications), which was in the wiped database too.
 
 ## Rebuilding a host
 
@@ -100,8 +133,12 @@ The token and key are fine, and the hub's other systems are unaffected. The
 hub keeps one record per system in the `fingerprints` collection of its
 database, and a reconnecting agent does not update it. To fix it:
 
-1. Read the agent's fingerprint on the host with
-   `docker exec beszel-agent cat /var/lib/beszel-agent/fingerprint`.
+1. Read the agent's fingerprint on the host:
+
+   ```sh
+   docker exec beszel-agent cat /var/lib/beszel-agent/fingerprint
+   ```
+
 2. Log in to the hub's database dashboard at `/_/` with the superuser account.
    The hub is built on PocketBase, and this is its own web tool for the
    database behind the hub.

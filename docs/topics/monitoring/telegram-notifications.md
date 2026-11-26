@@ -2,12 +2,20 @@
 
 One bot, one group chat with [Topics](https://telegram.org/blog/topics-in-groups-collectible-usernames)
 enabled, a different topic per concern — see
-[ADR 0011 (Alert routing)](../../decisions/0011-alert-routing-and-noise/revision-000.md) for why
-this replaced the original one-on-one bot chat. Two consumers share
-the Backups topic since they're the two halves of the same
-disaster-recovery story (see [`backup.md`](../disaster-recovery/backup.md)),
-and two share the Certs topic since they're both certificate-lifecycle
-alerts, just for different certs:
+[ADR 0011 (Alert routing)](../../decisions/0011-alert-routing-and-noise/revision-000.md) for why.
+The backup and relay failures share the Backups topic, as two halves of the
+same disaster-recovery path; both kinds of certificate failure share Certs:
+
+```mermaid
+flowchart LR
+    B["Beszel"] --> M(["Monitoring"])
+    BA["backup_agent"] --> BK(["Backups"])
+    CS["cloud-sync"] --> BK
+    CR["cert-renewer@"] --> C(["Certs"])
+    CE["cert-expiry check"] --> C
+    G["Gatus: missed heartbeat"] --> BK
+    G --> C
+```
 
 | Concern | Sends via | Topic var |
 | :--- | :--- | :--- |
@@ -16,6 +24,7 @@ alerts, just for different certs:
 | Cloud-sync relay failures | `telegram-notify-cloud-sync` (systemd) | `telegram_chat_id` / `telegram_topic_id_backups` |
 | Cert renewal failures (lldap) | `telegram-notify@` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
 | Caddy cert-expiry check failures | `telegram-notify-cert-expiry` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
+| Missed job heartbeats | [Gatus](gatus.md#telegram-routing) | `telegram_topic_id_<group>` |
 
 ## One-time Telegram-side setup
 
@@ -46,15 +55,12 @@ other Vault-backed manual secret:
 cd tools && python3 -m openbao_utils.bootstrap
 ```
 
-**Two different address formats, on purpose**: `docker-volume-backup`
-and Beszel both go through [shoutrrr](https://containrrr.dev/shoutrrr/v0.8/services/telegram/),
-whose convenience syntax is a single
-`chat_id:topic_id` string — that's what `telegram_chatid_*` produces. The
-three systemd-based notifiers below call Telegram's Bot API directly
-instead, and the real API takes `chat_id` and `message_thread_id` as two
-separate parameters — it does **not** understand the colon-combined
-form. That's why the raw, un-prefixed `telegram_topic_id_*` vars exist
-alongside `telegram_chatid_*`.
+Two address formats are needed:
+
+| Sender | Format | Vars |
+| :--- | :--- | :--- |
+| `docker-volume-backup`, Beszel (through [shoutrrr](https://containrrr.dev/shoutrrr/v0.8/services/telegram/)) | One `chat_id:topic_id` string | `telegram_chatid_*` |
+| The systemd notifiers (Bot API directly) | `chat_id` and `message_thread_id` apart; the colon form is not understood | `telegram_chat_id`, `telegram_topic_id_*` |
 
 **All three systemd-based notifiers share one library role**,
 `telegram_notify` (`ansible/roles/telegram_notify`):
@@ -100,28 +106,19 @@ through for systemd itself to substitute at instantiation time. This
 needs nothing extra from the shared role; it falls out of the interface
 as-is.
 
-**Messages are sent with `parse_mode=Markdown`** (legacy, not
-MarkdownV2), so backtick-wrapping a value in `telegram_notify_message`
-renders as monospace in Telegram. Legacy mode only requires escaping
-`` ` ``, `_`, `*`, `[` when they appear literally (not MarkdownV2's 18
-characters, which include `.` and `-` — exactly what hostnames and unit
-names are full of, and which get the whole message rejected outright on
-any missed escape). None of this role's current callers interpolate a
-value containing one of those four characters, so no escaping logic
-exists today; a future caller whose value might contain one does need to
-escape it before passing `telegram_notify_message`.
+**Messages are sent with `parse_mode=Markdown`** (legacy, not MarkdownV2), so a
+backticked value in `telegram_notify_message` renders as monospace. Only `` ` ``,
+`_`, `*` and `[` need escaping when literal. MarkdownV2 would also require it for `.`
+and `-`, common in hostnames and unit names, and reject the whole message on a
+missed one. No escaping exists, since no caller interpolates a value containing
+those four characters; a caller whose value might must escape it.
 
-**The bot token's own colon is load-bearing.** A real token from
-BotFather is already shaped `<bot-id>:<rest>` — shoutrrr's Telegram
-service relies on that exact colon to split the URL's userinfo into
-`chat_id`/`message_thread_id`-style username/password parts, then
-re-joins and validates them against `^[0-9]+:[a-zA-Z0-9_-]+$`. Any token
-missing that shape fails sender setup on every single scheduled run —
-not just notification delivery — which for `docker-volume-backup`
-specifically means the backup itself never runs either, since sender
-setup happens before the backup logic, not after. `telegram_token` here
-is always your bot's real token, so this only bites test fixtures using
-a placeholder that isn't shaped like one.
+**The bot token's colon matters.** A BotFather token is `<bot-id>:<rest>`, and
+shoutrrr's Telegram service relies on that colon, validating the rejoined value
+against `^[0-9]+:[a-zA-Z0-9_-]+$`. A token without that shape fails sender setup on
+every scheduled run, and for `docker-volume-backup` sender setup precedes the
+backup, so the backup never runs. A real token always has the shape; this bites
+only test placeholders.
 
 ## Per-app notes
 
@@ -172,9 +169,14 @@ a placeholder that isn't shaped like one.
 
 ## Pinned topic headers
 
-`ansible-playbook ansible/playbooks/pin-telegram-topics.yaml` posts one
-static header message per topic in the table above and pins it, so
-opening the group shows what each topic is for without scrolling.
+This playbook posts one static header message per topic and pins it, so the
+group shows what each topic is for:
+
+```sh
+# from the repo root
+ansible-playbook ansible/playbooks/pin-telegram-topics.yaml
+```
+
 Control-node-only (`hosts: localhost`) — nothing to do with any managed
 host. Safe to re-run: each topic's `message_id` and whether it has been
 pinned are recorded in `ansible/files/telegram-pins/<topic>` (gitignored,
@@ -187,9 +189,8 @@ reads `<message_id> unpinned` once the header is posted and
   run fails, and the next run pins the same message without posting a
   second header.
 - Posted and pinned: later runs do nothing.
-- A file holding only a message id, from before pin state was recorded,
-  counts as pinned, so an existing install doesn't re-pin over whatever
-  was pinned in the topic since.
+- A file holding only a message id counts as pinned, so it is not re-pinned
+  over whatever was pinned in the topic since.
 - To force a fresh post, delete the file; that posts a new header.
 
 The bot needs the **Pin Messages** admin right in the group for this,
@@ -198,9 +199,7 @@ in addition to the admin right the setup steps above already require.
 To change the wording or add a topic, edit the `telegram_topic_pins`
 list in the playbook directly — there's no separate vars file for it.
 
-This covers the header only; it doesn't build the live status pin
-(edited in place with each topic's latest state) — that's a separate,
-larger change to every notifier above, not implemented here.
+The header is static: there is no live status pin that each notifier edits.
 
 ## Verifying it actually delivers
 
@@ -214,15 +213,19 @@ arrives, since CI has no live bot credentials. Check that part yourself
 after deploying:
 
 ```sh
-# On the security host — force the cert-renewal alert to fire
+# on security: the cert-renewal alert
 sudo systemctl start telegram-notify@lldap.service
 journalctl -u telegram-notify@lldap.service --no-pager -n 20
+```
 
-# On the storage host — force the cloud-sync alert to fire
+```sh
+# on storage: the cloud-sync alert
 sudo systemctl start telegram-notify-cloud-sync.service
 journalctl -u telegram-notify-cloud-sync.service --no-pager -n 20
+```
 
-# On any host — force the cert-expiry alert to fire
+```sh
+# on any app host: the cert-expiry alert
 sudo systemctl start telegram-notify-cert-expiry.service
 journalctl -u telegram-notify-cert-expiry.service --no-pager -n 20
 ```

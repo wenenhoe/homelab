@@ -1,6 +1,6 @@
 # CI Scheduled Jobs
 
-Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job), the release checksum check (which does too), the shell test pin check, the scratch gateway run on QEMU (which also runs as a PR job) and the progress log. The PR pipeline is in [CI: PR Checks](pipeline.md). The [schedule overview](#schedule-overview) lists every scheduled workflow and when it fires. The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
+Every workflow with a `schedule` trigger. The PR pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Schedule overview
 
@@ -24,6 +24,18 @@ Every workflow with a `schedule` trigger, listed by the time of day of its first
 | `warm-caches.yml` | `0 20 * * 0,3` | Sunday and Wednesday 20:00 | Monday and Thursday 04:00 | Restores the `main` caches so GitHub doesn't evict them for going 7 days unaccessed ([base-branch warming](pipeline.md#base-branch-warming)). |
 
 A workflow that gains, loses or changes a `schedule` trigger changes its row in the same pull request. No check compares this table to the workflows.
+
+To see a workflow's recent runs, or run it now (each of these accepts `workflow_dispatch`):
+
+```bash
+workflow=check-image-tags.yml
+gh run list --workflow "$workflow" --limit 5
+```
+
+```bash
+workflow=check-image-tags.yml
+gh workflow run "$workflow"
+```
 
 ## Renovate schedule window
 

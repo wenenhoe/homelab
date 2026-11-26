@@ -38,7 +38,12 @@ Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0108 (I
 
 ## The GitHub App
 
-Renovate authenticates as its own **GitHub App**, installed on this repository alone and used for nothing else ([ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). Each run mints an installation token from the app's private key with `actions/create-github-app-token`; the token lasts an hour and is revoked when the job ends. The same token is the platform token, the `api.github.com` host rule and the credential for [realigning `maintenance`](#realigning-maintenance). With an app token Renovate commits through the GitHub API, so every commit is authored by the app's bot (`wenenhoe-renovate[bot]`) and committed by GitHub. Renovate treats a branch as edited when a commit in `maintenance..branch` has an author other than `gitAuthor` (GitHub's own `noreply@github.com` committer is ignored), and then neither rebases it nor updates its pull request until the rebase/retry box is ticked. So `renovate.json5`'s `gitAuthor` is the bot's no-reply address. The workflow sets the same address as `RENOVATE_GIT_AUTHOR`, because Renovate's start-up reads only global config and warns about its default Mend address when it finds none there; a test holds the two equal. Changing the app means changing both.
+Renovate authenticates as its own **GitHub App**, installed on this repository alone ([ADR 0076 (Branch separation)](../../../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)).
+
+- Each run mints an installation token from the app's private key (`actions/create-github-app-token`); it lasts an hour and is revoked when the job ends.
+- That token is the platform token, the `api.github.com` host rule and the credential for [realigning `maintenance`](#realigning-maintenance).
+- Renovate commits through the API, so commits are authored by the app's bot, `wenenhoe-renovate[bot]`.
+- Renovate treats a branch as edited when a commit has an author other than `gitAuthor`, and then stops updating it until the rebase/retry box is ticked. So `gitAuthor` is the bot's no-reply address, and the workflow sets the same as `RENOVATE_GIT_AUTHOR`; a test holds them equal. Changing the app means changing both.
 
 | Setting | Holds |
 | :--- | :--- |
@@ -59,7 +64,24 @@ The app's repository permissions, and what each is for. The workflow asks for ex
 
 What the app may do on each branch is the rulesets' business, not the token's: it is on the bypass list of the ruleset for `maintenance` and `develop`, so it can push there without a pull request, and on no ruleset for `main`, where it can open a pull request and nothing more. `main`'s ruleset requires a pull request and the checks and refuses every update to anyone off its bypass list, with no bypass for the app, so the app cannot merge there whoever approves: an approval from the app counts as a review. Keep the repository setting that lets Actions approve pull requests off.
 
-To rotate the key, generate a second private key in the app's settings, replace the secret, run the workflow once with `workflow_dispatch`, and delete the old key. To change a permission, change it in the app's settings and accept the new permissions on the installation, in the same change as the workflow's `permission-*` inputs and the table above; `tools/tests/ci/branches/test_renovate_workflow.py` fails when the workflow asks for something else.
+To rotate the key:
+
+1. Generate a second private key in the app's settings and download the `.pem`.
+2. Replace the secret, from the downloaded file:
+
+   ```bash
+   read -r -p 'path to the new .pem: ' pem && gh secret set RENOVATE_APP_PRIVATE_KEY < "$pem"
+   ```
+
+3. Run the workflow once and watch it:
+
+   ```bash
+   gh workflow run renovate.yml
+   ```
+
+4. Delete the old key in the app's settings, and the downloaded file.
+
+To change a permission, change it in the app's settings and accept it on the installation, in the same change as the workflow's `permission-*` inputs and the table above; `tools/tests/ci/branches/test_renovate_workflow.py` fails when the workflow asks for something else.
 
 ## Validating the config
 
@@ -78,4 +100,14 @@ Renovate stops every pull request while `renovate.json5` is invalid, and only th
 - A run that opens nothing on a window day is usually the [window check](scheduled-jobs.md#renovate-schedule-window)'s job to explain; its failure names the time the run started.
 - A `403` or `Resource not accessible by integration` in the log names the permission above that the app's token lacks. `Could not create token` or a `401` from the token step means the Client ID or key is wrong, or the app is not installed on this repository.
 - The Dependency Dashboard issue lists every update Renovate knows of, including those held back by the schedule or by approval.
-- To run it outside the window, dispatch the workflow, then read the log. Pull request creation still waits for the window unless the update is a vulnerability alert.
+- To run it outside the window, dispatch the workflow. Pull request creation still waits for the window unless the update is a vulnerability alert.
+
+```bash
+gh workflow run renovate.yml
+```
+
+Then follow it, picking the run when asked:
+
+```bash
+gh run watch
+```

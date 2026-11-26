@@ -2,28 +2,95 @@
 
 For any environment, whoever works in it, that has no Docker daemon or reaches GitHub but not container registries or Ansible Galaxy: a hosted sandbox, a laptop without Docker, or a host with filtered egress. It says which checks still run, which do not, and what stands in for them. CI is the authority either way; this is for getting a change right before it gets there.
 
+## What runs here
+
+| Check | Without Docker or registries | Instead |
+| :--- | :--- | :--- |
+| Most pre-commit hooks, unit tests | runs | nothing needed |
+| The `-docker` hooks | skipped | `uvx` or `npx` forms below |
+| `gitleaks`, `zizmor` (network) | skipped | CI |
+| `ansible-lint` | needs collections | clones from GitHub |
+| Mermaid render | needs Docker | `mmdc` on a local Chromium |
+| A pinned image | cannot be pulled | [build it from its release](#docker-without-registries) |
+
 ## Pre-commit
 
-- Neither `pre-commit` nor `shellcheck` needs installing: `uvx --python 3.14 pre-commit run --all-files`, and `uvx --from shellcheck-py shellcheck -x FILE`.
-- The hooks that run a container image (the `-docker` ones) or reach the network (`gitleaks`, `zizmor`) cannot run. Skip them with `SKIP=<id>,<id>` and say which were skipped.
-- The doc tools use Python 3.14 syntax, so the hooks fail when `pre-commit` runs on an older `python3`: pin it with `--python 3.14`, as above. Run a tool by itself with `uv run python -m doc_scripts.<tool>` from `tools/`, and run ruff and `uv run pytest` from there too.
+Neither `pre-commit` nor `shellcheck` needs installing:
+
+```bash
+uvx --python 3.14 pre-commit run --all-files
+```
+
+```bash
+read -r -p 'shell script: ' file && uvx --from shellcheck-py shellcheck -x "$file"
+```
+
+- Skip hooks that cannot run with `SKIP=<id>,<id>`, and say which were skipped.
+- The doc tools use Python 3.14 syntax, so an older `python3` fails the hooks: keep `--python 3.14`. Run one tool by itself as `uv run python -m doc_scripts.<tool>` from `tools/`, and ruff and `uv run pytest` from there too.
 - Run pre-commit twice: a hook that fixes a file fails the first time.
-- Check a change in a clone with the whole history: `check-moved-files` reads it, and in a shallow clone (`--depth`) it says so and passes, so a mention of a removed file only shows up in a full one.
+- Use a clone with the whole history: in a shallow one `check-moved-files` says so and passes.
 
 ## Linters run by hand
 
-- **`ansible-lint`** runs only at `pre-push`. Clone each needed collection from GitHub at its pinned version, then `ANSIBLE_COLLECTIONS_PATH=<dir> uv run --with ansible-lint ansible-lint --offline`. A module from a collection that cannot be cloned fails `syntax-check` on an untouched base as well; say so rather than working around it.
-- **Compose files** lint with `npx -y dclint@<the version the hook pins> --config .config/.dclintrc FILE`. It cannot read a Jinja template, so lint the rendered output.
-- **Mermaid** is rendered by [`check_mermaid`](../documentation/doc-checks.md#mermaid-render-check), which needs Docker. Without it, render with `mmdc` against a locally installed Chromium, using a Puppeteer config of `{"executablePath": "<chromium>", "args": ["--no-sandbox"]}`: `mmdc -p cfg.json -i d.mmd -o d.png -s 2`. Open the PNG, since a pass proves the block renders and not that it reads well.
+**`ansible-lint`** runs only at `pre-push`. Clone each needed collection from GitHub at its pinned version into one directory, then:
+
+```bash
+read -r -p 'collections directory: ' dir && ANSIBLE_COLLECTIONS_PATH="$dir" uv run --with ansible-lint ansible-lint --offline
+```
+
+A module from a collection that cannot be cloned fails `syntax-check` on an untouched base too; say so rather than working around it.
+
+**Compose files** lint with the `dclint` version the hook pins. It cannot read a Jinja template, so lint the rendered output:
+
+```bash
+read -r -p 'dclint version the hook pins: ' version; read -r -p 'compose file: ' file
+```
+
+```bash
+npx -y "dclint@$version" --config .config/.dclintrc "$file"
+```
+
+**Mermaid** is rendered by [`check_mermaid`](../documentation/doc-checks.md#mermaid-render-check), which needs Docker. Without it, use `mmdc` with a local Chromium, and open the PNG, since a pass proves the block renders and not that it reads well:
+
+```bash
+read -r -p 'chromium path: ' chromium; read -r -p 'diagram file (.mmd): ' diagram
+```
+
+```bash
+printf '{"executablePath": "%s", "args": ["--no-sandbox"]}\n' "$chromium" > /tmp/puppeteer.json
+mmdc -p /tmp/puppeteer.json -i "$diagram" -o /tmp/diagram.png -s 2
+```
 
 ## Verifying a series before delivery
 
 Replay a `.series` file the way the maintainer will ([`landing-a-series.md`](landing-a-series.md)), on a fresh clone of `main`, with `--dry-run`, which pushes nothing and keeps no branch:
 
-- `git clone --depth 50 https://github.com/wenenhoe/homelab.git`, then `pre-commit install` in it.
-- Put a `pre-commit` shim on `PATH`: `printf '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit`.
-- Set `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, and `SKIP` to the hooks that cannot run here (`gitleaks`, `zizmor` and the `-docker` ones, `ansible-lint`); say which were skipped.
-- From `tools/` in a checkout of the tool: `uv run python -m land_series FILE.series --repo CLONE --base origin/main --no-fetch --dry-run`. It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and stops for a layer on its stop list. It runs no pre-push hook, which `--land` runs: check the push stage in a clone with the series applied, with `pre-commit run --hook-stage pre-push --from-ref origin/main --to-ref HEAD`, and `ansible-lint` skipped as above.
+From a checkout of the tool:
+
+```bash
+clone=$(mktemp -d)
+git clone --depth 50 https://github.com/wenenhoe/homelab.git "$clone"
+(cd "$clone" && uvx --python 3.14 pre-commit install)
+mkdir -p ~/bin
+printf '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit
+```
+
+Set `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, put `~/bin` on `PATH`, and set `SKIP` to the hooks that cannot run here, saying which. Then:
+
+```bash
+# paste alone; it waits for the series file's path, absolute or from tools/
+read -r -p 'series file: ' series
+```
+
+```bash
+cd tools && uv run python -m land_series "$series" --repo "$clone" --base origin/main --no-fetch --dry-run
+```
+
+It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and stops for a layer on its stop list. It runs no pre-push hook, which `--land` runs: check the push stage in a clone with the series applied, with `ansible-lint` skipped as above:
+
+```bash
+pre-commit run --hook-stage pre-push --from-ref origin/main --to-ref HEAD
+```
 
 A layer that touches a path on the stop list prints `Read the patch, then type 'yes' to replay it:` and waits for a terminal. A session with no terminal answers it under a pseudo-terminal, once it has read the layer's patch, and starts the replay as a background command that writes to a log file, because a foreground command is cut off after 10 minutes. This driver answers that prompt and no other, and passes its arguments to `land_series`:
 

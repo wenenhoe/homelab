@@ -39,7 +39,7 @@ from ci.verification import ATTEMPTS, Sleep, attestation, verified
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 # Version 3 or later: version 2 finds no signature on some images that version 3 verifies.
-COSIGN_IMAGE = "ghcr.io/sigstore/cosign/cosign:v3.1.4@sha256:0f06154836d2de34f887a5c273506d52ca43edaa1d9e53e6510fa78a48f69c2d"
+COSIGN_IMAGE = "ghcr.io/sigstore/cosign/cosign:v3.1.6@sha256:7d08ec40d6f6fd9ced81a498c367ee6d4dd90d73218f58a791f78661bdbef769"
 # Where a committed key is mounted inside the container.
 CONTAINER_KEY = "/key.pub"
 

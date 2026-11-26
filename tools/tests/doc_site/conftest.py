@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "doc_scripts"))
 import test_doc_coverage
 from _doc_fixtures import project, revision
 from doc_scripts.generate_doc_indexes import intro_path
+from doc_site import home
 from doc_site.site import VIEWS
 
 INTRO = "A view with [a link](decision-index.md#by-number), `code` and **bold** text.\n\nA second paragraph."
@@ -32,6 +33,13 @@ def tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
     (root / "docs/README.md").write_text(
         "# Docs: where things go\n\n## Kinds\n\nSee [the topics](topics/README.md) and [the diagrams](architecture/README.md).\n", encoding="utf-8"
     )
+    (root / home.README).write_text(
+        "# A lab\n\n[![badge](https://example.org/b.svg)](https://example.org)\n\nWhat the lab is. See [the topics](docs/topics/README.md).\n\n"
+        "## Architecture\n\nSee [the diagrams](docs/architecture/README.md).\n\n## Hardware\n\nOne box.\n\n## Elsewhere\n\nNot on the site.\n",
+        encoding="utf-8",
+    )
+    (root / home.TEMPLATE).parent.mkdir(parents=True, exist_ok=True)
+    (root / home.TEMPLATE).write_text("# Home\n\n<!-- readme -->\n\n<!-- readme: architecture -->\n\n<!-- readme: hardware -->\n", encoding="utf-8")
     (root / "docs/architecture").mkdir(parents=True, exist_ok=True)
     (root / "docs/architecture/README.md").write_text("# Architecture\n\n[the flow](flow.md), or [home](../README.md)\n", encoding="utf-8")
     (root / "docs/architecture/flow.md").write_text("# A flow\n\n## Steps\n\nBack to [the index](README.md).\n", encoding="utf-8")

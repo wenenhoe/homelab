@@ -222,17 +222,19 @@ def test_check_opens_only_the_pages_it_is_given(tmp_path):
     [
         ("docs/topics/deploy/ansible.md", "/topics/deploy/ansible/"),
         ("docs/topics/README.md", "/topics/"),
-        ("docs/README.md", "/"),
+        ("docs/README.md", "/guide/"),
         ("docs/decisions/0001-a/revision-001.md", "/decisions/0001-a/revision-001/"),
         ("docs/projects/doc-site-pages.md", "/projects/doc-site-pages/"),
         ("tools/doc_site/layout.py", None),
         ("docs/diagram.png", None),
-        ("README.md", None),
+        ("README.md", "/"),
+        ("tools/doc_scripts/view_intros/home.md", "/"),
+        ("tools/doc_scripts/view_intros/coverage.md", None),
     ],
 )
 def test_a_changed_document_is_the_page_the_site_builds_for_it(path, page):
     assert layout.page_of_document(path) == page
-    if page is not None:
+    if page not in (None, "/"):
         assert page.strip("/") == site._slug(path)
 
 
@@ -245,7 +247,7 @@ def test_the_sample_adds_the_page_of_each_changed_document_that_has_one(tmp_path
 
 def test_a_changed_page_already_in_the_sample_is_not_added_twice(tmp_path):
     a_site(tmp_path, 5)
-    assert layout.sample_of(tmp_path, ["docs/topics/doc-000.md", "docs/topics/README.md"]) == layout.sample_of(tmp_path)
+    assert layout.sample_of(tmp_path, ["docs/topics/doc-000.md", "docs/topics/README.md", "README.md"]) == layout.sample_of(tmp_path)
 
 
 def run_main(tmp_path, changed: list[str], *flags: str) -> str:

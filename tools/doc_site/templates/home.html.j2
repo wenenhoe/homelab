@@ -1,11 +1,10 @@
 {% extends "base.html.j2" %}
-{% block drawer %}{% if readme and readme.headings %}<h2>On this page</h2>{% for h in readme.headings %}<a href="#{{ h.id }}"{% if h.level == 3 %} class="sub"{% endif %}>{{ h.text }}</a>{% endfor %}{% endif %}{% endblock %}
-{% block main %}<h1>Homelab docs</h1>
-<p class="lede">Views generated from the repository's documentation. Each one is built from the repository as it stands on <code>main</code>.</p>
+{% block drawer %}{% if headings %}<h2>On this page</h2>{% for h in headings %}<a href="#{{ h.id }}"{% if h.level == 3 %} class="sub"{% endif %}>{{ h.text }}</a>{% endfor %}{% endif %}{% endblock %}
+{% block main %}<h1 id="{{ title_id }}">{{ title }}</h1>
+<article class="doc">
+{{ body | safe }}</article>
+<h2 id="explore">Explore the docs</h2>
 <div class="home">{% for view in views %}<a class="tile" href="{{ view.href }}"><strong>{{ view.label }}</strong><span>{{ view.blurb }}</span></a>
 {% endfor %}</div>
-{% if readme %}<h2 id="{{ readme.id }}">{{ readme.title }}</h2>
-<article class="doc">
-{{ readme.body | safe }}</article>
-<p class="source"><a href="{{ readme.source_url }}">View this file on GitHub</a></p>
-{% endif %}{% endblock %}
+<p class="source">View on GitHub: {% for source, url in source_urls %}<a href="{{ url }}"><code>{{ source }}</code></a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+{% endblock %}

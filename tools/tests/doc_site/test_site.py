@@ -14,6 +14,7 @@ from doc_site.markup import UnsupportedMarkup, github_slug
 
 PAGES = {
     "index.html",
+    "guide/index.html",
     *(f"{view.slug}/index.html" for view in site.VIEWS),
     "projects/index.html",
     "projects/one/index.html",
@@ -96,6 +97,7 @@ def test_the_anchors_a_link_can_name_are_those_of_the_headings(tree):
     anchors = site.page_anchors(tree)
     assert set(anchors) == {
         "",
+        "guide",
         *(view.slug for view in site.VIEWS),
         "projects",
         "projects/one",

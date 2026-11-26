@@ -51,7 +51,7 @@ def test_each_catalog_app_gets_a_row_with_its_hosts_volumes_routes_and_backup(tm
 
 
 def test_the_record_is_a_link_relative_to_the_view(tmp_path: Path) -> None:
-    assert rows(tmp_path)["alpha"][4] == "[alpha.md](../services/alpha.md)"
+    assert rows(tmp_path)["alpha"][4] == "[alpha](../services/alpha.md)"
 
 
 def test_the_tier_is_one_with_the_catalog_key_else_two_with_a_backup_else_three(tmp_path: Path) -> None:

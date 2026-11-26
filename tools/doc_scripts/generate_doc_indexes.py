@@ -118,7 +118,7 @@ def _waiting_on(fm: dict, projects: dict[str, tuple[Path, dict]], prefix: str = 
     is a path prefix for a caller rendering into a file outside
     docs/projects/ (docs/project-planning.md, not docs/projects/README.md).
     """
-    return [f"[`{projects[d['project']][0].name}`]({prefix}{projects[d['project']][0].name})" for d in fm.get("depends_on", []) if d["project"] in projects]
+    return [f"[`{projects[d['project']][0].stem}`]({prefix}{projects[d['project']][0].name})" for d in fm.get("depends_on", []) if d["project"] in projects]
 
 
 def _status_pair(
@@ -199,7 +199,7 @@ def standalone_projects_block(root: Path = ROOT) -> Block:
         rests_on=rests_on,
     )
     rows = tuple(
-        (f"[`{path.name}`](projects/{path.name})", _unblocks_cell(unblocks[pid]), *cells(fm), _cell(fm["summary"]))
+        (f"[`{path.stem}`](projects/{path.name})", _unblocks_cell(unblocks[pid]), *cells(fm), _cell(fm["summary"]))
         for pid, (path, fm) in _by_status(projects)
         if "super_project" not in fm
     )
@@ -259,7 +259,9 @@ def initiatives_block(root: Path = ROOT) -> Block:
         status, blocker = _status_pair(
             fm, projects, decisions, decision_paths, decision_shorts, project_prefix="projects/", decision_prefix="decisions/", rests_on=rests_on
         )
-        rows.append((initiative_cell, f"[`{name}`](projects/{name})", _unblocks_cell(unblocks[fm["id"]]), status, blocker, _cell(fm["summary"])))
+        rows.append(
+            (initiative_cell, f"[`{name.removesuffix('.md')}`](projects/{name})", _unblocks_cell(unblocks[fm["id"]]), status, blocker, _cell(fm["summary"]))
+        )
     return Table(("Initiative", "Project", "Unblocks", "Status", "Blocker", "Covers"), (":---", ":---", "---:", ":---", ":---", ":---"), tuple(rows))
 
 
@@ -317,7 +319,7 @@ def roadmap_block(root: Path = ROOT) -> Block:
         started = fm["status"] in ("building", "de-risking")
         column = "In progress" if started else ("Startable" if blocker == "—" else "Waiting")
         count = f" (unblocks {unblocks[pid]})" if unblocks[pid] else ""
-        columns.setdefault(fm.get("super_project"), {}).setdefault(column, []).append((depths[pid], path.name, f"[`{path.name}`](projects/{path.name}){count}"))
+        columns.setdefault(fm.get("super_project"), {}).setdefault(column, []).append((depths[pid], path.name, f"[`{path.stem}`](projects/{path.name}){count}"))
 
     def row(label: str, initiative: str | None) -> tuple[str, ...]:
         cells = [", ".join(cell for *_, cell in sorted(columns.get(initiative, {}).get(column, []))) or "—" for column in ROADMAP_COLUMNS]
@@ -545,7 +547,7 @@ def open_decisions_block(root: Path = ROOT, prefix: str = "decisions/", project_
         for rev in lineage.revisions:
             if rev.status not in ("working", "approved"):
                 continue
-            projects = ", ".join(f"[`{n}`]({project_prefix}{n})" for n in named.get(f"{lineage.id}/{rev.label}", [])) or "—"
+            projects = ", ".join(f"[`{n.removesuffix('.md')}`]({project_prefix}{n})" for n in named.get(f"{lineage.id}/{rev.label}", [])) or "—"
             adr_cell = f"[{lineage.number}]({prefix}{lineage.dir.name}/{rev.path.name})"
             entries.append(
                 (
@@ -583,7 +585,7 @@ def explorations_block(root: Path = ROOT) -> Block:
     explorations = load_explorations(root)
     if not explorations:
         return Note("No exploration is open.")
-    rows = tuple((f"[`{path.name}`](explorations/{path.name})", _cell(fm["title"])) for path, fm in explorations)
+    rows = tuple((f"[`{path.stem}`](explorations/{path.name})", _cell(fm["title"])) for path, fm in explorations)
     return Table(("Exploration", "Question"), (":---", ":---"), rows)
 
 

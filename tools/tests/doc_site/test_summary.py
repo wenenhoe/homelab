@@ -12,8 +12,8 @@ ROADMAP = Table(
     ("Initiative", "In progress", "Startable", "Waiting"),
     (":---",) * 4,
     (
-        ("`a`", "[`one.md`](projects/one.md) (unblocks 2), [`two.md`](projects/two.md)", "—", "[`three.md`](projects/three.md)"),
-        ("`b`", "—", "[`four.md`](projects/four.md)", "—"),
+        ("`a`", "[`one`](projects/one.md) (unblocks 2), [`two`](projects/two.md)", "—", "[`three`](projects/three.md)"),
+        ("`b`", "—", "[`four`](projects/four.md)", "—"),
     ),
 )
 AWAITING = Table(
@@ -31,7 +31,7 @@ def test_projects_are_counted_in_each_roadmap_column_and_a_dash_is_none():
 
 
 def test_an_unblocks_count_is_not_a_project():
-    cell = "[`one.md`](projects/one.md) (unblocks 2)"
+    cell = "[`one`](projects/one.md) (unblocks 2)"
     table = Table(("Initiative", "In progress"), (":---",) * 2, (("`a`", cell),))
     assert tiles("project-planning", sections(Roadmap=table))[0].value == 1
 

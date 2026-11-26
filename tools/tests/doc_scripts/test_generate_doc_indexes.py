@@ -22,46 +22,46 @@ class TestProjectsTable:
     def test_not_started_and_sort_order(self, root, rows):
         project(root, "a", status="not-started")
         project(root, "b", status="not-started")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |", "| [`b.md`](projects/b.md) | — | Not started | — | b summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Not started | — | a summary |", "| [`b`](projects/b.md) | — | Not started | — | b summary |"]
 
     def test_lifecycle_statuses_and_the_blocked_flag(self, root, rows):
         project(root, "a", status="de-risking")
         project(root, "b", status="building", blocked=True, blocked_reason="needs new hardware")
         project(root, "c", status="done")
         assert rows() == [
-            "| [`b.md`](projects/b.md) | — | Building | blocked: needs new hardware | b summary |",
-            "| [`a.md`](projects/a.md) | — | De-risking | — | a summary |",
-            "| [`c.md`](projects/c.md) | — | Done | — | c summary |",
+            "| [`b`](projects/b.md) | — | Building | blocked: needs new hardware | b summary |",
+            "| [`a`](projects/a.md) | — | De-risking | — | a summary |",
+            "| [`c`](projects/c.md) | — | Done | — | c summary |",
         ]
 
     def test_a_project_whose_decision_rests_on_an_unsettled_one_says_so(self, root, rows):
         revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
         revision(root, "0002-b", 0, status="working")
         project(root, "a", status="building", decision="ADR-0001/0")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Building | rests on ADR-0002 (working) | a summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Building | rests on ADR-0002 (working) | a summary |"]
 
     def test_the_label_goes_once_the_target_is_settled(self, root, rows):
         revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
         revision(root, "0002-b", 0, status="approved")
         project(root, "a", status="building", decision="ADR-0001/0")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Building | — | a summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Building | — | a summary |"]
 
     def test_the_label_sits_beside_a_predecessor_and_in_the_initiative_view(self, root):
         revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
         revision(root, "0002-b", 0, status="working")
         project(root, "base", status="building", super_project="init")
         project(root, "a", status="not-started", decision="ADR-0001/0", depends_on=[{"project": "PROJ-base", "reason": "needs it"}], super_project="init")
-        assert "waiting on [`base.md`](projects/base.md); rests on ADR-0002 (working)" in gen.render_initiatives_table(root)
+        assert "waiting on [`base`](projects/base.md); rests on ADR-0002 (working)" in gen.render_initiatives_table(root)
 
     def test_waiting_on_an_existing_predecessor(self, root, rows):
         project(root, "base", status="building")
         project(root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
-        assert rows()[1] == "| [`next.md`](projects/next.md) | — | Not started | waiting on [`base.md`](projects/base.md) | next summary |"
+        assert rows()[1] == "| [`next`](projects/next.md) | — | Not started | waiting on [`base`](projects/base.md) | next summary |"
 
     def test_blocked_flag_and_dependency_combine(self, root, rows):
         project(root, "base")
         project(root, "next", status="building", blocked=True, blocked_reason="r", depends_on=[{"project": "PROJ-base", "reason": "x"}])
-        assert "Building | blocked: r; waiting on [`base.md`](projects/base.md)" in rows()[0]
+        assert "Building | blocked: r; waiting on [`base`](projects/base.md)" in rows()[0]
 
 
 class TestNoBlocker:
@@ -74,44 +74,44 @@ class TestNoBlocker:
     def test_not_started_with_an_approved_decision_is_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="approved")
         project(root, "a", decision="ADR-0013/0")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Not started | — | a summary |"]
 
     def test_no_decision_means_nothing_gates_it(self, root, rows):
         project(root, "a")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Not started | — | a summary |"]
 
     def test_a_working_decision_is_not_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="working")
         project(root, "a", decision="ADR-0013/0")
         assert rows() == [
-            "| [`a.md`](projects/a.md) | — | Not started "
+            "| [`a`](projects/a.md) | — | Not started "
             "| waiting on [ADR-0013/0 (0013-secret-storage)](decisions/0013-secret-storage/revision-000.md) | a summary |"
         ]
 
     def test_a_decision_that_does_not_resolve_is_not_ready(self, root, rows):
         project(root, "a", decision="ADR-0099/0")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | waiting on ADR-0099/0 | a summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Not started | waiting on ADR-0099/0 | a summary |"]
 
     def test_a_lettered_candidate_is_resolved_by_its_label(self, root, rows):
         revision(root, "0013-secret-storage", 0, letter="a", status="abandoned")
         revision(root, "0013-secret-storage", 0, letter="b", status="approved")
         project(root, "a", decision="ADR-0013/0-b")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | — | a summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Not started | — | a summary |"]
 
     def test_an_existing_predecessor_means_waiting_not_ready(self, root, rows):
         project(root, "base", status="building")
         project(root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
-        assert rows()[1] == "| [`next.md`](projects/next.md) | — | Not started | waiting on [`base.md`](projects/base.md) | next summary |"
+        assert rows()[1] == "| [`next`](projects/next.md) | — | Not started | waiting on [`base`](projects/base.md) | next summary |"
 
     def test_a_blocked_project_is_not_ready(self, root, rows):
         project(root, "a", blocked=True, blocked_reason="needs new hardware")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Not started | blocked: needs new hardware | a summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Not started | blocked: needs new hardware | a summary |"]
 
     def test_only_not_started_projects_are_ever_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="approved")
         project(root, "a", status="building", decision="ADR-0013/0")
         project(root, "b", status="de-risking")
-        assert rows() == ["| [`a.md`](projects/a.md) | — | Building | — | a summary |", "| [`b.md`](projects/b.md) | — | De-risking | — | b summary |"]
+        assert rows() == ["| [`a`](projects/a.md) | — | Building | — | a summary |", "| [`b`](projects/b.md) | — | De-risking | — | b summary |"]
 
     def test_the_label_follows_the_decision_state_with_no_edit_to_the_project(self, root, rows):
         path = revision(root, "0013-secret-storage", 0, status="approved")
@@ -128,7 +128,7 @@ class TestNoBlocker:
         with contextlib.redirect_stderr(io.StringIO()):
             initiatives = gen.render_initiatives_table(root)
         assert initiatives.splitlines()[2].endswith("| Not started | — | a summary |")
-        assert gen.render_standalone_projects_table(root).splitlines()[2] == "| [`b.md`](projects/b.md) | — | Not started | — | b summary |"
+        assert gen.render_standalone_projects_table(root).splitlines()[2] == "| [`b`](projects/b.md) | — | Not started | — | b summary |"
 
 
 class TestWaitingOnADecisionLabel:
@@ -167,7 +167,7 @@ class TestWaitingOnADecisionLabel:
             ),
             pytest.param(
                 {"depends_on": [{"project": "PROJ-base", "reason": "needs its output"}], "decision": "ADR-0013/0"},
-                ("Not started", "waiting on [`base.md`](projects/base.md)"),
+                ("Not started", "waiting on [`base`](projects/base.md)"),
                 id="waiting-on-a-project",
             ),
             pytest.param({}, ("Not started", "—"), id="no-decision"),
@@ -194,7 +194,7 @@ class TestOrderByStatus:
         project(root, "d-build", status="building")
         project(root, "e-build", status="building")
         project(root, "f-idle")
-        assert self.names(gen.render_standalone_projects_table, root) == ["d-build.md", "e-build.md", "c-spike.md", "a-idle.md", "f-idle.md", "b-done.md"]
+        assert self.names(gen.render_standalone_projects_table, root) == ["d-build", "e-build", "c-spike", "a-idle", "f-idle", "b-done"]
 
     def test_the_super_projects_view_keeps_its_build_order(self, root):
         project(root, "a-first", super_project="s")
@@ -202,7 +202,7 @@ class TestOrderByStatus:
         project(root, "c-other", super_project="s")
         with contextlib.redirect_stderr(io.StringIO()):
             table = gen.render_initiatives_table(root)
-        assert [line.split("|")[2].split("`")[1] for line in table.splitlines()[2:]] == ["a-first.md", "c-other.md", "b-second.md"]
+        assert [line.split("|")[2].split("`")[1] for line in table.splitlines()[2:]] == ["a-first", "c-other", "b-second"]
 
 
 class TestDecisionShortName:
@@ -234,10 +234,10 @@ class TestInitiativesTable:
             # Second row's initiative cell is blank: it's the same
             # initiative as the row above, and rows in one initiative
             # always sort contiguously.
-            "| `pull-based-cd` | [`a.md`](projects/a.md) | — | Building | — | a summary |",
+            "| `pull-based-cd` | [`a`](projects/a.md) | — | Building | — | a summary |",
             # Blank cell renders as one space between its pipes, not
             # two — MD060's compact table style flags "|  |".
-            "| | [`b.md`](projects/b.md) | — | Not started | — | b summary |",
+            "| | [`b`](projects/b.md) | — | Not started | — | b summary |",
         ]
         assert err.getvalue() == ""
 
@@ -258,35 +258,35 @@ class TestInitiativesTable:
     def test_dependency_depth_orders_projects_within_an_initiative(self, root, order):
         project(root, "a-last", super_project="t", depends_on=[{"project": "PROJ-z-first", "reason": "x"}])
         project(root, "z-first", super_project="t")
-        assert order() == ["z-first.md", "a-last.md"]
+        assert order() == ["z-first", "a-last"]
 
     def test_independent_projects_fall_back_to_name(self, root, order):
         project(root, "b", super_project="t")
         project(root, "a", super_project="t")
-        assert order() == ["a.md", "b.md"]
+        assert order() == ["a", "b"]
 
     def test_a_chain_reads_in_build_order(self, root, order):
         project(root, "core", super_project="t")
         project(root, "rehearse", super_project="t", depends_on=[{"project": "PROJ-core", "reason": "x"}])
         project(root, "day2", super_project="t", depends_on=[{"project": "PROJ-rehearse", "reason": "x"}])
-        assert order() == ["core.md", "rehearse.md", "day2.md"]
+        assert order() == ["core", "rehearse", "day2"]
 
     def test_initiatives_stay_grouped(self, root, order):
         project(root, "y1", super_project="y")
         project(root, "x2", super_project="x", depends_on=[{"project": "PROJ-x1", "reason": "x"}])
         project(root, "x1", super_project="x")
         project(root, "y2", super_project="y", depends_on=[{"project": "PROJ-y1", "reason": "x"}])
-        assert order() == ["x1.md", "x2.md", "y1.md", "y2.md"]
+        assert order() == ["x1", "x2", "y1", "y2"]
 
     def test_a_dependency_cycle_does_not_hang_the_generator(self, root, order):
         project(root, "a", super_project="t", depends_on=[{"project": "PROJ-b", "reason": "x"}])
         project(root, "b", super_project="t", depends_on=[{"project": "PROJ-a", "reason": "x"}])
-        assert sorted(order()) == ["a.md", "b.md"]
+        assert sorted(order()) == ["a", "b"]
 
     def test_a_dependency_on_a_missing_project_is_ignored(self, root, order):
         project(root, "a", super_project="t", depends_on=[{"project": "PROJ-ghost", "reason": "x"}])
         project(root, "b", super_project="t")
-        assert order() == ["a.md", "b.md"]
+        assert order() == ["a", "b"]
 
     def test_single_use_label_warns_but_still_renders(self, root):
         project(root, "a", super_project="typo-label")
@@ -322,9 +322,9 @@ class TestRoadmapTable:
         project(root, "loose")
         assert gen.render_roadmap_table(root).splitlines()[0] == "| Initiative | In progress | Startable | Waiting |"
         assert rows() == [
-            "| `zeta` | — | [`z.md`](projects/z.md) | — |",
-            "| `alpha` | — | [`a.md`](projects/a.md) | — |",
-            "| (no initiative) | — | [`loose.md`](projects/loose.md) | — |",
+            "| `zeta` | — | [`z`](projects/z.md) | — |",
+            "| `alpha` | — | [`a`](projects/a.md) | — |",
+            "| (no initiative) | — | [`loose`](projects/loose.md) | — |",
         ]
 
     def test_the_last_row_is_there_when_every_project_has_an_initiative(self, root, rows):
@@ -341,8 +341,8 @@ class TestRoadmapTable:
         project(root, "after", super_project="t", depends_on=[{"project": "PROJ-ready", "reason": "x"}])
         project(root, "finished", super_project="t", status="done")
         assert rows()[0] == (
-            "| `t` | [`build.md`](projects/build.md), [`spike.md`](projects/spike.md) | [`ready.md`](projects/ready.md) (unblocks 1) | "
-            "[`stuck.md`](projects/stuck.md), [`after.md`](projects/after.md) |"
+            "| `t` | [`build`](projects/build.md), [`spike`](projects/spike.md) | [`ready`](projects/ready.md) (unblocks 1) | "
+            "[`stuck`](projects/stuck.md), [`after`](projects/after.md) |"
         )
 
     def test_a_project_waiting_on_an_unapproved_decision_is_waiting(self, root, rows):
@@ -351,28 +351,28 @@ class TestRoadmapTable:
         revision(root, "0002-b", 0, status="approved")
         project(root, "open", super_project="t", decision="ADR-0002/0")
         project(root, "undecided", super_project="t", decision="ADR-0001/0")
-        assert rows()[0] == "| `t` | — | [`open.md`](projects/open.md) | [`undecided.md`](projects/undecided.md) |"
+        assert rows()[0] == "| `t` | — | [`open`](projects/open.md) | [`undecided`](projects/undecided.md) |"
 
     def test_a_project_resting_on_an_unsettled_decision_is_waiting(self, root, rows):
         initiatives(root, "t")
         revision(root, "0001-a", 0, status="approved", relies_on=[{"adr": "ADR-0002", "reason": "Presupposes its boundary."}])
         revision(root, "0002-b", 0, status="working")
         project(root, "a", super_project="t", decision="ADR-0001/0")
-        assert rows()[0] == "| `t` | — | — | [`a.md`](projects/a.md) |"
+        assert rows()[0] == "| `t` | — | — | [`a`](projects/a.md) |"
 
     def test_a_cell_lists_projects_by_dependency_depth_then_name(self, root, rows):
         initiatives(root, "t")
         project(root, "b", super_project="t", status="building")
         project(root, "a-late", super_project="t", status="building", depends_on=[{"project": "PROJ-z-first", "reason": "x"}])
         project(root, "z-first", super_project="t", status="building")
-        assert rows()[0].split("|")[2].strip() == "[`b.md`](projects/b.md), [`z-first.md`](projects/z-first.md) (unblocks 1), [`a-late.md`](projects/a-late.md)"
+        assert rows()[0].split("|")[2].strip() == "[`b`](projects/b.md), [`z-first`](projects/z-first.md) (unblocks 1), [`a-late`](projects/a-late.md)"
 
     def test_a_project_with_no_initiative_goes_in_the_last_row_by_the_same_rules(self, root, rows):
         initiatives(root, "t")
         project(root, "a", super_project="t")
         project(root, "loose-build", status="building")
         project(root, "loose-wait", blocked=True, blocked_reason="needs hardware")
-        assert rows()[-1] == "| (no initiative) | [`loose-build.md`](projects/loose-build.md) | — | [`loose-wait.md`](projects/loose-wait.md) |"
+        assert rows()[-1] == "| (no initiative) | [`loose-build`](projects/loose-build.md) | — | [`loose-wait`](projects/loose-wait.md) |"
 
     def test_only_the_initiatives_section_is_read(self, root):
         initiatives(root, "t")
@@ -439,14 +439,14 @@ class TestStandaloneProjectsTable:
     def test_only_projects_without_a_super_project_are_listed(self, root, rows):
         project(root, "a", super_project="pull-based-cd")
         project(root, "b")
-        assert rows() == ["| [`b.md`](projects/b.md) | — | Not started | — | b summary |"]
+        assert rows() == ["| [`b`](projects/b.md) | — | Not started | — | b summary |"]
 
     def test_links_and_waiting_on_use_the_projects_prefix(self, root, rows):
         project(root, "base")
         project(root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
         assert rows() == [
-            "| [`base.md`](projects/base.md) | 1 | Not started | — | base summary |",
-            "| [`next.md`](projects/next.md) | — | Not started | waiting on [`base.md`](projects/base.md) | next summary |",
+            "| [`base`](projects/base.md) | 1 | Not started | — | base summary |",
+            "| [`next`](projects/next.md) | — | Not started | waiting on [`base`](projects/base.md) | next summary |",
         ]
 
     def test_no_standalone_projects(self, root):
@@ -468,17 +468,17 @@ class TestUnblocksCount:
     @pytest.mark.parametrize(
         ("waits_on", "expected"),
         [
-            pytest.param({"a": [], "b": []}, {"a.md": "—", "b.md": "—"}, id="unrelated"),
-            pytest.param({"base": [], "x": ["base"], "y": ["base"]}, {"base.md": "2", "x.md": "—", "y.md": "—"}, id="direct"),
-            pytest.param({"a": [], "b": ["a"], "c": ["b"]}, {"a.md": "2", "b.md": "1", "c.md": "—"}, id="chain"),
+            pytest.param({"a": [], "b": []}, {"a": "—", "b": "—"}, id="unrelated"),
+            pytest.param({"base": [], "x": ["base"], "y": ["base"]}, {"base": "2", "x": "—", "y": "—"}, id="direct"),
+            pytest.param({"a": [], "b": ["a"], "c": ["b"]}, {"a": "2", "b": "1", "c": "—"}, id="chain"),
             pytest.param(
                 {"top": [], "left": ["top"], "right": ["top"], "bottom": ["left", "right"]},
-                {"top.md": "3", "left.md": "1", "right.md": "1", "bottom.md": "—"},
+                {"top": "3", "left": "1", "right": "1", "bottom": "—"},
                 id="two-paths-to-one-project-count-it-once",
             ),
-            pytest.param({"a": ["b"], "b": ["a"]}, {"a.md": "1", "b.md": "1"}, id="cycle"),
-            pytest.param({"a": ["a"]}, {"a.md": "—"}, id="self-dependency"),
-            pytest.param({"a": ["ghost"]}, {"a.md": "—"}, id="missing-predecessor"),
+            pytest.param({"a": ["b"], "b": ["a"]}, {"a": "1", "b": "1"}, id="cycle"),
+            pytest.param({"a": ["a"]}, {"a": "—"}, id="self-dependency"),
+            pytest.param({"a": ["ghost"]}, {"a": "—"}, id="missing-predecessor"),
         ],
     )
     def test_counts_dependents(self, root, counts, waits_on, expected):
@@ -489,17 +489,17 @@ class TestUnblocksCount:
     def test_a_deleted_dependent_stops_counting_with_no_edit_to_the_project(self, root, counts):
         project(root, "base")
         dependent = project(root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
-        assert counts()["base.md"] == "1"
+        assert counts()["base"] == "1"
         dependent.unlink()
-        assert counts()["base.md"] == "—"
+        assert counts()["base"] == "—"
 
     def test_every_project_view_carries_the_count(self, root):
         project(root, "base", status="building", super_project="s")
         project(root, "next", super_project="s", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
         project(root, "lone-base", status="building")
         project(root, "lone-next", depends_on=[{"project": "PROJ-lone-base", "reason": "needs its output"}])
-        assert "| [`base.md`](projects/base.md) | 1 | Building | — |" in gen.render_initiatives_table(root)
-        assert "| [`lone-base.md`](projects/lone-base.md) | 1 | Building | — | lone-base summary |" in gen.render_standalone_projects_table(root)
+        assert "| [`base`](projects/base.md) | 1 | Building | — |" in gen.render_initiatives_table(root)
+        assert "| [`lone-base`](projects/lone-base.md) | 1 | Building | — | lone-base summary |" in gen.render_standalone_projects_table(root)
 
 
 class TestDecisionsAwaitingAProject:
@@ -751,7 +751,7 @@ class TestOpenDecisions:
         project(root, "p", decision="ADR-0002/0")
         project(root, "q", decision="ADR-0009/0", also_implements=["ADR-0002/0"])
         rows = gen.render_open_decisions(root).splitlines()[2:]
-        assert rows[0].endswith("| Approved | [`p.md`](projects/p.md), [`q.md`](projects/q.md) |")
+        assert rows[0].endswith("| Approved | [`p`](projects/p.md), [`q`](projects/q.md) |")
         assert rows[1].endswith("| Working | — |")
 
     def test_a_pending_successor_is_listed_under_its_own_revision(self, root):
@@ -763,7 +763,7 @@ class TestOpenDecisions:
         revision(root, "0044-trigger", 0, letter="a", status="abandoned")
         revision(root, "0044-trigger", 0, letter="b", status="approved")
         project(root, "p", decision="ADR-0044/0-b")
-        assert gen.render_open_decisions(root).splitlines()[2].endswith("| original (b) | 0044-trigger | Approved | [`p.md`](projects/p.md) |")
+        assert gen.render_open_decisions(root).splitlines()[2].endswith("| original (b) | 0044-trigger | Approved | [`p`](projects/p.md) |")
 
 
 class TestHistory:

@@ -121,7 +121,7 @@ def test_a_link_into_a_view_reaches_the_same_section_on_its_page(tree):
 
 def test_the_pages_hold_the_rows_of_the_generator(tree):
     html = site.build(tree)["project-planning/index.html"].decode()
-    assert "one.md" in html and "two.md" in html
+    assert "<code>one</code>" in html and "<code>two</code>" in html
 
 
 def test_markup_the_renderer_does_not_know_stops_the_build(tree):
@@ -292,7 +292,7 @@ class TestRoadmapChips:
         return f"https://example.com/{target}"
 
     def test_each_project_is_a_chip_and_an_unblocks_count_is_its_badge(self):
-        cell = "[`one.md`](projects/one.md) (unblocks 2), [`two.md`](projects/two.md)"
+        cell = "[`one`](projects/one.md) (unblocks 2), [`two`](projects/two.md)"
         assert site._chips(cell, self.resolve) == (
             '<div class="chips">'
             '<a class="chip" href="https://example.com/projects/one.md">one<span class="badge">unblocks 2</span></a>'
@@ -301,7 +301,7 @@ class TestRoadmapChips:
         )
 
     @pytest.mark.parametrize(
-        "cell", ["—", "", "text before [`one.md`](projects/one.md)", "[`one.md`](projects/one.md) and more", "[`one.md`](projects/one.md); [`two.md`](x)"]
+        "cell", ["—", "", "text before [`one`](projects/one.md)", "[`one`](projects/one.md) and more", "[`one`](projects/one.md); [`two.md`](x)"]
     )
     def test_a_cell_that_is_not_a_list_of_projects_is_left_to_the_text_renderer(self, cell):
         assert site._chips(cell, self.resolve) is None

@@ -126,8 +126,8 @@ class TestPlanningView:
         assert generator.render_explorations_table(root).splitlines() == [
             "| Exploration | Question |",
             "| :--- | :--- |",
-            "| [`a-first.md`](explorations/a-first.md) | Where does the state live? |",
-            r"| [`b-second.md`](explorations/b-second.md) | Second \| question |",
+            "| [`a-first`](explorations/a-first.md) | Where does the state live? |",
+            r"| [`b-second`](explorations/b-second.md) | Second \| question |",
         ]
 
     def test_the_table_is_the_same_before_and_after_the_explorations_are_committed(self, root):

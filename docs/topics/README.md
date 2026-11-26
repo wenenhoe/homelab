@@ -1,8 +1,10 @@
 # Topic docs
 
-What is true on `main` now, one doc per subject, grouped by what it is about. Look where you would be working: a runbook sits with the thing it operates, not in a folder of runbooks. Each doc has one home; other docs link to it rather than repeating it.
-
-A group that outgrows a flat folder can nest a subfolder for one cluster. Every doc under here, at any depth, is listed below — [`check_doc_drift.py`](../../tools/doc_scripts/check_doc_drift.py) fails on one that isn't, or on a link that points nowhere.
+What is true on `main` now, one doc per subject, grouped by where you would
+be working: a runbook sits with the thing it operates. Other docs link to a
+subject's doc rather than repeating it. A group may nest a subfolder, and
+[`check_doc_drift.py`](../../tools/doc_scripts/check_doc_drift.py) fails on a
+doc this page does not list.
 
 ## deploy/
 

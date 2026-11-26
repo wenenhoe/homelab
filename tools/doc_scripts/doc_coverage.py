@@ -57,7 +57,7 @@ def coverage_block(root: Path = ROOT) -> Table:
         else:
             backup_cell = "—"
         doc = app.get("doc")
-        record = f"[{Path(doc).name}]({os.path.relpath(root / doc, view_dir)})" if isinstance(doc, str) else "—"
+        record = f"[{Path(doc).stem}]({os.path.relpath(root / doc, view_dir)})" if isinstance(doc, str) else "—"
         rows.append((f"`{name}`", _cell(hosts), _cell([f"`{v}`" for v in volumes]), _cell(route_cells), backup_cell, record, str(tier_of(app))))
     return Table(COLUMNS, (":---",) * len(COLUMNS), tuple(rows))
 

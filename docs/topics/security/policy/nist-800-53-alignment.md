@@ -12,8 +12,9 @@ individual docs with a label that then has to be kept in sync forever
 for why per-doc tagging was tried and rejected).
 
 Seven controls were checked against actual repo content, not assumed
-from the control's title. Six had a real, specific match. One didn't
-and says so below, rather than being quietly dropped.
+from the control's title, and each section below says what the match
+covers. A control with no decision behind it stays unmapped and says so,
+rather than being quietly dropped.
 
 ## RA-3 — Risk Assessment
 
@@ -89,16 +90,20 @@ and
 [ADR 0047 (First-credential bootstrap)](../../../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
 (controller's own authentication, not just what it authenticates to).
 
-## CM-8 — Component Inventory: evaluated, no genuine match
+## CM-8 — System Component Inventory
 
-`app_catalog` and `host_vars` are real, and they do function as a
-component inventory — but no ADR ever decided to adopt them as one;
-they're existing Ansible inventory structure, documented in
-[`deployment-flow.md`](../../deploy/deployment-flow.md) and
-[`host-vars.md`](../../deploy/host-vars.md) as current behavior, not as a decision
-record. Linking either here would be naming a topic doc as if it were
-evidence of a considered control decision, which it isn't. Left
-unmapped rather than stretched.
+[ADR 0121 (Component inventory)](../../../decisions/0121-knowing-what-components-the-lab-is-made-of/revision-000.md)
+makes the repo's own declarations the inventory: hosts in
+[`inventory.yaml`](../../../../ansible/inventory/inventory.yaml), the apps each
+host runs in its `host_vars`, and what does not vary by host once in
+[`app_catalog.yaml`](../../../../ansible/inventory/group_vars/all/app_catalog.yaml).
+That is CM-8's intent for those two kinds of component: one list that is also
+what gets deployed, and a check on every pull request that no listed app is
+missing its entry. The record was written after the structure was in use.
+
+What it isn't: it records what is declared, not what is observed on a host; it
+leaves out host packages, the units and containers a role installs, and anything
+the two lists don't name; and its only review is the check on each change.
 
 ## What this page is not
 

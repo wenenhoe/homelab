@@ -160,7 +160,7 @@ Every heading has the anchor GitHub gives it: lowercase, everything but letters,
 
 ## The stylesheet
 
-Pages use [Simple.css](https://simplecss.org/) (MIT) and diagrams use Mermaid, both vendored: nothing is fetched at build time or by a reader's browser. `site.css` and `site.js` in `tools/doc_site/assets/` are this repository's.
+Pages use [Simple.css](https://simplecss.org/) (MIT) and diagrams use Mermaid, both vendored: nothing is fetched at build time or by a reader's browser. `site.css`, `site.js` and `favicon.svg` in `tools/doc_site/assets/` are this repository's.
 
 Prose (paragraphs, lists, quotes, headings, the lede) keeps one reading measure; tables, code blocks and figures use the width of the column they are in.
 
@@ -196,6 +196,7 @@ Both files are kept byte for byte as published, so `end-of-file-fixer` and `trai
 ## What each page carries
 
 - **Names:** the header says "Homelab" and a tab "<page's title> · Homelab". The home page's tab, and the site name a link preview shows, are "wenenhoe's Homelab".
+- **Icon:** [`favicon.svg`](../../../tools/doc_site/assets/favicon.svg), this repository's own drawing. SVG only, so a browser that takes no SVG favicon shows its default.
 - **Link preview:** `og:title` (the tab's title), `og:site_name`, and the same text as `description` and `og:description`: a project's `summary:`, a view's lede, and otherwise `DESCRIPTION` in `site.py`. There is no preview image.
 - **Footer:** the commit it was built from, linked, with its date in UTC, and the Simple.css credit with its licence (`assets/simple-licence.txt`, since the vendored file carries no notice). Pages are cached for about ten minutes, so compare the footer with `main` when one looks old.
 - **Asset names:** each file in `assets/` is named with part of its sha256, so an old page never gets a new stylesheet or the reverse. The licence keeps its name.

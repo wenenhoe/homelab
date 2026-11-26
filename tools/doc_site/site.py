@@ -547,6 +547,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         "simple_css": ("simple.css", stylesheet),
         "site_css": ("site.css", (PACKAGE / "assets/site.css").read_bytes()),
         "site_js": ("site.js", (PACKAGE / "assets/site.js").read_bytes()),
+        "icon": ("favicon.svg", (PACKAGE / "assets/favicon.svg").read_bytes()),
     }
     urls = {key: fingerprinted(name, data) for key, (name, data) in assets.items()}
     files: dict[str, bytes] = {urls[key]: data for key, (_, data) in assets.items()}

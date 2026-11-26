@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import posixpath
 import re
 
 from doc_site import site
@@ -55,3 +56,12 @@ def test_a_page_with_no_summary_of_its_own_has_the_sites_description(tree):
     files = site.build(tree)
     for path in ("index.html", "topics/infra/network/index.html"):
         assert meta(files[path], "description") == site.DESCRIPTION, path
+
+
+def test_every_page_links_the_committed_icon(tree):
+    files = site.build(tree)
+    for path, data in files.items():
+        if path.endswith(".html"):
+            href = re.search(r'<link rel="icon" type="image/svg\+xml" href="([^"]+)">', data.decode())[1]
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(path), href))
+            assert files[target] == (site.PACKAGE / "assets/favicon.svg").read_bytes(), path

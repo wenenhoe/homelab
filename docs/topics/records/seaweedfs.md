@@ -33,7 +33,7 @@ The on-site S3 store that every host's backups go to, running single-node on `st
 
 ## Disaster recovery
 
-Recovery tier 1. It has no `backup` entry: it is the backup target, and its archives are relayed to the clouds ([`cloud-sync.md`](../disaster-recovery/cloud-sync.md)). It is rebuilt beside the old VM, the bucket is copied across and DNS is flipped ([`rebuild-storage.md`](../disaster-recovery/rebuild-storage.md)). That host rebuild is how it is exercised: an app restore reads from it and does not restore it. Archives `cloud-sync` has not yet relayed exist only here, so losing the VM loses them. Acceptable loss and downtime: Unknown; check [`exercises.md`](../disaster-recovery/exercises.md).
+Recovery tier 1. It has no `backup` entry: it is the backup target, and its archives are relayed to the clouds ([`cloud-sync.md`](../disaster-recovery/cloud-sync.md)). It is rebuilt beside the old VM, the bucket is copied across and DNS is flipped ([`rebuild-storage.md`](../disaster-recovery/rebuild-storage.md)). That host rebuild is how it is exercised: an app restore reads from it and does not restore it. Archives `cloud-sync` has not yet relayed exist only here, so losing the VM loses them. Acceptable loss: one night of archives that had not been relayed. Acceptable downtime: 48 hours. Both are targets, not measured times.
 
 ## Lifecycle
 

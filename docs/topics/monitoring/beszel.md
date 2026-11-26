@@ -114,7 +114,7 @@ which would be a much smaller blast radius.
    ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost
    ```
 
-6. Confirm every host reappears as a connected system on the dashboard, then re-add the [notification channel](#alert-notifications), which was in the wiped database too.
+6. Confirm every host reappears as a connected system on the dashboard, then re-add the [notification channel](#alert-notifications) and the [alerts](#alerts), which were in the wiped database too.
 
 ## Rebuilding a host
 
@@ -157,6 +157,13 @@ a rebuild of `security` restore the hub first.
 | :--- | :--- | :--- | :--- |
 | `docker/beszel-hub/compose.yaml` | `henrygd/beszel` | Joins `caddy-proxy`, exposes `8090` to Caddy | Persists `data` volume to `/beszel_data` |
 | `docker/beszel-agent/compose.yaml` | `henrygd/beszel-agent` | `network_mode: host` (required for host-level network interface stats — also means it doesn't join `caddy-proxy`, since it isn't routed through Caddy at all) | Container stats via a `dockerproxy` sidecar (`CONTAINERS=1`-scoped, socket mounted read-only), reached over `DOCKER_HOST: tcp://localhost:2375` rather than mounting the socket itself. The agent container and the sidecar both drop every capability and set `no-new-privileges` |
+
+## Alerts
+
+Not Ansible-managed: each system's alerts are set in the hub and live in its
+database. `storage` has a disk usage alert, above 80% for 10 minutes, because
+its disk holds the [on-site backup store](../records/seaweedfs.md#observability).
+It is sent through the [notification channel](#alert-notifications).
 
 ## Alert notifications
 

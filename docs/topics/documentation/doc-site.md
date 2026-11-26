@@ -1,82 +1,115 @@
 # The doc site renderer
 
-`tools/doc_site` turns the three generated views ([`project-planning.md`](https://wenenhoe.github.io/homelab/project-planning/), [`decision-index.md`](https://wenenhoe.github.io/homelab/decision-index/) and [`coverage.md`](https://wenenhoe.github.io/homelab/dr-coverage/)) into a small static site. Its design is [ADR 0117 (Generated doc views)](../../decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md). The views are not committed: a checkout writes them with the `generate-doc-indexes` hook ([`pre-commit.md`](../engineering/pre-commit.md)), and the site is built from `main` and deployed on every push.
+`tools/doc_site` turns the repository's docs and the three generated views ([`project-planning`](https://wenenhoe.github.io/homelab/project-planning/), [`decision-index`](https://wenenhoe.github.io/homelab/decision-index/) and [`dr-coverage`](https://wenenhoe.github.io/homelab/dr-coverage/)) into a small static site, built from `main` and deployed on every push ([ADR 0117 (Generated doc views)](../../decisions/0117-delivering-the-generated-doc-views-to-readers/revision-000.md), [ADR 0119 (Docs as site pages)](../../decisions/0119-reading-the-documentation-tree-away-from-github/revision-000.md)). The views are not committed: a checkout writes them with the `generate-doc-indexes` hook ([`pre-commit.md`](../engineering/pre-commit.md)).
 
-## One set of rows, two outputs
-
-`doc_scripts/generate_doc_indexes.py` builds each generated section as rows: a `Table`, a `Note` where a table would be empty, `Groups`, a heading over several tables, or a `Grid`, numbers laid out ten to a row (`doc_scripts/view_model.py`). `generated_blocks()` returns them all, in the order the views hold them. The markdown written into a view and the HTML on the site are both formatted from those rows, so what a view says has one source, and the generator's markdown is byte-for-byte what it was before the rows existed.
-
-A cell holds the markdown subset the views use: a link, an inline code span, or bold text, with a `|` escaped. `doc_site/markup.py` renders that subset and refuses anything else (a list, a code fence, a quote, a table, a heading or raw HTML in an introduction) so that a view which gains one fails the build instead of showing wrongly.
-
-The decision index's By number section is a `Grid`: one row for each ten numbers, labelled by the first three digits (`011x`), and one cell for each number. A cell is a link to the lineage's current revision, `0030 → 0104` for a number merged into another (linked to where it went), `0013 demoted` or `dropped` for a number in `removed.md` (linked to the ledger), a dash for a number nothing holds and blank beyond the ends. On the site the grid is a list of cells and not a table, so on a phone each row breaks in two halves of five, and the Decisions count is the cells that hold a lineage. A lineage's name, state and notes are in its row under By topic, which puts the short name in a `Decision` column before the problem and the current solution.
-
-By topic is `Groups`, which the site shows as tabs without a script: each group is a link beside its panel, and a rule in `assets/site.css` shows the panel of the group the address names, or the first when it names none, and hides the rest. Every group shows when the stylesheet is not applied, since the rule is what hides one. The row filter shows every group with a matching row while a filter is typed, so a row is found without knowing its group, and an address with a group's anchor, which is its heading's, opens that group.
-
-## Design principles
-
-Where a choice about a page is open, these decide it. Each says what the site does and what holds it.
-
-- **Content first, no script needed.** A page is complete without JavaScript and, apart from its layout, without the stylesheet. The script adds the row filter, the menu's open button and the copy button of a code block, and closes the contents list on a narrow screen; nothing a reader needs is reached only through it.
-- **One source, two outputs.** The site adds navigation (menus, breadcrumbs, a contents list, tabs over lists of links) and never content. A page says what its markdown file says, and every page links to the file.
-- **Show where you are.** A page names its place in its section in a breadcrumb, its own entry in the navigation, and its headings in a contents list; a heading of a long page links back to that list.
-- **Orient, don't hide.** Scrolling is reduced by showing the shape of a page, not by folding its narrative away. Only a list of links is ever tabbed, and a rule that names that one page decides it, so no other document is hidden by a guess.
-- **Every state has an address.** A heading, a tab and a section of a view each open from their anchor, so a link reaches them and the drift check holds the link. The text typed in a filter has no address.
-- **Prose at a readable measure, data at full width.** See [the stylesheet](#the-stylesheet).
-- **Targets and contrast.** A link in the menu, the contents list or a set of tabs, and a copy button, is at least 44 pixels tall, and the stylesheet's colours come from one set of tokens in a light and a dark scheme. The layout check measures the text's size and not the targets or the contrast, so reading a page on a phone is still how those are found.
+```mermaid
+flowchart LR
+    tree["docs/ and the views' rows"] --> build["python -m doc_site"]
+    build -- "Mermaid drawn to SVG" --> out["static site"]
+    out --> check["layout check"]
+    check -- passes --> deploy["GitHub Pages"]
+```
 
 ## Building the site
 
-From `tools/`:
+From `tools/`, build into a new directory and serve it on `localhost`:
 
-```sh
-python -m doc_site --commit "$(git rev-parse HEAD)" --out /tmp/site
+```bash
+cd tools
+site=$(mktemp -d)
+uv run python -m doc_site --commit "$(git rev-parse HEAD)" --out "$site"
 ```
 
-`--out` must be empty or absent. The site is `index.html`, which is the home page, one `<view>/index.html` for each view, one `projects/<name>/index.html` for each project, one `topics/<path>/index.html` for each topic doc, one `decisions/<lineage>/<revision>/index.html` for each decision revision, one `architecture/<name>/index.html` for each architecture doc, and `assets/`. A build that has a diagram to draw needs Google Chrome and `playwright`, as the layout check does. A build reads the tree and the commit it is given and nothing else (no clock, no git state, no network), so building twice from one tree and one commit gives the same bytes; a test holds that. `--commit` takes a full commit id; the command looks up that commit's date and hands both to the build. Without it the footer says "Local build".
+```bash
+uv run python -m http.server --bind 127.0.0.1 --directory "$site" 8000
+```
 
-## The footer
+- `--out` must be empty or absent. `--commit` takes a full commit id, whose date the command looks up; without it the footer says "Local build".
+- A build with a diagram to draw needs Google Chrome and `playwright`.
+- A build reads only the tree and the commit it is given (no clock, git state or network), so two builds of one tree and commit give the same bytes, which a test holds.
 
-Every page's footer names the commit it was built from, as a link to that commit, with the commit's date in UTC, and credits Simple.css with a link to its licence. GitHub Pages serves a page for up to about ten minutes after a deployment, so a reader who suspects a page is old compares the commit in the footer with `main`. The workflow and the pull request job both pass `"$GITHUB_SHA"`. The licence is served as `assets/simple-licence.txt`, the text of `vendor/simple.LICENSE`, because the vendored stylesheet carries no notice of its own and the licence asks for one with every copy.
+| Source | Page |
+| :--- | :--- |
+| `docs/README.md` | `/`, the home page |
+| a generated view | `<view>/` |
+| a project | `projects/<name>/` |
+| a topic doc | `topics/<path>/` |
+| a decision revision, and `removed.md` | `decisions/<lineage>/<revision>/`, `decisions/removed/` |
+| an architecture doc | `architecture/<name>/` |
+| a section's README | the section's address |
 
-## Asset names
+`TEMPLATE` files have no page.
 
-`assets/` names each file by the first ten hex digits of its sha256 (`site.3ba5af8963.css`, `simple.fb06245826.css`, `site.eedc88a706.js`) and every page names the file that goes with it, so a cache that holds an old page is never given the new stylesheet, nor a new page the old one. The second matters for `simple.css`: its `integrity` attribute refuses a stylesheet that is not the file the page was built with. The licence keeps its name; a page and a licence that differ cannot break a layout.
+## Design principles
 
-Each page takes its `# Title` and introduction from the view's file in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros) and its sections from the rows. The generator writes the markdown view from the same file and the same rows, so the view and the page say the same. An introduction holds no `##` section: a section written by hand would be dropped from the page, so the build refuses it. The page does not show the introduction as one block. A paragraph that opens with a section's name in bold (`**Roadmap** has one row for each initiative`) is that section's caption and sits under its heading. The first other paragraph is the lede under the title, and the remaining ones (a definition several sections share) are in a "How to read this page" disclosure. The generated markdown view still reads the whole file in order. A paragraph whose section is renamed is not lost: it falls into the disclosure, so rename the bold name with the heading. The links in an introduction are written for the view's place in `docs/`, and the drift checks read them in the generated view.
+Where a choice about a page is open, these decide it.
 
-## The counts
+| Principle | What the site does |
+| :--- | :--- |
+| **Content first, no script needed** | A page is complete without JavaScript and, apart from its layout, without the stylesheet. The script only adds the row filter, the menu's open button and the copy buttons, and closes the contents list on a narrow screen |
+| **One source, two outputs** | The site adds navigation (menus, breadcrumbs, contents lists, tabs), never content. A page says what its file says, and links to it |
+| **Show where you are** | A breadcrumb, the page's own entry in the navigation, and a contents list of its headings |
+| **Orient, don't hide** | Show a page's shape rather than folding its narrative away. Only a list of links is tabbed, by a rule that names the one page |
+| **Every state has an address** | A heading, a tab and a view's section open from their anchor. A filter's text has no address |
+| **Readable measure, full-width data** | See [the stylesheet](#the-stylesheet) |
+| **Targets and contrast** | Menu, contents and tab links and copy buttons are at least 44 pixels tall; colours come from one set of tokens, light and dark. No check measures either, so read a page on a phone |
 
-The planning page and the decision index open with a strip of counts, each linking to the section it counts ([`summary.py`](../../../tools/doc_site/summary.py)). The planning page shows the projects in progress, startable and waiting (a link in a roadmap cell is a project; its "unblocks" count is not one), the decisions awaiting a project with how many of them are approved, and the open explorations. The decision index shows every decision, the open ones with how many are approved, and the superseded or abandoned ones. Each is counted from the rows of its section, so it cannot disagree with the table. A count that names a section the page lacks shows 0 and links nowhere; a view the module does not know has no strip.
+## Generated views
 
-## Roadmap chips
+`doc_scripts/generate_doc_indexes.py` builds each generated section as rows (`doc_scripts/view_model.py`): a `Table`, a `Note` where a table would be empty, `Groups` (a heading over several tables) or a `Grid` (numbers ten to a row). The views' markdown and the site's HTML are both formatted from those rows. A cell holds a link, an inline code span or bold text, with `|` escaped; `doc_site/markup.py` refuses anything else, so a view that gains it fails the build instead of showing wrongly.
 
-In the roadmap each project in the In progress, Startable and Waiting columns is a chip, a link named by the project without its `.md`, coloured by its column, with an "unblocks N" badge where the row has one. A cell that is anything other than a comma-separated list of project links (a dash, say) is rendered as text, so a change to the cell's form shows as plain links and loses nothing. No other table has chips.
+Each view's `# Title` and introduction come from [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intros). On the page the introduction is split:
+
+| Paragraph | Shows as |
+| :--- | :--- |
+| Opens with a section's name in bold (`**Roadmap** has ...`) | that section's caption |
+| The first other one | the lede under the title |
+| The rest, including one whose section was renamed | a "How to read this page" disclosure |
+
+An introduction holds no `##` section, which the build refuses because the page would drop it. Its links are written for the view's place in `docs/`, where the drift checks read them.
+
+| Part | Behaviour |
+| :--- | :--- |
+| Counts strip ([`summary.py`](../../../tools/doc_site/summary.py)) | On the planning page and decision index, each count links to its section and is counted from that section's rows. A missing section shows 0 and no link |
+| Roadmap chips | Each project in the In progress, Startable and Waiting columns is a chip coloured by column, with an "unblocks N" badge. A cell that is not a list of project links shows as text |
+| By number grid | One row per ten numbers (`011x`). A cell links a lineage's current revision, `0030 → 0104` for a merged number, the removal ledger for `demoted` or `dropped`; a dash is a free number. On a phone each row breaks in two |
+| By topic | Tabs without a script: the stylesheet shows the panel the address names, or the first. A filter shows every group with a match, and all groups show with no stylesheet |
 
 ## Document pages
 
-A document with a page of its own is a markdown file of the repository, shown as it reads on GitHub ([ADR 0119 (Docs as site pages)](../../decisions/0119-reading-the-documentation-tree-away-from-github/revision-000.md)). The projects, the topic docs, the decision revisions, the architecture docs and the READMEs of `docs/projects/`, `docs/topics/`, `docs/decisions/` and `docs/architecture/` have pages, at `projects/<name>/`, `topics/<path>/`, `decisions/<lineage>/<revision>/`, `architecture/<name>/`, `projects/`, `topics/`, `decisions/` and `architecture/`, and the list of removed decision numbers is at `decisions/removed/`; the README of `docs/` is the home page, the `TEMPLATE` files have none, and the generated coverage view is a view, not a topic doc. `doc_site/documents.py` reads the body with a CommonMark library (`markdown-it-py`), so lists, tables and code blocks follow GitHub's rules, and it refuses what it has no rule for, as `markup.py` does for the views: raw HTML and an image. An HTML comment is dropped, as GitHub does not show it. An error names the file and the line. The `check-doc-drift` hook imports the site to read its anchors, so it pins `markdown-it-py` beside `jinja2` in `.config/.pre-commit-config.yaml`; a new library the renderer imports goes there too.
+A document page is a repository file shown as it reads on GitHub. `doc_site/documents.py` reads it with `markdown-it-py` (CommonMark) and refuses raw HTML and images, naming the file and line; an HTML comment is dropped. The `check-doc-drift` hook imports the site to read its anchors, so a library the renderer imports is also pinned in that hook's `additional_dependencies` in `.config/.pre-commit-config.yaml`.
 
-- The first top-level heading is the page's title, and the front matter is read for a header above the body: the status as a pill, whether the project is blocked, the project it is part of, its decision, the projects it waits on as links to their pages, and its summary as the lede.
-- A decision revision's header names its record (the lineage and the revision), its state as a pill, and, where it has them, `light` weight, the revision it supersedes and the one that supersedes it, the lineage it narrows, the lineages it relies on with the reason for each, the lineages related to it and the projects that name it in `decision:` or `also_implements:`. A lineage is linked at its current revision and shown as `ADR 0117 (Generated doc views)`, the form the docs cite it in; one that is no longer in the tree is named and not linked. A superseded revision carries a notice above the header that names its successor. The generated decision index links each row to these pages.
-- A decision page whose lineage has two or more revisions lists all of them under the header, each with its state, the current one marked and the one being read marked and not linked. Every decision page ends with links to the decisions before and after it by number, each at its current revision.
-- A heading has the anchor GitHub gives it, and a `##` or `###` heading is in the menu's list of the page.
-- A document page with four or more headings in its menu lists them under "On this page" on the page, between its introduction and its first section, and each `##` heading ends with a link back to the list. The list is a `<details open>`, so it shows with no script or stylesheet; at 1100 pixels and wider it sits in the column beside the prose, which keeps its measure and leaves tables and code the width the column does not take, and below that `assets/site.js` closes it so a phone starts on the text, and opens it again if the screen widens. It does not stay on screen as the page scrolls: the link at each heading is how a reader gets back to it. A heading whose anchor is `on-this-page` stops the build, as the list's own address. The home page, the views and the Topics index have no such list.
-- The Topics index shows each `##` group as a tab, as the decision index shows its By topic groups: a link beside its panel, the panel of the group the address names (the first when it names none) shown by the stylesheet alone, a filter over the rows that shows every group with a match, and every group showing when the stylesheet is not applied. The group's anchor is its heading's, so the `topics/#<group>` link in a topic page's breadcrumb opens that tab. `TABBED_DOCUMENTS` in `site.py` names this one page; no other document is tabbed because of how it looks. The tabs are made from the README's own headings and links, so the document does not change.
-- The home page is the README of `docs/`, its address following its path like every other page: the tiles of the navigation's entries come first and the README's body follows under its title, with its headings in the menu. A link to that README from another page goes to the home page.
-- The navigation lists Planning, Projects, Decisions, Topics, Architecture and DR coverage, and a page under `projects/` or `topics/` marks its own entry, as a decision page marks Decisions, whose entry opens the index. The home page has a tile for each.
-- Each section opens on a list. Projects opens on the projects with their status and initiative, built from the front matter, above the README, which sits under a "Guide to projects" heading that a link in the breadcrumb reaches; Decisions opens on the decision index, and its README is the guide that the breadcrumb links; Topics and Architecture open on their READMEs.
-- A page under a section starts with a breadcrumb: the section, linked unless the page is its landing, then where the page is in it (a decision's `ADR` and revision, a topic's group when the topics README has a heading for it, otherwise the title). A page that has the section's guide shows it at the end of the line. A README of a section is its landing, so every page of the section is one link from it.
-- A link to a page of the site goes to it with its anchor kept, and a link to any other file goes to it on GitHub, as in a view. A link from a project to a view or to another project is therefore a link between pages.
-- A list item that starts `[ ]` or `[x]` is a disabled box, so a closing checklist reads as one. The page does not change the file: the box is not a control.
-- A table takes the same card layout as a view on a phone, each cell labelled by its column, and a `Status` cell is a pill. A code block wraps, as the layout check refuses a block that scrolls sideways.
-- Each code block of a document page has a copy button in its top right corner, which `assets/site.js` adds where the browser has a clipboard: over HTTPS or on `localhost`. Its icon turns into a tick, or a cross if the browser refuses the write, and a screen reader hears the same as a word. It copies the block's text without the final newline, so a terminal does not run the last line as it is pasted. A block is written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)), so the button copies all of it.
-- Every page links to its file on GitHub, where the document can be edited.
+| Element | On the page |
+| :--- | :--- |
+| First top-level heading | the title |
+| Project front matter | status pill, blocked flag, parent project, decision, the projects it waits on, summary as lede |
+| Decision header | lineage and revision, state, `light` weight, what it supersedes and is superseded by, narrowed, relied-on and related lineages, and the projects naming it. A removed lineage is named, not linked |
+| Superseded revision | a notice naming the successor |
+| A lineage with several revisions | all of them listed with state; the current and the one being read marked |
+| End of a decision page | links to the decisions before and after by number |
+| `##` and `###` headings | GitHub's anchors, listed in the menu |
+| Four or more menu headings | an "On this page" list, and a link back to it at each `##` |
+| A link to a page of the site | stays on the site, anchor kept; any other file goes to GitHub |
+| `[ ]`, `[x]` list items | disabled checkboxes |
+| Tables | cards on a phone, each cell labelled; a `Status` cell is a pill |
+| Code blocks | wrapped, with a copy button |
+
+- **Contents list.** A `<details open>`, so it needs no script. From 1100 pixels wide it sits beside the prose; below that the script closes it. It does not stay on screen. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
+- **Copy button.** Added in the top right corner where the browser has a clipboard (HTTPS or `localhost`). Its icon turns into a tick, or a cross if the write is refused, with the same said to a screen reader. It copies the block without the final newline, so a pasted last line is not run. Blocks are written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)).
+- **Navigation.** Planning, Projects, Decisions, Topics, Architecture and DR coverage; the home page has a tile for each.
+- **Section landings.** Projects opens on a list of projects by status and initiative, above its README; Decisions on the decision index, with the README as a guide in the breadcrumb; Topics and Architecture on their READMEs.
+- **Breadcrumb.** The section, then where the page is in it, then the section's guide if it has one.
+- **Topics tabs.** Each `##` group of the Topics index is a tab, made from the README's own headings, with the same filter and no-stylesheet behaviour as By topic. `TABBED_DOCUMENTS` in `site.py` names this one page.
 
 ## Diagrams
 
-A Mermaid block is drawn to SVG during the build, so no script reaches a reader and a diagram shows without one. `doc_site/diagrams.py` runs the bundle `vendor/mermaid.min.js` in the installed Chrome, headless, in a page made from nothing with every request refused, at Mermaid's strict security level. Every diagram of the site is drawn in one browser session, twice, in Mermaid's light and dark themes, and the page holds both: the stylesheet shows the one the reader's `prefers-color-scheme` asks for. The drawing takes about ten seconds for the repository's diagrams. A diagram that does not draw stops the build with the file, the line of its fence and Mermaid's message. The seed Mermaid uses for the outline of a node is fixed, so two builds of one tree are the same bytes, which a test holds.
+A Mermaid block is drawn to SVG during the build, so a reader needs no script. `doc_site/diagrams.py` runs the vendored bundle in headless Chrome, in an empty page with every request refused, at Mermaid's strict security level.
 
-The block's source is not shown; GitHub shows the diagram too, and a reader who wants the source opens the file there. A diagram is scaled to the width of its column, and the check holds it to the page like any other block. `page_anchors`, which the drift check calls, draws nothing, because an anchor does not depend on it.
+- Each diagram is drawn in the light and dark themes, and the stylesheet shows the one `prefers-color-scheme` asks for.
+- A diagram that does not draw stops the build with the file, the fence's line and Mermaid's message.
+- The seed for node outlines is fixed, which keeps builds reproducible.
+- The block's source is not shown, and a diagram is scaled to its column.
+- `page_anchors`, which the drift check calls, draws nothing.
 
 ## Anchors and links
 
@@ -84,52 +117,81 @@ Every heading has the anchor GitHub gives it: lowercase, everything but letters,
 
 ## The stylesheet
 
-The page is styled with [Simple.css](https://simplecss.org/) (MIT), committed at `tools/doc_site/vendor/simple.min.css`, with its licence beside it. `vendor/simple.pin` names the npm package, the version, the file taken from it, that file's sha256 and the GitHub repository the package is built from. The site makes no request to a third party; nothing is fetched at build time or by a reader's browser.
+Pages use [Simple.css](https://simplecss.org/) (MIT) and diagrams use Mermaid, both vendored: nothing is fetched at build time or by a reader's browser. `site.css` and `site.js` in `tools/doc_site/assets/` are this repository's.
 
-The Mermaid bundle is vendored the same way, as `vendor/mermaid.min.js` with `vendor/mermaid.pin` and `vendor/mermaid.LICENSE` (MIT, copied from the package; an update does not rewrite it). Its pin has `source = registry`: the repository builds the bundle and does not commit it, so there is no tagged file to compare, and `--upstream` holds the file and the pin to the registry's tarball alone. Both pins are checked by the one test, by `python -m doc_site.vendor` without arguments, and the build checks the bundle's hash before it runs it.
+Prose (paragraphs, lists, quotes, headings, the lede) keeps one reading measure; tables, code blocks and figures use the page's width, less the contents column. A view's lede, captions and legend run as wide as its table.
 
-- A test fails when the committed file's hash differs from the pin.
-- `python -m doc_site.vendor --upstream` also compares both with the tarball the npm registry serves for that version, read in memory and never extracted, and with the same file at the repository's `v<version>` tag, so a tarball that differs from the published source fails.
-- `python -m doc_site.vendor --pin simple --update VERSION` (or `--pin mermaid`) replaces the file and the pin together, and writes nothing when the tarball and the tag differ.
+| | Simple.css | Mermaid |
+| :--- | :--- | :--- |
+| File in `tools/doc_site/vendor/` | `simple.min.css` | `mermaid.min.js` |
+| Pin | `simple.pin` | `mermaid.pin` |
+| Licence | `simple.LICENSE` | `mermaid.LICENSE` (an update does not rewrite it) |
+| `--upstream` compares with | the npm tarball and the repository's `v<version>` tag | the npm tarball only (`source = registry`: the bundle is not committed upstream) |
 
-The stylesheet has no trailing newline and the bundle has trailing spaces, as published, so `end-of-file-fixer` and `trailing-whitespace` skip `tools/doc_site/vendor/` and the drift check's anchor scan skips `tools/tests/doc_site/`, whose fixtures hold example links to files that exist only in their temp trees.
+A pin names the package, version, file, the file's sha256 and the source repository. A test fails when a committed file's hash differs from its pin, and the build checks the bundle's hash before running it. From `tools/`, check both pins against upstream (nothing is extracted):
 
-Renovate moves only the `version` line of either pin, because it has no digest for a file inside an npm tarball. The pull request it opens fails the pin test until `--update` has been run for that pin with that version, which writes the file and the new hash in one step.
+```bash
+uv run python -m doc_site.vendor --upstream
+```
 
-The card layout, the menu drawer, the row filter, the contents list and the copy buttons are `assets/site.css` and `assets/site.js`, which belong to this repository. The page works without JavaScript; the script only adds the filter, the drawer's open button and the copy buttons, and closes the contents list on a narrow screen.
+Renovate moves only a pin's `version` line, so its pull request fails the pin test until the file and hash are updated together. `--update` writes nothing when the tarball and tag differ. Use `mermaid` for the other pin:
 
-A document page sets its prose (paragraphs, lists, quotes, headings, the lede and the notice) to one reading measure, and lets its tables, code blocks and figures use the width of the page, less the column of its contents list where it has one. A view sets no measure on its lede, caption or legend, so they run as wide as the table and the filter under them.
+```bash
+pin=simple
+read -r -p 'version on the pin line Renovate changed: ' version && uv run python -m doc_site.vendor --pin "$pin" --update "$version"
+```
+
+Both files are kept byte for byte as published, so `end-of-file-fixer` and `trailing-whitespace` skip `tools/doc_site/vendor/`. The drift check's anchor scan skips `tools/tests/doc_site/`, whose fixtures link to files that exist only in temporary trees.
+
+## What each page carries
+
+- **Footer:** the commit it was built from, linked, with its date in UTC, and the Simple.css credit with its licence (`assets/simple-licence.txt`, since the vendored file carries no notice). Pages are cached for about ten minutes, so compare the footer with `main` when one looks old.
+- **Asset names:** each file in `assets/` is named with part of its sha256, so an old page never gets a new stylesheet or the reverse. The licence keeps its name.
+- **Integrity:** the stylesheet's `<link>` has a sha384 `integrity` computed from the bytes written, so an update needs no second step. A test holds it to the file.
 
 ## The layout check
 
-```sh
-python -m doc_site.layout /tmp/site
+With the site built above, from `tools/`:
+
+```bash
+uv run python -m doc_site.layout "$site"
 ```
 
-The check serves a built site on localhost and opens every page in the installed Google Chrome, headless, at 360, 390, 768 and 844 pixels wide and 800 tall (two portrait phones, a small tablet and a wide screen), and at 844 by 390, a phone in landscape. A page with a contents list or tabs is opened at 1280 by 800 as well, the width where the list has a column of its own; other pages are not, since nothing about them changes there. A page is loaded once and resized to each size, and the pages are dealt out to four browsers that run side by side, so the time is a fraction of loading every page at every size in one browser; the errors come out in the order of the pages and then of the sizes, whichever browser found them. A script that calls `check` from outside the module needs the usual `if __name__ == "__main__"` guard, as the browsers are started as new processes. It needs Chrome and `playwright` (a dev dependency), and downloads nothing; the runner image has Chrome. A page fails when it scrolls sideways, when an element ends past the right edge of the screen, when a block holds text wider than the block (a table cell or a card cell that overflows its box), when visible text is under 12 pixels, when a bar that stays on screen (`position: sticky` or `fixed`, a menu drawer aside) takes more than a fifth of the height, or when a link to a heading of the page leaves the heading under such a bar. The header is sticky except on a screen under 30rem tall, where it scrolls away, so that landscape check passes; `html` has a `scroll-padding-top` that keeps a linked heading clear of it. Text hidden for screen readers, such as the table header that the card layout hides, is not on the screen and is not measured. Where the page has a menu button the check also opens the drawer, holds it to the same rules, and fails if the button opens nothing. Every error names the page, the width and the element.
+It serves the site on `localhost` and opens every page in headless Chrome at each size of `VIEWPORTS` in [`layout.py`](../../../tools/doc_site/layout.py) (portrait phones, a small tablet, a wide screen and a landscape phone); a page with a contents list or tabs also at `WIDE_VIEWPORT`. It needs Chrome and `playwright` and downloads nothing. Every error names the page, width and element.
 
-`python -m doc_site.layout --sample /tmp/site` opens a fixed set instead of every page: the home page, every page one directory deep (the three views and the landing of each section, the Topics index among them), the first page of each of Projects, Decisions, Topics and Architecture, and the page with a contents list that has the most markup, which is the longest document. It takes about seven seconds where the full run takes about a minute. The set does not grow with the number of pages, and `layout.MAX_SAMPLE` bounds it, which a test holds with a site of hundreds of pages, so a new view or section that pushes the sample past it fails there and not as a slow pull request.
+A page fails when:
 
-`--changed FILE`, with `--sample`, reads the paths a change touches, one to a line, and adds the page of each document among them: `docs/topics/a/b.md` is `topics/a/b/`, a README is its directory's page and the README of `docs/` is the home page. A document's layout comes from its own text and the renderer, so a fault a change makes in a document is found on the pages the change names. A path under `tools/doc_site/` can break any page, so it checks every page, as a run without `--sample` does. The pages a change names are the most a sample can grow by, and every page is the most a run can open.
+- it scrolls sideways, or an element ends past the right edge;
+- a block, table cell or card cell holds text wider than itself;
+- visible text is under `MIN_FONT_PX` (text hidden for screen readers is not measured);
+- a sticky or fixed bar takes more than `MAX_BAR_SHARE` of the height (the header is not sticky on a short screen);
+- a link to a heading leaves the heading under such a bar (`scroll-padding-top` prevents this);
+- the menu button opens nothing, or the open drawer breaks a rule above.
 
-A check on what the page measures cannot see a layout that is readable by the numbers and wrong to the eye, such as words broken in the middle in a narrow column. Reading the page on a phone is still how that is found.
+The sample run opens a fixed set (the home page, the pages one directory deep, one page of each section and the largest page with a contents list), which `MAX_SAMPLE` bounds and a test holds. `--changed` adds the page of each document a file of paths names, and every page if a path is under `tools/doc_site/`:
+
+```bash
+changed=$(mktemp)
+git diff --name-only origin/main...HEAD > "$changed"
+uv run python -m doc_site.layout --sample --changed "$changed" "$site"
+```
+
+The check cannot see a layout that measures well and reads badly, such as words broken mid-word in a narrow column. A script calling `check` itself needs an `if __name__ == "__main__"` guard, as the browsers run as new processes.
 
 ## Publishing
 
-`.github/workflows/pages.yml` runs on every push to `main` and on demand. It has two jobs, so that what builds does not hold what deploys:
+[`pages.yml`](../../../.github/workflows/pages.yml) runs on every push to `main` and on demand.
 
-- `build` has a read-only token. It builds the site, runs the layout check and uploads the result as the Pages artifact, in that order, so a layout that breaks a phone is never deployed.
-- `deploy` runs no repository code. It holds `pages: write` and `id-token: write` and no `contents` permission at all, so it writes a deployment and no branch or tag. It runs in the `github-pages` environment.
+| Job | Permissions | Does |
+| :--- | :--- | :--- |
+| `build` | read-only | builds, runs the full layout check, then uploads the Pages artifact, so a broken layout is never deployed |
+| `deploy` | `pages: write`, `id-token: write`, no `contents` | runs no repository code; deploys in the `github-pages` environment |
 
-One run goes at a time and one waits, and a newer waiting run replaces an older one, so a burst of merges ends with the newest commit deployed. A run that has started is never cancelled halfway through a deployment. Every action is pinned by commit and kept current by Renovate. `tools/tests/doc_site/test_pages_workflow.py` fails a `contents: write` on any job or on the workflow, a deploy job with permissions other than those two, a layout check that does not sit between the build and the upload, and an action that is not pinned by commit.
+- One run goes at a time and one waits; a newer one replaces the waiting one, and a started run is never cancelled mid-deployment.
+- [`test_pages_workflow.py`](../../../tools/tests/doc_site/test_pages_workflow.py) fails `contents: write`, other deploy permissions, a layout check not between build and upload, and an unpinned action.
+- Two settings live on GitHub, not in the workflow: the Pages source is GitHub Actions, and the `github-pages` environment accepts only `main`.
 
-Two settings are the maintainer's and live on GitHub: the repository's Pages source is GitHub Actions, and the `github-pages` environment accepts a deployment from `main` only. The workflow sets neither, and a deployment from another branch is refused by the environment, not by this file.
-
-The `doc-site` job in `pr-checks.yml` runs the same build on a pull request that changes the renderer, the generator or what they read, which includes every document under `docs/` ([change scoping](../engineering/ci/change-scoping.md)), and checks the layout of the sample above with the pages of the documents the pull request changes, or of every page when it changes the renderer, where the deploy checks every page. It lists the changed paths with `git diff` between the pull request's base and head commits, so its checkout has the whole history. It deploys nothing and has no write permission. A layout fault the pull request does not cause in a page it does not name is found by the deploy's run, before that deployment.
-
-## Subresource integrity
-
-The stylesheet's `<link>` carries an `integrity` attribute with the sha384 of the vendored file, computed when the site is built from the bytes it writes, so it has no pin of its own to keep in step with `simple.pin` and a stylesheet update changes it with no further step. A test holds the attribute to the file.
+On a pull request, the `doc-site` job of `pr-checks.yml` runs the same build when the renderer, the generator or what they read changed, which includes every doc ([change scoping](../engineering/ci/change-scoping.md)). It checks the sample plus the changed documents, or every page when the renderer changed. It deploys nothing. A fault on a page it does not open is caught by the deploy's full check.
 
 ## Linking a view
 

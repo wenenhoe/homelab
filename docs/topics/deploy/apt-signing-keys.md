@@ -55,5 +55,18 @@ the role uses and requires exactly one primary key with the pinned fingerprint.
 It runs weekly and in the pull request job that a pin change triggers
 ([Release checksum check](../engineering/ci/release-checksum-check.md#apt-signing-keys)),
 so a rotation fails a scheduled run before it stops a deploy. A vendor it can't
-reach fails the run too. The Molecule scenarios of both roles download the real
+reach fails the run too. Run it by hand, from the repository root:
+
+```bash
+cd tools && python3 -m ci.checksums.aptkeys
+```
+
+To read the key a host holds:
+
+```bash
+host=security
+ssh "$host" 'gpg --show-keys --with-fingerprint /etc/apt/keyrings/docker.asc'
+```
+
+ The Molecule scenarios of both roles download the real
 keys as well, so a pin that is wrong fails there first.

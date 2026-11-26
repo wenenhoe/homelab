@@ -13,18 +13,24 @@ adds two things on top, neither changing how the app itself runs:
   ownership from the image instead of coming up root-owned. Without
   this, wastebin (forced non-root by `user: 10001:10001` in
   `compose.yaml`, matching the image) can't open its own SQLite database
-  file on a fresh volume. This inheritance only happens on a volume's
-  first mount — a volume already populated before `user:`/the Dockerfile
-  matched `10001:10001` needs a manual one-time `chown -R 10001:10001`
-  against it directly; nothing does this automatically.
+  file on a fresh volume. This inheritance only happens on a volume's first mount.
+
+A volume already populated under another owner needs a one-time ownership fix on the
+host, with wastebin stopped; nothing does it automatically:
+
+```sh
+docker run --rm -v wastebin_data:/data alpine chown -R 10001:10001 /data
+```
 
 A GitHub Actions workflow (`.github/workflows/build-wastebin-image.yml`)
 builds and pushes the result to `ghcr.io/wenenhoe/wastebin`, tagged by
 wastebin version. Hosts pull it like any other app's image — the generic
 `compose_app` role has no build step.
 
-Triggers: push to `main` when `docker/wastebin/Dockerfile` changes,
-weekly on schedule (catches an upstream `busybox`-musl patch landing
-with no Dockerfile text change), and `workflow_dispatch`. Same shape as
-`build-caddy-image.yml` — see [`caddy.md`](caddy.md) for the more
-heavily-annotated original.
+| Trigger | Why |
+| :--- | :--- |
+| Push to `main` changing `docker/wastebin/Dockerfile` | The usual build |
+| Weekly schedule | Picks up an upstream `busybox` musl patch that changes no Dockerfile text |
+| `workflow_dispatch` | By hand |
+
+Same shape as `build-caddy-image.yml`; see [`caddy.md`](caddy.md) for the more heavily-annotated original.

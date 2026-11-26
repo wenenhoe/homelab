@@ -43,6 +43,12 @@ reports unhealthy even though the CA is running fine. This is a
 well-documented footgun upstream; several people have hit exactly this
 running step-ca behind a reverse proxy or on Docker Swarm.
 
+To read it on `security`:
+
+```sh
+docker inspect -f '{{.State.Health.Status}}' step-ca
+```
+
 ## Network
 
 Reachable only on `caddy-proxy`, by container name (`step-ca:9000`) —
@@ -70,13 +76,17 @@ available:
 docker run --rm -it --network caddy-proxy smallstep/step-cli sh
 ```
 
-Inside that shell:
+The CA root's fingerprint, on the host running step-ca (also in
+`docker compose logs step-ca` from its first start):
 
 ```sh
-# paste alone; it waits for the CA root's fingerprint, shown when step-ca
-# first initialized (`docker compose logs step-ca` on the host, or
-# `docker exec step-ca step certificate fingerprint /home/step/certs/root_ca.crt`),
-# then your lan_domain
+docker exec step-ca step certificate fingerprint /home/step/certs/root_ca.crt
+```
+
+Inside the test shell:
+
+```sh
+# paste alone; it waits for that fingerprint, then your lan_domain
 read -r -p 'fingerprint: ' fingerprint; read -r -p 'lan_domain: ' lan_domain
 ```
 

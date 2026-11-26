@@ -54,6 +54,18 @@ Before the volume is seeded, every run validates the staged Caddyfile with `cadd
 file via `volume.subpath`) plus `data`/`config` for certs and admin-API
 state.
 
+## Checking the served certificate
+
+```sh
+# paste alone; it waits for a routed hostname
+read -r -p 'hostname: ' name
+```
+
+```sh
+openssl s_client -connect "$name:443" -servername "$name" </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -issuer -enddate
+```
+
 ## Cert-expiry alerting
 
 `caddy_cert_expiry` (a separate role, runs right after this one in Play

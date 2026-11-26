@@ -16,28 +16,31 @@ current by two host-level Ansible roles rather than a sidecar container.
 Renewal runs on the host: `step_ca_cert`'s systemd unit runs as `root` and
 restarts the container via `docker compose`, with no Docker socket proxy. See
 [ADR 0009 (Internal service certificates)](../../decisions/0009-internal-service-certificate-issuance-and-renewal/revision-000.md)
-for why this replaced the old `certbot`/`dockerproxy` pair.
+for why.
+
+```mermaid
+flowchart TD
+    I["Ansible, once:<br/>step ca certificate<br/>with the provisioner password"] --> V[("lldap_certs volume")]
+    T["cert-renewer@lldap.timer"] --> D{"Renewal due?"}
+    D -->|no| X["Skip, not a failure"]
+    D -->|yes| R["step ca renew,<br/>mTLS with the current cert"]
+    R --> V
+    R -->|succeeds| S["Restart lldap,<br/>then tinyauth"]
+    R -->|fails| A["Telegram alert"]
+```
 
 ## Why renewal is a systemd timer, not an in-container daemon
 
-Smallstep's own renewal docs recommend exactly this pattern — a
-`cert-renewer@.service`/`.timer` template pair, not a long-running
-`step ca renew --daemon` process — and `step_ca_cert`'s templates
-(`ansible/roles/step_ca_cert/templates/`) are adapted from their real
-`cert-renewer@.service`/`.timer` files
-(github.com/smallstep/cli/tree/master/systemd), not hand-rolled from
-scratch. The only real adaptation: their canonical `ExecStartPost`
-reloads a systemd service unit matching the cert's name
-(`systemctl try-reload-or-restart %i`) — there's no systemd unit
-representing a Docker Compose service here, so it runs
-`docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i`
-instead (or sends `SIGHUP` instead of restarting, for an instance whose
-own env file sets `RENEW_ACTION=signal` — see
-[`deployment.md`](../security/openbao/deployment.md)). That generalizes to any
-`compose_deploy_dir/<app>/compose.yaml`-shaped step-ca consumer, not
-just lldap — openbao's own instance already uses it (see
-[`deployment.md`](../security/openbao/deployment.md)), and every app in this repo already follows
-that layout (see [`adding-an-app.md`](../deploy/adding-an-app.md)).
+Smallstep recommends a `cert-renewer@.service`/`.timer` template pair over a
+long-running `step ca renew --daemon`, and `step_ca_cert`'s templates are adapted from
+[theirs](https://github.com/smallstep/cli/tree/master/systemd). The one adaptation:
+their `ExecStartPost` reloads a systemd unit named after the cert, and a Compose service
+has none, so this runs
+`docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i`, or sends
+`SIGHUP` for an instance whose env file sets `RENEW_ACTION=signal`
+([`deployment.md`](../security/openbao/deployment.md)). It fits any step-ca consumer laid
+out as `compose_deploy_dir/<app>/compose.yaml`, as every app here is
+([`adding-an-app.md`](../deploy/adding-an-app.md)); OpenBao's instance uses it too.
 
 An instance can also list apps in `RENEW_RESTARTS_AFTER`, which are restarted
 after its own restart. For lldap that is `tinyauth`: tinyauth holds one LDAP
@@ -47,35 +50,28 @@ with lldap closes that window. The catalog's `restart_after` for lldap names
 tinyauth, and both the renewer and the `compose` role read it: a deploy that
 recreates or restarts lldap restarts tinyauth too.
 
-A renewal failure shows up as a failed systemd unit
-(`systemctl status cert-renewer@lldap.service`,
-`journalctl -u cert-renewer@lldap.service`) and pages a Telegram topic
-via `OnFailure=` (see
-[`telegram-notifications.md`](../monitoring/telegram-notifications.md)).
+A renewal failure is a failed systemd unit and pages a Telegram topic via `OnFailure=`
+([`telegram-notifications.md`](../monitoring/telegram-notifications.md)). On the host:
+
+```sh
+systemctl status cert-renewer@lldap.service
+journalctl -u cert-renewer@lldap.service --no-pager -n 20
+```
 
 ## `step` runs via its container image, not a host-installed binary
 
-Both `ExecCondition` and `ExecStart` in `cert-renewer@.service.j2` (and
-`step_ca_cert`'s own one-time issuance task) run `step` as a throwaway
-`smallstep/step-cli` container (`docker run --rm ...`) rather than a
-package installed on the host. This repo has no other third-party apt
-repo anywhere, and the container approach avoids being the first one:
-`step_ca_client` only ever caches step-ca's root cert to a host path,
-never installs anything.
+`ExecCondition` and `ExecStart` in `cert-renewer@.service.j2`, and the one-time issuance
+task, run `step` as a throwaway `smallstep/step-cli` container. That adds no apt
+repository or package to the host: `step_ca_client` only caches step-ca's root cert to a
+host path.
 
-The container mounts the app's own `<app>_certs` volume directly by
-name — `%i_certs`, using systemd's own instance-parameter expansion —
-rather than resolving that volume's host filesystem path first. Every
-field that once needed a per-app copy of the whole template
-(`CA_URL`/`STEP_CLI_IMAGE`/`NETWORK`, and — for openbao's own instance —
-whether to restart or signal, and whether to chown the cert back to a
-non-root user) is instead resolved via `%i`'s own
-`/etc/cert-renewer/%i.env` (rendered per instance, read by systemd's
-`EnvironmentFile=`), so the template itself stays one file, identical
-for every instance. `--user root` on the container sidesteps a real,
-confirmed issue: `smallstep/step-cli`'s default non-root user can read a
-freshly created Docker volume's root directory but not write new files
-into it.
+- The container mounts the app's certs volume by name, `%i_certs`, instead of resolving
+  its host path.
+- Per-instance settings (`CA_URL`, `STEP_CLI_IMAGE`, `NETWORK`, restart or signal,
+  whether to chown the cert back to a non-root user) come from
+  `/etc/cert-renewer/%i.env`, so one template serves every instance.
+- It runs with `--user root`, because the image's default user can read a fresh Docker
+  volume's root directory but not write into it.
 
 ## Why initial issuance and renewal use different auth
 
@@ -98,10 +94,9 @@ setup's own `--san` pattern.
 
 ## Closing tinyauth's trust gap
 
-Once lldap's cert stops coming from a publicly-trusted CA, tinyauth's
-own `insecure: false` (already the default — see `config.yaml.j2`) just
-starts failing verification instead of silently doing nothing, unless
-tinyauth is told to trust step-ca's root. tinyauth's schema has no
+lldap's cert comes from a private CA, so with tinyauth's `insecure: false` (the
+default, see `config.yaml.j2`) verification fails unless tinyauth trusts step-ca's
+root. tinyauth's schema has no
 `caCert`/`caFile` option of its own (only `insecure` and the
 unrelated `authCert`/`authKey` mTLS pair), so `tinyauth_ca_trust`
 (`ansible/roles/tinyauth_ca_trust/`, same Play 6) takes a different
@@ -145,7 +140,7 @@ using the same `tinyauth-ldap-observer-password` secret `config.yaml.j2`
 already renders — see
 [`secrets.md`](../security/secrets.md#syncing-the-ldap-observer-account-password).
 
-DO_CLEANUP=false, so it only ever touches the `observer` account. Safe
+It runs with `DO_CLEANUP=false`, so it only ever touches the `observer` account. Safe
 to re-run: `bootstrap.sh` updates the existing account in place instead
 of erroring.
 

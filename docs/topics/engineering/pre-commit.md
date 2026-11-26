@@ -2,20 +2,28 @@
 
 ## Installing the hooks
 
-`pre-commit install` installs the `pre-commit`, `pre-push`, `post-checkout`,
-`post-merge` and `post-rewrite` git hooks in one step
-(`default_install_hook_types` in the config): most hooks run at commit time. `ansible-lint` runs at push time since it
-always re-lints the whole `ansible/` tree rather than just what changed,
-and so does `check-doc-change-push`, which needs the commits a push adds. `land_series` runs both stages itself, whether or not these are installed ([`landing-a-series.md`](landing-a-series.md#landing)).
-`.pre-commit-config.yaml` at the repo root is a symlink to
-`.config/.pre-commit-config.yaml` (config lives under `.config/`, but
-`pre-commit` only ever looks for its own config at the repo root by
-default — no `-c` flag needed for this or `pre-commit run`, and nothing
-lints the symlink itself, only real `.yaml` files). To run everything
-manually regardless of stage: `pre-commit run --all-files --hook-stage
-pre-commit` and `... --hook-stage pre-push`.
+From the repository root:
 
-The generated views (the decision index, the planning view and the disaster-recovery coverage table) are not committed. `generate-doc-indexes` writes them, at commit time and also after a checkout, a merge and a rebase, so a clone has them current after any of those. A fresh clone has no hooks yet, so run `pre-commit run generate-doc-indexes` once after `pre-commit install`. `post-checkout` also runs when `git worktree add` makes a worktree, and `post-rewrite` after a rebase or an amend; a rebase checks out its new base once at the start and not at the end, so `post-rewrite` is what brings the views up to date with the rebased branch.
+```bash
+pre-commit install
+pre-commit run generate-doc-indexes
+```
+
+The first installs the `pre-commit`, `pre-push`, `post-checkout`, `post-merge` and `post-rewrite` git hooks (`default_install_hook_types`). The second writes the generated views, which a fresh clone lacks. To run everything by stage, or one hook by id:
+
+```bash
+pre-commit run --all-files --hook-stage pre-commit
+pre-commit run --all-files --hook-stage pre-push
+```
+
+```bash
+hook=check-command-blocks
+pre-commit run "$hook" --all-files
+```
+
+Most hooks run at commit time. `ansible-lint` and `check-doc-change-push` run at push time: the first re-lints the whole `ansible/` tree, the second needs the commits a push adds. `land_series` runs both stages itself, installed or not ([`landing-a-series.md`](landing-a-series.md#landing)). The config is [`.config/.pre-commit-config.yaml`](../../../.config/.pre-commit-config.yaml), symlinked at the repository root so `pre-commit` finds it. CI runs the same checks on every pull request ([`ci/pipeline.md`](ci/pipeline.md)).
+
+The generated views (the decision index, the planning view and the disaster-recovery coverage table) are not committed. `generate-doc-indexes` writes them, at commit time and also after a checkout, a merge and a rebase, so a clone has them current after any of those. `post-checkout` also runs when `git worktree add` makes a worktree, and `post-rewrite` after a rebase or an amend; a rebase checks out its new base once at the start and not at the end, so `post-rewrite` is what brings the views up to date with the rebased branch.
 
 ## Applying patches with `git am`
 
@@ -35,48 +43,35 @@ a series file mean something else: a number is a pull request and each letter a 
 
 ## Hooks
 
-`.config/.pre-commit-config.yaml` wires up:
+### Third-party
 
-- `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene; `end-of-file-fixer` skips `tools/doc_site/vendor/`, whose stylesheet is kept as published so its pinned hash holds ([`doc-site.md`](../documentation/doc-site.md#the-stylesheet))
-- [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning of what is staged; CI skips the hook and scans the PR's commits instead, see [Secret scanning on pull requests](../security/policy/security-scanning.md#secret-scanning-on-pull-requests)
-- [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
-- [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
-- [`hadolint`](https://github.com/hadolint/hadolint) — lints every `Dockerfile`, via its Docker-image variant
-- [`shellcheck`](https://github.com/shellcheck-py/shellcheck-py) — lints every `*.sh`
-- [`actionlint`](https://github.com/rhysd/actionlint) — lints every `.github/workflows/*.yml`: expression types, `needs`/`outputs` wiring, script injection via untrusted `${{ }}` in `run:`, and `shellcheck` over inline `run:` blocks. Runs via its Docker-image variant (`.config/.actionlint.yaml`). Composite actions under `.github/actions/` aren't covered — it only parses workflow files
-- [`zizmor`](https://github.com/zizmorcore/zizmor-pre-commit) — static analysis of `.github/workflows/*.yml` and composite `action.yml` files for credential persistence on checkout, expression injection into `run:`, and over-broad token permissions, among others (`.config/zizmor.yml`, which disables `self-repository`: it asks for the `$/` local-reference syntax, which the pinned actionlint rejects). CI sets `ZIZMOR_GITHUB_TOKEN` on the `pre-commit-checks` step so the audits that query GitHub also run; locally it stays offline unless that variable is exported
-- `generate-doc-indexes` (local) — writes `docs/project-planning.md` and `docs/decision-index.md` from each doc's YAML frontmatter, and the coverage table in `docs/topics/disaster-recovery/coverage.md` from the app catalog, none of them committed, at commit time and after a checkout, a merge and a rebase; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`tools/doc_scripts/generate_doc_indexes.py`](../../../tools/doc_scripts/generate_doc_indexes.py)
-- [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
-- `check-doc-drift` (local) — keeps `ansible.md`, `molecule-testing.md`, `deployment-flow.md` and `ci/pipeline.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`tools/doc_scripts/check_doc_drift.py`](../../../tools/doc_scripts/check_doc_drift.py)
-- `check-moved-files` (local) — no file names a file that git history shows was renamed or removed, except the noted first mention in a decision revision; it reads the whole history and the whole tree, so it needs a full clone — see [`tools/doc_scripts/check_moved_files.py`](../../../tools/doc_scripts/check_moved_files.py)
-- `check-retired-numbers` (local) — no file names a decision number that was merged into another lineage or listed in `removed.md`, as `ADR NNNN` in prose or a comment, or as the visible number of a link to another record; it reads the whole tree and needs no history — see [`tools/doc_scripts/check_retired_numbers.py`](../../../tools/doc_scripts/check_retired_numbers.py)
-- `check-command-blocks` (local) — every code fence names a language, and a shell block holds no placeholder, no second segment, no command after a prompt and no secret in its text; it reads every markdown file outside `docs/decisions/` — see [`tools/doc_scripts/check_command_blocks.py`](../../../tools/doc_scripts/check_command_blocks.py) and [the rules it checks](../documentation/doc-checks.md#command-block-check)
-- `check-doc-change` (local) — the project scope, close and start checks and the accepted-records check, on what is staged; CI runs the same over the whole PR. The rules are in [the doc checks](../documentation/project-checks.md#the-four-project-and-record-checks-as-one-command) — see [`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
-- `check-doc-change-push` (local, push time) — the same four checks over the commits being pushed, against the default branch as the `project-checks` job does, so a stray file in an earlier commit or a missing `Editorial-Fix:` trailer shows before CI; it skips and says so when the clone has no default branch or shares no history with it — see [`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
-- [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
+| Hook | Checks | Config |
+| :--- | :--- | :--- |
+| `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` | general hygiene; `tools/doc_site/vendor/` is skipped so its [pinned hashes](../documentation/doc-site.md#the-stylesheet) hold | none |
+| [`gitleaks`](https://github.com/gitleaks/gitleaks) | secrets in what is staged; CI scans the PR's commits instead ([secret scanning](../security/policy/security-scanning.md#secret-scanning-on-pull-requests)) | none |
+| [`yamllint`](https://github.com/adrienverge/yamllint) | YAML style, strict | `.config/.yamllint` |
+| [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) | every `compose*.yaml`, fixing | `.config/.dclintrc` |
+| [`hadolint`](https://github.com/hadolint/hadolint) | every `Dockerfile`, from its Docker image | inline `# hadolint ignore=` with a reason |
+| [`shellcheck`](https://github.com/shellcheck-py/shellcheck-py) | `*.sh` and Bats files | inline `# shellcheck disable=` with a reason |
+| [`actionlint`](https://github.com/rhysd/actionlint) | workflows (not composite actions): expression types, `needs` and `outputs` wiring, script injection, inline shell; from its Docker image | `.config/.actionlint.yaml` |
+| [`zizmor`](https://github.com/zizmorcore/zizmor-pre-commit) | workflows and composite actions: persisted credentials, injection, broad permissions. The audits that query GitHub need `ZIZMOR_GITHUB_TOKEN`, which CI sets | `.config/zizmor.yml` (disables `self-repository`, which asks for syntax `actionlint` rejects) |
+| [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) | every `*.md` | `.config/.markdownlint.yaml` |
+| [`ruff`](https://github.com/astral-sh/ruff-pre-commit) | `*.py`, lint with fixes and format | `pyproject.toml` |
+| [`ansible-lint`](https://github.com/ansible/ansible-lint) (push) | `ansible/`; `docker/` is excluded | `.config/.ansible-lint`, `--project-dir ansible` |
 
-All of the above run at commit time except `check-doc-change-push`, which runs at
-push time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
-(lints `ansible/`; `docker/` excluded, it's Compose files not playbooks)
-runs at **push** time too — it always re-lints the whole `ansible/`
-tree regardless of what changed, so it's too slow to pay on every commit.
+Tool configs live under `.config/` and each hook is passed its path. `hadolint` and `shellcheck` have no repository-wide ignore list: a finding worth accepting is justified on its own line.
 
-All tool configs live under `.config/` (each hook is passed an explicit
-`-c` flag, since these tools don't auto-discover configs there by
-default). `ansible-lint` also gets `--project-dir ansible`, since it
-resolves `roles_path` relative to cwd rather than the config file.
-`ruff` is one exception — its config lives in `pyproject.toml` at
-the repo root, which it finds on its own, so no `-c` flag or
-`.config/` entry exists for it. `hadolint` is another: its accepted-risk
-findings are per-file, so they're justified inline with
-`# hadolint ignore=DLxxxx # reason` comments next to the line they apply
-to (`docker/caddy/Dockerfile`, `docker/molecule-dind/Dockerfile`) rather
-than a repo-wide `.config/` ignore list. `shellcheck` is the third: no
-args and no `.config/` entry either, since the repo's `.sh` scripts are
-already clean at its default severity — a future finding worth
-suppressing would get the same per-line treatment as `hadolint`'s
-(`# shellcheck disable=SCxxxx # reason`), not a repo-wide config.
+### Local
 
-Run `pre-commit install` once after
-cloning. CI enforces the same checks on every PR regardless of whether
-hooks are installed locally — see [`ci/pipeline.md`](ci/pipeline.md).
+| Hook | Checks |
+| :--- | :--- |
+| `generate-doc-indexes` | writes the [generated views](#installing-the-hooks), before the checks that would catch a bad one ([`generate_doc_indexes.py`](../../../tools/doc_scripts/generate_doc_indexes.py)) |
+| `check-doc-drift` | [docs match the code](../documentation/doc-checks.md#docs-drift-check), frontmatter and decision and project rules |
+| `check-moved-files` | [no file names a renamed or removed file](../documentation/doc-checks.md#moved-file-check); needs a full clone |
+| `check-retired-numbers` | [no file names a retired decision number](../documentation/doc-checks.md#retired-number-check) |
+| `check-command-blocks` | [code fences and shell block rules](../documentation/doc-checks.md#command-block-check) |
+| `check-doc-change`, `check-doc-change-push` (push) | the [project and record checks](../documentation/project-checks.md#the-four-project-and-record-checks-as-one-command) on what is staged, or on the commits pushed. The push form skips, saying so, without a shared default branch |
+| `check-secret-catalog`, `check-app-catalog` | the [secret](ci/gates.md#secret-catalog-rules) and [app](ci/gates.md#app-catalog-rules) catalog rules |
+| `check-compose-hardening`, `check-docker-container-hardening` | [compose](ci/gates.md#compose-hardening-rules) and [`docker_container`](ci/gates.md#docker_container-rules) hardening |
+| `check-flow-list` | the [flow list rules](ci/gates.md#flow-list-rules) |
+| `check-image-pins`, `check-image-digests`, `check-molecule-image-vars` | [image reference checks](ci/gates.md#checks-on-image-references) |

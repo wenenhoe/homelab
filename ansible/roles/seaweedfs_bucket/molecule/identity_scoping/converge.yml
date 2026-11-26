@@ -33,6 +33,9 @@
     # for a host added this way, not just ones from real inventory —
     # this scenario depends on that.
     - name: Register alpha/beta as ephemeral inventory hosts so hostvars[...] resolves like production
+      # An added host lives only for one ansible-playbook run, so add_host
+      # reports changed on the idempotence run too.
+      changed_when: false
       ansible.builtin.add_host:
         name: "{{ item.name }}"
         groups: molecule_fake_backup_hosts

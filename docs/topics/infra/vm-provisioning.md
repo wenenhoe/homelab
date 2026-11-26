@@ -40,11 +40,13 @@ differ in what the gateway lets them reach:
 
 Within a block, `vlan_id = (vmid // 50) * 5` and `host_octet = vmid % 50`:
 
-- `X00` and `X50` are never assigned to a real VM, so the derivation never
-  produces a `.0` host address. `1000+` is never assigned either.
-- `.1` in every networked VLAN is the OPNsense sub-interface (the gateway), whether or
-  not a VM holds the `X01` or `X51` VMID. A VM other than OPNsense never takes
-  either; every other VMID in a block starts at `X02` or `X52`.
+| VMID | Rule |
+| :--- | :--- |
+| `X00`, `X50` | Never assigned, so no `.0` host address is derived |
+| `X01`, `X51` | Only OPNsense. `.1` in every networked VLAN is the gateway's sub-interface whether or not a VM holds these |
+| `X02` to `X49`, `X52` to `X99` | Ordinary VMs |
+| 1000 and up | Never assigned |
+
 - A block of 50 holds one zone. Splitting one later into blocks of 10 changes the
   VLAN of the VMIDs past the first ten, so the scheme leaves each block whole
   until a second zone needs the room.

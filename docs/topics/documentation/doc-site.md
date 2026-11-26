@@ -195,6 +195,8 @@ Both files are kept byte for byte as published, so `end-of-file-fixer` and `trai
 
 ## What each page carries
 
+- **Names:** the header says "Homelab" and a tab "<page's title> · Homelab". The home page's tab, and the site name a link preview shows, are "wenenhoe's Homelab".
+- **Link preview:** `og:title` (the tab's title), `og:site_name`, and the same text as `description` and `og:description`: a project's `summary:`, a view's lede, and otherwise `DESCRIPTION` in `site.py`. There is no preview image.
 - **Footer:** the commit it was built from, linked, with its date in UTC, and the Simple.css credit with its licence (`assets/simple-licence.txt`, since the vendored file carries no notice). Pages are cached for about ten minutes, so compare the footer with `main` when one looks old.
 - **Asset names:** each file in `assets/` is named with part of its sha256, so an old page never gets a new stylesheet or the reverse. The licence keeps its name.
 - **Integrity:** the stylesheet's `<link>` has a sha384 `integrity` computed from the bytes written, so an update needs no second step. A test holds it to the file.

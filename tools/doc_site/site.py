@@ -25,6 +25,8 @@ from doc_site.markup import BRANCH, REPO_URL, Anchors, Heading, UnsupportedMarku
 from doc_site.summary import ROADMAP_COLUMNS, tiles
 
 PACKAGE = Path(__file__).resolve().parent
+# What a link preview says of a page that has no summary or lede of its own.
+DESCRIPTION = "How the homelab is planned, built, run and recovered."
 # The page of `docs/README.md`.
 GUIDE = "guide"
 
@@ -213,6 +215,11 @@ def _tabbed(html: str) -> str:
         tabs.append(f'<div class="tab"><a class="tab-link" href="#{heading[1]}">{heading[2]}</a><div class="panel">{part}</div></div>')
     box = '<div class="filter"><input id="q" type="search" placeholder="Filter links" aria-label="Filter links"></div>\n'
     return f'{parts[0]}{box}<div class="tabs">{"".join(tabs)}</div>\n'
+
+
+def _plain_text(markup: str) -> str:
+    """The text of the HTML `inline` writes, for an attribute: its tags removed and its entities read."""
+    return html.unescape(re.sub(r"<[^>]+>", "", markup))
 
 
 def _title_and_intro(text: str, view: str) -> tuple[str, str]:
@@ -589,6 +596,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
             .render(
                 title=title,
                 title_id=headings[0].id,
+                description=_plain_text(inline(lede[0], resolve)) if lede else DESCRIPTION,
                 tiles=tiles(view.slug, counted),
                 lede=[inline(paragraph, resolve) for paragraph in lede],
                 legend=[inline(paragraph, resolve) for paragraph in legend],
@@ -649,6 +657,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
                 title=page.title,
                 title_id=page.title_id,
                 summary=document.front.get("summary", ""),
+                description=document.front.get("summary") or DESCRIPTION,
                 facts=facts,
                 notice=notice,
                 lead=lead,
@@ -675,6 +684,7 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
             views=[{"href": f"{slug}/", "label": label, "blurb": HOME[slug]} for source, slug, label in NAV if source in targets],
             title=front.title,
             title_id=front.title_id,
+            description=DESCRIPTION,
             body=front.html,
             headings=front.headings,
             source_urls=[(source, f"{REPO_URL}/blob/{BRANCH}/{source}") for source in (home.README, home.TEMPLATE)],

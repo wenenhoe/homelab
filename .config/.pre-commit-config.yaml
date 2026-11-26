@@ -21,7 +21,7 @@ repos:
       - id: yamllint
         args: [--strict, -c, .config/.yamllint]
   - repo: https://github.com/ansible/ansible-lint
-    rev: v26.11.0
+    rev: v26.11.1
     hooks:
       - id: ansible-lint
         stages: [pre-push]
@@ -97,7 +97,7 @@ repos:
       - id: actionlint-docker
         args: [-config-file, .config/.actionlint.yaml]
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.33.0
+    rev: v1.33.1
     hooks:
       # args replaces the manifest's own, so --no-progress is repeated.
       - id: zizmor

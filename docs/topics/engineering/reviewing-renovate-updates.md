@@ -18,7 +18,16 @@ uv run python -m renovate_merge promote --repo ..                    # open the 
 
 - The **table of updates**: each package with the version it moves from and to. A digest, even one that starts with a digit, is not a version, and a pin or lockfile row with no old version is not listed. A version after a range operator (`==6.0.3`, `^1.2.3`) is read as that version. A change of the first number is `major`; a change of the second number of a `0.x` version is `pre-1.0 minor`, since semver lets that break.
 - The **release notes** section, with Renovate's HTML wrapping removed. A pin, a digest refresh or a lockfile update has none.
-- The **lines that look like a breaking change**, found by a word search over the release notes: a stated breaking change (`BREAKING`, an incompatibility, a `feat!:` commit), a removal, a deprecation, a migration or rename, a changed default. A `⚠` anywhere in the description, which is how Renovate marks its own warnings, or a GitHub `[!WARNING]` or `[!CAUTION]` alert in the notes, counts as a warning, and a CVE or advisory identifier counts as `security`. An entry that opens like routine commit work (`fix:`, `refactor:`, `chore:`) is not matched for the weaker words, since `fix: remove a stray key` describes the project's own tidying and not something a user must change; the stronger ones always match. Nor are they matched under a heading of fixes, where `no longer render blank` says what stopped going wrong. A `Removed` or `Deprecated` heading counts only when something other than `Nothing` or `None` is listed under it, since some projects print those headings in every release.
+- The **lines that look like a breaking change**, found by a word search over the release notes:
+
+| Category | Matches | Strength |
+| :--- | :--- | :--- |
+| breaking | `BREAKING`, an incompatibility, a `feat!:` commit | stronger |
+| warning | a `⚠` anywhere in the description (Renovate's own marker), a GitHub `[!WARNING]` or `[!CAUTION]` alert in the notes | stronger |
+| security | a CVE or advisory identifier | stronger |
+| removal, deprecation, migration or rename, changed default | the words for each | weaker |
+
+The weaker words are not matched in an entry that opens like routine commit work (`fix:`, `refactor:`, `chore:`) or under a heading of fixes, since those describe the project's own tidying. A `Removed` or `Deprecated` heading counts only when something other than `Nothing` or `None` is listed under it.
 
 Each pull request gets a level:
 

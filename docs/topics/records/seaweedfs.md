@@ -26,8 +26,9 @@ The on-site S3 store that every host's backups go to, running single-node on `st
 
 ## Observability
 
-- The container health check requests the filer, and Beszel reports its state ([`beszel.md`](../monitoring/beszel.md)).
+- The container health check requests the filer and the S3 listener's `/healthz`, and Beszel reports its state ([`beszel.md`](../monitoring/beszel.md)).
 - The hourly backup freshness check pushes `backup-*` heartbeats and `cloud-sync` pushes its own, so a store that stops accepting or relaying archives raises a Gatus alert ([`gatus.md`](../monitoring/gatus.md)).
+- Unknown: whether Beszel alerts on the disk usage of `storage`. Check the hub's alert settings.
 
 ## Disaster recovery
 

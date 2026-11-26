@@ -22,8 +22,8 @@ ADVICE = [
 ]
 
 
-def allow(layer: Layer, paths: object) -> bool:
-    """Answers the stop prompt: a layer that touches `.github/` stops for confirmation."""
+def allow(stops: object) -> bool:
+    """Answers the stop prompt: a series that touches `.github/` stops for confirmation."""
     return True
 
 

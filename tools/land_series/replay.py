@@ -1,8 +1,9 @@
 """Replay a series on a scratch worktree of the base branch, running the checks at every commit's state.
 
 Nothing is pushed or opened: the worktree is created from the base commit and removed afterwards, and the
-repository's own branches are not touched. A commit already in the base is skipped, and a commit that changes
-code the replay itself runs stops the replay until the maintainer confirms it.
+repository's own branches are not touched. A commit already in the base is skipped. Every commit is applied once
+before any check runs, and the commits that change code the replay itself runs are put to the maintainer together,
+who confirms them or stops the replay.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 
 from land_series.live import Display, hidden
 from land_series.manifest import Layer, group_pulls
+from land_series.review import Change, Stop
 from land_series.run import Completed, run
 
 # A layer touching one of these changes code or configuration that a hook or the checks run on this machine
@@ -30,7 +32,7 @@ NO_HOOKS = ("-c", "core.hooksPath=/dev/null")
 # before it, or the base for the first one applied. That is the state CI's base holds once the pull requests before it have merged.
 PULL_BASE = "{pull_base}"
 
-Confirm = Callable[[Layer, Sequence[str]], bool]
+Confirm = Callable[[Sequence[Stop]], bool]
 
 
 class ReplayError(Exception):
@@ -126,7 +128,43 @@ def apply_layer(tree: Path, layer: Layer, onto: str) -> list[str]:
     changed = git_run(tree, "diff", "--no-renames", "--name-only", "-z", before, "HEAD")
     if changed.returncode != 0:
         raise ReplayError(f"cannot read what commit {layer.id} changes: {git_text(changed)}")
-    return [path.decode("utf-8", errors="replace") for path in changed.stdout.split(b"\0") if path]
+    # A name that is not UTF-8 keeps its bytes, so git finds the file again when it is passed back.
+    return [path.decode("utf-8", errors="surrogateescape") for path in changed.stdout.split(b"\0") if path]
+
+
+# What a flagged file's diff is read with: as text whatever the series' attributes call it, and through no external or text conversion driver.
+# `--numstat` follows those attributes even so, which is why the lines are counted from the diff.
+READABLE_DIFF = ("diff", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv", "--text")
+
+
+def _changed_lines(diff: str) -> tuple[int, int]:
+    """The added and removed lines of one file's diff: those after its first hunk header that start with `+` or `-`."""
+    lines = diff.split("\n")
+    start = next((number for number, line in enumerate(lines) if line.startswith("@@")), len(lines))
+    return sum(line.startswith("+") for line in lines[start:]), sum(line.startswith("-") for line in lines[start:])
+
+
+def _read_stop(tree: Path, layer: Layer, paths: Sequence[str]) -> Stop:
+    """The line counts and the diff of `paths` in the commit just applied."""
+    changes, diffs = [], []
+    for path in paths:
+        # `:(literal)` stops a file name holding `*` or `[` from being read as a pattern.
+        shown = git_run(tree, *READABLE_DIFF, "HEAD^", "HEAD", "--", f":(literal){path}")
+        if shown.returncode != 0:
+            raise ReplayError(f"cannot read the changes of commit {layer.id}:\n{git_text(shown)}")
+        diffs.append(shown.stdout.decode("utf-8", errors="replace"))
+        changes.append(Change(path, *_changed_lines(diffs[-1])))
+    return Stop(layer, tuple(changes), "".join(diffs))
+
+
+def _apply_all(tree: Path, layers: Sequence[Layer], base: str) -> list[Stop]:
+    """Apply every layer, running nothing, and return those on the stop list; one that does not apply raises here, before any check."""
+    stops = []
+    for position, layer in enumerate(layers):
+        onto = f"{base}{' plus the layers before it' if position else ''}"
+        if flagged := stopped_by(apply_layer(tree, layer, onto)):
+            stops.append(_read_stop(tree, layer, flagged))
+    return stops
 
 
 LIVE_OUTPUT_LINES = 6
@@ -204,6 +242,8 @@ def replay(
 ) -> list[LayerResult]:
     """Apply each layer, in the order given, on a scratch worktree of `base`; run every check after each.
 
+    All the layers are first applied with nothing run, and `confirm` is asked once about those on the stop list.
+
     A check that names `PULL_BASE` sees, for a layer in pull request N, the state pull request N-1 leaves, so it judges
     that pull request's own commits as CI will once the earlier pull requests have merged.
 
@@ -224,6 +264,15 @@ def replay(
     pull_base, current = "", ""
     tips = {layer.number: layer.id for layer in layers}
     with scratch_worktree(repo, base) as tree:
+        start = git_text(git_run(tree, "rev-parse", "HEAD"))
+        progress("applying every commit before any check runs")
+        stops = _apply_all(tree, [layer for layer in layers if (layer.authored, layer.subject) not in landed], base)
+        if stops and not confirm(stops):
+            named = "; ".join(f"{stop.layer.id} ({', '.join(change.path for change in stop.changes)})" for stop in stops)
+            raise ReplayError(f"the series changes code the replay runs and was not confirmed: {named}")
+        reset = git_run(tree, *NO_HOOKS, "reset", "--quiet", "--hard", start)
+        if reset.returncode != 0:
+            raise ReplayError(f"cannot return the worktree to {base}: {git_text(reset)}")
         for layer in layers:
             if (layer.authored, layer.subject) in landed:
                 results.append(LayerResult(layer, applied=False))
@@ -232,9 +281,7 @@ def replay(
             if layer.number != current:
                 current, pull_base = layer.number, git_text(git_run(tree, "rev-parse", "HEAD"))
             progress(f"commit {layer.id}: applying the patch on {onto}")
-            stops = stopped_by(apply_layer(tree, layer, onto))
-            if stops and not confirm(layer, stops):
-                raise ReplayError(f"commit {layer.id} changes code the replay runs ({', '.join(stops)}) and was not confirmed")
+            apply_layer(tree, layer, onto)
             for check in (check.at(pull_base) for check in checks):
                 progress(f"commit {layer.id}: running `{check}`")
                 failure = run_check(tree, check, display, f"commit {layer.id}: `{check}`")

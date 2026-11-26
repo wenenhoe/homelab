@@ -9,7 +9,8 @@
 # alongside an unrelated app's directory and a similarly-named decoy that
 # must NOT get matched.
 #
-# Ahead of that restore, a run that must fail: a stack that cannot be stopped.
+# Ahead of that restore, two runs that must fail: a stack that cannot be
+# stopped, and a volume the archive does not hold.
 driver:
   name: docker
 platforms:

@@ -2,6 +2,8 @@
 - name: Converge
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
   vars:
     ansible_user: root
     compose_deploy_dir: /opt/stacks
@@ -190,6 +192,50 @@
         that:
           - restore_multi_stop_failed_task | default('') == "Stop the app's compose stack so nothing writes during restore"
           - not restore_multi_stop_failed_copy.stat.exists
+
+    # The absent volume is listed last: without the check ahead of the
+    # per-volume restores, certs and creds would be overwritten first.
+    - name: "Run restore role [block / rescue] (one volume is not in the archive)"
+      block:
+        - name: Run the restore role naming a volume the archive does not hold
+          ansible.builtin.include_role:
+            name: restore
+          vars:
+            restore_app: restore_multi
+            restore_archive_local_path: "{{ restore_test_archive }}"
+            restore_volumes:
+              - restore_multi_certs
+              - restore_multi_creds
+              - restore_multi_absent
+            restore_confirm: true
+      rescue:
+        - name: Record which task failed
+          ansible.builtin.set_fact:
+            restore_multi_absent_failed_task: "{{ ansible_failed_task.name }}"
+
+    - name: Read both volumes after the refused restore
+      community.docker.docker_container:
+        name: "restore-multi-{{ item }}-untouched-check"
+        image: "{{ molecule_helpers_alpine_image }}"
+        volumes:
+          - "restore_multi_{{ item }}:/data:ro"
+        command: cat /data/marker.txt
+        network_mode: none
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: restore_multi_untouched
+      changed_when: false
+      loop:
+        - certs
+        - creds
+
+    - name: Confirm the restore was refused with every volume still holding its old content
+      ansible.builtin.assert:
+        that:
+          - restore_multi_absent_failed_task | default('') == 'Check the archive holds a directory for every targeted volume'
+          - restore_multi_untouched.results[0].container.Output | trim == 'stale-certs'
+          - restore_multi_untouched.results[1].container.Output | trim == 'stale-creds'
 
     - name: Run the restore role for both volumes out of the one archive
       ansible.builtin.include_role:

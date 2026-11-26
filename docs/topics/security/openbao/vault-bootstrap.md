@@ -183,13 +183,10 @@ on purpose this one time:
      unset root otp
      ```
 
-**This makes `vault-bootstrap` a single point of failure for the
-mechanism above**, and worse than the pre-2.6.x world in one specific
-way: 2.6.x's authenticated `generate-root-token` endpoint needs a
-capable token *in addition to* the Shamir quorum, not the quorum alone.
-If `vault-bootstrap` is ever lost, revoked, or its policy corrupted
-with nothing else capable around, the Shamir shares alone no longer get
-you out - only a full re-init does. Back it up accordingly.
+**This makes `vault-bootstrap` a single point of failure.** Since 2.6.x the
+`generate-root-token` endpoint needs a capable token *as well as* the Shamir quorum. If
+`vault-bootstrap` is lost, revoked or its policy corrupted with nothing else capable, the shares
+alone no longer get you out; only a re-init does. Back it up accordingly.
 
 ## Re-init runbook
 

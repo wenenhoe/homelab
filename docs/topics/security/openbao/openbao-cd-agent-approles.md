@@ -69,6 +69,19 @@ binding.
 
 ## Handing over a `secret_id`
 
+```mermaid
+sequenceDiagram
+    participant Op as Operator
+    participant Bao as OpenBao
+    participant CD as cd_agent
+    Op->>Bao: request a secret_id with -wrap-ttl
+    Bao-->>Op: wrapping token
+    Op->>CD: wrapping token on stdin
+    CD->>Bao: bao unwrap (once)
+    Bao-->>CD: secret_id
+    CD->>CD: write it to the job's credentials directory
+```
+
 Each `secret_id` is requested response-wrapped, so the value never appears
 in the response that carries it:
 

@@ -2,28 +2,31 @@
 
 Bats tests for the shell scripts that decide an outcome worth protecting: what a failed run leaves running or stopped, what is cleaned up on every exit path, what a prompt must be answered with. The decision is [ADR 0086 (Shell script tests)](../../decisions/0086-testing-the-control-flow-of-shell-scripts/revision-000.md). The runner and its libraries are the pinned clones described in [CI Shell Test Pins](shell-test-pins.md).
 
-The tests are under [`tools/tests/shell/`](../../../tools/tests/shell), one `.bats` file per script:
+The tests are under [`tools/tests/shell/`](../../../tools/tests/shell), one `.bats` file per script. Each file's `@test` names state its assertions in full.
 
-| Test file | Script |
-| :--- | :--- |
-| `run_restore.bats` | [`docker/minecraft/scripts/run_restore.sh`](../../../docker/minecraft/scripts/run_restore.sh) |
-| `snapshot_push.bats` | [`tools/openbao_utils/scripts/snapshot-push.sh`](../../../tools/openbao_utils/scripts/snapshot-push.sh) |
-| `snapshot_pull.bats` | [`tools/openbao_utils/scripts/snapshot-pull.sh`](../../../tools/openbao_utils/scripts/snapshot-pull.sh) |
-| `molecule_test_all.bats` | [`ansible/scripts/molecule-test-all.sh`](../../../ansible/scripts/molecule-test-all.sh) |
-| `run_upgrade.bats` | [`docker/minecraft/scripts/run_upgrade.sh`](../../../docker/minecraft/scripts/run_upgrade.sh) |
-| `fetch_image.bats` | [`tofu/modules/proxmox_opnsense_vm/fetch_image.sh`](../../../tofu/modules/proxmox_opnsense_vm/fetch_image.sh) |
-| `build_seed.bats` | [`tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh`](../../../tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh) |
-| `first_boot.bats` | [`tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh`](../../../tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh) |
-| `scratch_gateway.bats` | [`tofu/scratch/opnsense/scratch_gateway.sh`](../../../tofu/scratch/opnsense/scratch_gateway.sh) |
-| `retire_vm.bats` | [`tools/rebuild_check/scripts/retire_vm.sh`](../../../tools/rebuild_check/scripts/retire_vm.sh) |
-| `gateway_preflight.bats` | [`tools/rebuild_check/scripts/gateway_preflight.sh`](../../../tools/rebuild_check/scripts/gateway_preflight.sh) |
-| `move_vm_nic.bats` | [`tools/rebuild_check/scripts/move_vm_nic.sh`](../../../tools/rebuild_check/scripts/move_vm_nic.sh) |
-| `stage_image.bats` | [`tofu/scratch/opnsense/stage_image.sh`](../../../tofu/scratch/opnsense/stage_image.sh) |
-| `prepare_image.bats` | [`tofu/modules/proxmox_ubuntu_template/prepare_image.sh`](../../../tofu/modules/proxmox_ubuntu_template/prepare_image.sh) |
-| `acceptance.bats` | [`tofu/scratch/opnsense/acceptance/acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) |
-| `check_freshness.bats` | the template [`check-freshness.sh.j2`](../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) |
-| `caddy_cert_expiry.bats` | the template [`check.sh.j2`](../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) of the `caddy_cert_expiry` role |
-| `harness.bats` | the harness itself |
+| Test file | Script | Asserts |
+| :--- | :--- | :--- |
+| `run_restore.bats` | [`run_restore.sh`](../../../docker/minecraft/scripts/run_restore.sh) | Step order; which failures leave the stack stopped; both prompts, and `-y`/`--yes`. |
+| `run_upgrade.bats` | [`run_upgrade.sh`](../../../docker/minecraft/scripts/run_upgrade.sh) | The version, given or default, reaches compose; compose's exit status is the script's. |
+| `snapshot_push.bats` | [`snapshot-push.sh`](../../../tools/openbao_utils/scripts/snapshot-push.sh) | Token revoked and scratch removed on every exit; secrets never in arguments; both providers attempted. |
+| `snapshot_pull.bats` | [`snapshot-pull.sh`](../../../tools/openbao_utils/scripts/snapshot-pull.sh) | R2 then B2 fallback; hidden credential input; nothing left behind on failure. |
+| `state_copy_push.bats` | [`state-copy-push.sh`](../../../tools/tofu_state/state-copy-push.sh) | Only ciphertext is pushed, by copy; R2 and B2 credentials stay apart; scratch removed on failure. |
+| `molecule_test_all.bats` | [`molecule-test-all.sh`](../../../ansible/scripts/molecule-test-all.sh) | `-s` needs exactly one role; a role stops at its first failure, others still run; timings output. |
+| `fetch_image.bats` | [`fetch_image.sh`](../../../tofu/modules/proxmox_opnsense_vm/fetch_image.sh) | Unpacked only when the checksum matches; a failed download or mismatch leaves no image. |
+| `build_seed.bats` | [`build_seed.sh`](../../../tofu/modules/proxmox_opnsense_vm/seed/build_seed.sh) | Disk layout; owner-only seed; a failed build leaves no configuration behind. |
+| `first_boot.bats` | [`first_boot.sh`](../../../tofu/modules/proxmox_opnsense_vm/first_boot/first_boot.sh) | Order of steps; password on stdin only; scratch removed; seed disk detached after success only. |
+| `scratch_gateway.bats` | [`scratch_gateway.sh`](../../../tofu/scratch/opnsense/scratch_gateway.sh) | Refusals before `up`; no credential on a command line; what `down` removes and keeps. |
+| `stage_image.bats` | [`stage_image.sh`](../../../tofu/scratch/opnsense/stage_image.sh) | Checksum, free space and leftovers when staging an image. |
+| `acceptance.bats` | [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) | The gateway and probe address are removed on every outcome; a failed check fails the run. |
+| `prepare_image.bats` | [`prepare_image.sh`](../../../tofu/modules/proxmox_ubuntu_template/prepare_image.sh) | dracut changes are verified; unmount and detach on every exit; bad input writes nothing. |
+| `retire_vm.bats` | [`retire_vm.sh`](../../../tools/rebuild_check/scripts/retire_vm.sh) | The guards on dump, destroy, drop-dump and restore. |
+| `gateway_preflight.bats` | [`gateway_preflight.sh`](../../../tools/rebuild_check/scripts/gateway_preflight.sh) | Which findings fail or only note, before and during a gateway rebuild. |
+| `move_vm_nic.bats` | [`move_vm_nic.sh`](../../../tools/rebuild_check/scripts/move_vm_nic.sh) | Keeps model and MAC; refuses a wrong VM or NIC before setting anything. |
+| `check_freshness.bats` | template [`check-freshness.sh.j2`](../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) | Pushes only when every app is fresh; credentials never in arguments. |
+| `caddy_cert_expiry.bats` | template [`check.sh.j2`](../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) | Threshold boundary, expired or missing certificate, SNI. |
+| `harness.bats` | The harness itself | Stubs fail by default, even when a script swallows the failure. |
+
+A stub encodes the argument shape of the tool it replaces, so a change to a real tool's interface passes here and is caught only by Molecule or the boot test.
 
 ## Running them
 
@@ -31,7 +34,14 @@ From the repository root, install the locked environment, fetch the pinned clone
 
 ```bash
 uv sync --group dev --locked
+```
+
+```bash
+CLONES=$(mktemp -d)
 (cd tools && python3 -m ci.shell_tests.fetch "$CLONES")
+```
+
+```bash
 BATS_LIB_PATH="$CLONES" "$CLONES/bats-core/bin/bats" tools/tests/shell
 ```
 
@@ -62,20 +72,3 @@ Any matching change runs every test file, not only the one for the script that c
 - **Nothing outside the test directory.** `TMPDIR` and `HOME` point into the test's own directory, so a script's `mktemp -d` scratch directory lands there and is checked empty afterwards, and `GITHUB_STEP_SUMMARY` and `GITHUB_OUTPUT` are unset so a CI run's job summary is not appended to.
 
 The commands a script runs that are not stubbed (`date`, `stat`, `tar`, `ls`, `find`, `du`) run on the machine's own userland.
-
-`harness.bats` proves the stubs fail by default, that a test whose script swallows the failure still fails, and that a stubbed tool passes, by running a second Bats over a generated test file.
-
-## What each file asserts
-
-- **`run_restore.bats`**: the order of the restore's steps; that a failure after the data directory was emptied leaves the stack stopped and one before it starts the stack again; and that both prompts are honored, `-y` and `--yes` skip them, and the first wants `yes` and the second `delete`.
-- **`snapshot_push.bats`**: that the token is revoked and the scratch directory removed on every exit path that has one; that the `secret_id` reaches the login as a file without its newline and never as an argument, whether cached or prompted; that `rclone.conf` is mode 0600 and pairs each provider with its own credentials; and that R2 and B2 are both attempted when one push fails, with the failure named.
-- **`molecule_test_all.bats`**: that `-s` is refused unless exactly one role is named; that each scenario runs on its own in name order against the base config; that a role stops at its first failed scenario without stopping the other roles; and that the timings table is printed and appended to the job summary only when there is one.
-
-- **`run_upgrade.bats`**: that the version argument, or the default without one, reaches the compose run in the script's own directory; and that the compose run's exit status is reported and is the script's own.
-- **`fetch_image.bats`**: that a download matching the published checksum is unpacked next to itself in a cache directory that did not exist; that the download is one `curl` of the URL into that directory; that a mismatch removes the download and leaves no unpacked image, naming the URL and both checksums; and that a failed download stops with curl's status before anything is unpacked.
-- **`prepare_image.bats`**: that the omission of the network-needing modules is in the image's dracut configuration before dracut regenerates, and dracut runs without host-only mode; that only the loop device's own partitions are asked for labels; that the mounts, the unmounts in reverse order and the loop detach happen on every exit path, and that a failed unmount keeps the work directory; that a checksum mismatch, an image without dracut, one without a root partition, one whose initramfs does not list `systemd-networkd`, one whose initramfs still lists an omitted module or `systemd-networkd` after regeneration, and a listing that fails each fail with nothing written to the output directory; and that the output is the compressed qcow2 copy with its checksum beside it.
-- **`retire_vm.bats`**: that a dump is one `vzdump` with zstd to the dump storage and refused for a name that differs, a running VM, an unmounted dump storage or a VM that already has a dump, and fails on a missing, empty or unreadable archive, reporting the free space before and after; that a destroy happens only for a stopped, correctly named VM with exactly one non-empty dump that `zstd -t` passes; that another VM whose id starts with the same digits is never counted or deleted; and that `drop-dump` removes that VM's archive and log, trims the volume, and fails without trimming when there is no dump; and that `restore` runs one `qmrestore` with new MACs to a free VMID of 900 or above, never starts the VM, turns off start on boot, and refuses a lower or taken VMID or a missing or unreadable dump.
-- **`check_freshness.bats`**: that one push is made when every app is fresh, none when one is stale (and the unit still succeeds), and none when `rclone` fails (and the unit fails, naming the app and the error); that with no push URL the apps are still checked; and that the credentials reach each container in a mode 0600 env file that is removed afterwards and never appear in an argument.
-- **`caddy_cert_expiry.bats`**: that a certificate passes with more than and with exactly the threshold of days left and fails with fewer, expired, or none on the wire; and that the connection goes to loopback with the real hostname as the SNI.
-
-A stub encodes the argument shape of the tool it replaces, so a change to a real tool's interface passes here and is caught only by Molecule or the boot test.

@@ -6,92 +6,103 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
 
 ## Scripts
 
-- **`tools/cloud_credentials/create_rotation_keys.py`** — run rarely.
-  For B2, takes the master credential in memory only (never written to
-  disk, never logged) and uses it to mint a narrower **rotation key**:
-  scoped to creating/deleting keys, not to reading or writing backup
-  data itself. For OCI, there's no credential to mint — a human
-  registers a Confidential Application by hand in Console once (see
-  [the OCI section](scoping.md#oci--two-separate-credentials-two-separate-auth-models)), and this script prompts for and caches its client
-  ID/secret, alongside bootstrapping the two leaf identities' classic
-  IAM policies with your personal admin config (`~/.oci/config`) —
-  unrelated to the Confidential Application, still needed, see
-  [the OCI section](scoping.md#oci--two-separate-credentials-two-separate-auth-models) for why. For R2, there's nothing to mint either — Cloudflare
-  has no way to create such a delegate credential via its API at all
-  (see [the R2 section](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)) — `--provider r2` here only
-  caches (or re-caches, via `--rotate`) the Custom Token a human
-  creates in the Console. Whatever gets cached either way is what
-  `create_leaf_keys.py` actually reads.
-- **`tools/cloud_credentials/create_leaf_keys.py`** — run routinely.
-  This is what actually creates/rotates the 6 `cloud_sync`/
-  restore-discovery credentials (`cloudflare-r2-write-*`/`-read-*`,
-  `backblaze-b2-write-*`/`-read-*`, `oci-write-*`/`-read-*` in
-  `secret_catalog.yaml` — **write** for `cloud_sync`'s own upload leaf
-  in `host_vars/storage.yaml`, **read** for the controller-side
-  restore-discovery script). B2 and OCI authenticate with their cached
-  rotation key; R2 authenticates with its own cached admin token
-  (`_rotation-key-cloudflare-r2-token` — prompted for once, then reused
-  — see [R2's section](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two) for why this one is a materially broader-blast-radius
-  credential than the other two's). All six leaf credentials stay
-  `source: manual` in the catalog; this script is just an automated
-  way to fill them in.
-- **`tools/cloud_credentials/rotate_leaf_keys.py`** — run routinely, in
-  place of three `create_leaf_keys.py --rotate both` runs. It rotates
-  every leaf credential, provider by provider, and carries on when one
-  provider fails; see [`rotation.md`](rotation.md#rotation).
-- **`openbao_utils/audit.py`** — run whenever, read-only. `--local`
-  diffs the controller-side file cache (`ansible/files/secrets/`) against `secret_catalog.yaml` to
-  flag files nothing currently references (e.g. leftover from a
-  naming change). `--provider {oci,b2,r2,all}` lists each provider's
-  actual write/read-leaf credentials — including the standing
-  `openbao-snapshot-write` leaf — and flags any not matching the
-  access key currently in Vault as an orphan — e.g. a key from an
-  interrupted rotation never cleaned up on the provider's side. The one
-  exception: ADR 0111's break-glass `openbao-snapshot-readonly`
-  credential is never cached anywhere by design, so it's matched by its
-  known provider-side name instead of a cache lookup — a weaker check,
-  but this tool only ever flags, never deletes. ADR 0111 has one such
-  credential per provider, so when more than one key carries that name
-  the listing marks each `CHECK` instead of `ACTIVE`: the name cannot
-  say which is live, so the stale ones are found in the provider's console. Flags only; deleting
-  anything it finds is a separate, deliberate step.
-- **`tools/cloud_credentials/create_snapshot_readonly_keys.py`** —
-  run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
-  credentials [ADR 0111 (Secrets store recovery)](../../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)
-  calls for — OpenBao's own break-glass snapshot-restore credential,
-  not a `cloud_sync` leaf. Verifies each one via a real `rclone lsjson`
-  against its actual bucket before printing it — same discipline
-  `create_leaf_keys.py --rotate` already applies before trusting a new
-  leaf, worth it here too since this credential otherwise sits unused
-  until an actual disaster. Prints each credential once instead of
-  caching it to OpenBao; see
-  [`deployment.md`](../openbao/deployment.md) for where it goes from there.
-- **`tools/cloud_credentials/create_snapshot_write_keys.py`** — run
-  routinely, same cadence as `create_leaf_keys.py`. Mints the standing,
-  quarterly-expiring write leaf the backup script in
-  [`backup-restore.md`](../openbao/backup-restore.md) pushes
-  snapshots with — a different credential from the read-only one just
-  above, scoped to the same `openbao-snapshots` bucket but write-only
-  (no `deleteFiles`/admin capability, same shape as `cloud_sync`'s own
-  write leaves). Cached to OpenBao like every other leaf here, unlike
-  the break-glass credential. Supports `--rotate`, same
-  verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
-- **`tools/cloud_credentials/create_state_keys.py`** — run on the host
-  that runs Tofu. Mints
-  the two credentials of Tofu's remote state
-  ([ADR 0103 (Tofu state backend)](../../../decisions/0103-where-tofus-state-is-held/revision-000.md)):
-  an `opentofu-state` R2 token that reads, writes and deletes, and a
-  write-only B2 key on `opentofu-state-b2` for the copy pushed after each
-  apply. Both carry the quarterly expiry and are verified over rclone
-  before use, like the leaves above, but are written to files under
-  `~/.config/tofu/` (mode `0600`) instead of OpenBao, since Tofu has to be
-  able to rebuild the host that runs OpenBao
-  ([ADR 0048](../../../decisions/0048-where-tofu-credentials-live/revision-000.md)).
-  The R2 file also holds the state encryption passphrase, made once and
-  shown once for its offline copy. `--rotate` swaps a file and then
-  revokes the old key, and keeps the passphrase. Because the keys are not
-  cached, `check_credential_expiry.py` does not see them; the file records when each was
-  minted.
+Run them from `tools/`.
+
+| Script | Run | Authenticates with | Writes |
+| :--- | :--- | :--- | :--- |
+| `cloud_credentials/create_rotation_keys.py` | Rarely | B2: the master key, held in memory only. OCI: your admin config. R2: nothing, it caches a console token | The rotation credentials, in OpenBao |
+| `cloud_credentials/create_leaf_keys.py` | Routinely | The cached rotation key (R2: the cached admin token, prompted for once) | The six leaf credentials, in OpenBao |
+| `cloud_credentials/rotate_leaf_keys.py` | Routinely | As above | Rotates all six ([rotation](rotation.md#rotation)) |
+| `cloud_credentials/create_snapshot_readonly_keys.py` | Rarely, by hand | The cached rotation credentials | Nothing: prints each credential once |
+| `cloud_credentials/create_snapshot_write_keys.py` | Routinely | The cached rotation credentials | The snapshot write leaves, in OpenBao |
+| `cloud_credentials/create_state_keys.py` | On the host that runs Tofu | The cached rotation credentials | Files under `~/.config/tofu/`, mode `0600` |
+| `openbao_utils/audit.py` | Whenever | The cached rotation credentials | Nothing: read-only |
+
+First-time creation, in this order:
+
+```sh
+cd tools && python3 -m cloud_credentials.create_rotation_keys --provider b2
+```
+
+```sh
+# from tools/: paste alone; it waits for your admin email
+read -r -p 'admin email: ' email
+```
+
+```sh
+# from tools/
+python3 -m cloud_credentials.create_rotation_keys --provider oci --admin-email "$email"
+```
+
+```sh
+# from tools/: all three providers' leaves; asks for R2's admin token once if not cached
+python3 -m cloud_credentials.create_leaf_keys
+```
+
+Re-running is safe: a credential already cached is left alone.
+
+### create_rotation_keys.py
+
+| Provider | What it does |
+| :--- | :--- |
+| B2 | Mints a rotation key that creates and deletes keys but reads and writes no backup data |
+| OCI | Mints nothing. A human registers a Confidential Application in the console ([OCI](scoping.md#oci--two-separate-credentials-two-separate-auth-models)); the script prompts for and caches its client ID and secret, and bootstraps the two leaf identities' IAM policies with your admin config (`~/.oci/config`) |
+| R2 | Mints nothing, since Cloudflare's API cannot create such a delegate ([R2](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)). `--provider r2` caches, or with `--rotate` re-caches, a Custom Token you make in the console |
+
+### create_leaf_keys.py
+
+It creates and rotates the six credentials of `cloud_sync` and restore discovery:
+`cloudflare-r2-*`, `backblaze-b2-*` and `oci-*`, each `write` (for `cloud_sync`'s
+upload leaf in `host_vars/storage.yaml`) and `read` (for restore discovery). All six
+stay `source: manual` in `secret_catalog.yaml`; the script only fills them in. R2's
+admin token (`_rotation-key-cloudflare-r2-token`) has a materially broader blast
+radius than the other two rotation credentials
+([why](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)).
+
+### Snapshot credentials
+
+- **Read-only** ([ADR 0111 (Secrets store recovery)](../../../decisions/0111-recovering-the-secrets-store-from-total-loss/revision-000.md)):
+  OpenBao's break-glass restore credential, bucket-scoped on R2 and B2. Each is
+  verified with a real `rclone lsjson` before it is printed, since it sits unused
+  until a disaster. It is never cached; [`deployment.md`](../openbao/deployment.md)
+  says where it goes.
+- **Write**: the standing, quarterly-expiring leaf that
+  [the backup script](../openbao/backup-restore.md) pushes snapshots with. Same
+  bucket (`openbao-snapshots`), write only, cached like every leaf. `--rotate`
+  verifies before it revokes.
+
+### Tofu state keys
+
+`create_state_keys.py` mints the two credentials of
+[Tofu's remote state](../../../decisions/0103-where-tofus-state-is-held/revision-000.md): an
+`opentofu-state` R2 token that reads, writes and deletes, and a write-only B2 key on
+`opentofu-state-b2`. Both expire quarterly and are verified over rclone. They go to
+files, not OpenBao, because Tofu has to be able to rebuild the host that runs OpenBao
+([ADR 0048](../../../decisions/0048-where-tofu-credentials-live/revision-000.md)). The
+R2 file also holds the state encryption passphrase, made once and shown once for its
+offline copy. `--rotate` swaps a file, then revokes the old key, and keeps the
+passphrase. Only the key IDs are registered, which is how the
+[expiry check](expiry.md#expiry-check) sees them.
+
+### Auditing
+
+`audit.py --local` lists files in the controller's cache (`ansible/files/secrets/`) that
+nothing in `secret_catalog.yaml` references. `--provider` lists each provider's write and
+read leaves, the `openbao-snapshot-write` leaf included, and flags any not matching the
+key now in OpenBao as an orphan. It deletes nothing.
+
+```sh
+cd tools && python3 -m openbao_utils.audit --local
+```
+
+```sh
+# from tools/: --admin-email is for the OCI listing
+python3 -m openbao_utils.audit --provider all --admin-email "$email"
+```
+
+The break-glass `openbao-snapshot-readonly` credential is never cached, so it is matched
+by its provider-side name, a weaker check. With more than one key of that name, each is
+marked `CHECK` instead of `ACTIVE`, and the stale ones are found in the console.
 
 Restoring cloud_credentials' Vault state after a genuine OpenBao re-init is
 `openbao_utils/restore.py`'s job — see
@@ -99,51 +110,35 @@ Restoring cloud_credentials' Vault state after a genuine OpenBao re-init is
 
 ## Testing
 
-None of these are an Ansible role, so Molecule's per-host
-model (`docs/topics/testing/molecule-testing.md`) doesn't apply. `ansible/tests/`
-holds pytest tests — every provider HTTP call and `rclone` invocation
-mocked — run via `uv run pytest ansible/tests/ -v` and wired into CI as
-`pr-checks.yml`'s
-`python-unit-tests` job (see `docs/topics/engineering/ci/pipeline.md`).
-
-Rotation keys/tokens (all three providers) are cached to OpenBao KV v2,
-at `secret/data/cloud_credentials/rotation/*` — see
-[ADR 0023 (Cloud credential logic reuse)](../../../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) for why
-this repointed the existing per-provider Python rather than replacing
-it, and [ADR 0013 (Secret storage)](../../../decisions/0013-secret-storage/revision-000.md)
-for the earlier decision that started it in a file cache in the first
-place.
+These are not Ansible roles, so Molecule's per-host model
+([`molecule-testing.md`](../../testing/molecule-testing.md)) does not apply. pytest tests
+under `tools/tests/cloud_credentials/` mock every provider HTTP call and `rclone` run, and
+CI's `python-unit-tests` job runs them ([`pipeline.md`](../../engineering/ci/pipeline.md)):
 
 ```sh
-cd tools
-python3 -m cloud_credentials.create_rotation_keys --provider b2
-python3 -m cloud_credentials.create_rotation_keys --provider oci --admin-email you@example.com
-python3 -m cloud_credentials.create_leaf_keys   # all three leaves; prompts for R2's admin token once, if not yet cached
+uv run pytest tools/tests/cloud_credentials/ -n auto
 ```
 
-Safe to re-run either script — a credential whose cache files already
-exist is left alone. Both use each provider's official SDK where one
-covers the call and raw HTTP otherwise, no `b2`/`oci` CLI binary
-required — `requests`, `oci`, and `b2sdk` are all pinned in
-`pyproject.toml`. `oci` supplies both `oci.signer.Signer` (OCI's
-leaf-identity IAM bootstrap, `rotation_keys/oci_iam.py` — a separate,
-unrelated auth model from SCIM) and
-`oci.identity_domains.IdentityDomainsClient` for the SCIM
-customer-secret-key and Apps-lookup calls (`AppClientSecretRegenerator`
-has no SDK method and stays on raw `requests` regardless). `b2sdk`
-covers B2's leaf/rotation key create/delete/list calls. The choices
-are in
-[ADR 0104 (Python client libraries)](../../../decisions/0104-which-client-library-each-external-service-uses/revision-000.md).
+## Where the rotation credentials live, and the libraries
 
-`openbao_utils/audit.py`'s B2 and OCI listings use the same SDKs
-(`b2sdk`'s `list_keys`, `IdentityDomainsClient.list_customer_secret_keys`).
-`check_credential_expiry.py`'s Telegram `sendMessage` call stays on `requests`:
-it is one endpoint, with no SDK worth adding. So does `oci_scim.py`'s
-OAuth2 client-credentials token request, which produces the bearer token
-the SCIM client sends: the SDK has no bearer-token mode of its own.
+Rotation keys and tokens are cached in OpenBao KV v2 at
+`secret/data/cloud_credentials/rotation/*`
+([ADR 0023 (Cloud credential logic reuse)](../../../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md),
+[ADR 0013 (Secret storage)](../../../decisions/0013-secret-storage/revision-000.md)).
 
-`create_leaf_keys.py` and `create_rotation_keys.py` each keep their own
-copy of the provider-error mapping (`_PROVIDER_ERRORS` and
-`_format_provider_error`), which turns `b2sdk`, `oci` and `requests`
-errors into a printed message and `SystemExit(1)`. Whether it becomes
-one shared helper is undecided.
+The scripts use each provider's official SDK where it covers the call and raw HTTP
+otherwise; no `b2` or `oci` CLI is needed. The libraries are pinned in `pyproject.toml`
+([ADR 0104 (Python client libraries)](../../../decisions/0104-which-client-library-each-external-service-uses/revision-000.md)).
+
+| Call | Client |
+| :--- | :--- |
+| B2 leaf and rotation keys, and `audit.py`'s listing | `b2sdk` |
+| OCI leaf identities' IAM bootstrap (`rotation_keys/oci_iam.py`, a separate auth model from SCIM) | `oci.signer.Signer` |
+| OCI SCIM customer-secret keys, app lookup and `audit.py`'s listing | `oci.identity_domains.IdentityDomainsClient` |
+| `AppClientSecretRegenerator` | `requests`: no SDK method |
+| `oci_scim.py`'s client-credentials token request | `requests`: the SDK has no bearer-token mode |
+| The expiry check's Telegram `sendMessage` | `requests`: one endpoint |
+
+`create_leaf_keys.py` and `create_rotation_keys.py` each keep their own copy of the
+provider-error mapping (`_PROVIDER_ERRORS`, `_format_provider_error`), which prints a
+message and raises `SystemExit(1)`. Whether it becomes one helper is undecided.

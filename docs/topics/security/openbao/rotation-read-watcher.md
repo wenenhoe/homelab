@@ -223,19 +223,17 @@ again on the new VM, and `rebuild_check.host security` fails until they have
 
 ## Leftovers from the rename
 
-The `r2-read-watcher` AppRole, its policy and the `gatus-token-r2-read-watcher`
-secret are still in OpenBao. Deleting a role, a policy or a KV secret takes a
-root session, which neither `vault-bootstrap` nor `controller` has. Nothing
-holds the old `secret_id`, and the policy reads only Telegram's secrets. A
-re-init does not recreate them, since the runbook provisions only the new role,
-so they go then, or in any earlier root session.
+The `r2-read-watcher` AppRole, its policy and the `gatus-token-r2-read-watcher` secret are still in
+OpenBao. Deleting them takes a root session, which neither `vault-bootstrap` nor `controller` has.
+Nothing holds the old `secret_id`, and the policy reads only Telegram's secrets. Remove them in the
+next root session; a re-init does not recreate them.
 
 ## When the watcher is down
 
-Gatus's missed-heartbeat alert is the only alert for a watcher that has stopped. The heartbeat unit pushes on success only, and the endpoint's 15-minute interval (a 10-minute push period plus 5 minutes of slack) puts the alert between 15 and 30 minutes after the last push. Gatus reports that the watcher is unhealthy, not why: the cause is in `journalctl -u rotation-read-watcher` on `security`. Any read of a rotation credential while the watcher is down goes undetected.
+Gatus's missed-heartbeat alert is the only alert for a stopped watcher. The heartbeat unit pushes on success only, so the alert arrives between 15 and 30 minutes after the last push. It says the watcher is unhealthy, not why: read `journalctl -u rotation-read-watcher` on `security`. A read of a rotation credential while the watcher is down goes undetected.
 
-The unit has no `OnFailure=` alert because it would never fire. `OnFailure=` runs once a unit reaches systemd's `failed` state, and a service with `Restart=` only gets there once its start limits are exhausted (`systemd.unit(5)`, `OnFailure=`). This unit sets `Restart=always` and `RestartSec=10` with no `StartLimitIntervalSec=` or `StartLimitBurst=` override, so at one failure per 10 seconds it never crosses the default burst threshold and restarts for as long as the cause lasts.
-
-Bounding the restarts to force a `failed` state would give up what the restart policy is for. The usual cause is OpenBao being sealed after a restart or a re-init ([ADR 0018 (Secrets store unsealing)](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)), which clears once someone unseals it. A bounded count would leave the watcher `failed` and silent after that.
-
-A check that counted missed heartbeat ticks and sent the journal tail to Telegram would alert no earlier than Gatus, so it would add only the cause. That would cost a counter file and a second hand-filled `/etc/telegram-notify/` env file, and it would break the convention in `rotation-read-watcher-heartbeat.service`: `OnSuccess=` only, never an explicit failure push, with Gatus as the backstop ([`gatus.md`](../../monitoring/gatus.md)). The watcher therefore has no check of its own.
+| Not done | Why |
+| :--- | :--- |
+| An `OnFailure=` alert on the unit | It would never fire. `OnFailure=` needs the `failed` state (`systemd.unit(5)`), which a unit with `Restart=always`, `RestartSec=10` and default start limits does not reach. |
+| Bounded restarts, to force `failed` | The usual cause is OpenBao sealed after a restart or re-init ([ADR 0018 (Secrets store unsealing)](../../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)), which clears on unseal. A bounded unit would stay failed and silent after that. |
+| A check that sends the journal tail to Telegram | No earlier than Gatus, so it adds only the cause, at the price of a counter file, a second `/etc/telegram-notify/` env file, and a failure push where the heartbeat unit uses `OnSuccess=` only, with Gatus as backstop ([`gatus.md`](../../monitoring/gatus.md)). |

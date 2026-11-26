@@ -1,9 +1,15 @@
 # Rotating a secret
 
-Which mechanism applies depends on where the value actually comes from —
-see `secret_catalog.yaml`'s `source` field for each entry
-([`secrets.md`](secrets.md) covers the full generate/cache mechanism this
-all builds on).
+Which mechanism applies depends on the entry's `source` in `secret_catalog.yaml`
+([`secrets.md`](secrets.md) covers generation and storage).
+
+| Kind | How to change it | Afterwards |
+| :--- | :--- | :--- |
+| `hex`, `uuid4` | [`rotate-secret.yaml`](#generated-secrets-source-hex--source-uuid4) | Redeploy the group in the table below. |
+| `manual` | [Overwrite the stored value](#manual-secrets-source-manual) | Redeploy the hosts that render it. |
+| Cloud leaf credentials | [`create_leaf_keys.py --rotate`](#cloud-leaf-credentials) | Redeploy `storage` for a write leaf only. |
+| lldap's certificate | [Reset its volume](#certificate-backed-material-not-in-secret_catalogyaml-at-all) | The same redeploy issues a new one. |
+| Beszel's key and token | [Its own procedure](#app-generated-secrets-not-in-secret_catalogyaml-either) | |
 
 ## Generated secrets (`source: hex` / `source: uuid4`)
 
@@ -18,17 +24,11 @@ ansible-playbook playbooks/rotate-secret.yaml \
   -e secret_name="$name" -e confirm=true
 ```
 
-Every `hex`/`uuid4` entry is required to have `store: openbao` (see
-`secret_catalog.yaml`'s own header comment) and rotates the same way:
-a fresh value written in place with `cas=<current version>` — an
-update, not a delete, since `controller`'s AppRole policy grants no
-`delete` on `secret/data/hosts/*` by design
-([`auth.md`](openbao/auth.md)'s runbook proves this).
-There's no file-cache-backed rotation path any more — no `hex`/`uuid4`
-entry had ever actually used it.
-Either way this does **not** redeploy anything itself — check the table
-below for which `--limit` group the secret you rotated actually needs,
-then run:
+Every `hex`/`uuid4` entry is `store: openbao`. The playbook writes a fresh value in place with
+`cas=<current version>`: an update, because `controller`'s AppRole has no `delete` on
+`secret/data/hosts/*` ([`auth.md`](openbao/auth.md)'s runbook proves it). The previous value stays
+in KV version history. It redeploys **nothing**; pick the `--limit` group from the table below, then
+run:
 
 ```sh
 # paste alone; it waits for the --limit group from the table below
@@ -52,14 +52,9 @@ skipping regeneration.
 | `seaweedfs-s3-*-play` | `play,storage` |
 | `seaweedfs-s3-*-admin`, `seaweedfs-s3-*-cloud-sync-reader` | `storage` |
 
-Every `seaweedfs-s3-*-<host>` row above needs `storage` alongside the
-owning host, for every host in `backup_hosts`
-(`group_vars/all/main.yaml`: the hosts with a backed-up app — `services`,
-`security`, `play`) — SeaweedFS's
-own identity config (`s3-identity.json.j2`) is rendered on `storage`,
-but pulls each host's key in via `hostvars[host].seaweedfs_s3_access_key`.
-Redeploying only the owning host leaves `storage` serving the old key,
-and the S3 client and server disagree.
+A `seaweedfs-s3-*-<host>` row names `storage` too because SeaweedFS's identity config
+(`s3-identity.json.j2`) is rendered there from each host's key via `hostvars`. Redeploying only the
+owning host leaves client and server disagreeing.
 
 `tinyauth-ldap-observer-password` is the one entry above that isn't just
 a config re-render: `deploy.yaml`'s later "Ensure lldap's observer
@@ -67,36 +62,40 @@ account exists" play (`lldap_bootstrap`) also updates the real lldap
 account to match, in the same `security` run — so a single redeploy
 after rotating it is enough, no separate manual sync step.
 
-`step-ca-password` and `step-ca-provisioner-password` are generated like the
-rest but are not rotated this way. `docker/step-ca/scripts/entrypoint.sh`
-uses them to encrypt the CA's keys and the JWK provisioner's key once, at
-the first `step ca init`; every later start decrypts the intermediate key
-with the value in `.env`, and `step_ca_cert` unlocks the provisioner key
-with the other. After a rotation and a redeploy the new value is in `.env`
-but the keys are still encrypted with the old one, so step-ca cannot
-start and nothing can be issued — and OpenBao's certificate renewal and
-the secrets role's root-certificate fetch both depend on it. Changing
-either means re-encrypting the keys first, which nothing here does yet;
-until then leave both as generated. The previous value stays in the
-secret's KV version history.
+**Do not rotate `step-ca-password` or `step-ca-provisioner-password`.** The CA's keys and the JWK
+provisioner key are encrypted with them once, at the first `step ca init`
+(`docker/step-ca/scripts/entrypoint.sh`). After a rotation and redeploy step-ca cannot start, and
+OpenBao's certificate renewal and the secrets role's root-certificate fetch depend on it. Changing
+either means re-encrypting the keys first, which nothing here does.
 
 ## Manual secrets (`source: manual`)
 
-Nothing here can generate a replacement — these are externally issued
-(cloud API keys) or come from an app's own post-boot state (Beszel's
-hub key/agent token). Get the new value from wherever it actually comes
-from (each entry's `description` in `secret_catalog.yaml` says where),
-then:
+Nothing here generates a replacement: get the new value from where the entry's `description` in
+`secret_catalog.yaml` says. `openbao_utils.bootstrap` does not replace it, since it leaves any entry
+that already has a value untouched. Overwrite the stored value instead, as `controller`:
 
 ```sh
-cd tools && python3 -m openbao_utils.bootstrap
+# controller: paste alone; it opens a shell and waits for the secret_id
+cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
 ```
 
-The six R2/B2/OCI write/read credentials split into two different
-rotation flows, and need a redeploy step this section never used to
-mention at all.
+```sh
+# inside that shell: paste alone; it waits for the entry's scope and catalog key
+read -r -p 'scope: ' scope; read -r -p 'catalog key: ' key
+```
 
-All three providers now have the same scripted rotate-with-verify-then-revoke path:
+```sh
+# same shell: paste alone; it waits for the new value, hidden
+read -rs -p 'new value: ' value; echo; printf '%s' "$value" | bao kv put -mount=secret "$scope/$key" value=-; unset value
+```
+
+Then `exit`, and redeploy the hosts that render it. A file-cache entry is overwritten as shown under
+[Bootstrapping manual secrets](secrets.md#bootstrapping-manual-secrets).
+
+## Cloud leaf credentials
+
+R2, B2 and OCI leaves have one scripted path that creates the new key, verifies it over the same
+route production uses, and only then revokes the old one:
 
 ```sh
 # paste alone; it waits for the provider (r2, b2 or oci) and the leaf (write, read or both)
@@ -108,38 +107,23 @@ cd tools
 python3 -m cloud_credentials.create_leaf_keys --provider "$provider" --rotate "$leaf"
 ```
 
-This creates the new key, verifies it actually works over the same
-path production uses, and only then revokes the old one — no manual
-provider-console cleanup step for any of them. See
-[`cloud-credentials/rotation.md`](cloud-credentials/rotation.md#rotation)
-for exactly what it does and doesn't do, including what happens if
-verification fails, and that same doc's R2 section for why R2's cached
-rotation credential is a materially broader-blast-radius risk than
-B2's/OCI's — a deliberate, accepted trade-off, not parity.
+[`cloud-credentials/rotation.md`](cloud-credentials/rotation.md#rotation) covers what happens when
+verification fails, and why R2's cached rotation credential has a broader blast radius than B2's or
+OCI's, which is accepted.
 
-**Redeploy needed, and it differs by leaf — confirmed live:**
+| Leaf | Consumer | Redeploy |
+| :--- | :--- | :--- |
+| Write | The `cloud_sync` timer on `storage`, rendered by `deploy.yaml`. | Needed (below). On the CD agent the `rotation` job rotates the leaves monthly and `redeploy-storage` does it ([`cd-agent-host.md`](../deploy/cd-agent-host.md#applying-it)). |
+| Read | `restore_discovery`, which runs on `controller` and renders from the current values every time. | None. |
 
-- **Write leaf** (`cloud_sync`, all three providers): a real deployed
-  systemd timer on `storage`, only re-rendered on the next
-  `deploy.yaml` run. Needs:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --limit storage,localhost
-  ```
-  same `,localhost` reasoning as every row in the table above. On the
-  CD agent the `rotation` job rotates all six leaves on the 8th of each
-  month and `redeploy-storage` then runs this
-  ([`cd-agent-host.md`](../deploy/cd-agent-host.md#applying-it)); a leaf
-  rotated by hand still needs it by hand.
-- **Read leaf** (`restore_discovery`): runs entirely on `hosts:
-  controller` (your machine), rendered fresh from the current cache on
-  every invocation — `restore_all.py` always does this for you before
-  a restore. **No redeploy needed at all**: the next restore just picks
-  up the new value automatically.
+```sh
+# from ansible/, after rotating a write leaf
+ansible-playbook playbooks/deploy.yaml --limit storage,localhost
+```
 
-`openbao_utils/audit.py --provider <r2|b2|oci>` lists what's actually
-on each provider's console and flags anything not matching the current
-cache — useful after any `--rotate`, or after a failed one that left an
-unverified key orphaned, for all three providers.
+After a rotation, or a failed one that may have left an unverified key behind,
+`openbao_utils/audit.py --provider <r2|b2|oci>` lists what is on the provider's console and flags
+anything that doesn't match what is stored.
 
 ## Certificate-backed material (not in `secret_catalog.yaml` at all)
 
@@ -164,22 +148,13 @@ tinyauth's observer password does — `tinyauth_ca_trust` trusts step-ca's
 action anywhere else as long as step-ca's own root hasn't changed (see
 [`step-ca.md`](../services/step-ca.md)).
 
-**If the app whose volume you're resetting is currently backed up**
-(has a `backup:` entry in `app_catalog.yaml`), `backup_agent`'s
-long-running container holds a read-only mount on that volume the whole
-time it's running, which used to make the volume delete above fail with
-a `409 volume is in use` even after the app's own container was torn
-down. `reset_volume.yaml` now detects any other compose project still
-referencing the volume, tears it down first, and brings it back up once
-the volume is safe again — this happens automatically, no separate
-manual step needed anymore.
+A backed-up app's volume is also mounted read-only by `backup_agent`'s container.
+`reset_volume.yaml` finds any other compose project using the volume, takes it down and brings it
+back once the volume is safe, so no manual step is needed.
 
 ## App-generated secrets (not in `secret_catalog.yaml` either)
 
-`beszel-hub`'s KEY and TOKEN are a harder case than lldap's cert above:
-they're generated inside the hub's own database on first boot, with no
-way to replace just the keypair without also wiping the admin account,
-monitoring history, and notification config that live in the same
-volume. See [`beszel.md`](../monitoring/beszel.md#rotating-the-key-and-token) for the
-full procedure — it's long enough, and specific enough to Beszel's own
+`beszel-hub`'s KEY and TOKEN are generated inside the hub's database on first boot, and replacing
+the keypair means wiping the admin account, history and notification config in the same volume. See
+[`beszel.md`](../monitoring/beszel.md#rotating-the-key-and-token) for the full procedure — it's long enough, and specific enough to Beszel's own
 UI, that it belongs there rather than duplicated here.

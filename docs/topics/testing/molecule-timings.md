@@ -4,6 +4,37 @@ How the shard table in [`.github/molecule-shards.yml`](../../../.github/molecule
 
 [`molecule-timings.yml`](../../../.github/workflows/molecule-timings.yml) fires on Wednesday and Saturday at 05:07 UTC and on demand. Its `force` input measures every role. The code is `tools/ci/timing/`, run from `tools/` through `uv run`.
 
+## Running it
+
+To measure every role now, not just the changed ones:
+
+```sh
+gh workflow run molecule-timings.yml -f force=true
+```
+
+To read a finished run's state and proposal:
+
+```sh
+# paste alone; it waits for the run's id
+read -r -p 'run id: ' run_id
+```
+
+```sh
+out=$(mktemp -d) && gh run download "$run_id" -n molecule-timings -D "$out" && ls "$out"
+```
+
+To time one role locally:
+
+```sh
+# paste alone; it waits for the role's name
+read -r -p 'role: ' role
+```
+
+```sh
+# from ansible/
+MOLECULE_TIMINGS_FILE="$(mktemp)" uv run ./scripts/molecule-test-all.sh "$role"
+```
+
 ## What gets timed
 
 `ci.timing.fingerprint` gives each role a digest of the files its Molecule run reads: its [watch set](../engineering/ci/change-scoping.md#molecule-watch-sets) plus the paths every scenario inherits, as `git ls-files -s` lists them. The digest follows content, so a rebuilt checkout of the same files gives the same one. A role needs timing again when it has no record, its digest differs from the recorded one, or its record is more than 90 days old. `ci.timing.plan` names those roles, and the `plan` job turns them into legs with `ci.scope.molecule_shards`, the same legs a pull request runs. A run on a quiet week names none, so the `measure` job is skipped and only the report runs.

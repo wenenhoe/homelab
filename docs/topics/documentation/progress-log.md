@@ -20,7 +20,15 @@ The long parts are collapsed: a week lists its changes under "All N changes" and
 
 Everything is by rule from the paths a change touched and its title, with no model and no network call, so the same change always lands in the same place.
 
-- A change is **code** if it touches anything outside `docs/`, **project-doc edits** if it touches only `docs/projects/`, **docs** if it touches other docs and decisions only, and a **dependency update** if it came from Renovate. The generated doc views are ignored when deciding.
+Each change gets one kind; the generated doc views are ignored when deciding.
+
+| Kind | A change that |
+| :--- | :--- |
+| **dependency update** | came from Renovate |
+| **code** | touches anything outside `docs/` |
+| **project-doc edits** | touches only `docs/projects/` |
+| **docs** | touches other docs and decisions only |
+
 - It is listed under a theme: a project (chosen by a state change in the change, then by the project name's words in the title), "Decisions", or the area of the repo most of its code is in.
 - Highlights come from the project and decision frontmatter: a project opened, started building or closed, a decision approved or accepted, and an app or role added or removed. A project opened as not-started and deleted within the same span is dropped as scoping churn.
 

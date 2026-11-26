@@ -151,19 +151,10 @@ can't fix.
    The session's shell is on `controller`, starting in `tools/`, so the
    policy is read from the checkout rather than copied to `security`.
 
-   `secret_id_ttl=0` (never expires), unlike `controller`'s 90-day
-   cycle: this identity lives permanently on `security` itself, not on
-   a laptop with a rotation habit - same "always-on box" reasoning
-   [ADR 0020 (Automation identity scope)](../../../decisions/0020-automation-identity-and-access-scope/revision-000.md)
-   gives for `cd_agent`'s own AppRoles, applied here a stage early
-   since this identity exists before `cd_agent` does.
-
-   No `secret_id_bound_cidrs`/`token_bound_cidrs` set here - unlike
-   `cd_agent`'s genuine cross-host LAN traffic, the watcher and OpenBao
-   both run on `security`, and which source address that
-   traffic presents to OpenBao's listener (`127.0.0.1` or `security`'s
-   LAN IP) depends on the watcher's connection method. Add the bind
-   once that method is built, if it is meaningful.
+   | Setting | Why |
+   | :--- | :--- |
+   | `secret_id_ttl=0` (never expires) | The identity lives on `security`, an always-on host, not on a laptop with a rotation habit ([ADR 0020 (Automation identity scope)](../../../decisions/0020-automation-identity-and-access-scope/revision-000.md) gives `cd_agent`'s roles the same shape). |
+   | No CIDR binds | The watcher and OpenBao share a host, and which source address the listener sees (`127.0.0.1` or the LAN IP) depends on how the watcher connects. |
 
    This step only provisions the identity. The watcher's install steps
    in [`rotation-read-watcher.md`](rotation-read-watcher.md) mint its

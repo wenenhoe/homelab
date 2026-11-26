@@ -70,6 +70,14 @@ dialog.drawer::backdrop{background:rgb(0 0 0/.45)}
 :is(section,.doc) tbody tr:hover{background:var(--accent-bg)}
 td.title{font-weight:600}
 
+/* a list folded away on a phone */
+details.fold{margin:.75rem 0;padding:0;border:0;background:none}
+details.fold>summary{cursor:pointer;min-height:44px;margin:0 0 .5rem;padding:0;border:0;background:none;display:flex;align-items:center;font-weight:600;color:var(--accent)}
+/* both halves of the project list keep the same columns */
+#project-list th:nth-child(1){width:22%}
+#project-list th:nth-child(2){width:11%}
+#project-list th:nth-child(3){width:15%}
+
 /* status pills */
 .pill{display:inline-block;padding:.1rem .6rem;border-radius:999px;font-size:.8rem;font-weight:600;line-height:1.5;white-space:nowrap;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
 .s-accepted,.s-building{--c:var(--ok)}

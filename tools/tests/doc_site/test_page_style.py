@@ -73,3 +73,9 @@ def test_a_code_span_of_a_space_alone_stays_within_its_paragraph(tree, tmp_path)
     with opened(site.build(tree, draw=drawn), tmp_path, "topics/infra/network/", 360) as page:
         wider = page.evaluate("[...document.querySelectorAll('article.doc p')].filter((p) => p.scrollWidth > p.clientWidth).length")
     assert wider == 0
+
+
+@pytest.mark.parametrize(("width", "open_"), [pytest.param(390, False, id="phone"), pytest.param(1280, True, id="wide")])
+def test_a_folded_list_is_closed_on_a_phone_only(tree, tmp_path, width, open_):
+    with opened(site.build(tree, draw=drawn), tmp_path, "projects/", width) as page:
+        assert page.evaluate("document.querySelector('details.fold').open") is open_

@@ -1,4 +1,4 @@
-// Row filter, the menu drawer, the contents list, which is open in the markup and closed here on a narrow screen, and a copy button on each code block. Without scripts the pages are complete: the links show as a plain navigation and code is selected by hand.
+// Row filter, the menu drawer, the contents list and a folded list, which are open in the markup and closed here on a narrow screen, and a copy button on each code block. Without scripts the pages are complete: the links show as a plain navigation and code is selected by hand.
 (function () {
   var q = document.getElementById('q');
   if (q) {
@@ -21,6 +21,13 @@
     var sync = function () { list.open = wide.matches; };
     sync();
     wide.addEventListener('change', sync);
+  }
+  var folds = document.querySelectorAll('details.fold');
+  if (folds.length && window.matchMedia) {
+    var roomy = window.matchMedia('(min-width: 62rem)');
+    var open = function () { folds.forEach(function (f) { f.open = roomy.matches; }); };
+    open();
+    roomy.addEventListener('change', open);
   }
   var d = document.getElementById('drawer');
   var b = document.querySelector('.menu-btn');

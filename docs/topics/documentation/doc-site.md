@@ -76,10 +76,10 @@ Where a choice about a page is open, these decide it.
 
 | Principle | What the site does |
 | :--- | :--- |
-| **Content first, no script needed** | A page is complete without JavaScript and, apart from its layout, without the stylesheet. The script only adds the row filter, the menu's open button and the copy buttons, and closes the contents list on a narrow screen |
+| **Content first, no script needed** | A page is complete without JavaScript and, apart from its layout, without the stylesheet. The script only adds the row filter, the menu's open button and the copy buttons, and closes the contents list and the folded list on a narrow screen |
 | **One source, two outputs** | The site adds navigation (menus, breadcrumbs, contents lists, tabs), never content. A page says what its file says, and links to it |
 | **Show where you are** | A breadcrumb, the page's own entry in the navigation, and a contents list of its headings |
-| **Orient, don't hide** | Show a page's shape rather than folding its narrative away. Only a list of links is tabbed, by a rule that names the one page |
+| **Orient, don't hide** | Show a page's shape rather than folding its narrative away. Only a list of links is tabbed, by a rule that names the one page, and only the project list's not-started rows are folded, on a phone |
 | **Every state has an address** | A heading, a tab and a view's section open from their anchor. A filter's text has no address |
 | **Readable measure, one column** | See [the stylesheet](#the-stylesheet) |
 | **Targets and contrast** | Menu, contents and tab links and copy buttons are at least 44 pixels tall; colours come from one set of tokens, light and dark. No check measures either, so read a page on a phone |
@@ -127,7 +127,7 @@ A document page is a repository file shown as it reads on GitHub. `doc_site/docu
 - **Contents list.** A `<details open>`, so it needs no script. From 1040 pixels wide it sits beside the prose and stays on screen, scrolling on its own when it is taller than the window, and the headings' links back to it are hidden; below that it is above the prose, where the script closes it. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
 - **Copy button.** Added in the top right corner where the browser has a clipboard (HTTPS or `localhost`). Its icon turns into a tick, or a cross if the write is refused, with the same said to a screen reader. It copies the block without the final newline, so a pasted last line is not run. Blocks are written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)).
 - **Navigation.** Planning, Projects, Decisions, Topics, Architecture and DR coverage; the home page has a tile for each.
-- **Section landings.** Projects opens on a list of projects by status and initiative, above its README; Decisions on the decision index, with the README as a guide in the breadcrumb; Topics and Architecture on their READMEs.
+- **Section landings.** Projects opens on a list of projects by status and initiative, above its README, with the projects not started in a block that is open in the markup and that the script closes below 992 pixels; Decisions on the decision index, with the README as a guide in the breadcrumb; Topics and Architecture on their READMEs.
 - **Breadcrumb.** The section, then where the page is in it, then the section's guide if it has one.
 - **Topics tabs.** Each `##` group of the Topics index is a tab, made from the README's own headings, with the same filter and no-stylesheet behaviour as By topic. `TABBED_DOCUMENTS` in `site.py` names this one page.
 

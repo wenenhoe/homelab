@@ -17,34 +17,31 @@ Current values, set directly in each console:
 | B2 | 28 days (Default Bucket Retention) | 30 days | Custom lifecycle rule: 29d uploading→hiding, 1d hiding→deleting |
 | OCI | 3 days (Retention Rule, Unlocked) | 5 days | Retention Rules + Lifecycle Policy Rules |
 
-Every archive's filename embeds its own upload timestamp
-(`BACKUP_FILENAME` in `ansible/roles/backup_agent/templates/schedule.env.j2`)
-and is never reused. `--immutable` makes a source object that differs
-from the one already in the cloud fail the job (rclone exits 6, and the
-failure is reported like any other failed job) without uploading it, so
-an overwrite is refused by the relay itself and each provider's lock
-only ever guards a delete. Each provider keeps its
-lock strictly below its own delete-after (R2 1 day, B2 1 day to hiding,
-OCI 2 days) — deliberate, not slack to tighten: R2's own docs confirm a
-lifecycle delete against a still-locked object just defers until the
-lock clears, but B2's fails outright rather than deferring, so closing
-that gap on B2 specifically would start producing failed lifecycle runs
-instead of merely-delayed ones.
+Why the locks sit where they do:
+
+- Archive names embed the upload timestamp (`BACKUP_FILENAME` in
+  `ansible/roles/backup_agent/templates/schedule.env.j2`) and are never reused.
+- `--immutable` fails a job whose source object differs from the one in the cloud
+  (rclone exits 6, reported like any failed job) without uploading it. The relay
+  refuses an overwrite itself, so a provider's lock only ever guards a delete.
+- Each lock is strictly shorter than its own delete-after, and that gap is not
+  slack to tighten. R2 defers a lifecycle delete of a still-locked object until
+  the lock clears; B2 fails it, which would produce failed lifecycle runs.
 
 ## Targets
 
-**Which clouds each app is relayed to:** `app_catalog.yaml`'s
-`backup.cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
-SeaweedFS only; SeaweedFS itself is implicit for every backed-up app,
-never listed. An app's list replaces the default rather than adding to
-it; the default is `backup_defaults.cloud_targets`
-(`group_vars/all/main.yaml`, currently `[r2, b2]`). Each name must be a
-key of `cloud_sync_targets` (`host_vars/storage.yaml`), which alone
-holds the credentials. Minecraft overrides to `[oci]` alone. R2 and B2 each
-apply one lock and one delete-after to every object in their bucket (table
-above), so about a month of its daily archives would sit in each, far past
-either provider's free storage allowance. OCI's rules are the ones set for a
-short window; see [OCI window](#oci-window). Whether a second cloud can hold
+An app's clouds are `backup.cloud_targets` in `app_catalog.yaml`:
+
+- SeaweedFS is implicit for every backed-up app and never listed.
+- An app's list replaces `backup_defaults.cloud_targets`
+  (`group_vars/all/main.yaml`) rather than adding to it.
+- Each name must be a key of `cloud_sync_targets` (`host_vars/storage.yaml`),
+  which alone holds the credentials.
+
+Minecraft overrides to `[oci]` alone. R2 and B2 apply one lock and one
+delete-after to every object in their bucket, so about a month of its daily
+archives would sit in each, far past either free allowance. OCI's rules are set
+for a short window ([OCI window](#oci-window)). Whether a second cloud can hold
 it too is open.
 
 ## OCI window
@@ -74,12 +71,12 @@ stay stored and billed.
 
 ## Age ceiling
 
-SeaweedFS keeps an archive for `retention_days` (7), longer than OCI's
+SeaweedFS keeps an archive for `retention_days`, longer than OCI's
 delete-after. `rclone copy` offers every object the destination lacks, so an
 archive the lifecycle rule has deleted from OCI would be uploaded again while
 SeaweedFS still holds it, and its age there would start over. The OCI job
 therefore carries an age ceiling: `cloud_sync_targets.oci.max_age`
-(`host_vars/storage.yaml`, currently `4d`), passed as `--max-age`, which makes
+(`host_vars/storage.yaml`), passed as `--max-age`, which makes
 rclone skip a source object older than that. The age is the object's
 last-modified time in SeaweedFS, which is when it landed there.
 
@@ -98,27 +95,26 @@ job manifest holds `-`.
 
 ## Transfer cap
 
-Each of R2, B2 and OCI has a 10 GB free allowance, and a prefix is written by
-the host it belongs to. A host that starts writing far more than usual would
-have the relay copy it all, and the provider locks hold what lands for weeks.
-Each target therefore carries a cap on what one run may copy for one app:
-`cloud_sync_targets.<target>.max_transfer` (`host_vars/storage.yaml`), passed as
-`--max-transfer` with `--cutoff-mode=cautious`, so rclone does not start a
-transfer that would pass it. The job fails and the run's Telegram alert fires,
-and the other jobs carry on.
+Each of R2, B2 and OCI has a 10 GB free allowance, and the host a prefix belongs
+to writes it. A host that suddenly writes far more would have the relay copy it
+all, and the provider locks would hold it for weeks. So each target caps what one
+run copies for one app: `cloud_sync_targets.<target>.max_transfer`
+(`host_vars/storage.yaml`), passed as `--max-transfer` with
+`--cutoff-mode=cautious`, so rclone starts no transfer that would pass it. The job
+fails, the Telegram alert fires and the other jobs carry on.
 
 | Target | Cap per app per run | Reasoning |
 | :--- | :--- | :--- |
 | R2, B2 | `32M` | The largest archive among their apps is under 1 MiB, and a run after missed days carries at most a week of them. Six apps at the cap for the 30-day lock stay under the allowance. |
 | OCI | `4G` | Minecraft's archives are about 1.7 GiB, and `max_age` lets a run carry two or three after an outage. |
 
-A run adds at most the cap for one app, so a bucket holds at most the cap times
-the days its objects are kept, for each app. R2 and B2 keep an object 30 days:
-six apps at 32M hold at most 6 × 30 × 32 MiB, about 6 GB, and ten would reach the
-allowance. OCI keeps one 5 days, so 4G allows 20 GB, above its allowance. The cap
-that holds OCI to 10 GB is 2 GB, about one archive with no room to grow or to
-carry a missed day, so it is set above that and an overshoot is billed storage,
-not a failure.
+A bucket holds at most the cap times the days its objects are kept, per app:
+
+- **R2, B2** (30 days): six apps at 32M hold at most about 6 GB; ten would reach
+  the allowance.
+- **OCI** (5 days): 4G allows 20 GB, above the allowance. Holding it to 10 GB
+  needs a 2 GB cap, about one archive with no room to grow or to carry a missed
+  day, so an overshoot is billed storage rather than a failure.
 
 A job that stops at its cap has not copied everything. When an archive has really
 grown, raise the cap in `host_vars/storage.yaml` and deploy to `storage`, or run
@@ -127,30 +123,34 @@ no cap, and its column in the job manifest holds `-`.
 
 ## Mechanism
 
-A systemd timer (`cloud-sync.timer`, daily, scheduled
-after `backup_defaults.cron` to give every backup host's own nightly run
-room to land in SeaweedFS first) triggers `cloud-sync.service`
-(`Type=oneshot`), which runs one container per firing — `rclone/rclone`,
-looping a job manifest Ansible renders from every backup host's
-`app_catalog` data (cross-host, via `hostvars`, not requiring those
-hosts' own plays to have run first in the same invocation). One `rclone
-copy` per (app, cloud target) pair, with `--max-age` for a target that sets
-`max_age` and `--max-transfer` for one that sets `max_transfer`; one job failing
-doesn't block the rest of that run.
+`cloud-sync.timer` fires daily, after `backup_defaults.cron` so that every host's
+nightly run has landed in SeaweedFS. It starts `cloud-sync.service`, a oneshot
+that runs one `rclone/rclone` container:
 
-Every copy also carries bounds on a provider that accepts connections and then
-stalls: `--contimeout 20s`, `--timeout 2m` and `--low-level-retries 4`, against
-rclone's defaults of 60 seconds, 5 minutes and 10. With the defaults one stalled
-job can hold a run for hours, and each job after it waits behind it. `--timeout`
-is an idle limit, so an upload that keeps moving is not cut off, and it also
-bounds the wait for each response, which is why it stays at 2 minutes. The bounds
-shorten a bad night; they do not remove the three attempts rclone makes at each
-job, so a stalled job still takes several minutes to fail.
+```mermaid
+flowchart LR
+    S["SeaweedFS"] -->|"read-only identity"| R["rclone container<br/>loops the job manifest"]
+    R -->|"copy --immutable"| C["R2, B2, OCI"]
+```
 
-The container runs with every capability dropped except `DAC_OVERRIDE`,
-`no-new-privileges` and a read-only root filesystem. `rclone.conf` is `0600`
-and owned by the deploy user, which root in the container can only open with
-that capability; without it every job fails with "Failed to load config file".
+Ansible renders the manifest from every backup host's `app_catalog` data, through
+`hostvars`, so those hosts' own plays need not run first. It holds one job per
+(app, cloud target) pair, and one job failing does not stop the rest.
+
+| Flag | On | Why |
+| :--- | :--- | :--- |
+| `--max-age` | A target with `max_age` | [Age ceiling](#age-ceiling) |
+| `--max-transfer`, `--cutoff-mode=cautious` | A target with `max_transfer` | [Transfer cap](#transfer-cap) |
+| `--contimeout 20s`, `--low-level-retries 4` | Every job | A provider that accepts connections and then stalls would hold a run for hours at rclone's defaults (60 seconds, 10 retries) |
+| `--timeout 2m` | Every job | An idle limit (default 5 minutes), so a moving upload is not cut off. It also bounds the wait for each response, so it is no tighter |
+
+The bounds shorten a bad night; rclone still makes three attempts at each job, so
+a stalled one takes several minutes to fail.
+
+The container has every capability dropped except `DAC_OVERRIDE`,
+`no-new-privileges` and a read-only root filesystem. `rclone.conf` is `0600` and
+owned by the deploy user, so root in the container needs that capability to open
+it; without it every job fails with "Failed to load config file".
 
 ## A failed run
 
@@ -182,49 +182,50 @@ $R lsl --s3-versions "$remote:$bucket/$host-$app"
 
 ## Before first use
 
-- Create a bucket by hand on each of R2/B2/OCI — `homelab-backups` for
-  R2/OCI (account-scoped naming, so this is fine); B2 bucket names are
-  globally unique across *every* B2 account, so `homelab-backups` is
-  likely taken; B2 uses `homelab-backups-b2`
-  (`cloud_sync_targets.b2.bucket` in `host_vars/storage.yaml`). None of
-  this is Ansible-managed.
-- Fill in the `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
-  in `secret_catalog.yaml` — a write and a read credential per
-  provider, plus the three shared endpoint values (account ID, B2
-  region, OCI namespace/region). For B2 and OCI, `tools/cloud_credentials/create_rotation_keys.py`
-  followed by `tools/cloud_credentials/create_leaf_keys.py` does this via each
-  provider's HTTP API rather than console click-through; R2 can't
-  mint a delegate rotation key (see `cloud-credentials/scoping.md`'s R2
-  section), so `create_rotation_keys.py --provider r2` only caches the
-  Custom Token you create in the Console, and `create_leaf_keys.py`
-  does the rest. `openbao_utils/bootstrap.py`
-  remains the manual fallback for any of them if you'd rather
-  paste in console-created values — both paths write to the same
-  cache files; see
-  [`cloud-credentials/scoping.md`](../security/cloud-credentials/scoping.md)
-  for exactly what each credential is scoped to, provider by provider —
-  B2 and OCI both fully exclude delete from the write credential, R2
-  can't (a platform limitation, not something worth re-chasing; see
-  that doc's R2 section for why `copy`-vs-`sync` above is what actually
-  carries the defense for R2 specifically). `backblaze-b2-region`
-  specifically (B2 Console > Buckets > Bucket Details) is the one value
-  here B2 assigns rather than you choosing it — get the real one from
-  your own bucket, not a copied example.
-- **Check each remote before trusting the nightly run.** Every
-  `rclone.conf` endpoint is written with its scheme (`https://`), not a bare
-  hostname, the opposite convention from `docker-volume-backup`'s minio-go
-  client elsewhere in this repo. List each remote with the image the installed
-  unit runs, read from the unit on `storage` so the command follows what is
-  running and needs no checkout of this repository:
-  ```sh
-  # paste alone; it waits for the remote's name in rclone.conf
-  read -r -p 'remote: ' name
-  ```
+None of this is Ansible-managed.
 
-  ```sh
-  IMG=$(grep -oP 'rclone/rclone:\S+' /etc/systemd/system/cloud-sync.service)
-  docker run --rm \
-    -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
-    "$IMG" lsd "$name:"
-  ```
-  Each remote name should list, or report an empty result without an error.
+1. **Create the buckets by hand.** B2 bucket names are unique across every B2
+   account, so its name differs:
+
+   | Provider | Bucket |
+   | :--- | :--- |
+   | R2, OCI | `homelab-backups` |
+   | B2 | `homelab-backups-b2` (`cloud_sync_targets.b2.bucket` in `host_vars/storage.yaml`) |
+
+2. **Create the credentials.** `secret_catalog.yaml`'s `cloudflare-r2-*`,
+   `backblaze-b2-*` and `oci-*` entries are a write and a read credential per
+   provider, plus the R2 account ID, the B2 region and the OCI namespace and
+   region. The B2 region is assigned by B2, not chosen: read it under B2 Console >
+   Buckets > Bucket Details. The scripts that create the rest are in
+   [`cloud-credentials/creation.md`](../security/cloud-credentials/creation.md).
+   R2 cannot mint a delegate rotation key, so create its Custom Token in the
+   console and let `create_rotation_keys --provider r2` cache it. To paste in
+   console-made values instead, `openbao_utils/bootstrap.py` writes the same
+   cache.
+
+   What each credential may do is in
+   [`cloud-credentials/scoping.md`](../security/cloud-credentials/scoping.md).
+   B2 and OCI exclude delete from the write credential. R2 cannot, a platform
+   limit, so there `copy` rather than `sync` carries the defence.
+
+3. **Check each remote** before trusting the nightly run, as below.
+
+### Checking a remote
+
+Every `rclone.conf` endpoint is written with its scheme (`https://`), the opposite
+of `docker-volume-backup`'s minio-go client. List each remote on `storage` with
+the image the installed unit runs, which needs no checkout of this repository:
+
+```sh
+# paste alone; it waits for the remote's name in rclone.conf
+read -r -p 'remote: ' name
+```
+
+```sh
+IMG=$(grep -oP 'rclone/rclone:\S+' /etc/systemd/system/cloud-sync.service)
+docker run --rm \
+  -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
+  "$IMG" lsd "$name:"
+```
+
+Each remote name should list, or report an empty result without an error.

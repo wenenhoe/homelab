@@ -2,8 +2,7 @@
 
 Weekly check that every image this repo pins still exists in its registry. How it fits the pipeline is in [CI: PR Checks](pipeline.md); the scheduled-job overview is in [`scheduled-jobs.md`](scheduled-jobs.md).
 
-`check-image-tags.yml` runs once a week and on demand.
-Renovate only ever proposes tags that exist, so a tag an upstream later
+`check-image-tags.yml` runs [on a schedule](scheduled-jobs.md) and on demand. Renovate only ever proposes tags that exist, so a tag an upstream later
 removes or renames goes unnoticed until a deploy fails to pull it;
 [`tools/ci/images/remote.py`](../../../../tools/ci/images/remote.py) asks each
 registry whether every image this repo pins is still there. Unlike
@@ -40,37 +39,38 @@ Hub, `ghcr.io` and any other v2 registry share one path: a HEAD request per
 distinct image, and the anonymous token endpoint taken from the registry's
 own 401 challenge. A HEAD request doesn't download the image.
 
-**Rate limiting** is the risk this is built around:
+Requests are built around registry rate limits:
 
-- one request at a time, with a half-second pause between requests. Each
-  image costs at most two HEADs plus, once per repository, a token request:
-  the images across the two registries (`ghcr.io` and Docker Hub) come to a
-  few requests each, once a week;
-- a token cached per repository, and reused across its tags;
-- a 429 or 5xx is retried up to five times, waiting as long as `Retry-After`
-  says (capped at a minute) or backing off 2, 4, 8, 16 seconds;
-- whatever is still unanswered gets one more pass after a minute's cooldown;
-- an image whose registry never answered is a **warning**, not a failure: it
-  shows in the log and the run summary as not checked this run. Only a tag
-  the registry says isn't there (a 404, or a 401/403 even with a token: gone,
-  renamed or private) fails the run. A registry outage doesn't turn a weekly
-  run red, and it can't hide a removed tag from the next week's.
+| Behaviour | Detail |
+| :--- | :--- |
+| Pacing | One request at a time with a pause between; at most two HEADs per image, one token request per repository |
+| 429 or 5xx | Retried, waiting for `Retry-After` (capped) or backing off, then one more pass after a cooldown |
+| Never answered | A **warning** in the log and run summary, not a failure |
+| 404, or 401/403 with a token | Fails the run: gone, renamed or private |
 
-The check sends HEAD requests for manifests. A registry rate limit would meet
-the retry and warning paths above. The run needs no credentials and runs with
-read-only permissions. GitHub emails the
-workflow's failure to the person who last changed the schedule.
+So an outage does not turn a run red and cannot hide a removed tag from the next one. The run needs no credentials and is read-only; GitHub emails a failure to whoever last changed the schedule.
 
-The tests speak real HTTP to a local server that implements the token flow
-and can answer 429 and 5xx; **they don't reach a real registry**, so the
-first `workflow_dispatch` run against `ghcr.io` and Docker Hub is the live
-check. `python -m ci.images.remote list` (from `tools/`) prints every
-reference and the files naming it without making a request.
+The tests use a local server with the token flow, not a real registry. To list every reference and the files naming it, without a request:
+
+```bash
+cd tools && python3 -m ci.images.remote list
+```
+
+To run the live check now:
+
+```bash
+gh workflow run check-image-tags.yml
+```
 
 ## Image inventory JSON
 
-`python -m ci.images.remote list --json` (from `tools/`) prints the same
-collection as one JSON document on stdout, again without a request. It exists
+The same collection as one JSON document on stdout, again without a request:
+
+```bash
+cd tools && python3 -m ci.images.remote list --json
+```
+
+It exists
 so a consumer outside this repo, the [image vulnerability
 assessment](../../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md),
 depends on a tested shape instead of the text output.

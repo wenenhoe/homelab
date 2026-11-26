@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+import pytest
 from _doc_fixtures import project, revision
 from doc_site import site
 
@@ -81,3 +82,8 @@ def test_architecture_pages_sit_under_the_architecture_entry(tree):
     files = build(tree)
     assert crumbs(files["architecture/index.html"]) == [("Architecture", None)]
     assert crumbs(files["architecture/flow/index.html"])[0] == ("Architecture", "../../architecture/")
+
+
+@pytest.mark.parametrize(("page", "label"), [("project-planning", "Planning"), ("dr-coverage", "DR coverage")])
+def test_a_view_outside_every_section_names_itself_in_its_breadcrumb(tree, page, label):
+    assert crumbs(build(tree)[f"{page}/index.html"]) == [(label, None)]

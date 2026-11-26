@@ -433,7 +433,9 @@ def _crumbs(document: Document, title: str, base: str, lineages: dict[str, Linea
     """Where a document's page is in its section: the section, what holds the page, the page, and the link to the section's README."""
     section = section_of(document.slug)
     if section is None:
-        return None
+        # A view outside every section shows where it is by its own entry in the navigation; the home page shows nothing.
+        label = next((label for _, slug, label in NAV if slug == document.slug), None)
+        return {"trail": [{"label": label, "href": None}], "guide": None, "guide_label": ""} if label else None
     landing = f"{base}{section.landing}/"
     source = document.source
     if document.slug == section.landing:

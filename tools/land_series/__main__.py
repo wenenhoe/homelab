@@ -1,9 +1,10 @@
-"""python3 -m land_series FILE... [--repo DIR] [--base REF] [--no-fetch] [--check COMMAND]... [--dry-run | --land [--yes]]
+"""python3 -m land_series FILE... [--repo DIR] [--base REF] [--no-fetch] [--check COMMAND]... [--dry-run | --land [--yes] [--keep]]
 
 Replay the series in FILE... (several files make one series) on a scratch worktree of the base branch and run the
 checks after every commit, then keep a local branch per pull request for review (`--dry-run` keeps none). `--land` pushes the
 kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
-confirms every merge). Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
+confirms every merge). Once every pull request has landed the series files are deleted (`--keep` leaves them).
+Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
 (the base for the first), and `pre-commit run --all-files`, which is what committing runs; at each pull request's last commit the Python
 unit tests run as well, when CI's `python_unit_tests` filter is true for the pull request. `--land` runs the pre-push hooks on each commit
 it is about to push, which is what pushing runs, and then pushes with every hook off. Hooks to skip are named in SKIP in the environment, which
@@ -56,9 +57,9 @@ def remote_branch(name: str) -> str:
     return name if "/" in name else f"{REMOTE}/{name}"
 
 
-def base_of(files: Sequence[Path]) -> str | None:
+def base_of(files: Sequence[tuple[Path, bytes]]) -> str | None:
     """The base the series files' `# base:` lines name; files that name different ones are refused."""
-    named = {path.name: base for path in files if (base := parse_base(path.read_bytes(), path.name))}
+    named = {path.name: base for path, data in files if (base := parse_base(data, path.name))}
     if len({remote_branch(base) for base in named.values()}) > 1:
         raise SeriesError("the series files name different bases: " + ", ".join(f"{name} says {base}" for name, base in sorted(named.items())))
     return next(iter(named.values()), None)
@@ -85,6 +86,20 @@ def ask_merge(pull: Pull, url: str, advice: Sequence[str] = ()) -> bool:
     return input("Review it, then type 'yes' to merge: ").strip() == "yes"
 
 
+def delete_landed(files: Sequence[tuple[Path, bytes]]) -> None:
+    """Delete each series file that still holds what this run read, so one written again under the same name while CI ran survives."""
+    for path, data in files:
+        try:
+            if path.read_bytes() != data:
+                print(f"{path} changed during the run, so it was kept")
+                continue
+            path.unlink()
+        except OSError as error:
+            print(f"{path} could not be deleted: {error}")
+        else:
+            print(f"deleted {path}")
+
+
 def say(message: str) -> None:
     """Progress goes to stderr as it happens, so a long check or a CI wait is not silence."""
     print(message, file=sys.stderr, flush=True)
@@ -103,13 +118,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="replay and check only; leave no branches")
     parser.add_argument("--land", action="store_true", help="push the kept branches, open, wait for and merge a pull request per number")
     parser.add_argument("--yes", action="store_true", help="with --land, merge without asking after each pull request's checks pass")
+    parser.add_argument("--keep", action="store_true", help="with --land, keep the series files instead of deleting them once everything has landed")
     args = parser.parse_args(argv)
     display = LiveBlock(sys.stderr).show
     if args.land and args.dry_run:
         parser.error("--land lands the branches a replay kept, so it cannot be combined with --dry-run")
     try:
-        args.base = remote_branch(args.base or base_of(args.files) or DEFAULT_BASE)
-        layers = order_layers([layer for path in args.files for layer in parse_series(path.read_bytes(), path.name)])
+        files = [(path, path.read_bytes()) for path in args.files]
+        args.base = remote_branch(args.base or base_of(files) or DEFAULT_BASE)
+        layers = order_layers([layer for path, data in files for layer in parse_series(data, path.name)])
         if not args.no_fetch:
             fetch(args.repo, args.base)
         if args.land:
@@ -122,7 +139,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 display=display,
                 push_checks=default_push_checks(),
             )
-            return report(landed)
+            status = report(landed)
+            if status == 0 and not args.keep:
+                delete_landed(files)
+            return status
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks()
         tip_checks = [] if args.check else default_tip_checks()
         results = replay(args.repo, layers, checks, ask, base=args.base, progress=say, display=display, tip_checks=tip_checks)

@@ -713,8 +713,9 @@ def test_the_command_line_keeps_then_lands_a_series_and_prints_each_pull_request
     capsys.readouterr()
     assert run(series, repo, "--land", "--yes") == 0
 
-    assert capsys.readouterr().out.splitlines() == ["0001  merged  https://example.test/pull/1"]
+    assert capsys.readouterr().out.splitlines() == ["0001  merged  https://example.test/pull/1", f"deleted {series}"]
     assert github.file_on_main("a.txt") == "one"
+    assert not series.exists()
 
 
 def test_with_no_terminal_the_command_line_stops_before_the_merge_and_says_where(
@@ -732,6 +733,7 @@ def test_with_no_terminal_the_command_line_stops_before_the_merge_and_says_where
     assert "0001  left open  https://example.test/pull/1" in captured.out
     assert "stopped before merging pull request 0001" in captured.err
     assert github.merges_on_main() == []
+    assert series.exists()
 
 
 def test_a_series_that_fails_the_replay_leaves_nothing_to_land(
@@ -747,6 +749,90 @@ def test_a_series_that_fails_the_replay_leaves_nothing_to_land(
     assert "has no series/write-one" in capsys.readouterr().err
     assert github.branches() == ["main"]
     assert github.calls("pr") == []
+
+
+def one_kept_series(repo: Repo, author: Author, directory: Path) -> Path:
+    series = directory / "one.series"
+    series.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+    assert run(series, repo) == 0
+    return series
+
+
+def test_keep_leaves_the_series_file_after_everything_has_landed(github: FakeGitHub, repo: Repo, author: Author, tmp_path) -> None:
+    series = one_kept_series(repo, author, tmp_path)
+
+    assert run(series, repo, "--land", "--yes", "--keep") == 0
+
+    assert github.merges_on_main() == ["Merge pull request #1"]
+    assert series.exists()
+
+
+def test_every_file_of_a_series_is_deleted_once_it_has_all_landed(github: FakeGitHub, repo: Repo, author: Author, tmp_path) -> None:
+    first, second = tmp_path / "first.series", tmp_path / "second.series"
+    first.write_bytes(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))]))
+    second.write_bytes(series_file([("0002a write-two", author.patch("docs: write two", {"b.txt": "two\n"}))]))
+    both = [str(first), str(second), "--repo", str(repo.path), "--check", f"{sys.executable} -c pass"]
+    assert cli.main(both) == 0
+
+    assert cli.main([*both, "--land", "--yes"]) == 0
+
+    assert (github.file_on_main("a.txt"), github.file_on_main("b.txt")) == ("one", "two")
+    assert not first.exists()
+    assert not second.exists()
+
+
+@pytest.mark.usefixtures("github")
+def test_a_series_already_in_the_base_is_deleted_by_land(repo: Repo, author: Author, tmp_path) -> None:
+    series = one_kept_series(repo, author, tmp_path)
+    again = tmp_path / "again.series"
+    again.write_bytes(series.read_bytes())
+    assert run(series, repo, "--land", "--yes") == 0
+
+    assert run(again, repo, "--land", "--yes") == 0
+
+    assert not again.exists()
+
+
+def test_a_failed_check_keeps_the_series_file(github: FakeGitHub, repo: Repo, author: Author, tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    series = one_kept_series(repo, author, tmp_path)
+    monkeypatch.setenv("FAKE_GH_CHECKS", "fail")
+
+    assert run(series, repo, "--land", "--yes") == 1
+
+    assert github.merges_on_main() == []
+    assert series.exists()
+
+
+def test_a_series_file_written_again_during_the_run_is_kept(
+    github: FakeGitHub, repo: Repo, author: Author, tmp_path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    series = one_kept_series(repo, author, tmp_path)
+
+    def replace_the_file() -> list[Check]:
+        series.write_bytes(b"a newer series\n")
+        return []
+
+    monkeypatch.setattr(cli, "default_push_checks", replace_the_file)
+
+    assert run(series, repo, "--land", "--yes") == 0
+
+    assert github.merges_on_main() == ["Merge pull request #1"]
+    assert series.read_bytes() == b"a newer series\n"
+    assert f"{series} changed during the run, so it was kept" in capsys.readouterr().out
+
+
+def test_a_series_file_that_cannot_be_deleted_is_reported(tmp_path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+    series = tmp_path / "one.series"
+    series.write_bytes(b"data")
+
+    def refuse(self: Path, missing_ok: bool = False) -> None:
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr(Path, "unlink", refuse)
+
+    cli.delete_landed([(series, b"data")])
+
+    assert capsys.readouterr().out.splitlines() == [f"{series} could not be deleted: read-only"]
 
 
 def keep_series(repo: Repo, tmp_path, patches: list[tuple[str, str, bytes]], name: str) -> list[Layer]:

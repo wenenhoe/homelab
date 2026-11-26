@@ -15,7 +15,7 @@ uv run python -m land_series "$series" --repo ..            # replay, check, kee
 ```
 
 ```bash
-uv run python -m land_series "$series" --repo .. --land     # push, open, wait, confirm, merge
+uv run python -m land_series "$series" --repo .. --land     # push, open, wait, confirm, merge, delete the file
 ```
 
 ```mermaid
@@ -106,6 +106,8 @@ A branch kept by an earlier run is replaced when its record still matches; one t
 5. Merges it with `gh pr merge --admin --merge`, naming the pushed commit so a branch that moved after the checks is not merged, deletes the remote branch and the kept one, and fetches. A fetch that loses a race with another is retried; the merge is already recorded. If GitHub refuses the merge, the run stops with GitHub's reason (an unreported required check, say), the pull request is left open and listed as such, and running `--land` again continues from it.
 
 The pre-push hooks are what `git push` would run: `pre-commit run --hook-stage pre-push --from-ref <the commit before the pull request> --to-ref HEAD`, in a scratch worktree of the commit about to be pushed, so they test that commit and not this clone's working tree. The base is the branch's tip as just fetched, which holds the pull requests before it. `check-doc-change-push` judges against that same commit, whichever branch the series lands on, because the tool names it in `CHECK_DOC_CHANGE_BASE`; a push made by hand takes the default branch. They run once per push, so not for a branch already at the kept commit, and whether or not the `pre-push` git hook is installed; `SKIP` skips hooks as it does in the replay. The push itself then runs with every hook off, so none runs twice. A hook that fails stops the run before that pull request is pushed, and the pull requests before it stay merged, as a failed push would leave them; fix the cause and run `--land` again, or rebuild the branches with a replay if the fix changes the series. `ansible-lint` is one of them, and runs only when the pull request touches what its `files` pattern matches.
+
+Once every pull request has merged, or is already in the base, `--land` deletes the series files; `--keep` leaves them. A run that stops, or leaves a pull request open, keeps them, since running it again reads them. A file whose content changed while the run was waiting is kept too. A file that cannot be deleted is named and does not fail the run. A commit counts as in the base by its author time and subject, not its content, so give an edited commit a new date or subject before landing it again.
 
 Each pull request becomes a merge commit, so one reverts alone. A merge to `main` is a deploy ([`branching.md`](branching.md)).
 

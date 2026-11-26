@@ -167,7 +167,8 @@ Prose (paragraphs, lists, quotes, headings, the lede) keeps one reading measure;
 | Page | Column |
 | :--- | :--- |
 | A document page with its contents list beside the prose | the page's width, less the list's column |
-| Any other document page, the home page among them | at most 53rem, centred |
+| Any other document page with a diagram or a table of three or more columns | at most 53rem, centred |
+| Any other document page, the home page among them | the reading measure, centred; the header keeps its width |
 | A generated view | the page's width; its lede, captions and legend run as wide as its table |
 
 | | Simple.css | Mermaid |

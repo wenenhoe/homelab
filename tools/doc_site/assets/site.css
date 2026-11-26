@@ -213,6 +213,8 @@ h2 .up{display:inline-flex;align-items:center;min-height:44px;margin-left:.75rem
 /* a document page is one centred column wherever no contents list is beside it: 53rem of content and main's padding */
 main:has(.doc):not(:has(.with-toc)){max-width:55rem}
 @media (max-width:1039.98px){main:has(.doc){max-width:55rem}}
+/* with nothing wider than prose on the page, the column is the reading measure, so no gap is left beside the text */
+main:has(.doc):not(:has(.with-toc,.diagram,th:nth-child(3))){max-width:calc(72ch + 2rem)}
 
 /* diagrams, drawn at build time in a light and a dark rendering */
 .diagram{margin:1.25rem 0;container-type:inline-size}

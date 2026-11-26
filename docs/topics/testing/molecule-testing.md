@@ -131,7 +131,6 @@ These scenarios have no `idempotence` step:
 | Its setup makes new data every run | `restore/confirmation_declined`, `restore_discovery/discovery_and_restore` |
 | It waits out a real certificate lifetime | `step_ca_cert/renewal_timing` |
 | Its check run reports a difference every time | `tailscale_node/drift` |
-| The scenario records no reason | `seaweedfs_bucket/identity_scoping` |
 
 Two more are narrower than they look:
 

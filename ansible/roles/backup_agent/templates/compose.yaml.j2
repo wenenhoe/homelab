@@ -41,6 +41,9 @@ services:
       - ./notification-failure.template:/etc/dockervolumebackup/notifications.d/01-failure.template:ro
     env_file:
       - .env
+    # Recreates the agent when a mounted file changes; see tasks/main.yaml.
+    labels:
+      backup-agent-files-sha256: "{{ backup_agent_files_checksum }}"
     networks:
       - backup-agent-net
     restart: unless-stopped

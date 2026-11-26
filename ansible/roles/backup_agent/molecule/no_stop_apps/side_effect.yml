@@ -1,0 +1,22 @@
+---
+# Changes one schedule setting and converges again. Only a conf.d file differs,
+# so the compose file and .env give Compose no reason to recreate the agent.
+- name: Record the running agent
+  hosts: all
+  become: true
+  tasks:
+    - name: Inspect backup-agent
+      community.docker.docker_container_info:
+        name: backup-agent
+      register: backup_agent_before_change
+
+    - name: Persist its id for verify.yml
+      ansible.builtin.copy:
+        dest: /root/backup-agent-id-before-change
+        content: "{{ backup_agent_before_change.container.Id }}"
+        mode: "0644"
+
+- name: Converge with a changed schedule
+  ansible.builtin.import_playbook: converge.yml
+  vars:
+    no_stop_apps_retention_days: 14

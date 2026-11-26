@@ -105,7 +105,7 @@ One line per scenario. What exactly each one asserts is in its `verify.yml` and,
 | `tinyauth_ca_trust` | `default` | tinyauth with `tinyauth_ldap_insecure: false` trusts lldap's step-ca certificate ([`lldap.md`](../services/lldap.md)). |
 | | `not_running` | No tinyauth: the guard fails before any CA bundle work. |
 | `backup_agent` | `default` | Per-app schedules and stop labels, encrypted archives that decrypt, least-capability volume reads, the Docker API proxy rules call by call, stale-schedule removal and the freshness push. |
-| | `no_stop_apps` | With no app to stop, no Docker API proxy or rules file is rendered. |
+| | `no_stop_apps` | With no app to stop, no Docker API proxy or rules file is rendered; a changed schedule recreates the agent. |
 | | `varying_cron` | Different cron cadences give different freshness thresholds, from the longest gap. |
 | `cloud_sync` | `default` | Syncs each host's apps to their cloud targets; the job's real side effects, and repair of hand-edited units. |
 | `restore` | `default` | Stop, extract, overwrite, redeploy, with the archive's owners and modes. |

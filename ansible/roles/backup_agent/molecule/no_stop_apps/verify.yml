@@ -75,6 +75,29 @@
           - backup_agent_no_stop_names | select('search', 'backup-agent-dockerproxy') | list | length == 0
         fail_msg: "Expected only /backup-agent, no dockerproxy. Got: {{ backup_agent_no_stop_names }}"
 
+    - name: Read the agent's id from before the schedule change
+      ansible.builtin.slurp:
+        path: /root/backup-agent-id-before-change
+      register: backup_agent_id_before_change
+
+    - name: Inspect backup-agent after the change
+      community.docker.docker_container_info:
+        name: backup-agent
+      register: backup_agent_after_change
+
+    - name: Read the schedule as the running agent sees it
+      community.docker.docker_container_exec:
+        container: backup-agent
+        command: cat /etc/dockervolumebackup/conf.d/happy_app_solo_nostop.env
+      register: backup_agent_mounted_schedule
+      changed_when: false
+
+    - name: Confirm the changed schedule recreated the agent
+      ansible.builtin.assert:
+        that:
+          - (backup_agent_id_before_change.content | b64decode) != backup_agent_after_change.container.Id
+          - "'BACKUP_RETENTION_DAYS=14' in backup_agent_mounted_schedule.stdout"
+
     # --- Freshness check renders even without the dockerproxy branch ----
     # Light touch only — full behavioral coverage (real trigger, real S3
     # target, both branches) lives in the default scenario. This just

@@ -39,3 +39,9 @@ def test_a_heading_is_smaller_than_the_one_above_it_in_rank(tree, tmp_path):
     with opened(site.build(tree, draw=drawn), tmp_path, "topics/infra/network/", 1280) as page:
         sizes = page.evaluate("['h1','h2','h3','h4'].map((tag) => parseFloat(getComputedStyle(document.querySelector('main ' + tag)).fontSize))")
     assert sizes == sorted(sizes, reverse=True) and len(set(sizes)) == 4
+
+
+@pytest.mark.parametrize("width", [390, 1280])
+def test_the_header_starts_at_the_top_of_the_page(tree, tmp_path, width):
+    with opened(site.build(tree, draw=drawn), tmp_path, "", width) as page:
+        assert page.evaluate("document.querySelector('header.bar').getBoundingClientRect().top") == 0

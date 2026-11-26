@@ -275,3 +275,15 @@ def test_a_change_to_the_renderer_checks_every_page(tmp_path):
 def test_changed_without_sample_is_refused(tmp_path):
     with pytest.raises(SystemExit):
         run_main(tmp_path, [])
+
+
+def test_a_heading_shown_only_by_its_address_is_reached_by_it(tmp_path):
+    body = (
+        "<style>html{scroll-padding-top:70px}.p{display:none}.p:has(:target){display:block}</style>"
+        + BAR.format(height=60)
+        + '<a href="#h">go</a>'
+        + "<p>text</p>" * 80
+        + '<div class="p"><h2 id="h">Heading</h2></div>'
+        + "<p>text</p>" * 80
+    )
+    assert problems(tmp_path, body) == []

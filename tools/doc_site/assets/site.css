@@ -22,6 +22,8 @@ td,th{overflow-wrap:normal;word-break:normal;hyphens:none}
 /* top bar */
 body>header.bar{background:var(--bg);border-bottom:1px solid var(--border);padding:0;text-align:left;position:sticky;top:0;z-index:5}
 .bar-in{display:flex;align-items:center;gap:1rem;min-height:56px}
+/* Simple.css puts 2rem above a header's only child */
+body>header.bar>.bar-in{margin-block-start:0}
 .brand{font-weight:700;color:var(--text);text-decoration:none;margin-right:auto}
 .bar nav{padding:0;display:flex;gap:.25rem}
 .bar nav a{margin:0;padding:.5rem .75rem;border:0;border-radius:var(--standard-border-radius);text-decoration:none;color:var(--text);line-height:1.2;min-height:44px;display:inline-flex;align-items:center}

@@ -1,9 +1,8 @@
 ---
 # Confirms the "no running lldap" guard actually fires and fails
-# loudly, instead of that branch only ever being a coverage gap —
-# mirrors seaweedfs_bucket's `wrong_credentials` / backup_agent's
-# `conflict` in spirit: the point isn't the happy path, it's proving
-# the negative case still fails loudly.
+# loudly, instead of that branch only ever being a coverage gap. The
+# point isn't the happy path, it's proving the negative case still fails
+# loudly.
 driver:
   name: docker
 platforms:

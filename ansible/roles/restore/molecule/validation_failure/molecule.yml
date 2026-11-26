@@ -33,7 +33,7 @@ verifier:
 scenario:
   # Unlike default/multi_volume: this scenario never gets past validation,
   # so nothing destructive/non-idempotent ever runs — idempotence is safe
-  # to keep here, same as backup_agent's conflict scenario.
+  # to keep here.
   test_sequence:
     - dependency
     - destroy

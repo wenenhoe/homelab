@@ -44,9 +44,9 @@
           ansible.builtin.include_role:
             name: compose_app
       rescue:
-        # Same bare-rescue trap as backup_agent's `conflict` scenario: any
-        # failure inside the block - not just app_fail's - would leave the
-        # same marker behind and read as a pass. `ansible_failed_task`/
+        # A bare rescue is a trap: any failure inside the block - not just
+        # app_fail's - would leave the same marker behind and read as a
+        # pass. `ansible_failed_task`/
         # `ansible_failed_result` are only populated inside rescue - assert
         # the failure is specifically compose_app's own "did anything in
         # the batch fail" gate, naming app_fail, before trusting it.

@@ -38,8 +38,7 @@
 
     # The role under test — deliberately given credentials that don't
     # match the identity actually configured on the server, wrapped in
-    # block/rescue (conflict scenario's own idiom) since failure here is
-    # the expected, correct outcome.
+    # block/rescue since failure here is the expected, correct outcome.
     - name: "Run seaweedfs_bucket [block / rescue] (wrong credentials, failure is deliberate and expected)"
       block:
         - name: Run seaweedfs_bucket with mismatched credentials

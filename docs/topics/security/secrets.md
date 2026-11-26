@@ -11,20 +11,22 @@ It runs as `deploy.yaml`'s Play 0, tagged `always`, `gather_facts: false`
 (`main_domain`) and Play 1's implicit fact-gathering needs a live
 connection first.
 
-Every secret lives in OpenBao except three permanent exceptions that stay in the controller-side file cache instead:
-`main-domain` and the `openbao-controller-role-id`/`-secret-id` AppRole
-credential — because resolving any of them is a prerequisite for
-reaching Vault at all. The cache is `ansible/files/secrets/` unless
-`HOMELAB_SECRETS_DIR` names another absolute directory, as a CD agent job's
-unit does. Every catalog entry states its `store`
-(`openbao` or `controller_file`), and every `store: openbao` entry's
-`scope` says where in Vault it lives, including every
-`cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entry
-(`scope: cloud_credentials/leaf`, the same top-level
-path `tools/cloud_credentials/*.py` itself writes to — see
-`secret_store.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secret_catalog.yaml`'s own header comment and
-[ADR 0021 (Ownerless secret paths)](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
-for the full picture.
+Every secret lives in OpenBao except three that must be known before Vault can be reached, which
+stay in a file cache on the controller: `main-domain` and the `openbao-controller-role-id`/`-secret-id`
+AppRole pair. Each catalog entry states its `store`, and each `store: openbao` entry's `scope` says
+where in Vault it lives (the cloud leaf credentials use `cloud_credentials/leaf`, the path
+`tools/cloud_credentials/` writes to, not a `hosts/*` one). See `secret_catalog.yaml`'s header
+comment and [ADR 0021 (Ownerless secret paths)](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md).
+
+```mermaid
+flowchart TD
+    C["secret_catalog.yaml entry"] --> S{"store"}
+    S -->|openbao| V["OpenBao KV v2: secret/data/scope/key"]
+    S -->|controller_file| F["Controller file: ansible/files/secrets/key"]
+    V --> P["secrets role, Play 0"]
+    F --> P
+    P --> T["Target host: only the rendered config"]
+```
 
 No template should call `lookup('password', ...)` / `lookup('pipe', ...)`
 directly, and `deploy.yaml` should never grow a new `vars_prompt` entry —
@@ -149,28 +151,20 @@ to create them instead.
 
 ## Where secrets live
 
-`store: openbao`: OpenBao, at `secret/data/{{ scope }}/<catalog-key>`
-(mount `secret`, KV v2). `store: controller_file`: `ansible/files/secrets/<catalog-key>`
-on the controller, one file per secret, gitignored, never committed.
-Either way, target hosts only ever receive the rendered config the
-value ends up in — never the catalog key or its storage location.
+| `store` | Location |
+| :--- | :--- |
+| `openbao` | `secret/data/<scope>/<catalog-key>` (mount `secret`, KV v2). |
+| `controller_file` | `<catalog-key>` in `ansible/files/secrets/`, or in `HOMELAB_SECRETS_DIR` when that names another absolute directory, as a CD agent job's unit does. Gitignored, never committed. |
 
-**Rotating a credential**: see [`secrets-rotation.md`](secrets-rotation.md)
-for the `rotate-secret.yaml` playbook and exactly which host(s) each
-secret needs redeployed — the per-host SeaweedFS identity keys in
-particular need both the owning host *and* `storage` redeployed, not
-just one, since SeaweedFS's own identity config
-([`backup.md`](../disaster-recovery/backup.md)) is rendered on
-`storage` but pulls each host's key in via `hostvars`.
+Target hosts only ever receive the rendered config a value ends up in, never the catalog key or its
+location. To change a value, see [`secrets-rotation.md`](secrets-rotation.md).
 
-## Why S3 credentials need a controller-side cache
+## One shared value per secret
 
-`docker-volume-backup`'s S3 client (`backup_agent` hosts) and SeaweedFS's
-own identity config (`storage`) are rendered independently on different
-hosts. Without a shared cache, each would generate its own value and
-permanently disagree. Every secret goes through the same cache for
-consistency, even ones like `lldap`'s that are only ever rendered on one
-host.
+`docker-volume-backup`'s S3 client (on `backup_agent` hosts) and SeaweedFS's identity config (on
+`storage`) are rendered on different hosts. Each generating its own value would leave them
+permanently disagreeing, so every secret is resolved from one stored value, including those only one
+host renders.
 
 ## `no_log: true`
 

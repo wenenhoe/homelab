@@ -59,27 +59,13 @@ gives the reason and when it is due.
 
 **Two Trivy Ansible-scanner quirks** (a Trivy version bump may change them):
 
-- It never reads `ansible.cfg`'s `roles_path` (`resolveRolePath` only
-  checks a `roles/` dir next to the playbook, or `DEFAULT_ROLES_PATH`).
-  This repo's roles are a sibling of `ansible/playbooks/`, not nested
-  under it, so without `DEFAULT_ROLES_PATH` every `include_role`/`roles:`
-  silently fails to resolve and the scan passes clean while covering
-  almost none of the real task content.
-- Playbook auto-discovery (`resolvePlaybooksPaths`) is a non-recursive
-  `ReadDir()` on the project root, so it never finds anything under
-  `playbooks/`. Worked around with an explicit `ansible.playbooks` list
-  in the generated Trivy config, built from the live
-  `ansible/playbooks/*.y{a,}ml` listing so new playbooks are covered
-  automatically. That is
-  [`tools/ci/scan/trivy_config.py`](../../../../tools/ci/scan/trivy_config.py),
-  which fails the job if the directory has no playbooks rather than
-  scanning nothing.
+| Quirk | Without a workaround | Workaround |
+| :--- | :--- | :--- |
+| It ignores `ansible.cfg`'s `roles_path`, checking only a `roles/` beside the playbook and `DEFAULT_ROLES_PATH`. | Roles here are a sibling of `ansible/playbooks/`, so none resolve and the scan passes while covering almost no task content. | Set `DEFAULT_ROLES_PATH`. |
+| Playbook discovery reads only the project root, not `playbooks/`. | No playbook is found. | [`ci/scan/trivy_config.py`](../../../../tools/ci/scan/trivy_config.py) lists every playbook in `ansible.playbooks`, and fails the job when there is none. |
 
-With both fixed, this repo currently scans clean — expected: Trivy's
-Ansible module analysis only checks cloud-resource modules, and this
-repo's roles use `community.docker`/`ansible.posix`/`ansible.builtin.*`
-exclusively. The job is still the regression backstop it was scoped as —
-it would catch a misconfigured cloud module if one is ever added.
+Trivy's Ansible module analysis covers cloud-resource modules only, which this repo's roles don't
+use, so the job is a regression backstop for the day one is added.
 
 ## Why no image CVE scanning
 
@@ -89,16 +75,12 @@ Image CVE scanning doesn't run in this repo's CI, for two reasons.
   which fixable vulnerability, and this repo's commits, pull requests, issues
   and Actions logs are public ([`docs/README.md#public-repo`](../../../README.md#public-repo)).
   Findings belong in the private tracker.
-- **The first attempt was noise.** It was tried in several scopes (PR-triggered,
-  diff-aware, unconditional) with a Vulnerability Dashboard issue to aggregate
-  the results, and dropped because most of what it reported was third-party
-  images awaiting an upstream rebuild, which nothing here can act on. It also
-  scanned only a subset: it found images with a `compose*.yaml` glob, which
-  skips the templated compose files and every image pinned in Ansible.
+- **Noise.** Most results are third-party images awaiting an upstream rebuild,
+  which nothing here can act on, and a scan of `compose*.yaml` files alone misses
+  templated compose files and images pinned in Ansible.
 
-Ansible misconfig and secrets don't have the noise problem (a finding in
-either is fixable here), so those stayed. Images are assessed by the program
-below, over a complete inventory.
+Ansible misconfig and secret findings are fixable here, so those scans run. Images are assessed by
+the program below, over a complete inventory.
 
 ## Image vulnerability assessment
 

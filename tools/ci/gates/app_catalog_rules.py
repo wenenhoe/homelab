@@ -13,7 +13,9 @@ one without a word), and, against the inventory (ADR
 0068), every cloud target it or `backup_defaults` names has to be defined in
 `cloud_sync_targets` and every host that runs a backed-up app has to have its
 own SeaweedFS secret pair and host variables, or the deploy fails late on an
-undefined variable. Each violation is reported with the app's (or host's) name
+undefined variable. Every app a managed host lists in `compose_apps` has to have a catalog entry: the merge
+passes an unknown name through unchanged, so the app would be deployed with none of what the catalog states about
+it. Each violation is reported with the app's (or host's) name
 and the rule it breaks; any violation fails the check.
 
 A `doc` key names the app's service record: a path under `docs/topics/` ending in `.md` (ADR 0100). Whether the file
@@ -291,6 +293,16 @@ def _check_backup_hosts(catalog: Catalog, inventory: BackupInventory) -> list[Vi
     return found
 
 
+def _check_listed_apps(catalog: Catalog, inventory: BackupInventory) -> list[Violation]:
+    """Every app a managed host lists in `compose_apps` has a catalog entry."""
+    return [
+        Violation(host, "unknown-app", f"`compose_apps` lists `{entry['name']}`, which has no entry in the catalog")
+        for host in inventory.managed_hosts
+        for entry in inventory.compose_apps[host]
+        if entry["name"] not in catalog
+    ]
+
+
 def _check_restart_after(catalog: Catalog) -> list[Violation]:
     """Every `restart_after` is a list of other apps of the catalog."""
     found = []
@@ -350,7 +362,8 @@ def validate(catalog: Catalog, inventory: BackupInventory | None = None, open_ro
     if open_routes is not None:
         found += _check_open_routes(catalog, open_routes)
     if inventory is not None:
-        found += _check_defaults(inventory) + _check_overrides(inventory) + _check_cloud_targets(catalog, inventory) + _check_backup_hosts(catalog, inventory)
+        found += _check_listed_apps(catalog, inventory) + _check_defaults(inventory) + _check_overrides(inventory)
+        found += _check_cloud_targets(catalog, inventory) + _check_backup_hosts(catalog, inventory)
     return found
 
 

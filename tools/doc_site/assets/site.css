@@ -15,7 +15,9 @@ main h4{margin:1.25rem 0 .5rem;font-size:1rem}
 details.legend{margin:0 0 1rem}
 details.legend summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;color:var(--accent)}
 details.legend p{color:var(--text-light);margin:.5rem 0}
-code{font-size:1em;overflow-wrap:anywhere;color:var(--text);background:var(--accent-bg);padding:.1em .35em;border-radius:.3em}
+code{font-size:1em;overflow-wrap:anywhere;color:var(--text);background:var(--accent-bg);padding:.1em .2em;border-radius:.3em}
+/* otherwise a span of a space alone hangs past the end of its line, and its padding makes the paragraph wider than the page */
+.doc code{white-space:break-spaces}
 a code,.eyebrow code{color:inherit;background:none;padding:0}
 td,th{overflow-wrap:normal;word-break:normal;hyphens:none}
 

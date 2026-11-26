@@ -64,3 +64,12 @@ def test_a_name_that_titles_a_row_of_a_view_is_not_cut(tree, tmp_path):
     files["dr-coverage/index.html"] = html.replace("</main>", f'<section id="probe">{table}</section></main>').encode()
     with opened(files, tmp_path, "dr-coverage/", 1040) as page:
         assert page.locator("#probe td.title code").evaluate(LINES) == 1
+
+
+def test_a_code_span_of_a_space_alone_stays_within_its_paragraph(tree, tmp_path):
+    # A paragraph for each length of lead-in, so that in some of them the span falls at the end of a line.
+    text = "# Spaces\n\n" + "".join(f"with {'i ' * count}` `, and more words\n\n" for count in range(1, 120))
+    (tree / "docs/topics/infra/network.md").write_text(text, encoding="utf-8")
+    with opened(site.build(tree, draw=drawn), tmp_path, "topics/infra/network/", 360) as page:
+        wider = page.evaluate("[...document.querySelectorAll('article.doc p')].filter((p) => p.scrollWidth > p.clientWidth).length")
+    assert wider == 0

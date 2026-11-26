@@ -1,5 +1,7 @@
 # Decision Index
 
+Every decision, found by number, by topic or by state.
+
 Four generated views of every decision lineage; none is a rules doc. For what
 a decision is, its revision states and how to cite one, see
 [`decisions/README.md`](decisions/README.md); for what a project is, see

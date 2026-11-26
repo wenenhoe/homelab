@@ -1,6 +1,8 @@
 # Project Planning
 
-Five generated, cross-cutting views; none is a rules doc. For what a
+What is being built, what can start now and what is waiting.
+
+Generated, cross-cutting views; none is a rules doc. For what a
 project is and its lifecycle, see [`projects/README.md`](projects/README.md);
 for what an ADR is and its revision states, see
 [`decisions/README.md`](decisions/README.md); for every ADR by number and

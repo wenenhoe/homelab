@@ -55,21 +55,9 @@ volume — there's nothing to restore.
 | Other runtime files in the volume must survive | Yes — only what you list is touched | No — everything not Ansible-seeded is gone |
 | Volume mixes seeded config with runtime state | Config untouched either way | Config is restored automatically |
 
-## Why this needs its own playbook instead of an ad hoc command
+## Why a playbook and not an ad hoc command
 
-Docker volumes are treated as opaque, Ansible-owned objects throughout
-this repo (see [`volumes.md`](volumes.md)) — nothing reaches into a
-volume's real on-disk mountpoint directly. `ensure_volume.yaml` and
-`seed_volume.yaml` both go through a throwaway `alpine` container that
-mounts the volume instead; this playbook reuses that same pattern for
-`rm`.
-
-A named volume referenced by `docker_container` that doesn't already
-exist is auto-created empty rather than erroring, so a typo in
-`volume_rm_app`/`volume_rm_volume` would otherwise fail silently instead
-of loudly. The playbook checks the volume exists first
-(`docker_volume_info`) and fails if it doesn't, rather than relying on
-that behavior.
+Volumes are Ansible-owned objects ([`volumes.md`](volumes.md)), reached only through a throwaway `alpine` container. A named volume that does not exist is created empty by `docker_container` instead of erroring, so the playbook first checks it exists (`docker_volume_info`) and fails on a typo in `volume_rm_app` or `volume_rm_volume`.
 
 ## Resetting a SQLite database
 

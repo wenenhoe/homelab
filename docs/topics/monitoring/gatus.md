@@ -156,8 +156,8 @@ Three producers do not use the role:
 
 - **`backup-<host>`** is pushed by `check-freshness.sh` on each backup host, which already decides whether to push at all:
   only when every app's newest backup is within its threshold. The script sends the `POST` itself, passing the URL and
-  bearer header to `curl` on stdin (`-K -`) so the token is not in an argument. It tries both monitors even when the
-  first push fails, and a failed push fails the unit, so `OnFailure=` alerts as before. A backup host with no matching
+  bearer header to `curl` on stdin (`-K -`) so the token is not in an argument. A failed push
+  fails the unit, so `OnFailure=` alerts. A backup host with no matching
   `heartbeat_jobs` entry fails the render instead of skipping the push.
 - **`rotation-read-watcher`** runs from units copied by hand ([`rotation-read-watcher.md`](../security/openbao/rotation-read-watcher.md)),
   not from Ansible. `gatus-push-rotation-read-watcher.service` has the same shape as the role's, and its curl config is written

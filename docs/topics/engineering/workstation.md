@@ -19,6 +19,7 @@ The maintainer's laptop is the workstation: a WSL2 instance on Windows where the
   `wsl --shutdown` applies a change. A Molecule scenario that exhausts the cap is a reason to raise it or to run that scenario elsewhere, not to remove it.
 - Docker Engine inside WSL2, installed from Docker's apt repository by the method in [Docker's install guide for Ubuntu](https://docs.docker.com/engine/install/ubuntu/), with the maintainer's account in the `docker` group. Docker Desktop is not used. The three `-docker` hooks and every Molecule scenario need a daemon. Membership of `docker` is root inside WSL2, which is no boundary from Windows, so WSL2 follows the same rules as the laptop.
 - [`uv`](https://docs.astral.sh/uv/getting-started/installation/), installed inside WSL2.
+- [Google Chrome](https://www.google.com/chrome/), the Linux `.deb`, installed inside WSL2. The [doc site](../documentation/doc-site.md#building-the-site) draws its diagrams and checks its layout in it.
 - A clone of the repository in the WSL2 home directory, not under `/mnt/c`.
 
 To check the setup, in WSL2:
@@ -26,7 +27,7 @@ To check the setup, in WSL2:
 ```bash
 systemctl is-system-running; systemctl is-active docker
 docker run --rm hello-world
-free -h; uv --version
+free -h; uv --version; google-chrome --version
 ```
 
 ## Running the checks

@@ -12,7 +12,15 @@ flowchart LR
 
 ## Building the site
 
-From `tools/`, build into a new directory and serve it on `localhost`:
+To read or check the site on this machine, from `tools/`:
+
+```bash
+uv run python -m doc_site --serve
+```
+
+It builds into a temporary directory outside the checkout, serves it at `http://127.0.0.1:8000/` and removes it on Ctrl-C, a closed terminal or `kill`. `--port` chooses another port. A change to a file shows after a restart.
+
+To keep the built files, for the [layout check](#the-layout-check), build into a new directory:
 
 ```bash
 cd tools
@@ -20,12 +28,10 @@ site=$(mktemp -d)
 uv run python -m doc_site --commit "$(git rev-parse HEAD)" --out "$site"
 ```
 
-```bash
-uv run python -m http.server --bind 127.0.0.1 --directory "$site" 8000
-```
-
 - `--out` must be empty or absent. `--commit` takes a full commit id, whose date the command looks up; without it the footer says "Local build".
 - A build with a diagram to draw needs Google Chrome and `playwright`.
+- With no network, `uv run --offline` builds from what an earlier `uv sync` fetched. A link to a file that has no page goes to GitHub, so it does not open.
+- Run it on the [workstation](../engineering/workstation.md): a build needs no credential.
 - A build reads only the tree and the commit it is given (no clock, git state or network), so two builds of one tree and commit give the same bytes, which a test holds.
 
 | Source | Page |
@@ -39,6 +45,30 @@ uv run python -m http.server --bind 127.0.0.1 --directory "$site" 8000
 | a section's README | the section's address |
 
 `TEMPLATE` files have no page.
+
+## Previewing a series
+
+After the [replay](../engineering/landing-a-series.md#replay), a layer's branch holds its changes and those of the layers before it. Building it runs that branch's `tools/`, so read a patch that changes them first. From `tools/`:
+
+```bash
+# paste alone; it waits for the layer's slug
+read -r -p 'series slug: ' slug
+```
+
+```bash
+git switch --detach "series/$slug"
+```
+
+```bash
+uv run python -m doc_site --serve
+```
+
+```bash
+# once the preview is stopped
+git switch -
+```
+
+`--detach` leaves the branch itself free: a kept branch that is checked out stops the next replay.
 
 ## Design principles
 

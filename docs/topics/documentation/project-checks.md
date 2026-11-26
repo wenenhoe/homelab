@@ -2,31 +2,50 @@
 
 The hooks and jobs that keep project and decision records consistent: the project scope, size, close and start checks, the accepted-records check, the one command that runs them, the merge preparation that renumbers a patch series' lineages, and the helpers that suggest a project's scope and decision consolidations. The doc index, the drift check and the Mermaid render check are in [Doc Checks](doc-checks.md). How these sit in the pipeline is in [CI: PR Checks](../engineering/ci/pipeline.md).
 
+## The four project and record checks as one command
+
+[`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py) runs the
+[scope](#project-scope-check), [close](#project-close-check), [start](#project-start-check) and
+[accepted records](#accepted-records-check) checks, in that order and all of them even if one fails.
+Each is its own module with its own tests; this is the one entry point, so a rule added to the list
+runs everywhere. Failed check names follow each check's own output.
+
+| Form | Called by | Judges | Limits |
+| :--- | :--- | :--- | :--- |
+| `--staged` | `check-doc-change` hook, at commit | The index against `HEAD`. Passes trivially under `--all-files`, where nothing is staged. | One commit, so a stray file earlier on the branch passes. The start check can't judge the `Plan-Confirmed:` trailer, and a changed frozen section only warns, since trailers are written after the hook. |
+| `--base REF --head REF` | `project-checks` job, on every pull request | The merge-base of the two to the head. | The authority. |
+| `--push` | `check-doc-change-push` hook, at `pre-push` | The commits being pushed against the default branch. | Skips in some clones (below). |
+
+The diff starts at the merge-base, not the base tip, so a branch behind `main` doesn't see newer
+commits as its own. The repo's other diff-based jobs diff `$BASE $HEAD` directly.
+
+To run what CI will judge, before pushing:
+
+```sh
+# from tools/
+uv run python -m doc_scripts.check_doc_change --push
+```
+
+For `--push`:
+
+- **The base** is `CHECK_DOC_CHANGE_BASE` when set (the landing tool sets it to the state before each
+  pull request of a series), else `origin/HEAD`, else `origin/main`, `origin/master`, `main` or
+  `master`. A name that is not a commit in the clone fails. The default branch is not fetched: a stale
+  base still gives the branch's own commits.
+- **The head** is the commit being pushed (`PRE_COMMIT_TO_REF`), else `HEAD`.
+- **Skipped**, with a message and a pass, when the clone has no default branch, the head shares no
+  history with it (a shallow clone, as in the `ansible-lint` job, which runs every push-stage hook),
+  the push adds no commit, or it deletes a ref.
+
 ## Project scope check
 
-[`tools/doc_scripts/check_project_scope.py`](../../../tools/doc_scripts/check_project_scope.py) enforces the optional
-`allowed_paths` field on project docs (see
-[`docs/projects/README.md#scope`](../../projects/README.md#scope) for what it means
-and why). It runs in two places:
-
-- **CI** — the scope step of the `project-checks` job, on every pull request: the diff from
-  the merge-base of the PR's base and head to its head. The merge-base,
-  not the base tip, so a branch that is behind doesn't see main's newer
-  commits as its own changes. The repo's other diff-based jobs diff
-  `$BASE $HEAD` directly; this one deliberately doesn't.
-- **pre-commit** — the `check-doc-change` hook, on what is staged,
-  against `HEAD`. It sees only the current commit, so it is early
-  feedback; CI is the authority, since it sees the whole PR. Under
-  `pre-commit-checks`' `--all-files` run nothing is staged and it passes
-  trivially.
-
-In both, the scope in force, the decision revisions a close edits and what ties a
-change to a project are the rules of
-[`docs/projects/README.md#scope`](../../projects/README.md#scope); the exempt
-revisions come from the base project doc and the `supersedes:` the base revision has,
-never from the change
-([`doc_scope.lifecycle_paths`](../../../tools/doc_scripts/doc_scope.py)). A rename
-or a deletion counts as touching both paths.
+[`tools/doc_scripts/check_project_scope.py`](../../../tools/doc_scripts/check_project_scope.py) enforces
+the optional `allowed_paths` field on project docs
+([`docs/projects/README.md#scope`](../../projects/README.md#scope) says what it means). The scope in
+force, the decision revisions a close edits and what ties a change to a project are that page's rules.
+The exempt revisions come from the base project doc and its `supersedes:`, never from the change
+([`doc_scope.lifecycle_paths`](../../../tools/doc_scripts/doc_scope.py)). A rename or a deletion counts
+as touching both paths.
 
 ## Project size warnings
 
@@ -108,16 +127,6 @@ project doc that remains (`also_implements:` still gates no project's status).
 A doc that names only `working` revisions is withdrawn and may be deleted.
 A change that deletes no project doc isn't checked.
 
-It runs in the same two places as the scope check, with the same
-merge-base diff and the same staged-changes behavior:
-
-- **CI** — the close step of the `project-checks` job, on every pull request, judging the
-  PR's head.
-- **pre-commit** — the `check-doc-change` hook, judging the index
-  against `HEAD`. It is early feedback; CI is the authority. Under
-  `pre-commit-checks`' `--all-files` run nothing is staged and it passes
-  trivially.
-
 Unlike the scope check, it reads the docs as they stand **after** the
 change, since it has to see what the change leaves behind; the base
 supplies only the deleted doc's own `decision:`. A doc that doesn't parse
@@ -147,14 +156,9 @@ suggestions find nothing the scope lacks and `Not in` doesn't decline. On a pull
 request those passes read a checkout of the head, so a push from another branch
 judges the same files CI does. A project
 already `building` is not re-gated, but its scope can't narrow (it narrows only
-when the project closes), and the `check-doc-change` hook on the index does not judge
-the trailer, which is written with the commit message after the hook runs.
+when the project closes).
 
-It runs where the close check runs, with the same merge-base diff and the same
-staged-changes behavior: the `project-checks` job in CI, and the
-`check-doc-change` hook on the index, which passes trivially under
-`--all-files`. It reads the docs as they stand after the change, and a doc that
-does not parse fails the check.
+It reads the docs as they stand after the change, and a doc that does not parse fails the check.
 
 The generator also warns, without failing, when more than
 `ACTIVE_PROJECT_LIMIT` projects (`generate_doc_indexes.py`) are `building` or
@@ -180,50 +184,8 @@ It enforces two rules:
   [`removed.md`](../../decisions/removed.md). The drift check also fails a
   number listed there that a lineage holds, or that is a former id too.
 
-It runs in the same two places as the other project-checks: the
-`project-checks` job over the pull request, which fails on both rules, and the
-`check-doc-change` hook on the index, which reports a changed frozen
-section as a warning only (the trailer that excuses it is written with the
-commit message, after the hook runs) and still fails on a lineage that leaves
-unaccounted for. It reads the docs as they stand after the change for the
-removal rule, and a doc that does not parse fails the check.
-
-## The four project and record checks as one command
-
-[`tools/doc_scripts/check_doc_change.py`](../../../tools/doc_scripts/check_doc_change.py)
-runs the project scope, close and start checks and the accepted records check
-above, in that order and all of them even if one fails. Each check is still its
-own module with its own tests; this is the one entry point the hooks and CI
-call, so a rule added to the list runs everywhere at once. It has three forms:
-
-- **`--staged`**, the `check-doc-change` hook at commit time. It sees one
-  commit, so a stray file in an earlier commit of the branch passes it, and the
-  accepted records check can only warn about a frozen section because the
-  `Editorial-Fix:` trailer is written after the hook runs.
-- **`--base REF --head REF`**, the one step of the `project-checks` job, over
-  the whole pull request.
-- **`--push`**, the `check-doc-change-push` hook at the `pre-push` stage, the
-  `--base` form over the commits being pushed against the default branch, so
-  what the staged form cannot see shows before CI.
-
-For `--push`:
-
-- **The base** is the commit `CHECK_DOC_CHANGE_BASE` names when it is set, else
-  the remote's HEAD (`origin/HEAD`), else `origin/main`, `origin/master`, `main`
-  or `master`. A name that is not a commit in the clone fails the check, not
-  skips it. The landing tool sets it to the state before each pull request of a
-  series, which the default branch does not hold yet. The default is not
-  fetched: the checks read the merge-base, so a stale base still gives the
-  branch's own commits.
-- **The head** is the commit being pushed (`PRE_COMMIT_TO_REF`), else `HEAD`.
-- **Skipped**, with a message and a pass, when there is no default branch in the
-  clone, when the head shares no history with it (a shallow clone), when the
-  push adds no commit, or when it deletes a ref. The `ansible-lint` job runs
-  every push-stage hook against all files in a shallow checkout, so this
-  skips there; the `project-checks` job is where the pull request is judged.
-
-The error output is each check's own, followed by the names of the checks that
-failed.
+It reads the docs as they stand after the change for the removal rule, and a doc that does not parse
+fails the check.
 
 ## Merge preparation
 

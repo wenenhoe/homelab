@@ -15,7 +15,14 @@ The achievable floor differs per provider; none of it is a uniform
 | Leaf scope | Restricted to `homelab-backups-b2`; no `deleteFiles` | Bucket-scoped policy on `homelab-backups`; no `OBJECT_DELETE` | Restricted to `homelab-backups`; Item Write / Read |
 
 No provider lets a key-management credential be scoped down to one
-bucket or resource. Details per provider follow.
+bucket or resource. What each leaf holds:
+
+| Leaf | B2 capabilities | OCI permissions | R2 permission |
+| :--- | :--- | :--- | :--- |
+| Write | `listBuckets listAllBucketNames listFiles readFiles writeFiles` | `OBJECT_INSPECT`, `OBJECT_CREATE`, `OBJECT_OVERWRITE` | Bucket Item Write |
+| Read | `listBuckets listAllBucketNames listFiles readFiles` | `OBJECT_INSPECT`, `OBJECT_READ` | Bucket Item Read |
+
+Details per provider follow.
 
 ### Backblaze B2 — key-management can't be bucket-restricted, at all
 
@@ -25,18 +32,10 @@ authorizes one `b2_create_key` call for a key scoped to `listKeys
 writeKeys deleteKeys listBuckets` — **not** restricted to
 `homelab-backups-b2`, or any bucket.
 
-**B2 rejects the bucket restriction outright**
-(`400 Invalid capability for bucket-level application key`).
-Backblaze's own docs on Application Keys enumerate every capability a
-bucket-restricted key is allowed to carry, and `listKeys`/`writeKeys`/
-`deleteKeys` aren't on that list — key management is inherently
-account-wide on B2. Same shape of limitation as OCI's
-Confidential Application role (User Administrator, domain-wide — see
-the OCI section) and R2's `API Tokens Write` (account-wide) — none of
-the three providers let you scope a key-management credential down to
-one bucket/resource; that constraint appears structural to how "a
-credential that can mint other credentials" works on all three, not
-specific to any one of them.
+**B2 rejects the bucket restriction** (`400 Invalid capability for bucket-level
+application key`): `listKeys`, `writeKeys` and `deleteKeys` are not capabilities a
+bucket-restricted key may carry. OCI (User Administrator, domain-wide) and R2
+(`API Tokens Write`, account-wide) are limited the same way.
 
 The actual scoping this key gets, then, isn't bucket restriction — it's
 that it holds zero file/bucket-data capabilities (no
@@ -62,13 +61,9 @@ which is the property the threat model in
 [`backup-threat-model.md`](../../disaster-recovery/backup-threat-model.md)
 relies on.
 
-Both leaf keys request `listBuckets listAllBucketNames listFiles
-readFiles writeFiles` (write) / `listBuckets listAllBucketNames
-listFiles readFiles` (read) — identical except for `writeFiles`. A
-generic `Forbidden` with no named operation points to an outdated rclone
-binary; current versions name the failing S3 call
-(`HeadObject`/`PutObject`/`ListObjects`), which identifies the missing
-capability.
+A generic `Forbidden` that names no operation points to an outdated rclone; current
+versions name the failing call (`HeadObject`, `PutObject`, `ListObjects`), which
+identifies the missing capability.
 
 ### OCI — two separate credentials, two separate auth models
 
@@ -82,20 +77,11 @@ recreated if they already exist). This has nothing to do with SCIM or
 customer-secret-key creation; it's the same classic-IAM object-storage
 policy scoping (`target.bucket.name='homelab-backups'`) as before.
 
-The leaf users' policies: write gets `any
-{request.permission='OBJECT_INSPECT',
-request.permission='OBJECT_CREATE',
-request.permission='OBJECT_OVERWRITE'}`, read swaps in `OBJECT_READ`
-in place of the latter two. `OBJECT_OVERWRITE` is required alongside
-`OBJECT_CREATE` specifically for multipart uploads — per Oracle's
-multipart-uploads documentation. Without it,
-`CreateMultipartUpload` 404s as `NoSuchBucket`, the same ambiguous
-not-found-or-unauthorized response this API gives for every other
-authorization gap — a single-part `PutObject` doesn't hit this, only an archive large
-enough to trigger rclone's multi-thread/multipart path (minecraft's).
-`OBJECT_DELETE` is still excluded from both leaves, so a failed multipart
-upload is cleaned up by a lifecycle rule on the bucket, not by the client; see
-[OCI window](../../disaster-recovery/cloud-sync.md#oci-window).
+The write leaf's `OBJECT_OVERWRITE` is needed for multipart uploads: without it
+`CreateMultipartUpload` answers 404 `NoSuchBucket`, as this API does for any
+authorization gap, and only for an archive large enough to go multipart (minecraft's).
+Neither leaf has `OBJECT_DELETE`, so a lifecycle rule cleans up a failed multipart upload
+([OCI window](../../disaster-recovery/cloud-sync.md#oci-window)).
 
 **Identity-Domain tenancies require an email per user**
 (`400 IdcsConversionError` from `CreateUser` without one).
@@ -104,26 +90,21 @@ Since these are three service identities, not people,
 `--admin-email you@example.com` and derives a distinct `+`-tagged
 address per user off it — one real mailbox you control, nothing fake.
 
-**Rotation credential (Identity Domains SCIM — replaces the old
-OCID+PEM keypair entirely; see
-[ADR 0109 (Cloud credential expiry)](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)):**
-register a Confidential Application by hand in Console (Identity &
-Security > Domains > your domain > Integrated Applications > Add >
-Confidential Application), named exactly `homelab-oci-scim-rotation`
-(`OCI_SCIM_APP_DISPLAY_NAME` in `oci_bootstrap.py` — SCIM search finds
-it by this exact name, nothing else identifies it to this repo's
-tooling). Enable the **Client credentials** grant on its OAuth
-Configuration tab, skip Web Tier Policy (that's for browser-facing
-apps behind a gateway — irrelevant here), grant the **User
-Administrator** app role under Token Issuance Policy, then Activate
-it — a freshly created app is inactive by default, a separate state
-from its OAuth configuration; both are required before it will
-authenticate at all. `create_rotation_keys --provider oci` then
-prompts once for the domain URL, client ID, and client secret from
-this app's Configuration tab, verifies them with a real token
-exchange, looks up the app's own SCIM id, and caches all four
-alongside a self-tracked `_rotation-key-oci-created-at` (see
-[Credential expiry](expiry.md#credential-expiry) for why this one stays self-tracked).
+**Rotation credential (Identity Domains SCIM,
+[ADR 0109](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)).**
+Register it by hand:
+
+1. Identity & Security > Domains > your domain > Integrated Applications > Add >
+   Confidential Application, named exactly `homelab-oci-scim-rotation`
+   (`OCI_SCIM_APP_DISPLAY_NAME` in `oci_bootstrap.py`: the tooling finds it by this name).
+2. On its OAuth Configuration tab, enable the **Client credentials** grant. Skip Web Tier
+   Policy.
+3. Under Token Issuance Policy, grant the **User Administrator** app role.
+4. **Activate** it: a new app is inactive, which is separate from its OAuth configuration.
+
+`create_rotation_keys --provider oci` then prompts for the domain URL, client ID and client
+secret, verifies them with a token exchange, looks up the app's SCIM id and caches all four
+with `_rotation-key-oci-created-at` ([why self-tracked](expiry.md#credential-expiry)).
 
 **User Administrator is sufficient** for what this repo needs from the
 app: `POST /admin/v1/CustomerSecretKeys` (leaf key creation),
@@ -132,14 +113,9 @@ app: `POST /admin/v1/CustomerSecretKeys` (leaf key creation),
 Oracle's AppRole tables list the latter two under Security
 Administrator, but User Administrator works.
 
-**The gap this replaces didn't fully close, it moved.** The old
-rotation identity's classic-IAM policy was tenancy-wide `manage users`
-— not scoped to just the two leaf users — because no confirmed OCI
-policy condition narrows identity-family resources the way
-`target.bucket.name=` scopes object storage. That specific policy is
-gone now (there's no more classic rotation identity at all), but User
-Administrator is a domain-wide app role, not scoped to two users
-either. Same shape of trade-off, different mechanism.
+User Administrator is a domain-wide role, not limited to the two leaf users, as no OCI
+policy condition narrows identity-family resources the way `target.bucket.name=` scopes
+object storage.
 
 **SCIM specifics:**
 
@@ -147,29 +123,15 @@ either. Same shape of trade-off, different mechanism.
   field, not `value` — `value` is a different, shorter SCIM-internal id
   (max 40 characters) and rejects an OCID outright with
   `error.common.validation.stringExceedsMaxLimit`.
-- `expiresOn` is `mutability: immutable`, meaning settable at create
-  (not server-computed) but never updatable afterward on an existing
-  key. Round-trips as the same instant OCI echoes it back with —
-  compare as parsed timestamps, not raw strings: OCI adds explicit
-  milliseconds even when the request sent none.
-- `accessKey`/`secretKey` are both `mutability: readOnly, returned:
-  default` and genuinely populated on create — SCIM's create call
-  produces real, usable S3-compatible credentials, not metadata layered
-  on a key still created some other way.
-- The Confidential Application's own client secret has no native
-  expiry field on the `App` resource itself, and OCI supports exactly
-  one active secret per app — regenerating (`AppClientSecretRegenerator`)
-  is a hard cutover, not an overlap window (multi-secret support is an open Oracle feature
-  request). There is no verify-then-revoke available for this specific
-  credential the way there is for leaf keys — see [Rotation](rotation.md#rotation) for
-  what that means in practice.
-- The classic API's `GET /20160918/users/{id}/customerSecretKeys` still
-  sees keys created via SCIM, and SCIM's own
-  `GET /admin/v1/CustomerSecretKeys?filter=user.ocid eq "..."` works too
-  — both work. `openbao_utils/audit.py --provider oci` uses the
-  SCIM path, since it's the same credential everything else already
-  authenticates with; nothing here depends on `~/.oci/config` for
-  auditing.
+- `expiresOn` is immutable: set at create, never updated. Compare it as a parsed
+  timestamp, since OCI echoes it back with milliseconds the request did not send.
+- `accessKey` and `secretKey` are read-only and returned on create, so the SCIM call
+  yields real S3 credentials.
+- The app's client secret has no expiry field, and an app has one active secret, so
+  regenerating it is a hard cutover ([Rotation](rotation.md#rotation)).
+- Both the classic `GET /20160918/users/{id}/customerSecretKeys` and SCIM's
+  `GET /admin/v1/CustomerSecretKeys?filter=user.ocid eq "..."` see SCIM-made keys.
+  `audit.py --provider oci` uses SCIM, so auditing needs no `~/.oci/config`.
 
 ### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 

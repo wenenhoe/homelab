@@ -26,6 +26,18 @@ It never rewrites and never forces: every push is a plain push of a commit that 
 
 A failed realignment fails the job before the Renovate step, which has no condition that would let it run anyway. To clear a conflict, merge `main` into `maintenance` by hand as [Dependency updates](../branching.md#dependency-updates) shows; the next run finds the branch current. The push uses the app's token, passed to git as a header for that one command, because the job's own `GITHUB_TOKEN` is refused on `maintenance`. `tools/tests/ci/branches/test_realign.py` runs each case on temporary repositories, and `test_renovate_workflow.py` asserts the step order and that nothing can skip the check.
 
+## One manager per pin
+
+Two managers that read the same line open two pull requests for one release. Each writes the value its own way, so merging one leaves the other in conflict.
+
+- A pin a built-in manager already reads gets no `customManagers` entry. The `github-actions` manager reads the version input of the actions it knows, such as `tofu_version` of `opentofu/setup-opentofu`, and keeps the value's `v`.
+- `renovate-version` is the exception: its regex manager stays, because the image inventory is built from `customManagers`, and a package rule turns the built-in reading off.
+- To see which managers read a file, extract without opening anything, from the root of a checkout, and look for the file under `packageFiles` in the log:
+
+  ```bash
+  LOG_LEVEL=debug npx -y renovate --platform=local --dry-run=extract
+  ```
+
 ## Image digests
 
 Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0108 (Images a deploy runs)](../../../decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)). The `docker:pinDigests` preset adds a digest where one is missing and moves it when a tag is rebuilt or a version changes.

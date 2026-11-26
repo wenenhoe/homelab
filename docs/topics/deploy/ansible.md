@@ -15,7 +15,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `playbooks/bootstrap-security.yaml` | `inventory/inventory.yaml` + `inventory/tofu-hosts.yaml` | Brings a rebuilt `security` to where Play 0 passes, in three stages named by tag; a run with no tag changes nothing. See [Rebuilding `security`](../security/openbao/backup-restore.md#rebuilding-security). |
 | `playbooks/cd-agent.yaml` | `inventory/inventory.yaml` | Provisions the CD agent host (`cd_agent`) from the operator host: `cd_agent` role, which refuses to run on the agent itself. See [`cd-agent-host.md`](cd-agent-host.md). |
 | `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`cleanup.md`](cleanup.md). |
-| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance, one host at a time: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required (`patched_hosts`), with the reboots skipped on a host whose `patch_reboot_allowed` is `false` (`security`: a reboot seals OpenBao, [ADR 0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)), plus `qemu_guest_agent` presence (`network_infra` only), then the `host_hardening` baseline on every `patched_hosts` member. |
+| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance on `patched_hosts`, one host at a time: `apt` and `fwupd` updates with reboots if required (never on a host with `patch_reboot_allowed: false`, such as `security`, since a reboot seals OpenBao, [ADR 0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)), the guest agent on `network_infra`, then `host_hardening`. |
 | `playbooks/network-infra.yaml` | `inventory/inventory.yaml` | Configures Tailscale on `network_infra`, one host at a time: the `tailscale_node` role, which joins a logged-out node with the key in `TAILSCALE_AUTHKEY`. A check run is `-e network_infra_check=true`. See [`network-infra.md`](../infra/network-infra.md#tailscale-node-configuration). |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 | `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted backup archive. See [`restore.md`](../disaster-recovery/restore.md). |
@@ -23,9 +23,9 @@ why every host is Ansible-managed rather than configured by hand.
 | `playbooks/restore-minecraft-world.yaml` | `inventory/inventory.yaml` | Phase 2 of a minecraft restore: unpacks the newest backup tar into the live world. Needs `-e restore_world_confirm=true`. See [`restore.md`](../disaster-recovery/restore.md). |
 | `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`volume-maintenance.md`](volume-maintenance.md). |
 | `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`volume-maintenance.md`](volume-maintenance.md). |
-| `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Writes a fresh value for one generated secret into OpenBao, in place (the controller's policy has no delete), and refuses an entry not stored there. Doesn't redeploy anything itself, so the new value reaches a host with the next `deploy.yaml` run. See [`secrets-rotation.md`](../security/secrets-rotation.md). |
+| `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Writes a fresh value for one generated secret into OpenBao; the next `deploy.yaml` run delivers it. See [`secrets-rotation.md`](../security/secrets-rotation.md). |
 | `playbooks/bootstrap-secrets.yaml` | none — `hosts: localhost` | Leading play imported by `deploy.yaml`/`restore.yaml` to resolve `secret_catalog.yaml`. See [`secrets.md`](../security/secrets.md). |
-| `playbooks/opnsense.yaml` | none — `hosts: localhost` | Applies the OPNsense gateway's configuration through its API from the operator host: the `opnsense_gateway` role. Needs `-e opnsense_gateway_ca_file=<gateway-cert.pem>`, `-e opnsense_gateway_operator_hosts=[...]` and `-e opnsense_gateway_forward_domains=[...]`. See [`tofu/opnsense-vm.md`](../infra/tofu/opnsense-vm.md). |
+| `playbooks/opnsense.yaml` | none — `hosts: localhost` | Applies the OPNsense gateway's configuration through its API (`opnsense_gateway` role). Needs three `-e` variables; see [`tofu/opnsense-vm.md`](../infra/tofu/opnsense-vm.md). |
 | `playbooks/pin-telegram-topics.yaml` | none — `hosts: localhost` | Pins a static header message in each Telegram forum topic. See [`telegram-notifications.md`](../monitoring/telegram-notifications.md). |
 | `playbooks/ci_boot_test.yaml` | `ci-inventory/` | CI-only: seeds one app for the compose boot-test job. See [`ci/gates.md`](../engineering/ci/gates.md#compose-boot-test). |
 
@@ -38,7 +38,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `docker` | Docker Engine install, with its apt key checked against a pinned fingerprint ([`apt-signing-keys.md`](apt-signing-keys.md)), and the `daemon.json` defaults. See [`docker-daemon.md`](docker-daemon.md). |
 | `host_hardening` | Includes the hardening collection's allow-listed areas; today, unattended security updates. See [`host-hardening.md`](../infra/host-hardening.md). |
 | `qemu_guest_agent` | Installs `qemu-guest-agent` for Proxmox VM integration. |
-| `tailscale_node` | A Tailscale node's apt repository, `tailscaled`, forwarding when it advertises routes, a join with a one-time key when it is logged out, and the preferences the role owns (advertised routes, accepted DNS, client auto-update off). See [`network-infra.md`](../infra/network-infra.md). |
+| `tailscale_node` | Installs and joins a Tailscale node and sets the preferences the role owns. See [`network-infra.md`](../infra/network-infra.md). |
 | `compose` | Reusable init/deploy/cleanup tasks for one compose app. |
 | `compose_app` | Batch-drives `compose` for every non-infra app. |
 | `caddy` | Renders Caddyfile, builds custom image, deploys. |
@@ -47,7 +47,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `cd_agent` | The CD agent host: one sandboxed unit, timer and user per job, and `sshd` limited to the operator host. See [`cd-agent-host.md`](cd-agent-host.md). |
 | `openbao` | Chowns openbao's data volume to its own non-root user before it first starts, deploys. |
 | `openbao_cli` | Installs/verifies a native `bao` CLI on `security`, version-matched to the running server. |
-| `opnsense_gateway` | Controller-only: checks the gateway's API over the certificate read off its console, then writes the zone aliases, the guard rule and the zones' DNS, NTP and ping rules through the collection's modules. The modules need `httpx` in the controller's Python, which the project's dependencies provide. See [`tofu/opnsense-vm.md`](../infra/tofu/opnsense-vm.md). |
+| `opnsense_gateway` | Controller-only: writes the gateway's aliases and zone rules through its API. See [`tofu/opnsense-vm.md`](../infra/tofu/opnsense-vm.md). |
 | `seaweedfs_bucket` | Ensures the SeaweedFS backup bucket exists on `storage`. |
 | `lldap_bootstrap` | Automates lldap's `observer` account for tinyauth's LDAP bind. |
 | `step_ca_client` | Shared prerequisite: caches step-ca's root cert on the host. |
@@ -65,24 +65,40 @@ why every host is Ansible-managed rather than configured by hand.
 | `secrets` | Generates/validates every entry in `secret_catalog.yaml`. |
 | `molecule_helpers` | Shared Molecule test fixtures/setup, not deployed. |
 
-## Tag-based commands
+## Common commands
 
-- Skip the Docker Engine install on hosts that already have it:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --skip-tags "initial-setup"
-  ```
-- Pull/rebuild changed images and recreate their containers only:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --tags "images"
-  ```
-- Re-render Caddyfile/DNS zones, restarting only containers whose config
-  changed:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --tags "infra"
-  ```
+All run from `ansible/`. Converge everything:
 
-The `images` and `infra` commands assume the host is already provisioned
-once (a full, untagged run first). See [Tags in `deployment-flow.md`](deployment-flow.md#tags).
+```bash
+ansible-playbook playbooks/deploy.yaml
+```
+
+One host (keep `localhost` for the [secrets play](deployment-flow.md#play-0-notes)):
+
+```bash
+host=services
+ansible-playbook playbooks/deploy.yaml --limit "$host,localhost"
+```
+
+Skip the Docker install on hosts that have it:
+
+```bash
+ansible-playbook playbooks/deploy.yaml --skip-tags initial-setup
+```
+
+On a provisioned host, pull or rebuild changed images and recreate their containers:
+
+```bash
+ansible-playbook playbooks/deploy.yaml --tags images
+```
+
+Re-render the Caddyfile and DNS zones, restarting only what changed:
+
+```bash
+ansible-playbook playbooks/deploy.yaml --tags infra
+```
+
+What each tag covers is under [Tags](deployment-flow.md#tags).
 
 ## Inventory
 

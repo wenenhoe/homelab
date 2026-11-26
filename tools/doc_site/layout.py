@@ -1,4 +1,4 @@
-"""The layout check: opens every page of a built site in headless Chrome at phone widths, and at a wide one where a page has a
+"""The layout check: opens every page of a built site in headless Chrome at phone widths, and at wide ones where a page has a
 contents list or tabs, and reports what breaks.
 
 A page fails when it scrolls sideways, when an element sticks out past the right edge of the screen, when a block's text is
@@ -37,8 +37,9 @@ from playwright.sync_api import Page, sync_playwright
 HEIGHT = 800
 VIEWPORTS = ((360, HEIGHT), (390, HEIGHT), (768, HEIGHT), (844, HEIGHT), (844, 390))
 WIDTHS = tuple(width for width, _ in VIEWPORTS)
-# A page that lists its headings beside its prose, or shows groups as tabs, is also opened at a width where the list has a column of its own.
-WIDE_VIEWPORT = (1280, HEIGHT)
+# A page that lists its headings beside its prose, or shows groups as tabs, is also opened where the list has a column of its own: at the
+# narrowest such width (the stylesheet's breakpoint), where the prose has the least room, and at a usual desktop one.
+WIDE_VIEWPORTS = ((1040, HEIGHT), (1280, HEIGHT))
 # The sections of the site that hold document pages, by the first part of their address.
 SECTIONS = ("projects", "decisions", "topics", "architecture")
 # The most pages `sample_of` may return, however many the site has: the home page, the views and the landings, a page of each section
@@ -207,15 +208,15 @@ MENU_SHOWN = """() => {
 }"""
 
 
-def check_page(page: Page, url: str, sizes: Sequence[tuple[int, int]], wide: tuple[int, int] | None = None) -> list[tuple[int, str]]:
-    """The problems of the page at `url` at each of `sizes`, as (index of the size, problem), and at `wide` after them, as index
-    `len(sizes)`, when the page lists its headings or shows tabs. The page is loaded once and resized, since nothing in it depends on the
+def check_page(page: Page, url: str, sizes: Sequence[tuple[int, int]], wide: Sequence[tuple[int, int]] = ()) -> list[tuple[int, str]]:
+    """The problems of the page at `url` at each of `sizes`, as (index of the size, problem), and at each of `wide` after them, their
+    indexes following on, when the page lists its headings or shows tabs. The page is loaded once and resized, since nothing in it depends on the
     width at load time."""
     problems: list[tuple[int, str]] = []
     page.set_viewport_size({"width": sizes[0][0], "height": sizes[0][1]})
     page.goto(url)
     page.wait_for_load_state("load")
-    sizes = [*sizes, wide] if wide and page.evaluate(ORIENTED) else list(sizes)
+    sizes = [*sizes, *wide] if wide and page.evaluate(ORIENTED) else list(sizes)
     for index, (width, height) in enumerate(sizes):
         if index:
             page.set_viewport_size({"width": width, "height": height})
@@ -231,7 +232,7 @@ def check_page(page: Page, url: str, sizes: Sequence[tuple[int, int]], wide: tup
     return problems
 
 
-def _check_chunk(base: str, paths: Sequence[str], sizes: Sequence[tuple[int, int]], wide: tuple[int, int] | None) -> list[tuple[str, int, str]]:
+def _check_chunk(base: str, paths: Sequence[str], sizes: Sequence[tuple[int, int]], wide: Sequence[tuple[int, int]]) -> list[tuple[str, int, str]]:
     """The problems of `paths` as (path, index of the size, problem), in one browser of its own."""
     found: list[tuple[str, int, str]] = []
     with sync_playwright() as playwright:
@@ -249,11 +250,11 @@ def check(
     directory: Path,
     viewports: tuple[int | tuple[int, int], ...] = VIEWPORTS,
     workers: int = WORKERS,
-    wide: tuple[int, int] | None = WIDE_VIEWPORT,
+    wide: Sequence[tuple[int, int]] = WIDE_VIEWPORTS,
     pages: Sequence[str] | None = None,
 ) -> list[str]:
     """Every layout problem on every page of the site in `directory`, each as `<page> at <width>px: <problem>`, or `<width>x<height>px`
-    where the height is not the usual one, in the order of the pages and then of `viewports`, then `wide` for a page that lists its headings
+    where the height is not the usual one, in the order of the pages and then of `viewports`, then of `wide` for a page that lists its headings
     or shows tabs. A bare width is that width at the usual height. `pages` names the ones to open, as `pages_of` does, and is every page
     by default. The pages are dealt out to up to `workers` browsers."""
     sizes = [(v, HEIGHT) if isinstance(v, int) else v for v in viewports]
@@ -270,7 +271,7 @@ def check(
                 found = [item for chunk in pool.map(_check_chunk, [base] * len(chunks), chunks, [sizes] * len(chunks), [wide] * len(chunks)) for item in chunk]
     order = {path: n for n, path in enumerate(pages)}
     found.sort(key=lambda item: (order[item[0]], item[1]))
-    labels = [f"{w}px" if h == HEIGHT else f"{w}x{h}px" for w, h in [*sizes, *([wide] if wide else [])]]
+    labels = [f"{w}px" if h == HEIGHT else f"{w}x{h}px" for w, h in [*sizes, *wide]]
     return [f"{path} at {labels[index]}: {problem}" for path, index, problem in found]
 
 
@@ -290,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {error}", file=sys.stderr)
     if not errors:
         phones = ", ".join(f"{w}x{h}" for w, h in VIEWPORTS)
-        wide = f"{WIDE_VIEWPORT[0]}x{WIDE_VIEWPORT[1]}"
+        wide = ", ".join(f"{w}x{h}" for w, h in WIDE_VIEWPORTS)
         which = f"{len(pages)} pages" if everything else f"{len(pages)} of {len(pages_of(args.site))} pages"
         print(f"Layout ok: {which} at {phones}px, and at {wide}px where a page has a list or tabs.")
     return 1 if errors else 0

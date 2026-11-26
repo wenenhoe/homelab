@@ -94,7 +94,7 @@ A document page is a repository file shown as it reads on GitHub. `doc_site/docu
 | Tables | cards on a phone, each cell labelled; a `Status` cell is a pill |
 | Code blocks | wrapped, with a copy button |
 
-- **Contents list.** A `<details open>`, so it needs no script. From 1100 pixels wide it sits beside the prose; below that the script closes it. It does not stay on screen. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
+- **Contents list.** A `<details open>`, so it needs no script. From 1040 pixels wide it sits beside the prose; below that the script closes it. It does not stay on screen. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
 - **Copy button.** Added in the top right corner where the browser has a clipboard (HTTPS or `localhost`). Its icon turns into a tick, or a cross if the write is refused, with the same said to a screen reader. It copies the block without the final newline, so a pasted last line is not run. Blocks are written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)).
 - **Navigation.** Planning, Projects, Decisions, Topics, Architecture and DR coverage; the home page has a tile for each.
 - **Section landings.** Projects opens on a list of projects by status and initiative, above its README; Decisions on the decision index, with the README as a guide in the breadcrumb; Topics and Architecture on their READMEs.
@@ -157,7 +157,7 @@ With the site built above, from `tools/`:
 uv run python -m doc_site.layout "$site"
 ```
 
-It serves the site on `localhost` and opens every page in headless Chrome at each size of `VIEWPORTS` in [`layout.py`](../../../tools/doc_site/layout.py) (portrait phones, a small tablet, a wide screen and a landscape phone); a page with a contents list or tabs also at `WIDE_VIEWPORT`. It needs Chrome and `playwright` and downloads nothing. Every error names the page, width and element.
+It serves the site on `localhost` and opens every page in headless Chrome at each size of `VIEWPORTS` in [`layout.py`](../../../tools/doc_site/layout.py) (portrait phones, a small tablet, a wide screen and a landscape phone); a page with a contents list or tabs also at each of `WIDE_VIEWPORTS`, the narrowest width with the list beside the prose among them. It needs Chrome and `playwright` and downloads nothing. Every error names the page, width and element.
 
 A page fails when:
 

@@ -137,9 +137,14 @@ def sizes_reported(tmp_path, body: str) -> set[str]:
     return {error.split(": ")[0] for error in problems(tmp_path, body, (1400,))}
 
 
-def test_a_page_with_a_list_is_also_opened_at_the_wide_size(tmp_path):
+def test_a_page_with_a_list_is_also_opened_at_the_wide_sizes(tmp_path):
     assert sizes_reported(tmp_path, ORIENTED_PAGE.format(width=1000)) == set()
-    assert sizes_reported(tmp_path, ORIENTED_PAGE.format(width=1500)) == {"/ at 1400px", "/ at 1280px"}
+    assert sizes_reported(tmp_path, ORIENTED_PAGE.format(width=1500)) == {"/ at 1400px", "/ at 1040px", "/ at 1280px"}
+
+
+def test_a_fault_at_the_narrowest_width_with_a_list_column_alone_is_reported(tmp_path):
+    body = "<style>@media (min-width:1040px) and (max-width:1100px){p{font-size:9px}}</style><nav class='toc'></nav><p>x</p>"
+    assert sizes_reported(tmp_path, body) == {"/ at 1040px"}
 
 
 def test_a_page_without_a_list_or_tabs_is_not_opened_at_the_wide_size(tmp_path):

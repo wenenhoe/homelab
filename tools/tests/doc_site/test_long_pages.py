@@ -117,6 +117,27 @@ def test_the_list_is_closed_on_a_narrow_screen_and_open_on_a_wide_one(tree, tmp_
 
 
 @needs_chrome
+@pytest.mark.parametrize(("width", "beside"), [pytest.param(1040, True, id="breakpoint"), pytest.param(1039, False, id="below")])
+def test_the_list_moves_beside_the_prose_at_the_breakpoint(tree, tmp_path, width, beside):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=LONG)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": width, "height": 800})
+            page.goto(f"{base}/topics/infra/network/")
+            box = page.evaluate("[document.querySelector('.toc').getBoundingClientRect().left, document.querySelector('.doc').getBoundingClientRect().right]")
+            assert (box[0] >= box[1]) is beside
+            assert page.evaluate("document.querySelector('.toc details').open") is beside
+        finally:
+            browser.close()
+
+
+@needs_chrome
 def test_a_site_with_a_long_page_and_tabs_fits_every_width(tree, tmp_path):
     pytest.importorskip("playwright")
     built(tree, network=LONG, readme=GROUPS)

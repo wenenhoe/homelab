@@ -4,6 +4,12 @@ The lab is in one of four modes, set by two things: whether the server is up and
 
 ## The four modes
 
+```mermaid
+flowchart LR
+    A["Away"] <-->|"leave / return"| N["Normal"]
+    N <-->|"shut down / start up"| D["Dark, Dark+Away"]
+```
+
 | Mode | Server | Maintainer | What it means |
 | :--- | :--- | :--- | :--- |
 | Normal | Up | Around | Deploys, maintenance, credential rotation and Tofu are run by hand |
@@ -51,10 +57,43 @@ These keep their own time while the node is off, so each is checked or set befor
 
 ### Normal to Away
 
-1. From `tools/`, run `python3 -m cloud_credentials.check_credential_expiry` and rotate what is close to expiry with `python3 -m cloud_credentials.rotate_leaf_keys` ([`rotation.md`](../security/cloud-credentials/rotation.md)), deploy to `storage` and `localhost`, then start `cloud-sync.service` on `storage` and read its status.
-2. Run `ansible/scripts/restore_all.py --check` for every host.
+1. Check credential expiry:
+
+   ```sh
+   cd tools && python3 -m cloud_credentials.check_credential_expiry
+   ```
+
+   If something is close to expiry, rotate it ([`rotation.md`](../security/cloud-credentials/rotation.md)), then deliver the new keys and run the relay:
+
+   ```sh
+   # from tools/
+   python3 -m cloud_credentials.rotate_leaf_keys
+   ```
+
+   ```sh
+   # from ansible/
+   ansible-playbook playbooks/deploy.yaml --limit storage,localhost
+   ```
+
+   ```sh
+   # on storage; fails if any job failed
+   sudo systemctl start cloud-sync.service
+   ```
+
+2. Check every host's backups, from the repo root:
+
+   ```sh
+   python3 ansible/scripts/restore_all.py --check
+   ```
+
 3. Check the alert path: Telegram posts to the Backups, Certs and Monitoring topics, the Gatus heartbeats for backups and cloud sync exist and are green, and a phone reaches Tailscale and Telegram.
-4. Copy the Tofu state off the operator host and leave no building project half-applied.
+4. Leave no building project half-applied, and copy the Tofu state off the operator host:
+
+   ```sh
+   # from the repo root, on the operator host
+   tools/tofu_state/state-copy-push.sh
+   ```
+
 5. Repeat steps 1 and 2 the day before leaving.
 
 ### Away to Normal
@@ -76,7 +115,15 @@ These keep their own time while the node is off, so each is checked or set befor
 
 ### Dark to Normal
 
-1. Start the gateway first, then `security` and unseal OpenBao ([`deployment.md`](../security/openbao/deployment.md#init-and-unseal--manual-via-initpy-and-unsealpy)), then `storage`, then the app hosts.
+1. Start the gateway, then `security`, and unseal OpenBao ([`deployment.md`](../security/openbao/deployment.md#init-and-unseal--manual-via-initpy-and-unsealpy)), once per share:
+
+   ```sh
+   # on controller
+   cd tools && python3 -m openbao_utils.unseal
+   ```
+
+   Then start `storage`, then the app hosts.
+
 2. Check the host clocks before judging any certificate.
 3. Before the first backup, run `restore_all.py --check` per host and confirm the retention and the backup agents are as set.
 4. Check the internal certificates, run cloud sync once and read its exit status, restore the OCI rule and the retention.

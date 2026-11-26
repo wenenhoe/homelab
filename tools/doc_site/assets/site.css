@@ -154,6 +154,13 @@ main:has(.doc) .lede,main:has(.doc) .notice,.doc>:is(p,ul,ol,blockquote,dl,h1,h2
 .doc>:first-child{margin-top:0}
 .doc h2{margin-top:2rem}
 .doc pre,.doc pre code{white-space:break-spaces;overflow-wrap:anywhere}
+.code{position:relative;margin:1rem 0}
+/* the right padding keeps the text clear of the button */
+.code pre{margin:0;padding-right:3.5rem}
+.copy{position:absolute;top:.25rem;right:.25rem;display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0;padding:0;background:var(--accent-bg);border:1px solid var(--border);border-radius:var(--standard-border-radius);color:var(--text);cursor:pointer}
+.copy:enabled:hover{background:var(--bg);color:var(--text)}
+.copy svg{display:block}
+.copy .said{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .doc ul.tasks{list-style:none;padding-left:0}
 .doc li.task{position:relative;padding-left:1.7rem}
 .doc li.task input{position:absolute;left:0;top:.4em;margin:0}

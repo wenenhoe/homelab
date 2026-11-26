@@ -16,13 +16,13 @@ By topic is `Groups`, which the site shows as tabs without a script: each group 
 
 Where a choice about a page is open, these decide it. Each says what the site does and what holds it.
 
-- **Content first, no script needed.** A page is complete without JavaScript and, apart from its layout, without the stylesheet. The script adds the row filter and the menu's open button, and closes the contents list on a narrow screen; nothing a reader needs is reached only through it.
+- **Content first, no script needed.** A page is complete without JavaScript and, apart from its layout, without the stylesheet. The script adds the row filter, the menu's open button and the copy button of a code block, and closes the contents list on a narrow screen; nothing a reader needs is reached only through it.
 - **One source, two outputs.** The site adds navigation (menus, breadcrumbs, a contents list, tabs over lists of links) and never content. A page says what its markdown file says, and every page links to the file.
 - **Show where you are.** A page names its place in its section in a breadcrumb, its own entry in the navigation, and its headings in a contents list; a heading of a long page links back to that list.
 - **Orient, don't hide.** Scrolling is reduced by showing the shape of a page, not by folding its narrative away. Only a list of links is ever tabbed, and a rule that names that one page decides it, so no other document is hidden by a guess.
 - **Every state has an address.** A heading, a tab and a section of a view each open from their anchor, so a link reaches them and the drift check holds the link. The text typed in a filter has no address.
 - **Prose at a readable measure, data at full width.** See [the stylesheet](#the-stylesheet).
-- **Targets and contrast.** A link in the menu, the contents list or a set of tabs is at least 44 pixels tall, and the stylesheet's colours come from one set of tokens in a light and a dark scheme. The layout check measures the text's size and not the targets or the contrast, so reading a page on a phone is still how those are found.
+- **Targets and contrast.** A link in the menu, the contents list or a set of tabs, and a copy button, is at least 44 pixels tall, and the stylesheet's colours come from one set of tokens in a light and a dark scheme. The layout check measures the text's size and not the targets or the contrast, so reading a page on a phone is still how those are found.
 
 ## Building the site
 
@@ -69,6 +69,7 @@ A document with a page of its own is a markdown file of the repository, shown as
 - A link to a page of the site goes to it with its anchor kept, and a link to any other file goes to it on GitHub, as in a view. A link from a project to a view or to another project is therefore a link between pages.
 - A list item that starts `[ ]` or `[x]` is a disabled box, so a closing checklist reads as one. The page does not change the file: the box is not a control.
 - A table takes the same card layout as a view on a phone, each cell labelled by its column, and a `Status` cell is a pill. A code block wraps, as the layout check refuses a block that scrolls sideways.
+- Each code block of a document page has a copy button in its top right corner, which `assets/site.js` adds where the browser has a clipboard: over HTTPS or on `localhost`. Its icon turns into a tick, or a cross if the browser refuses the write, and a screen reader hears the same as a word. It copies the block's text without the final newline, so a terminal does not run the last line as it is pasted. A block is written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)), so the button copies all of it.
 - Every page links to its file on GitHub, where the document can be edited.
 
 ## Diagrams
@@ -95,7 +96,7 @@ The stylesheet has no trailing newline and the bundle has trailing spaces, as pu
 
 Renovate moves only the `version` line of either pin, because it has no digest for a file inside an npm tarball. The pull request it opens fails the pin test until `--update` has been run for that pin with that version, which writes the file and the new hash in one step.
 
-The card layout, the menu drawer, the row filter and the contents list are `assets/site.css` and `assets/site.js`, which belong to this repository. The page works without JavaScript; the script only adds the filter and the drawer's open button, and closes the contents list on a narrow screen.
+The card layout, the menu drawer, the row filter, the contents list and the copy buttons are `assets/site.css` and `assets/site.js`, which belong to this repository. The page works without JavaScript; the script only adds the filter, the drawer's open button and the copy buttons, and closes the contents list on a narrow screen.
 
 A document page sets its prose (paragraphs, lists, quotes, headings, the lede and the notice) to one reading measure, and lets its tables, code blocks and figures use the width of the page, less the column of its contents list where it has one. A view sets no measure on its lede, caption or legend, so they run as wide as the table and the filter under them.
 

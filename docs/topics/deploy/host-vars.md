@@ -6,6 +6,14 @@ doesn't). Field-by-field reference; see
 [`adding-an-app.md`](adding-an-app.md) for the worked flow and
 [`bind9.md`](../services/bind9.md) for how `dns_zones` becomes DNS records.
 
+| Field | Set on | Purpose |
+| :--- | :--- | :--- |
+| [`caddy_domain`](#caddy_domain) | hosts running Caddy | the wildcard domain the host's apps are served under |
+| [`compose_apps`](#compose_apps) | every app host | the apps it runs and their hostnames |
+| [`<app>_host` aliases](#per-host-alias-variables-eg-cobalt_host-shlink_short_host-lldap_host) | some | one hostname label used in two places |
+| [`dns_zones`](#dns_zones) | every `app_hosts` member | zones the host contributes records to |
+| [anything one host consumes](#single-host-config-and-secrets) | the consuming host | config and secrets no other host reads |
+
 ## `caddy_domain`
 
 The wildcard domain this host's Caddy instance terminates TLS for and routes under, e.g. `"svc.{{ lan_domain }}"`. Every routable app on the host gets `<host-label>.<caddy_domain>` as its externally-reachable name — both for Caddy's own routing and for the CNAME BIND9 generates for it.
@@ -41,7 +49,7 @@ written here.
 
 A handful of hosts define a plain variable for an app's hostname label
 (`cobalt_host: cobalt`, ...) instead of writing the label inline twice.
-It's referenced both in `compose_apps`'s `caddy.<route>.host` and
+It's referenced both in `compose_apps`'s `routes.<route>.host` and
 elsewhere that needs the same hostname — e.g. `step_ca_cert`
 (`ansible/roles/step_ca_cert/tasks/main.yaml`, called with
 `step_ca_cert_common_name: "{{ lldap_host }}"` for lldap's instance)
@@ -61,20 +69,7 @@ briefly:
 
 ## Single-host config and secrets
 
-Not every var here started life host-specific — a good number were
-originally in `group_vars/all/main.yaml` and moved once nothing outside
-their one consuming host ever referenced them: `storage.yaml`'s
-`seaweedfs_admin_access_key`/`seaweedfs_cloud_sync_reader_access_key`
-pairs and `cloud_sync_targets`, `security.yaml`'s `step_ca_password`,
-`services.yaml`'s `shlink_api_key`, among others. The rule for whether a
-new var belongs here or in `main.yaml`, and the worked examples of
-telling a genuinely-single-host var apart from one that only looks that
-way (`tinyauth_host` vs `step_ca_password`), live in
-[`secrets.md`](../security/secrets.md) — that's the canonical explanation; this
-section just flags that `host_vars` isn't only about things that
-*inherently* vary per host (`caddy_domain`, `compose_apps`) but also
-things that happen to be *consumed* by only one host, secrets and plain
-config alike.
+`host_vars` also holds config and secrets that only one host consumes, such as `storage.yaml`'s `cloud_sync_targets` or `security.yaml`'s `step_ca_password`. [`secrets.md`](../security/secrets.md) has the rule for choosing between here and `group_vars/all/main.yaml`, with worked examples.
 
 ## Excerpt (from `ansible/inventory/host_vars/services.yaml`)
 

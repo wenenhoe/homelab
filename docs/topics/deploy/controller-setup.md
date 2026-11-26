@@ -47,6 +47,18 @@ sudo rm -rf /opt/openbao /etc/openbao
 
 The version and checksum are read out of the `openbao_cli` role's own defaults, the values that role installs on `security`, so there is no second, hand-copied pin to drift when the role's is bumped. The last four commands undo the standalone-server setup the `.deb`'s installer does unconditionally, which this machine has no use for; the role's `tasks/main.yaml` comment says why the removal runs on every install, not just the first.
 
+## Check the setup
+
+From the repository root, with the environment from [above](#python-environment):
+
+```bash
+uv run ansible --version
+uv run molecule --version
+bao version
+docker info --format '{{.ServerVersion}}'
+test -f ~/.ssh/proxmox_vm_servers && echo "SSH key present"
+```
+
 ## Before the first deploy
 
 Fill in every value Ansible can't generate itself. The list, and how each is stored, is in [`secrets.md`](../security/secrets.md#bootstrapping-manual-secrets).

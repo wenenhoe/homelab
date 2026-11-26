@@ -1,6 +1,6 @@
 # Landing a Patch Series
 
-How a series of patches reaches `main` as pull requests with [`tools/land_series`](../../../tools/land_series), the maintainer-run tool [ADR 0112 (Landing a patch series)](../../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-002.md) describes. It replays the series, keeps each pull request as a local branch for review, then pushes, waits on and merges them one at a time under the maintainer's own `gh` login. A session that writes a series never holds a credential for it.
+How a series of patches reaches `main` as pull requests with [`tools/land_series`](../../../tools/land_series), the maintainer-run tool [ADR 0112 (Landing a patch series)](../../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-003.md) describes. It replays the series, keeps each pull request as a local branch for review, then pushes, waits on and merges them one at a time under the maintainer's own `gh` login. A session that writes a series never holds a credential for it.
 
 Run it from `tools/` in a clone of the repository, with `gh` logged in as a user who can bypass the `main-review` ruleset ([`branching.md`](branching.md#the-rulesets)):
 
@@ -100,6 +100,8 @@ The replay lists those commits together, each with its files, their added and re
 - `v` opens the diff of the listed files, and no others, in `less`. `q` returns to the prompt with the terminal as it was. Without `less`, or with `TERM=dumb`, the diff is printed.
 - Anything else stops the run. With no terminal it stops and names the commits and files.
 
+`--accept-stops` prints the same list and replays without asking. It is taken only with `--dry-run`, and is for a machine that is thrown away and holds no credential, such as the one a series is written on ([verifying a series](checks-without-docker.md#verifying-a-series-before-delivery)). The tool cannot tell what machine it is on: `--dry-run` limits what the run keeps, not what the series' code can do while it runs, so the flag is not for the maintainer's own.
+
 A control or format character in a subject, a file name or a diff is shown as an escape, such as `\x1b`, so a patch cannot hide or rewrite what is on screen.
 
 Otherwise the replay keeps each pull request as the local branch `series/<slug>`, the first on the base and each next on the last commit of the one before. Next to the git directory, in `land-series/<slug>.json`, it records the first and last commit and a hash of the patches the branch was built from. Review the branches as any other.
@@ -141,7 +143,7 @@ After the replay, and again before each merge prompt of `--land`, the tool appli
 | Message or state | What to do |
 | :--- | :--- |
 | A kept branch changed, or is checked out | Switch to another branch and rerun the replay |
-| The replay lists commits on the stop list | Type `v` to read the diff, then `yes`; without a terminal it stops |
+| The replay lists commits on the stop list | Type `v` to read the diff, then `yes`; without a terminal it stops ([the stop list](#the-stop-list)) |
 | `--land`: the branch is built on another tree than the base's | Run the replay again |
 | A pre-push hook fails | Fix the cause and run `--land` again, or replay if the series changed |
 | A required check failed, or 90 minutes passed | Read the pull request's checks; `--land` again continues |

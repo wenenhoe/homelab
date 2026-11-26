@@ -104,6 +104,12 @@ def page(stops: Sequence[Stop]) -> None:
     print(text, flush=True)
 
 
+def accept(stops: Sequence[Stop]) -> bool:
+    """List the commits as `ask` does, then confirm them without asking: for a dry run on a machine that is thrown away."""
+    print("\n".join(summary(stops)), "", "Accepted by --accept-stops.", sep="\n", flush=True)
+    return True
+
+
 def ask(stops: Sequence[Stop]) -> bool:
     """Ask on the terminal, once for the whole series; with no terminal to ask on, refuse."""
     if not sys.stdin.isatty():

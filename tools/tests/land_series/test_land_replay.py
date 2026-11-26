@@ -319,6 +319,34 @@ def test_a_machine_without_a_committer_identity_is_named_before_anything_is_appl
         replay(repo.path, layers, [], Confirmations(False), base="main")
 
 
+def tool_series(author: Author, directory: Path) -> Path:
+    series = directory / "tool.series"
+    series.write_bytes(series_file([("0001a change-tool", author.patch("chore: change a tool", {"tools/run.py": "print()\n"}))]))
+    return series
+
+
+def test_accept_stops_lists_the_commits_on_the_stop_list_and_replays_them(
+    repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    series = tool_series(author, tmp_path)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+
+    status = cli.main([str(series), "--repo", str(repo.path), "--no-fetch", "--base", "refs/heads/main", "--dry-run", "--accept-stops", "--check", "true"])
+
+    assert status == 0
+    out = capsys.readouterr().out
+    assert "    +1 -0  tools/run.py\n\nAccepted by --accept-stops.\n" in out
+    assert "0001a  replayed  chore: change a tool" in out
+
+
+@pytest.mark.parametrize("flags", [[], ["--land"], ["--land", "--yes"]], ids=["a replay that keeps branches", "--land", "--land --yes"])
+def test_accept_stops_is_refused_without_a_dry_run(repo: Repo, author: Author, tmp_path: Path, capsys: pytest.CaptureFixture[str], flags: list[str]) -> None:
+    with pytest.raises(SystemExit):
+        cli.main([str(tool_series(author, tmp_path)), "--repo", str(repo.path), "--accept-stops", *flags])
+
+    assert "only taken with --dry-run" in capsys.readouterr().err
+
+
 def as_base64(patch: bytes) -> bytes:
     """The same message with its body sent as base64, which `git am` decodes and a reader of the file cannot read."""
     head, _, body = patch.partition(b"\n\n")

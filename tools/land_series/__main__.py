@@ -1,8 +1,8 @@
-"""python3 -m land_series FILE... [--repo DIR] [--base REF] [--no-fetch] [--check COMMAND]... [--dry-run | --land [--yes] [--keep]]
+"""python3 -m land_series FILE... [--repo DIR] [--base REF] [--no-fetch] [--check COMMAND]... [--dry-run [--accept-stops] | --land [--yes] [--keep]]
 
 Replay the series in FILE... (several files make one series) on a scratch worktree of the base branch and run the
 checks after every commit, then keep a local branch per pull request for review (`--dry-run` keeps none). Commits that change code the replay
-runs are listed together before any check, and asked about once. `--land` pushes the
+runs are listed together before any check, and asked about once; `--accept-stops` answers for a dry run. `--land` pushes the
 kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
 confirms every merge). Once every pull request has landed the series files are deleted (`--keep` leaves them).
 Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
@@ -26,7 +26,7 @@ from land_series.land import Landed, LandError, fetch, land
 from land_series.live import LiveBlock
 from land_series.manifest import Pull, SeriesError, order_layers, parse_base, parse_series
 from land_series.replay import PULL_BASE, Check, ReplayError, TipCheck, replay
-from land_series.review import ask
+from land_series.review import accept, ask
 from land_series.run import CommandError
 
 DEFAULT_BASE = "origin/main"
@@ -108,6 +108,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--no-fetch", action="store_true")
     parser.add_argument("--check", action="append", default=[], metavar="COMMAND")
     parser.add_argument("--dry-run", action="store_true", help="replay and check only; leave no branches")
+    parser.add_argument(
+        "--accept-stops", action="store_true", help="with --dry-run on a throwaway machine, list the commits on the stop list and replay them without asking"
+    )
     parser.add_argument("--land", action="store_true", help="push the kept branches, open, wait for and merge a pull request per number")
     parser.add_argument("--yes", action="store_true", help="with --land, merge without asking after each pull request's checks pass")
     parser.add_argument("--keep", action="store_true", help="with --land, keep the series files instead of deleting them once everything has landed")
@@ -115,6 +118,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     display = LiveBlock(sys.stderr).show
     if args.land and args.dry_run:
         parser.error("--land lands the branches a replay kept, so it cannot be combined with --dry-run")
+    if args.accept_stops and not args.dry_run:
+        parser.error("--accept-stops runs the series' code without asking, so it is only taken with --dry-run")
     try:
         files = [(path, path.read_bytes()) for path in args.files]
         args.base = remote_branch(args.base or base_of(files) or DEFAULT_BASE)
@@ -137,7 +142,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return status
         checks = [Check(tuple(shlex.split(command))) for command in args.check] or default_checks()
         tip_checks = [] if args.check else default_tip_checks()
-        results = replay(args.repo, layers, checks, ask, base=args.base, progress=say, display=display, tip_checks=tip_checks)
+        results = replay(args.repo, layers, checks, accept if args.accept_stops else ask, base=args.base, progress=say, display=display, tip_checks=tip_checks)
         kept = [] if args.dry_run else keep(args.repo, results)
     except LandError as error:
         report(error.landed)

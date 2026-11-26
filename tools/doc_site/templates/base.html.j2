@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>{% block title %}{% endblock %}Homelab docs</title>
+<title>{% block title %}wenenhoe&#39;s Homelab{% endblock %}</title>
 <link rel="stylesheet" href="{{ base }}{{ assets.simple_css }}" integrity="{{ sri }}">
 <link rel="stylesheet" href="{{ base }}{{ assets.site_css }}">
 <script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
 <header class="bar"><div class="bar-in">
-<a class="brand" href="{{ home or './' }}">Homelab docs</a>
+<a class="brand" href="{{ home or './' }}">Homelab</a>
 <nav aria-label="Views">{% for item in nav %}<a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>{% endfor %}</nav>
 <button class="menu-btn" type="button" aria-haspopup="dialog" aria-controls="drawer"><span aria-hidden="true">&#9776;</span> Menu</button>
 </div></header>

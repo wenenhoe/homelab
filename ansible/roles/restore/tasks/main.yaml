@@ -123,27 +123,29 @@
     msg: Restore aborted — confirmation not given.
   when: restore_confirmation.user_input | default('') != 'yes'
 
-- name: Copy the decrypted archive onto the target host
-  ansible.builtin.copy:
-    src: "{{ restore_archive_local_path }}"
-    dest: "{{ restore_remote_archive }}"
-    mode: "0600"
-
-- name: Stop the app's compose stack so nothing writes during restore
-  community.docker.docker_compose_v2:
-    project_src: "{{ restore_deploy_dir }}"
-    state: stopped
-
-# Reset before use, not just after: a retry following a failed or killed
-# attempt would otherwise extract into a volume still holding the
-# previous attempt's files, which tar -x never removes on its own.
-- name: Reset the scratch volume before extracting
-  community.docker.docker_volume:
-    name: "{{ restore_app }}_restore_scratch"
-    state: absent
-
-- name: "Extract and restore from the archive [block / always]"
+# The block starts before the copy, so a failure anywhere after it still
+# reaches the cleanup below.
+- name: "Stop the app and restore from a copy of the archive [block / always]"
   block:
+    - name: Copy the decrypted archive onto the target host
+      ansible.builtin.copy:
+        src: "{{ restore_archive_local_path }}"
+        dest: "{{ restore_remote_archive }}"
+        mode: "0600"
+
+    - name: Stop the app's compose stack so nothing writes during restore
+      community.docker.docker_compose_v2:
+        project_src: "{{ restore_deploy_dir }}"
+        state: stopped
+
+    # Reset before use, not just after: a retry following a failed or killed
+    # attempt would otherwise extract into a volume still holding the
+    # previous attempt's files, which tar -x never removes on its own.
+    - name: Reset the scratch volume before extracting
+      community.docker.docker_volume:
+        name: "{{ restore_app }}_restore_scratch"
+        state: absent
+
     - name: Extract the full archive into a scratch volume once
       community.docker.docker_container:
         name: "{{ restore_app }}-restore-extract"
@@ -236,17 +238,18 @@
         cleanup: true
       loop: "{{ restore_volumes }}"
   always:
-    # Runs whether extraction/restore succeeded or failed, so a failed
-    # attempt leaves neither the scratch volume nor the plaintext archive
-    # copy behind on the target host.
-    - name: Remove the scratch extraction volume
-      community.docker.docker_volume:
-        name: "{{ restore_app }}_restore_scratch"
-        state: absent
-
+    # Runs whether the steps above succeeded or failed, so a failed attempt
+    # leaves neither the plaintext archive copy nor the scratch volume behind
+    # on the target host. The copy goes first: a failing task in `always`
+    # skips the ones after it.
     - name: Remove the temporary archive copy from the target host
       ansible.builtin.file:
         path: "{{ restore_remote_archive }}"
+        state: absent
+
+    - name: Remove the scratch extraction volume
+      community.docker.docker_volume:
+        name: "{{ restore_app }}_restore_scratch"
         state: absent
 
 - name: Redeploy the app's compose stack

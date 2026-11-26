@@ -8,6 +8,9 @@
 # volumes restored out of ONE archive, at DIFFERENT nesting depths,
 # alongside an unrelated app's directory and a similarly-named decoy that
 # must NOT get matched.
+#
+# Ahead of that restore, two runs that must fail: a stack that cannot be
+# stopped, and a volume the archive does not hold.
 driver:
   name: docker
 platforms:

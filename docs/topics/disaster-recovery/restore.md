@@ -88,9 +88,12 @@ In order:
 2. Stops the app.
 3. Extracts into a scratch volume.
 4. Matches each name in `restore_volumes` against the archive's
-   directory structure.
+   directory structure. A name the archive lacks stops the run before any
+   volume is emptied.
 5. Copies it over the live volume.
 6. Cleans up and redeploys.
+
+A failure after step 1 still removes the copied archive and the scratch volume.
 
 It pauses for `yes` before touching anything.
 

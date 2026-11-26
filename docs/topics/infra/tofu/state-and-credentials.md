@@ -55,14 +55,21 @@ tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
 | `TOFU_STATE_ENCRYPTION_MIGRATING` | The same config with an `unencrypted` fallback, for the one migration command |
 | `TOFU_STATE_PASSPHRASE`, `TOFU_STATE_KEY_MINTED` | The passphrase the configs are built from, and when the key pair was minted |
 
-The two keys expire a quarter after `TOFU_STATE_KEY_MINTED`. Run
-`create_state_keys.py --rotate` before then: it writes the new file before it revokes
-the old key, and keeps the passphrase. The weekly credential expiry check warns ahead of
-that: the script registers each key's ID, and only the ID, in OpenBao's leaf tier
-(`cloudflare-r2-opentofu-state-access-key`, `backblaze-b2-opentofu-state-copy-access-key`),
-and the check asks the provider when that key expires. The IDs authenticate nothing, so
-the secrets stay in the files. A key minted before the IDs were registered shows as
-unchecked until its next `--rotate`.
+### Rotating the keys
+
+The two keys expire a quarter after `TOFU_STATE_KEY_MINTED`. Rotate before then:
+
+```sh
+cd tools && python3 -m cloud_credentials.create_state_keys --rotate
+```
+
+It writes the new file before it revokes the old key, and keeps the passphrase. The
+weekly credential expiry check warns ahead: the script registers each key's ID, and
+only the ID (which authenticates nothing), in OpenBao's leaf tier as
+`cloudflare-r2-opentofu-state-access-key` and
+`backblaze-b2-opentofu-state-copy-access-key`, and the check asks the provider when
+it expires. A key with no registered ID shows as unchecked until its next
+`--rotate`.
 
 Anything that calls `tofu` against the root module needs the same environment, the
 inventory generator (`tools/tofu_inventory`) among them: without it `tofu output`
@@ -79,14 +86,16 @@ After each apply, from anywhere on the host that runs Tofu:
 tools/tofu_state/state-copy-push.sh
 ```
 
-The script pulls the state, encrypts it to the backup GPG key at once, and pushes it
-to `opentofu-state-b2/state/` under a new name, `state-<UTC time>.json.gpg`, with
-`rclone copy` only. The plaintext pull exists in one scratch directory that is removed
-on every exit, including a failed one. The R2 environment is sourced for the pull
-alone and the B2 key for the rclone config alone, so each provider's credential reaches
-only its own process. It reads `~/.config/tofu/state-copy.env`, which
-`create_state_keys.py --provider b2` writes; the key writes but cannot delete, so old
-copies stay until a lifecycle rule set on the bucket by hand prunes them.
+The script:
+
+- Pulls the state, encrypts it to the backup GPG key at once and pushes it to
+  `opentofu-state-b2/state/state-<UTC time>.json.gpg` with `rclone copy` only.
+- Keeps the plaintext in one scratch directory, removed on every exit.
+- Sources the R2 environment for the pull alone and the B2 key for the rclone config
+  alone, so each credential reaches only its own process.
+- Reads `~/.config/tofu/state-copy.env`, which `create_state_keys.py --provider b2`
+  writes. That key cannot delete, so old copies stay until a lifecycle rule set on the
+  bucket by hand prunes them.
 
 To recover from a copy, with the offline GPG key and a read credential minted for the
 occasion, download the newest object under `state/` from `opentofu-state-b2` with any

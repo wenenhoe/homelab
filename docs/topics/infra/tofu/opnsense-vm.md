@@ -28,13 +28,12 @@ flowchart LR
 | :--- | :--- |
 | `vm_id` | The gateway VMID of a block of 50, host part 01 or 51 (201 by default) |
 | NICs | Two `virtio` NICs with MACs from the [MAC scheme](../vm-provisioning.md#mac-address-scheme). NIC 0 on the physical WAN bridge, NIC 1 on the VLAN-aware LAN bridge, both untagged so OPNsense sees every VLAN |
-| Startup | The VM starts at the node's boot. `startup_order` puts it at that place in the node's order, with `startup_up_delay` seconds (30 by default) before the next VM starts, so the gateway is up before the VMs behind it |
+| Startup | The VM starts at the node's boot. `startup_order` puts it at that place in the node's order, with `startup_up_delay` seconds (30 by default) before the next VM starts, so the gateway is up before the VMs behind it. Setting an order needs `Sys.Modify` on `/`, which the token's role does not hold ([the grant](state-and-credentials.md#proxmox-api-token)) |
 | WAN as a client | Setting `wan_bridge` to the LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a WAN that is an ordinary client of another OPNsense's LAN. NIC 1 stays untagged |
 | System disk | The only boot device, imported at `disk_gb`. The image is 3 GB and the gateway grows its root file system into the rest at the first boot |
 | Console | A serial port on a socket |
 | Seed | When `seed_image_path` names a raw disk image holding `conf/config.xml`, the module uploads it as import content under the VM's lowercased name and attaches it as `scsi1`. It is needed for the first boot only: [`first_boot.sh`](#first-boot) detaches the disk afterwards, and unsetting `seed_image_path` makes Tofu drop the import file |
 | `started` | The caller sets `started = false` when a script on the node answers the importer, because that script must be connected to the serial socket before the first boot passes the importer's prompt. `started` applies only when the VM is created: a later apply neither starts nor stops it, so a change of it never powers a running gateway off |
-| Boot order | Tofu does not set it. Proxmox requires `Sys.Modify` on `/` for a startup order, which is cluster-wide and far wider than the token's role. Set it once on the VM with `qm set <vmid> --startup order=1,up=60`, so the gateway starts first and has 60 s before any dependent VM, giving DHCP and DNS time to come up |
 | Names | The gateway runs no authoritative DNS and registers no name. A Tofu-built VM's name is an `A` record BIND9 on `services` renders from the generated inventory, and the gateway forwards the zone to `services` and `storage` ([`bind9.md`](../../services/bind9.md#the-host-zone)). A client in the `.50`–`.254` DHCP pool has no name |
 
 ## Image
@@ -50,11 +49,10 @@ URL, so a newer release is a new URL and checksum.
 
 Exactly one of the two ways must be given, and the plan fails otherwise.
 
-Connections from a workstation to the Proxmox API dropped now and then during the spike runs (an
-upload closed mid-transfer, a VM create answered with an empty reply), and three tries in a row of
-the 3 GB image upload failed. The scratch gateway's script has the node download and unpack the
-image once, so a run uploads none. The cause of the drops is not found, the seed and the other
-uploads still go through the API, and the module has no retry of its own.
+Uploads from a workstation to the Proxmox API drop now and then, and the 3 GB image
+upload failed three times in a row. The cause is not known and the module has no
+retry, so the scratch gateway's script has the node download and unpack the image
+once. The seed and the other uploads still go through the API.
 
 ## Seed disk
 
@@ -166,9 +164,8 @@ create needs ([the tool](../../disaster-recovery/rebuild-tools.md#gateway_prefli
 It does not check that the seed was built with the LAN address of the gateway and the operator
 host's address ([above](#seed-disk)).
 
-The create is `tofu apply -var-file="$HOME/.config/tofu/credentials.tfvars"
--var opnsense_seed_image_path="$HOME/opnsense-seed/seed.img"`, after which `first_boot.sh`
-takes the seed. When it is done, apply again without the seed variable. The startup order
+The create is an apply with the seed variable (step 3 below), after which `first_boot.sh`
+takes the seed; then apply again without it. The startup order
 needs `Sys.Modify` on `/`, which the Tofu user does not hold, so the create fails with a
 403 until it is granted for the create
 ([the credentials topic](state-and-credentials.md#proxmox-api-token) says how, and to revoke it).
@@ -200,7 +197,20 @@ with the snapshot token over the API.
 ### Rebuilding the production gateway
 
 A rebuild replaces VM 201 with one built from the seed, so the whole lab is offline while the
-gateway is down. Settle these first:
+gateway is down.
+
+```mermaid
+flowchart TD
+    A["1. Preflight, move operator<br/>NIC to vmbr0, build seed"] --> B["2. Stop, dump and<br/>destroy VM 201"]
+    B --> C["3. Grant privilege,<br/>create the VM"]
+    C --> D["4. First boot,<br/>apply without the seed"]
+    D --> E["5. Operator host to the<br/>untagged LAN"]
+    E --> F["6. Update, snapshot,<br/>run the play"]
+    F --> G["7. Operator host<br/>to its VLAN"]
+    G --> H["8. Probe, clean up,<br/>revoke"]
+```
+
+Settle these first:
 
 - **Rehearsal.** A scratch gateway built from the same seed and the same play, with the same `-e`
   variables, passes `tofu/scratch/opnsense/acceptance/acceptance.sh` and the flow list's probes. It
@@ -266,6 +276,10 @@ as its VLAN; change them to yours.
    ```sh
    ssh root@pve 'qm shutdown 201'
    ssh root@pve 'bash -s -- dump 201 OPNsense' < tools/rebuild_check/scripts/retire_vm.sh
+   ```
+
+   ```sh
+   # destructive: only once the dump succeeded
    ssh root@pve 'bash -s -- destroy 201 OPNsense' < tools/rebuild_check/scripts/retire_vm.sh
    ```
 
@@ -275,7 +289,9 @@ as its VLAN; change them to yours.
    # node
    pveum role add TofuStartup -privs "Sys.Modify"
    pveum acl modify / --users tofu@pve --roles TofuStartup
+   ```
 
+   ```sh
    # operator host, in tofu/, with Tofu's state settings sourced
    NODE=root@pve ../tools/rebuild_check/scripts/gateway_preflight.sh create
    tofu apply -var-file="$HOME/.config/tofu/credentials.tfvars" \
@@ -307,7 +323,9 @@ as its VLAN; change them to yours.
    ```sh
    # node console: ssh to the node hangs from the untagged LAN
    qm snapshot 201 pre-play
+   ```
 
+   ```sh
    # operator host, in ansible/
    PLAY="-e opnsense_gateway_ca_file=$HOME/opnsense-firstboot/gateway-cert.pem -e @$HOME/.opnsense-play-vars.json"
    ansible-playbook playbooks/opnsense.yaml --check --diff $PLAY
@@ -351,7 +369,9 @@ as its VLAN; change them to yours.
    ```sh
    # operator host, Proxmox console: the connection is gone
    sudo netplan apply
+   ```
 
+   ```sh
    # operator host, in ansible/, without the override
    curl -sk -o /dev/null -w '%{http_code}\n' https://OPNsense.internal/
    ansible-playbook playbooks/opnsense.yaml --check --diff $PLAY
@@ -408,13 +428,21 @@ as its VLAN; change them to yours.
    ```sh
    # node
    qm listsnapshot 201
+   ```
+
+   ```sh
+   # node: destructive
    qm delsnapshot 201 pre-play
    pveum acl delete / --users tofu@pve --roles TofuStartup
    pveum role delete TofuStartup
    ```
 
-   Delete the dump (`retire_vm.sh drop-dump 201 OPNsense`) only when the hosts behind the gateway
-   are confirmed healthy.
+   Delete the dump only when the hosts behind the gateway are confirmed healthy:
+
+   ```sh
+   # destructive: removes the rollback
+   ssh root@pve 'bash -s -- drop-dump 201 OPNsense' < tools/rebuild_check/scripts/retire_vm.sh
+   ```
 
 **Rollback.** The dump is the way back: destroy the rebuilt VM and restore the dump to VMID 201 by
 hand with `qmrestore`, which brings the old VM's MACs back with it. `retire_vm.sh restore` is not

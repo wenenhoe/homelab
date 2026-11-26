@@ -86,13 +86,13 @@ read -r -p 'series file: ' series
 cd tools && uv run python -m land_series "$series" --repo "$clone" --base origin/main --no-fetch --dry-run
 ```
 
-It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and stops for a layer on its stop list. It runs no pre-push hook, which `--land` runs: check the push stage in a clone with the series applied, with `ansible-lint` skipped as above:
+It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and asks once, before any check, about the commits on its stop list. It runs no pre-push hook, which `--land` runs: check the push stage in a clone with the series applied, with `ansible-lint` skipped as above:
 
 ```bash
 pre-commit run --hook-stage pre-push --from-ref origin/main --to-ref HEAD
 ```
 
-A layer that touches a path on the stop list prints `Read the patch, then type 'yes' to replay it:` and waits for a terminal. A session with no terminal answers it under a pseudo-terminal, once it has read the layer's patch, and starts the replay as a background command that writes to a log file, because a foreground command is cut off after 10 minutes. This driver answers that prompt and no other, and passes its arguments to `land_series`:
+A series with commits on [the stop list](landing-a-series.md#the-stop-list) lists them and waits for a terminal. A session with no terminal answers under a pseudo-terminal, once it has read those commits' patches, and starts the replay as a background command that writes to a log file, because a foreground command is cut off after 10 minutes. This driver answers that prompt and no other, and passes its arguments to `land_series`:
 
 ```python
 import os
@@ -111,7 +111,7 @@ while True:
     sys.stdout.buffer.write(chunk)
     sys.stdout.flush()
     tail = (tail + chunk)[-200:]
-    if tail.endswith(b"to replay it: "):
+    if tail.endswith(b"anything else to stop: "):
         os.write(fd, b"yes\n")
         tail = b""
 sys.exit(os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]))

@@ -13,6 +13,7 @@ from _series_repo import Author, Repo, git, series_file
 from land_series import __main__ as cli
 from land_series.manifest import Layer, order_layers, parse_series
 from land_series.replay import PULL_BASE, Check, ReplayError, TipCheck, replay, stopped_by
+from land_series.review import Change, Stop
 
 # Appends one line per run to the log: each named file's contents, with newlines shown as "/", so a test reads back the tree a check saw.
 RECORD = (
@@ -24,14 +25,14 @@ FAIL = RECORD + "print('lint says no', file=sys.stderr)\nsys.exit(1)\n"
 
 
 class Confirmations:
-    """Answers the stop prompt with a fixed reply and remembers what it was asked."""
+    """Answers the stop prompt with a fixed reply and remembers what it was asked, one list per time it was asked."""
 
     def __init__(self, answer: bool) -> None:
         self.answer = answer
-        self.asked: list[tuple[str, list[str]]] = []
+        self.asked: list[list[tuple[str, list[str]]]] = []
 
-    def __call__(self, layer: Layer, paths: Sequence[str]) -> bool:
-        self.asked.append((layer.id, list(paths)))
+    def __call__(self, stops: Sequence[Stop]) -> bool:
+        self.asked.append([(stop.layer.id, [change.path for change in stop.changes]) for stop in stops])
         return self.answer
 
 
@@ -135,18 +136,35 @@ def test_a_layer_that_does_not_apply_is_named_and_leaves_no_worktree(repo: Repo,
     assert len(repo.worktrees()) == 1
 
 
-def test_a_layer_on_the_stop_list_is_not_applied_unless_confirmed(repo: Repo, author: Author, log: Path) -> None:
+def test_the_stop_list_is_asked_about_once_before_any_check_runs(repo: Repo, author: Author, log: Path) -> None:
     layers = layers_of(
         ("0001a", author.patch("docs: one", {"a.txt": "one\n"})),
-        ("0001b", author.patch("chore: change a tool", {"tools/run.py": "print()\n"})),
+        ("0001b", author.patch("chore: change a tool", {"tools/run.py": "print()\n", "notes.txt": "n\n"})),
+        ("0002a", author.patch("chore: change the packages", {"pyproject.toml": "[project]\n"})),
     )
     refusal = Confirmations(False)
 
-    with pytest.raises(ReplayError, match=r"commit 0001b changes code the replay runs \(tools/run.py\) and was not confirmed"):
+    with pytest.raises(ReplayError, match=r"changes code the replay runs and was not confirmed: 0001b \(tools/run.py\); 0002a \(pyproject.toml\)"):
         replay(repo.path, layers, [recording_check("a.txt")], refusal, base="main")
 
-    assert refusal.asked == [("0001b", ["tools/run.py"])]
-    assert log.read_text().splitlines() == ["one"]
+    assert refusal.asked == [[("0001b", ["tools/run.py"]), ("0002a", ["pyproject.toml"])]]
+    assert not log.exists()
+    assert len(repo.worktrees()) == 1
+
+
+def test_the_flagged_files_are_read_with_their_line_counts_and_diff(repo: Repo, author: Author) -> None:
+    layers = layers_of(
+        ("0001a", author.patch("chore: add a tool", {"tools/run.py": "one\ntwo\n"})),
+        # An attribute in the series cannot turn the diff of a file under review into "Binary files differ".
+        ("0001b", author.patch("chore: change it", {"tools/run.py": "one\nthree\nfour\n", ".gitattributes": "tools/** -diff\n", "a[1].txt": "x\n"})),
+    )
+    seen: list[Stop] = []
+
+    replay(repo.path, layers, [], lambda stops: seen.extend(stops) or True, base="main")
+
+    assert [stop.changes for stop in seen] == [(Change("tools/run.py", 2, 0),), (Change("tools/run.py", 2, 1),)]
+    assert "-two\n+three\n+four\n" in seen[1].diff
+    assert "a[1].txt" not in seen[1].diff
 
 
 def test_a_confirmed_layer_on_the_stop_list_replays(repo: Repo, author: Author, log: Path) -> None:
@@ -155,7 +173,7 @@ def test_a_confirmed_layer_on_the_stop_list_replays(repo: Repo, author: Author, 
 
     results = replay(repo.path, layers, [recording_check("tools/run.py")], consent, base="main")
 
-    assert consent.asked == [("0001a", ["tools/run.py"])]
+    assert consent.asked == [[("0001a", ["tools/run.py"])]]
     assert log.read_text().splitlines() == ["print()"]
     assert [(result.layer.id, result.applied) for result in results] == [("0001a", True)]
     assert git(repo.path, "log", "-1", "--format=%s", results[0].commit or "") == "chore: change a tool"
@@ -271,10 +289,11 @@ def test_each_step_of_a_replay_is_reported(repo: Repo, author: Author) -> None:
     layers = order_layers(parse_series(series_file([("0001a write-one", author.patch("docs: write one", {"a.txt": "one\n"}))])))
     said: list[str] = []
 
-    replay(repo.path, layers, [Check((sys.executable, "-c", "pass"))], lambda layer, paths: False, base="main", progress=said.append)
+    replay(repo.path, layers, [Check((sys.executable, "-c", "pass"))], lambda stops: False, base="main", progress=said.append)
 
-    assert said[0].startswith("commit 0001a: applying the patch on main")
-    assert said[1].startswith("commit 0001a: running `")
+    assert said[0] == "applying every commit before any check runs"
+    assert said[1].startswith("commit 0001a: applying the patch on main")
+    assert said[2].startswith("commit 0001a: running `")
 
 
 def test_a_pull_request_with_some_of_its_commits_in_the_base_is_refused(repo: Repo, author: Author) -> None:
@@ -322,10 +341,10 @@ def test_a_layer_is_stopped_by_what_git_applies_however_its_patch_is_written(rep
     layers = layers_of(("0001a", disguise(author.patch("chore: change a tool", {"tools/run.py": "print()\n"}))))
     refusal = Confirmations(False)
 
-    with pytest.raises(ReplayError, match=r"commit 0001a changes code the replay runs \(tools/run.py\) and was not confirmed"):
+    with pytest.raises(ReplayError, match=r"was not confirmed: 0001a \(tools/run.py\)"):
         replay(repo.path, layers, [recording_check("tools/run.py")], refusal, base="main")
 
-    assert refusal.asked == [("0001a", ["tools/run.py"])]
+    assert refusal.asked == [[("0001a", ["tools/run.py"])]]
     assert not log.exists()
 
 

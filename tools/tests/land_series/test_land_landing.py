@@ -47,7 +47,7 @@ def layers_of(*layers: tuple[str, str, bytes]) -> list[Layer]:
 
 def kept(repo: Repo, layers: list[Layer]) -> None:
     """What a run without --land does: replay on a scratch worktree, then leave a branch per layer."""
-    keep(repo.path, replay(repo.path, layers, [], lambda layer, paths: False))
+    keep(repo.path, replay(repo.path, layers, [], lambda stops: False))
 
 
 def two_layers(author: Author) -> list[Layer]:

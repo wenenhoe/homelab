@@ -1,7 +1,8 @@
 """python3 -m land_series FILE... [--repo DIR] [--base REF] [--no-fetch] [--check COMMAND]... [--dry-run | --land [--yes] [--keep]]
 
 Replay the series in FILE... (several files make one series) on a scratch worktree of the base branch and run the
-checks after every commit, then keep a local branch per pull request for review (`--dry-run` keeps none). `--land` pushes the
+checks after every commit, then keep a local branch per pull request for review (`--dry-run` keeps none). Commits that change code the replay
+runs are listed together before any check, and asked about once. `--land` pushes the
 kept branches, opens a pull request for each, waits for its checks and merges it once the maintainer confirms (`--yes`
 confirms every merge). Once every pull request has landed the series files are deleted (`--keep` leaves them).
 Without --check the checks are the project scope check, against the state the pull request before the layer's leaves
@@ -23,8 +24,9 @@ from land_series.advice import kept_advice, replay_advice
 from land_series.kept import KeptError, branch_of, keep, leftovers
 from land_series.land import Landed, LandError, fetch, land
 from land_series.live import LiveBlock
-from land_series.manifest import Layer, Pull, SeriesError, order_layers, parse_base, parse_series
+from land_series.manifest import Pull, SeriesError, order_layers, parse_base, parse_series
 from land_series.replay import PULL_BASE, Check, ReplayError, TipCheck, replay
+from land_series.review import ask
 from land_series.run import CommandError
 
 DEFAULT_BASE = "origin/main"
@@ -63,16 +65,6 @@ def base_of(files: Sequence[tuple[Path, bytes]]) -> str | None:
     if len({remote_branch(base) for base in named.values()}) > 1:
         raise SeriesError("the series files name different bases: " + ", ".join(f"{name} says {base}" for name, base in sorted(named.items())))
     return next(iter(named.values()), None)
-
-
-def ask(layer: Layer, paths: Sequence[str]) -> bool:
-    """Ask on the terminal; with no terminal to ask on, refuse."""
-    if not sys.stdin.isatty():
-        return False
-    print(f"Commit {layer.id} ({layer.subject}) changes code the replay and the checks run on this machine:")
-    for path in paths:
-        print(f"  {path}")
-    return input("Read the patch, then type 'yes' to replay it: ").strip() == "yes"
 
 
 def ask_merge(pull: Pull, url: str, advice: Sequence[str] = ()) -> bool:

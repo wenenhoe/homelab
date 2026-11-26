@@ -84,12 +84,23 @@ A layer is known by two names: its slug, which is the branch and shows in the me
 
 ## Replay
 
-The replay applies the series on a scratch worktree of `origin/main` (fetched first; `--no-fetch` skips it), one `git am` per commit with every hook off, so a patch is applied as written, and runs the checks that need no Docker after each commit ([`checks-without-docker.md`](checks-without-docker.md)). The project scope check runs with its base set to the state before the layer's pull request: the tip of the pull request before it in the run, or `origin/main` for the first one applied. A layer can therefore use a widening made by an earlier pull request of the same run, and fails if the widening is in its own pull request or missing, before a pull request exists. `--check COMMAND` can name that commit as `{pull_base}`. `--check COMMAND` adds a check. Before it applies anything the replay checks that git has a committer identity, and stops naming what is missing. The generated views are not committed, so a patch holds none of them ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)).
+The replay applies the series on a scratch worktree of `origin/main` (fetched first; `--no-fetch` skips it), one `git am` per commit with every hook off, so a patch is applied as written. It first applies every commit with nothing run, so one that does not apply stops the run at once and [the stop list](#the-stop-list) is asked about once. It then applies them again and runs the checks that need no Docker after each commit ([`checks-without-docker.md`](checks-without-docker.md)). The project scope check runs with its base set to the state before the layer's pull request: the tip of the pull request before it in the run, or `origin/main` for the first one applied. A layer can therefore use a widening made by an earlier pull request of the same run, and fails if the widening is in its own pull request or missing, before a pull request exists. `--check COMMAND` can name that commit as `{pull_base}`. `--check COMMAND` adds a check. Before it applies anything the replay checks that git has a committer identity, and stops naming what is missing. The generated views are not committed, so a patch holds none of them ([`pre-commit.md`](pre-commit.md#applying-patches-with-git-am)).
 
 - Once per pull request, after the checks of its last commit, the replay runs the Python unit tests (`pytest ansible/tests/ tools/tests/`, as CI's `python-unit-tests` job does) when CI would start that job: some file matching the `python_unit_tests` filter in `.github/detect-changes-filters.yml` changed for real between the pull request's base (the `{pull_base}` above) and its last commit, which [`ci.scope.filter_scope`](../../../tools/ci/scope/filter_scope.py) decides with the same no-op rule as `detect-changes`. A failure names the pull request's last commit and quotes the output; a pull request that does not need them says so in the progress lines. `--check COMMAND` replaces the default checks and these tests with it. The replay is the commit stage: what committing each patch with the hooks installed would run, and `pre-commit run --all-files` is how the `pre-commit`-stage hooks run here, since `git am` runs no hook. The pre-push hooks belong to [the push](#landing), not to the replay.
 - A commit already in the base, matched by author time and subject, is skipped. A pull request with only some of its commits in the base is refused.
-- A layer that changes `.githooks/`, `.pre-commit-config.yaml`, `.config/`, a workflow, an action, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) stops for confirmation, since the replay and the checks run that code on this machine. The paths come from the commit `git am` makes, with every hook off, not from the patch text, so no way of writing a patch hides one, and the layer is applied before it is asked about since applying runs nothing it adds. With no terminal it stops and says why.
 - `--dry-run` stops there and leaves nothing behind.
+
+### The stop list
+
+A commit that changes `.githooks/`, `.pre-commit-config.yaml`, `.config/`, a workflow, an action, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) is on the stop list, since the replay and the checks run that code on this machine. The paths come from the commit `git am` makes, with every hook off, not from the patch text, so no way of writing a patch hides one, and every commit is applied before anything is asked, since applying runs nothing it adds.
+
+The replay lists those commits together, each with its files, their added and removed line counts, and what runs them: hooks, configuration and dependencies; CI workflows and actions; tool tests; tools code. It then asks once for the whole series:
+
+- `yes` runs the checks, with no further stop.
+- `v` opens the diff of the listed files, and no others, in `less`. `q` returns to the prompt with the terminal as it was. Without `less`, or with `TERM=dumb`, the diff is printed.
+- Anything else stops the run. With no terminal it stops and names the commits and files.
+
+A control or format character in a subject, a file name or a diff is shown as an escape, such as `\x1b`, so a patch cannot hide or rewrite what is on screen.
 
 Otherwise the replay keeps each pull request as the local branch `series/<slug>`, the first on the base and each next on the last commit of the one before. Next to the git directory, in `land-series/<slug>.json`, it records the first and last commit and a hash of the patches the branch was built from. Review the branches as any other.
 
@@ -130,7 +141,7 @@ After the replay, and again before each merge prompt of `--land`, the tool appli
 | Message or state | What to do |
 | :--- | :--- |
 | A kept branch changed, or is checked out | Switch to another branch and rerun the replay |
-| A layer asks for confirmation (stop list) | Read the patch, then type `yes`; without a terminal it stops |
+| The replay lists commits on the stop list | Type `v` to read the diff, then `yes`; without a terminal it stops |
 | `--land`: the branch is built on another tree than the base's | Run the replay again |
 | A pre-push hook fails | Fix the cause and run `--land` again, or replay if the series changed |
 | A required check failed, or 90 minutes passed | Read the pull request's checks; `--land` again continues |

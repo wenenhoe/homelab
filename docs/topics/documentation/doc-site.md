@@ -91,7 +91,7 @@ A document page is a repository file shown as it reads on GitHub. `doc_site/docu
 | Four or more menu headings | an "On this page" list, and where it is not beside the prose a link back to it at each `##` |
 | A link to a page of the site | stays on the site, anchor kept; any other file goes to GitHub |
 | `[ ]`, `[x]` list items | disabled checkboxes |
-| Tables | cards on a phone, each cell labelled; a `Status` cell is a pill |
+| Tables | cards on a phone, each cell labelled; a `Status` cell is a pill. From 992 pixels wide the first cell of a row is semibold and tinted, unless the table has one column or its first is `#`. In a table of two or three columns a code span in that cell wraps only between words, save a word over 40 characters |
 | Code blocks | wrapped, with a copy button |
 
 - **Contents list.** A `<details open>`, so it needs no script. From 1040 pixels wide it sits beside the prose and stays on screen, scrolling on its own when it is taller than the window, and the headings' links back to it are hidden; below that it is above the prose, where the script closes it. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.

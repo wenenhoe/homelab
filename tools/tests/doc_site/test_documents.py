@@ -83,10 +83,38 @@ def test_a_list_with_no_task_keeps_its_bullets():
 
 def test_a_table_cell_carries_its_header_and_a_status_is_a_pill():
     out = html_of("| Stage | Status |\n| --- | :-: |\n| One | Done |\n| Two |  |\n")
-    assert '<td data-label="Stage" class="field">One</td>' in out
+    assert '<td data-label="Stage" class="field key">One</td>' in out
     assert '<span class="pill s-done">Done</span>' in out
     assert 'data-label="Status" class="field none"' in out
     assert "style=" not in out
+
+
+@pytest.mark.parametrize(
+    ("table", "keys"),
+    [
+        pytest.param("| Name | Does |\n| --- | --- |\n| a | b |\n| c | d |\n", 2, id="each-row"),
+        pytest.param("| # | Stage |\n| --- | --- |\n| 1 | b |\n", 0, id="numbered"),
+        pytest.param("| Name |\n| --- |\n| a |\n", 0, id="one-column"),
+        pytest.param("| Name | Does |\n| --- | --- |\n|  | b |\n", 0, id="empty-cell"),
+    ],
+)
+def test_the_first_cell_of_a_row_is_its_key(table, keys):
+    assert html_of(table).count('class="field key"') == keys
+
+
+@pytest.mark.parametrize(
+    ("columns", "length", "classes"),
+    [
+        pytest.param(3, 40, "field key", id="widest-table-longest-word"),
+        pytest.param(2, 41, "field key cut", id="word-too-long"),
+        pytest.param(4, 8, "field key cut", id="too-many-columns"),
+    ],
+)
+def test_a_key_that_would_crowd_its_table_is_marked_to_be_cut(columns, length, classes):
+    header = "| Call |" + " Does |" * (columns - 1)
+    row = f"| `GET {'x' * length}` |" + " b |" * (columns - 1)
+    out = html_of(f"{header}\n{'| --- ' * columns}|\n{row}\n")
+    assert f'<td data-label="Call" class="{classes}">' in out
 
 
 def test_the_error_names_the_line():

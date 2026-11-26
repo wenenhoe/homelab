@@ -208,6 +208,29 @@ def test_a_document_without_a_list_beside_it_is_a_centred_column(tree, tmp_path,
             browser.close()
 
 
+KEYED = "# Keys\n\n| Name | Does |\n| --- | --- |\n| `an_identifier_of_some_length` | " + "words " * 60 + "|\n"
+# The number of lines the first code span of a table takes.
+KEY_LINES = "() => document.querySelector('.doc td code').getClientRects().length"
+
+
+@needs_chrome
+def test_an_identifier_that_names_a_row_is_not_cut(tree, tmp_path):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=KEYED)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": 1040, "height": 800})
+            page.goto(f"{base}/topics/infra/network/")
+            assert page.evaluate(KEY_LINES) == 1
+        finally:
+            browser.close()
+
+
 @needs_chrome
 def test_a_site_with_a_long_page_and_tabs_fits_every_width(tree, tmp_path):
     pytest.importorskip("playwright")

@@ -100,6 +100,13 @@ td.title{font-weight:600}
 }
 @media (min-width:62rem){td.none{color:var(--text-light)}}
 
+/* the cell that names its row stands out, and a word of an identifier in it is not cut to narrow the column */
+@media (min-width:62rem){
+ .doc td.key{font-weight:600;background:color-mix(in srgb,var(--accent-bg) 60%,transparent)}
+ .doc td.key strong{font-weight:inherit}
+ .doc td.key:not(.cut) code{overflow-wrap:normal}
+}
+
 /* numbers, ten to a row, and groups of rows as tabs */
 .numbers{display:grid;gap:.25rem;margin:.5rem 0 1rem}
 .num-row{display:grid;grid-template-columns:3.25rem 1fr;align-items:stretch;gap:.5rem}

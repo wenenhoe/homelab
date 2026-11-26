@@ -46,8 +46,7 @@
   # Render/Remove below create-then-delete the same /tmp file on every
   # single run (both this pass and any re-run) — permanently, by design,
   # not a bug to chase changed_when:false around. molecule-idempotence-
-  # notest (same mechanism compose_app's own main.yaml already uses)
-  # skips this whole block — not just those two tasks — during
+  # notest skips this whole block — not just those two tasks — during
   # Molecule's idempotence action specifically: Run bootstrap.sh/Confirm
   # bind both depend on that file existing, so skipping only Render
   # would leave them bind-mounting a path Docker would silently turn

@@ -1,156 +1,282 @@
 # Scratch gateway runs from a spec
 
-One command takes a written spec, builds a [scratch gateway](tofu/opnsense-scratch-gateway.md), runs the spec's steps in order, removes the gateway and bundles what each step printed into one archive. It replaces assembling a run by hand from `scratch_gateway.sh`, the play, `scratch_canaries.py` and the runner, and carrying their output back. Every run starts from the image and the seed, and nothing is carried from one run to the next.
+One command takes a written spec, builds a [scratch gateway](tofu/opnsense-scratch-gateway.md), runs the spec's steps in order, removes the gateway and bundles what each step printed into one archive. Every run starts from the image and the seed, and nothing carries from one run to the next. It runs on the Proxmox node or under [QEMU](#the-qemu-backend) on the machine that runs the command.
 
-```sh
-cd tools
-python -m scratch_run --init-env          # once: writes ~/.config/homelab/scratch-run.env, to fill in
-python -m scratch_run --list              # the specs there are, and what each shows
-python -m scratch_run rehearsal --check-spec   # read the spec and check it against the flow list, nothing else
-python -m scratch_run rehearsal --preflight    # also check everything the run needs, then stop
-python -m scratch_run rehearsal                # run it
-python -m scratch_run rehearsal --backend qemu # run it on a QEMU gateway on this machine, not on the node
-python -m scratch_run --ssh status             # is the ssh master to the node up? (also: up, down)
+```mermaid
+flowchart TD
+    check["preflight"] -- "anything missing" --> no["not started (exit 2)"]
+    check --> up["build the gateway"]
+    up -- ok --> steps["spec steps, in order"]
+    up -- failed --> logs["keep the build's logs"]
+    steps --> logs
+    logs --> down["remove the gateway"]
+    down --> secrets["search results for credentials"]
+    secrets --> archive["archive"]
 ```
 
-A spec is named by its file's stem in [`tofu/scratch/opnsense/runs/`](../../../tofu/scratch/opnsense/runs/rehearsal.yaml) or given as a path. The exit status is 0 when every step had the outcome the spec expected, 1 when one did not, and 2 when the run could not start.
+## Running a spec
+
+All commands run from `tools/`. Once, on a machine that will use the node, write the settings file and fill it in:
+
+```bash
+cd tools
+uv run python -m scratch_run --init-env
+```
+
+Choose a spec, and check it against the flow list or against everything a run needs:
+
+```bash
+spec=rehearsal
+uv run python -m scratch_run --list
+uv run python -m scratch_run "$spec" --check-spec
+uv run python -m scratch_run "$spec" --preflight
+```
+
+Run it on the node:
+
+```bash
+uv run python -m scratch_run "$spec"
+```
+
+Or on QEMU on this machine:
+
+```bash
+uv run python -m scratch_run "$spec" --backend qemu
+```
+
+`spec` is a file stem in [`tofu/scratch/opnsense/runs/`](../../../tofu/scratch/opnsense/runs/rehearsal.yaml) or a path. `--keep` leaves the gateway up after the steps.
+
+| Exit status | Meaning |
+| :--- | :--- |
+| 0 | every step had the outcome the spec expected |
+| 1 | a step did not, or a result file held a credential |
+| 2 | the run could not start |
+
+The committed specs:
+
+| Spec | Shows | Backend |
+| :--- | :--- | :--- |
+| `rehearsal` | The play applies and then reports no change; the services and desktops flows pass; a block rule makes one fail until lifted | either |
+| `stray-rule` | The play reports and removes a firewall rule it does not write | either |
+| `seed-vlans` | A gateway seeded with nine scratch VLANs has nine VLAN interfaces; the services and desktops flows pass | either |
+| `canary-vm` | A scratch VM stands in for the services canary | node |
+| [`dmz-probe`](#the-dmz-probe) | The DMZ zone's own flows pass and its denials hold | node |
+| [`coding-zone`](#the-coding-agent-zone-run) | The coding-agent zone from a VM tagged into it | node |
 
 ## Settings
 
-Nothing is typed per run. `--init-env` writes the settings file, `KEY=VALUE` lines read as text and never run as a shell script, and the command reads it on every run. It holds the Proxmox token, so it has to be owned by you, mode 600 and outside the repository; the command refuses it otherwise. Beside the variables `scratch_gateway.sh` takes (`NODE`, `PROXMOX_ENDPOINT`, `PROXMOX_API_TOKEN`, `VM_ID`, `LAN_BRIDGE` and the rest) and `ANSIBLE_PLAYBOOK`, it holds `SCRATCH_RUN_OUT_DIR`, `SCRATCH_RUN_IMAGE_URL` and `SCRATCH_RUN_IMAGE_CHECKSUM`. A real environment variable beats the file, and a flag (`--image-url`, `--image-checksum`, `--env-file`, or `OUT_DIR` after the spec) beats both. `OUT_DIR` holds the gateway's state and credentials and has to be outside the repository too.
+Nothing is typed per run. `--init-env` writes `~/.config/homelab/scratch-run.env` (`--env-file` names another): `KEY=VALUE` lines read as text, never run as a shell script. It holds the Proxmox token, so the command refuses a file that is not yours, not mode 600 or inside the repository.
+
+| Variables | For |
+| :--- | :--- |
+| `NODE`, `PROXMOX_ENDPOINT`, `PROXMOX_API_TOKEN` | the node backend |
+| `VM_ID`, `LAN_BRIDGE`, `WAN_BRIDGE`, `WAN_VLAN_ID`, `LOCAL_PORT`, `WANT_VERSION` and the rest | passed to `scratch_gateway.sh` |
+| `SCRATCH_RUN_OUT_DIR` | where state, credentials and results go; outside the repository |
+| `SCRATCH_RUN_IMAGE_URL`, `SCRATCH_RUN_IMAGE_CHECKSUM` | the image and the `.img.bz2`'s SHA-256 |
+| `ANSIBLE_PLAYBOOK` | another `ansible-playbook` |
+
+A real environment variable beats the file, and a flag beats both: `--image-url`, `--image-checksum`, or the output directory given after the spec.
 
 ## The ssh master
 
-`scratch_gateway.sh` and the node backend talk to the node without ever being able to answer a prompt, so a master connection has to be open first, at the socket `SSH_CONTROL_PATH` names (default `~/.cache/scratch-run/ssh.sock`, in a directory only you can enter). Every ssh command of the run, and the gateway's GUI tunnel, multiplex over it. The command checks the socket (`ssh -O check`) before a run or a preflight and, when no master answers, opens one on your terminal, which is where a key passphrase, a password or a hardware-key touch is asked for. An opened master stays up for an hour after its last use, so repeated runs ask once. A socket file a dead master left behind is removed first, because a new master refuses to start beside it. `--ssh up`, `--ssh status` and `--ssh down` do the same by hand: `status` exits 1 when no master is up. Without `NODE` set, no master is touched.
+`scratch_gateway.sh` and the node backend can never answer a prompt, so every ssh command of a run, and the GUI tunnel, multiplex over one master connection. Before a run or a preflight the command checks the socket and, when no master answers, opens one on your terminal, which is where a passphrase, password or hardware-key touch is asked for. It stays up for an hour after its last use. A socket a dead master left is removed first.
+
+- The socket is `SSH_CONTROL_PATH`, by default `~/.cache/scratch-run/ssh.sock`, in a directory only you can enter.
+- Without `NODE` set, no master is touched.
+
+To manage it by hand (`status` exits 1 when no master is up):
+
+```bash
+uv run python -m scratch_run --ssh status
+```
+
+`up` and `down` in place of `status` open and close it.
 
 ## The spec
 
-A spec is a YAML file under [`tofu/scratch/opnsense/runs/`](../../../tofu/scratch/opnsense/runs/rehearsal.yaml). The loader (`scratch_run.spec`) refuses an unknown key, a repeated step id, a tag or a flow id the [flow list](network-boundary-checks.md#the-flow-list) does not have, and a block step with no rule, and it names every problem at once, so a mistake costs no gateway build.
+A spec is a YAML file under [`tofu/scratch/opnsense/runs/`](../../../tofu/scratch/opnsense/runs/rehearsal.yaml). The loader refuses an unknown key, a repeated step id, a tag or flow id the [flow list](network-boundary-checks.md#the-flow-list) does not have, and a block step with no rule, and names every problem at once, so a mistake costs no gateway build.
 
 | Key | Meaning |
 | :--- | :--- |
 | `name`, `description` | The run's name, which is also its results directory, and what it shows |
-| `gateway.vlans` | Optional. The seed's VLAN list, passed to `scratch_gateway.sh` as `SEED_VLANS`; unset, the seed takes its scratch list. A committed list starts with the scratch list |
-| `gateway.play_vars` | Optional. The play's `-e` variables, each starting `opnsense_gateway_`. The four the backend sets (the CA file, the API port, the credentials file and `opnsense_gateway_scratch_wan`, which it sets to false) are refused |
-| `canary_vm` | Optional. `zone`: the zone whose canary a scratch VM replaces (see [the canary VM](#the-canary-vm)). A `vm` step needs it and it needs a `vm` step |
-| `block_rule` | Optional. `source`, `destination`, `protocol` (`TCP` or `UDP`) and `port` of the quick block rule the block steps add and lift ([`block_rule.yaml`](../../../tofu/scratch/opnsense/boundary/block_rule.yaml)) |
+| `gateway.vlans` | Optional. The seed's VLAN list, passed as `SEED_VLANS`; unset, the seed takes its scratch list. A committed list starts with the scratch list |
+| `gateway.play_vars` | Optional. The play's `-e` variables, each starting `opnsense_gateway_`. The four the backend sets (CA file, API port, credentials file, `opnsense_gateway_scratch_wan`) are refused |
+| `canary_vm` | Optional. `zone`: whose canary [a scratch VM](#the-canary-vm) replaces. A `vm` step needs it, and it needs a `vm` step |
+| `block_rule` | Optional. `source`, `destination`, `protocol` (`TCP` or `UDP`) and `port` of the quick block rule the block steps [add and lift](../../../tofu/scratch/opnsense/boundary/block_rule.yaml) |
 | `steps` | The steps, in order |
 
 A step has an `id` and exactly one of these:
 
-| Step | Does | `expect` |
+| Step | Does | Passes when |
 | :--- | :--- | :--- |
-| `play: apply` or `play: check` | Runs the gateway's play, with `--check` for `check` | `ok` (exit 0, the default for `apply`), `unchanged` (exit 0 and the recap says `changed=0`, the default for `check`) or `changed` |
-| `flows: {tags: [...], ids: [...]}` | Runs the [runner](network-boundary-checks.md#the-probe-module-and-the-runner) on that selection, building the namespace canaries first on the first such step | `pass` (the default) or `fail`: at least one flow the runner reports as failed, so a selection that holds no flow and a runner that crashed do not count |
-| `block: present` or `block: absent` | Adds or lifts `block_rule` | None: it passes when the playbook succeeds |
-| `vm: up` | Builds the canary VM and waits until it answers over ssh through the gateway; at most one, before every `flows` step (see [the canary VM](#the-canary-vm)). The VM is removed at teardown | None |
-| `vlans: check` | Asks the gateway's API for its interfaces and passes when it has exactly the VLAN interfaces `gateway.vlans` seeds (below); the spec must set `gateway.vlans` | None |
-| `stray: present` | Adds a firewall rule the play does not write, on the desktops zone's interface, behind the play's back ([`stray_rule.yaml`](../../../tofu/scratch/opnsense/acceptance/stray_rule.yaml)). Between `play: check` with `expect: changed` and a `play: apply` it shows the play reports and removes such a rule | None: it passes when the playbook succeeds |
+| `play: apply` or `check` | Runs the gateway's play, with `--check` for `check` | `expect`: `ok` (exit 0, `apply`'s default), `unchanged` (exit 0 and `changed=0`, `check`'s default) or `changed` |
+| `flows: {tags: [...], ids: [...]}` | Runs the [runner](network-boundary-checks.md#the-probe-module-and-the-runner) on the selection, building the namespace canaries on the first such step | `expect`: `pass` (default), or `fail`: at least one flow reported failed, so an empty selection or a crashed runner does not count |
+| `block: present` or `absent` | Adds or lifts `block_rule` | the playbook succeeds |
+| `vm: up` | Builds the [canary VM](#the-canary-vm); at most one, before every `flows` step | the VM answers over ssh through the gateway |
+| `vlans: check` | Asks the gateway's API for its interfaces; needs `gateway.vlans` | it has exactly the seeded VLAN interfaces |
+| `stray: present` | Adds [a rule the play does not write](../../../tofu/scratch/opnsense/acceptance/stray_rule.yaml) on the desktops zone's interface. Put it before a `play: check` with `expect: changed` and a `play: apply` | the playbook succeeds |
 
-The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers. The privilege that would give the VLAN tags (`api/interfaces/vlan_settings/*`) is one the seed deliberately does not grant. The seed names each VLAN's interface `opt1`, `opt2`, ... in the order of its list, which the seed keeps ascending, so a gateway seeded with nine VLANs has `opt1` to `opt9`. The step shows that the seed took the spec's list (nine interfaces and not eight); it does not show which tag each interface carries, which the seed's own tests cover. The step's file holds the gateway's answer as it came.
+The `vlans` step reads `api/firewall/filter/get_interface_list`, which the seeded API user's filter privilege covers; the seed deliberately does not grant the privilege that would show VLAN tags. The seed names the interfaces `opt1`, `opt2`, ... in its list's order, so the step shows that the seed took the whole list, not which tag each carries, which the seed's own tests cover.
 
-A failed step does not stop the run: the later steps still run, so one archive shows everything, and the gateway is removed on every path unless `--keep` is given. The terminal shows each step as it starts, the log of each command as it prints (indented, and kept in the step's file), and for each step its time; the run ends with a table of the times and their total. Most of a run is the `up` step, which builds the gateway and updates its firmware, so its log is the one to watch.
-
-## The canary VM
-
-The namespace canaries stand in for every zone's canary VM. With `canary_vm: {zone: ...}` and a `vm: up` step, one zone's canary is a real VM instead: a scratch Ubuntu VM ([`tofu/scratch/ubuntu`](tofu/ubuntu-vms.md#scratch-ubuntu-vm), cloned from the template) whose VMID is the one the [VMID scheme](vm-provisioning.md#vmid--vlan--ip-scheme) gives the canary's address: 208 for the services canary at `192.168.20.8`, with the zone's VLAN tag on its NIC and the lab's static address from cloud-init. The step makes that zone's namespace skip the canary address (a zone left with no address, since it has no stand-in host either, gets no namespace), applies the VM, and waits (600 seconds, `VM_WAIT_SECONDS`) for the runner's ssh to reach it through the gateway as the VM's admin user. The `flows` steps after it run the zone's flows from the VM, and the runner logs in to it with `--ssh-user-for`.
-
-The VM answers only if its NIC's tag, the bridge, the zone's rules and the address all work, so a pass shows the tagged-VM path end to end; a wrong tag is a VM that never answers. The step needs what the preflight checks:
-
-- **A VLAN-aware bridge.** Proxmox puts a VM NIC's tag on a bridge only when the bridge is VLAN-aware. Tick VLAN aware on `LAN_BRIDGE` in the web console and apply it, or point `LAN_BRIDGE` at an isolated bridge that already is. The namespace canaries and the gateway work on either kind. The namespace canaries take a different route on an aware bridge (the veth ports get the zone's VLANs on the bridge, not a VLAN device inside the namespace), so the first run after the change should be the [rehearsal](../../../tofu/scratch/opnsense/runs/rehearsal.yaml), and [`canary-vm`](../../../tofu/scratch/opnsense/runs/canary-vm.yaml) the one after it.
-- **The Ubuntu template** on the node (VM 106, or `TEMPLATE_VM_ID`) and `tofu` on this machine (`TOFU` names another).
-- **No VM at the canary's VMID** left from an earlier run.
-
-The VM's state and variables are in the run's state directory (`vm.tfstate`, `vm.tfvars.json`); a teardown whose destroy fails keeps them, and `tofu destroy` with them removes the VM by hand.
-
-## What a run leaves
-
-Each run builds in `OUT_DIR/state-<name>-<stamp>/`, which holds the gateway's credentials, its certificate and the runner's key. A clean teardown removes it. When the teardown fails, or with `--keep`, it stays, and `scratch_gateway.sh down` on it removes the gateway. The credentials are never in the results.
-
-`OUT_DIR/<name>-<stamp>/` holds one `<step id>.txt` per step (plus `up.txt` and `down.txt`), `results.json` and `results.md`, and `OUT_DIR/results-<name>-<stamp>.tgz` holds the same.
-
-`logs/` in that directory holds what the build wrote to files and not to its output, taken before the gateway is removed: `build-seed.txt`, `init.txt` and `apply.txt`, and the firmware update's files from the node, which `down` removes there (`update-job-update.log`, `update-fw-status-before.json`, `update-fw-status-after.json`, `update-config-checks.txt` and the others of its directory). Each is cut to its last 200,000 characters. The update's own output is also in `up.txt`, where its release line carries the firmware's status message beside the status word.
-
-Before the archive is written, every file is searched for the run's credential values (the seed's root password, one-time-code seed, API key and secret, and the secret half of the Proxmox token). A file that holds one fails the run and no archive is written.
+A failed step does not stop the run, so one archive shows everything; a failed build skips the steps. The gateway is removed on every path unless `--keep` is given. The terminal shows each step, each command's output as it prints, and each step's time. Most of a run is the build, which updates the gateway's firmware, so `up` is the log to watch.
 
 ## Preflight
 
-A run starts only when every precondition holds, and the message lists all that do not: the environment variables, the image URL and checksum in the shape `scratch_gateway.sh` requires, `OUT_DIR` outside the repository, the tools (`ssh`, `scp`, `ssh-keygen`, `ansible-playbook`, `ansible-galaxy`), `OPNsense.internal` resolving to `127.0.0.1` (with the `/etc/hosts` line to add), a prompt-free ssh path to the node, no VM at `VM_ID` and no `/root/scratch-run` left on the node from an earlier run, the pinned `oxlorg.opnsense` release and `httpx` in Ansible's Python, and a `scratch_gateway.sh` that takes `SEED_VLANS` when the spec sets `gateway.vlans`. A spec with a `canary_vm` also needs `tofu`, a VLAN-aware bridge, the Ubuntu template and a free VMID, as above.
+A run starts only when every precondition holds, and the message lists all that do not.
 
-## Backends
+| Needs | Node | QEMU |
+| :--- | :--- | :--- |
+| Image URL and checksum, and an output directory outside the repository | yes | yes |
+| `ansible-playbook`, `ansible-galaxy`, `ssh-keygen`, the pinned `oxlorg.opnsense` release and `httpx` | yes | yes |
+| `OPNsense.internal` resolves to | `127.0.0.1` | `192.168.77.1` |
+| `NODE`, `PROXMOX_ENDPOINT`, `PROXMOX_API_TOKEN`, and `ssh`, `scp` | yes | no |
+| A prompt-free ssh path to the node, no VM at `VM_ID`, no `/root/scratch-run` left there | yes | no |
+| `qemu-system-x86_64`, `qemu-img` and the seed and image tools, passwordless `sudo`, `/dev/kvm`, the bridge and tap names free | no | yes |
+| For `gateway.vlans`: a seed builder that takes them | yes | yes |
+| For `canary_vm`: [what the VM needs](#the-canary-vm) | yes | refused |
 
-`scratch_run.engine` decides each step's outcome, writes the files and checks them for credentials; it does not know where the gateway runs. A backend builds the gateway, runs one step at a time and removes it (`engine.Backend`). The one that exists, `scratch_run.node.NodeBackend`, drives what a person drives today: `scratch_gateway.sh up` and `down`, the play and the block playbook from this machine through the ssh forward, and on the node `scratch_canaries.py` (its files go to `/root/scratch-run`, which `down` removes) with the runner reaching the canaries through a `ProxyCommand`. The second, `scratch_run.qemu.QemuBackend`, runs the gateway under QEMU on the machine that runs the command, so it needs no node, no Proxmox token and no ssh master. Both share the steps that do not depend on where the gateway is (`scratch_run.gateway_steps`: the play, the block rule, the API reads, the log redaction), and neither changes the spec. Choose it with `--backend qemu`; the node backend stays the default.
+## What a run leaves
 
-### The QEMU layout
+| Path under the output directory | Holds |
+| :--- | :--- |
+| `state-<name>-<stamp>/` | The gateway's credentials, certificate and the runner's key. A clean teardown removes it |
+| `<name>-<stamp>/` | One `<step id>.txt` per step, plus `up.txt`, `down.txt`, `results.json`, `results.md` and `logs/` |
+| `results-<name>-<stamp>.tgz` | The same as the results directory |
 
-A QEMU gateway has to be laid out as the Tofu module lays out the VM, or a run on it would measure another machine. `scratch_run.qemu_layout` states that layout once (`STATED`) and builds the `qemu-system-x86_64` command line from it: machine `q35`, 2 cores and 2048 MiB, one virtio-scsi controller for each disk (the module's `virtio-scsi-single`, with the system disk's iothread, discard and SSD flag), the system disk booting from `scsi0` and the seed as the second disk, a virtio NIC for the WAN on user-mode networking first and one for the LAN on a tap second, and the console on a serial socket.
+- When the teardown fails, or with `--keep`, the state directory stays, and `scratch_gateway.sh down` on it removes a node gateway. Credentials are never in the results.
+- `logs/` holds what the build wrote to files, taken before the gateway is removed: the seed build, `init` and `apply`, and the firmware update's files from the node. Each is cut to its last 200,000 characters. The update's release line in `up.txt` carries the firmware's status message.
+- Before the archive is written, every result file is searched for the run's credential values (the seed's root password, one-time-code seed, API key and secret, and the Proxmox token's secret half). A hit fails the run and no archive is written.
 
-It also reads the same facts from `main.tf` and `variables.tf` of [`tofu/modules/proxmox_opnsense_vm`](../../../tofu/modules/proxmox_opnsense_vm/main.tf), taking each `var.` reference from its default, and `drift` names every part on which the two differ. `test_run_qemu_layout.py` fails on any difference, and CI runs it when either side changes, so neither can move alone. Three things are not the module's on purpose: the CPU model (`host` under KVM, since a runner's CPU is not the module's `x86-64-v2-AES`), the MAC addresses (the module's come from the VM id) and the disks' files (a qcow2 overlay on the cached image, and the seed file). The reader takes only what the layout states; a module attribute outside it can change without the check noticing, and that the command line boots a gateway is shown by a run, not by the test.
+## The canary VM
 
-### The QEMU backend
+Namespace canaries stand in for every zone's canary VM. With `canary_vm: {zone: ...}` and a `vm: up` step, one zone's canary is a real [scratch Ubuntu VM](tofu/ubuntu-vms.md#scratch-ubuntu-vm), cloned from the template:
 
-Under `--backend qemu` a run does these in order, each through one recorded command so the tests see every argument list:
+- Its VMID is the one the [VMID scheme](vm-provisioning.md#vmid--vlan--ip-scheme) gives the canary's address (208 for the services canary at `192.168.20.8`), with the zone's VLAN tag on its NIC and a static address from cloud-init.
+- That zone's namespace skips the canary address; a zone left with no address gets no namespace.
+- The step waits up to `VM_WAIT_SECONDS` (default 600) for the runner's ssh to reach the VM through the gateway. Later `flows` steps run the zone's flows from it.
 
-1. **The image.** The pinned `.img.bz2` is downloaded, its SHA-256 compared with the pin and the file unpacked into the image cache (`SCRATCH_RUN_IMAGE_CACHE`, default `~/.cache/scratch-run/image`). A download that does not match the pin is removed and stops the run. The unpacked image is kept with the checksum it came from, so a cache for the same checksum is used as it is and one for another checksum is replaced.
-2. **The seed.** `build_seed.sh` builds it with the flags `scratch_gateway.sh` gives it (the LAN address, the credentials file, this machine's address as the operator host, the WAN DHCP hostname and the spec's VLANs), so a gateway on either backend is seeded alike.
-3. **The network.** A bridge with this machine's address on it (`192.168.77.10`) and a tap on the bridge for the gateway's LAN, made with `sudo -n ip`. The gateway's LAN address is `192.168.77.1`, which `OPNsense.internal` has to resolve to here.
-4. **The gateway.** A qcow2 overlay of the cached image at the module's disk size, and `qemu-system-x86_64` started in the background with the command line of [the layout](#the-qemu-layout). A QEMU that exits within seconds stops the run with what it printed.
-5. **The import.** `import_seed.py` drives the serial console to import the seed; the root password reaches it on its standard input, never in its arguments.
-6. **The update.** `update_gateway.sh` takes the gateway to the pinned release through its firmware API, from a credentials file that exists only while it runs, after the backend waits for the gateway to answer on its API port.
+So a pass shows the tagged-VM path end to end: a wrong tag is a VM that never answers. The VM needs:
 
-The canaries are namespaces joined to the same bridge, built as root with `sudo -n` by the first `flows` step, and the runner reaches them through the same `ProxyCommand` the node backend uses. A `canary_vm` is not built: this backend has namespaces only, and the preflight refuses a spec that has one.
+- **A VLAN-aware `LAN_BRIDGE`.** Tick VLAN aware on it in the web console and apply, or use an isolated bridge that already is. The namespace canaries work on either kind but take another route on an aware bridge, so after the change run [`rehearsal`](../../../tofu/scratch/opnsense/runs/rehearsal.yaml), then [`canary-vm`](../../../tofu/scratch/opnsense/runs/canary-vm.yaml).
+- **The Ubuntu template** on the node (VM 106, or `TEMPLATE_VM_ID`) and `tofu` here (`TOFU` names another).
+- **No VM at the canary's VMID** left from an earlier run.
 
-The accelerator is KVM, which needs `/dev/kvm` readable and writable, unless `SCRATCH_RUN_QEMU_ACCEL=tcg` asks for software emulation, which needs no device but is about twenty times slower and gets longer importer timeouts. The preflight names every precondition at once: the tools, KVM, passwordless `sudo`, the name resolving, the bridge and tap names free, the image pin well-formed and the collection release installed. The image comes from the pin file [`tofu/scratch/opnsense/image-pin.yaml`](../../../tofu/scratch/opnsense/image-pin.yaml) unless `--image-url` and `--image-checksum` or the settings name another, because a CI runner has no settings file. A change to the pinned release is a change to that file, and CI loads it on every run of the Python tests.
-
-#### Bumping the pinned image
-
-The pin file holds three values that have to agree: `version`, a `url` whose file name is `OPNsense-<version>-nano-amd64.img.bz2`, and `sha256` of that file. The weekly release-checksum check and the pull request job fetch the release's signed checksum file for `version`, verify its RSA signature against the key committed in [`tools/ci/checksums/keys/`](../../../tools/ci/checksums/keys), and require `sha256` to equal its line for the file ([the check](../engineering/ci/release-checksum-check.md)); a `sha256` copied from anywhere else, or a wrong one, fails it. To bump within the series (26.1.x):
-
-1. Fetch `OPNsense-<version>-checksums-amd64.sha256` and its `.sig` from `https://pkg.opnsense.org/releases/26.1/`.
-2. Verify them yourself with the committed key: `openssl base64 -d -in OPNsense-<version>-checksums-amd64.sha256.sig -out sig.bin`, then `openssl dgst -sha256 -verify tools/ci/checksums/keys/opnsense-26.1.pem -signature sig.bin OPNsense-<version>-checksums-amd64.sha256`, which prints `Verified OK`.
-3. Copy the `nano-amd64.img.bz2` line's hash into `sha256`, and set `version` and `url` to the new release. Quote `version`, so that a release such as `26.7` stays text.
-
-The key belongs to a release series. A move to the next series (26.7, say) fails the check with a missing manifest until the series in the entry's two URLs, the key file and its fingerprint in [`registry.py`](../../../tools/ci/checksums/registry.py) are changed in the same pull request; take the new key from the release's documentation page and the changelog repository, compare the two, and check the fingerprint with `openssl pkey -pubin -in KEY.pem -outform DER | sha256sum`.
-
-Everything the backend keeps of a run is redacted of the credentials the seed carries, and the engine still fails a run whose result files hold one. On a GitHub Actions runner the backend also prints each credential in `::add-mask::` once it exists, so the log of the workflow below never shows it. `down` stops the canaries, terminates QEMU (killing it after 30 seconds), removes the tap and the bridge and removes the state directory only when all of that worked.
-
-### The workflow
-
-[`scratch-gateway-qemu.yml`](../../../.github/workflows/scratch-gateway-qemu.yml) runs the `rehearsal` spec on a hosted runner on `--backend qemu`. A pull request runs it when a file the gateway depends on changed (the scratch run code, the flow list and runner, `tofu/scratch/opnsense/`, the OPNsense module, the gateway role and its playbook); a weekly run on the default branch keeps the cached image from being evicted for going 7 days unused, and `workflow_dispatch` takes another committed spec that needs no node. It is not a required check: it needs a runner with `/dev/kvm`, and a hosted runner's nested virtualisation is GitHub's to change. The image is cached by the hash of the pin file, and saved even when the run fails. A run reads the cache of its own ref and then the default branch's, and never another pull request's, so the weekly run on the default branch is what lets pull requests find the image, and the first run on the default branch after a new pin downloads it again. Its logs and its results archive are public, so it runs rehearsal specs only (see [`docs/README.md`](../../README.md#public-repo)).
-
-### Where else it could run
-
-The backend needs only the tools, `sudo -n` and a usable `/dev/kvm`, so any host that has them can run it, privately and without the node. None is set up. The operator host's VM is built from `proxmox_ubuntu_vm`, which fixes the CPU type at `x86-64-v2-AES`, a model with no `vmx`, so it would have no `/dev/kvm` and the backend would fall back to software emulation (`SCRATCH_RUN_QEMU_ACCEL=tcg`, about twenty times slower). A run there would need the module to take a CPU type with `vmx` and the node to allow nested virtualization for that VM. The node backend already covers a run that must stay private and must show the real bridge, so this was not built.
+The VM's state and variables (`vm.tfstate`, `vm.tfvars.json`) are in the state directory. After a failed destroy they are kept, and `tofu destroy` with them removes the VM.
 
 ## The DMZ probe
 
-[`dmz-probe`](../../../tofu/scratch/opnsense/runs/dmz-probe.yaml) seeds the gateway with the DMZ's VLAN 35, the fifth of the seed's VLANs and the play's `dmz` zone, and shows two things from a canary in it. The canary's own flows pass: the gateway's DNS, time and echo, its own SSH port and Internet over 443. And the zone's rules deny what they should: the services and desktops canaries are refused from it, the services canary cannot reach it, and the Proxmox node's management address (`host_proxmox_node` in the play) is refused on 22 and 8006.
+[`dmz-probe`](../../../tofu/scratch/opnsense/runs/dmz-probe.yaml) seeds the gateway with the DMZ's VLAN 35, the play's `dmz` zone, and runs a canary in it:
 
-The node's refusals count only beside their controls, which are the desktops canary reaching the same two ports (`node` in the [flow list](network-boundary-checks.md#the-flows-in-the-list)). The spec admits that canary as an operator host for it, and the run needs what the controls need:
+- **Passes:** the gateway's DNS, time and echo, its own SSH port, and the Internet over 443.
+- **Refused:** the services and desktops canaries from it, the services canary to it, and the Proxmox node's management address (`host_proxmox_node`) on 22 and 8006.
 
-- **The node backend.** The QEMU backend's WAN is user-mode networking, which has no route to the node, so its controls fail.
-- **A WAN that reaches the node.** The scratch gateway's WAN (`WAN_BRIDGE`, with `WAN_VLAN_ID`, VLAN 10 on `vmbr1` by default) has to reach `10.0.0.254` on 22 and 8006, which the VLAN 10 zone allows only from `192.168.10.2`, the address reserved for VMID 501's WAN MAC, so a run with another `VM_ID` gets a lease and a route out and no path to the node. The node has to answer the gateway's WAN address. A control that fails reports that a block is not shown, which points at this setup and not at the rule.
+The node's refusals count only beside their controls, the desktops canary reaching the same two ports (`node` in the [flow list](network-boundary-checks.md#the-flows-in-the-list)), so the spec admits that canary as an operator host and needs:
 
-The runner reaches the DMZ canary only through a row that admits the operator hosts to the zone, which the play does not have. The spec carries the play's `opnsense_gateway_flows` with that one row added, and a test fails when the copy differs from the play's list in anything else. The run does not show the node's own firewall, the tailnet policy's tests or the untrusted-tier proxy that [ADR 0116 (Egress for default-deny zones)](../../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md) sets as the DMZ's only way to the Internet, which the play's `dmz` zone does not yet carry: it reaches the Internet directly, with the private ranges denied.
+- **The node backend.** The QEMU WAN is user-mode networking with no route to the node.
+- **A WAN that reaches the node.** `WAN_BRIDGE` and `WAN_VLAN_ID` (VLAN 10 on `vmbr1` by default) must reach `10.0.0.254` on 22 and 8006. The VLAN 10 zone allows that only from `192.168.10.2`, reserved for VMID 501's WAN MAC, so another `VM_ID` gets a route out and no path to the node. The node must also answer the gateway's WAN address. A failed control points at this setup, not at the rule.
 
-## What it does not do
-
-- The checks of [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope) stay in that script, and it still writes the play's variables itself.
-- It builds one VM at most, the canary VM, and only for a zone the play and the flow list have.
-- It never touches the live gateway, and it shows nothing that the scratch gateway cannot: the real `vmbr1` bridge, the tailnet and the node's own firewall.
+The play has no row admitting the operator hosts to the DMZ, so the spec carries `opnsense_gateway_flows` with that one row added; a test fails if the copy differs in anything else. The run does not show the node's own firewall, the tailnet policy's tests or the untrusted-tier proxy that [ADR 0116 (Egress for default-deny zones)](../../decisions/0116-internet-egress-for-hosts-in-default-deny-zones/revision-000.md) sets as the DMZ's only way out, which the play's `dmz` zone does not yet carry: it reaches the Internet directly, private ranges denied.
 
 ## The coding-agent zone run
 
-[`coding-zone`](../../../tofu/scratch/opnsense/runs/coding-zone.yaml) seeds the gateway with the seed's nine scratch VLANs, the play's `coding` zone among them (VLAN 30, no Internet, no DNS from the gateway), and replaces the zone's canary with a scratch VM (VMID 308, as [the canary VM](#the-canary-vm) says). It shows three things from that VM:
+[`coding-zone`](../../../tofu/scratch/opnsense/runs/coding-zone.yaml) seeds nine scratch VLANs, the `coding` zone among them (VLAN 30, no Internet, no DNS from the gateway), and replaces that zone's canary with a VM (VMID 308). From the VM it shows:
 
-- **The tagged-VM path.** The VM answers the runner's ssh through the gateway, so its tag, the bridge, the zone's rules and its address work, and the zone's own flows pass: time and echo to its gateway, and its own SSH port.
-- **Default-deny in both directions.** No other zone's canary reaches the VM, and it reaches none of theirs, the secrets store, the Minecraft and KMS hosts, an outside address on 443 or its gateway's DNS. Each refusal counts beside its control.
-- **The node.** The VM is refused the Proxmox node's SSH and API ports, beside the desktops canary reaching them, as in [the DMZ probe](#the-dmz-probe).
+| Shows | By |
+| :--- | :--- |
+| The tagged-VM path | The VM answers ssh through the gateway; time and echo to its gateway and its own SSH port pass |
+| Default-deny both ways | No other zone's canary reaches it, and it reaches none of theirs, nor the secrets store, the Minecraft and KMS hosts, an outside address on 443 or its gateway's DNS. Each refusal counts beside its control |
+| The node is closed to it | Refused on the SSH and API ports, beside the desktops canary reaching them, as in [the DMZ probe](#the-dmz-probe) |
 
-The play's flows hold [`operator-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy) and [`tailscale-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy) to the coding-agent host (`host_coding_agent`), and none to the canary at `.8`. The runner could not reach the VM through them, and the play admits it to no other zone's canary either, which the isolation step opens sessions in. So the spec carries the play's `opnsense_gateway_flows` with five rows added, which admit the operator hosts to the coding zone and to the management, isolated, experimental and DMZ canaries over SSH, and a test fails when the copy differs from the play's list in anything else. The rows exist only in this scratch run. They admit the desktops canary too, since that is an operator host here (the node's controls need it), so the run leaves the desktops canary's own way into those zones unasserted.
+The play's [`operator-vlan30-ssh` and `tailscale-vlan30-ssh`](tofu/opnsense-gateway.md#zone-policy) reach only the coding-agent host, not the canary at `.8`. So the spec carries `opnsense_gateway_flows` with five rows added, admitting the operator hosts over SSH to the coding zone and to the management, isolated, experimental and DMZ canaries; a test holds the copy to that. The rows exist only in this run, and since the desktops canary is an operator host here, its own way into those zones is left unasserted.
 
-The run needs the node backend, a VLAN-aware bridge, the Ubuntu template and a WAN that reaches the node: the QEMU backend builds no VM canary and has no route to the node. It does not show those two flows to the host, which no canary is, the zone's way to the Internet and its resolver, which [`coding-agent-egress.md`](../../projects/coding-agent-egress.md) adds, or the tailnet policy that limits the route to the laptop.
+It needs the node backend, a VLAN-aware bridge, the Ubuntu template and a WAN that reaches the node. It does not show the two flows to the coding-agent host, the zone's way to the Internet and its resolver (which [`coding-agent-egress.md`](../../projects/coding-agent-egress.md) adds), or the tailnet policy that limits the route to the laptop.
+
+## Backends
+
+`scratch_run.engine` decides each step's outcome, writes the files and checks them for credentials. A backend builds the gateway, runs one step at a time and removes it; neither changes the spec. The node backend is the default.
+
+| | Node | QEMU |
+| :--- | :--- | :--- |
+| Gateway | `scratch_gateway.sh up` and `down` on the node | `qemu-system-x86_64` here |
+| Play, block rule, API reads | from here, through the ssh forward | from here, to the LAN address |
+| Canaries | `scratch_canaries.py` on the node (files in `/root/scratch-run`, removed by `down`) | namespaces on a local bridge, built with `sudo -n` |
+| Runner | reaches the canaries through a `ProxyCommand` | the same |
+| `canary_vm` | built | refused |
+| Needs | node, token, ssh master | `sudo -n`, `/dev/kvm` |
+
+## The QEMU backend
+
+A run does these in order, each through a recorded command so the tests see every argument list.
+
+1. **Image.** The pinned `.img.bz2` is downloaded, checked against its SHA-256 and unpacked into `SCRATCH_RUN_IMAGE_CACHE` (default `~/.cache/scratch-run/image`). A mismatch is removed and stops the run; a cache for another checksum is replaced.
+2. **Seed.** `build_seed.sh`, with the flags `scratch_gateway.sh` gives it, so both backends seed alike.
+3. **Network.** A bridge with this machine's address (`192.168.77.10`) and a tap for the gateway's LAN. The gateway is `192.168.77.1`.
+4. **Gateway.** A qcow2 overlay of the cached image at the module's disk size, booted with [the layout](#the-qemu-layout). A QEMU that exits within seconds stops the run with what it printed.
+5. **Import.** `import_seed.py` imports the seed over the serial console; the root password goes on standard input, never in arguments.
+6. **Update.** Once the API port answers, `update_gateway.sh` takes the gateway to the pinned release, from a credentials file that exists only while it runs.
+
+`down` stops the canaries, terminates QEMU (killing it after 30 seconds), removes the tap and bridge, and removes the state directory only when all of that worked. Everything kept is redacted of the seed's credentials, and on GitHub Actions each credential is also masked with `::add-mask::` once it exists.
+
+KVM needs `/dev/kvm` readable and writable. `SCRATCH_RUN_QEMU_ACCEL=tcg` uses software emulation instead: no device, about twenty times slower, with longer import timeouts.
+
+### The QEMU layout
+
+The gateway must be laid out as the Tofu module lays out the VM, or a run would measure another machine. `scratch_run.qemu_layout` states the layout once (`STATED`) and builds the command line from it: `q35`, 2 cores, 2048 MiB, a virtio-scsi controller per disk, the system disk booting from `scsi0`, the seed second, a virtio NIC for the WAN (user-mode) and one for the LAN (tap), and a serial console.
+
+It also reads the same facts from the [OPNsense module](../../../tofu/modules/proxmox_opnsense_vm/main.tf) (`var.` references from their defaults), and `test_run_qemu_layout.py` fails on any difference; CI runs it when either side changes. Three differences are intended: the CPU model (`host` under KVM, since a runner's CPU is not `x86-64-v2-AES`), the MAC addresses and the disks' files. A module attribute outside the layout can change unnoticed, and only a run shows that the command line boots.
+
+### Bumping the pinned image
+
+The image comes from [`image-pin.yaml`](../../../tofu/scratch/opnsense/image-pin.yaml), because a CI runner has no settings file; `--image-url` and `--image-checksum`, or the settings, name another. Its `version`, `url` (file name `OPNsense-<version>-nano-amd64.img.bz2`) and `sha256` have to agree. The [release checksum check](../engineering/ci/release-checksum-check.md) verifies `sha256` against the release's signed checksum file, so a hash copied from anywhere else fails.
+
+To bump within the 26.1 series, set the new version and, from the repository root, fetch and verify its checksum file with the committed key. `openssl` prints `Verified OK`, then the line holding the hash:
+
+```bash
+version=26.1.7
+dir=$(mktemp -d)
+file="OPNsense-$version-checksums-amd64.sha256"
+curl -fsS -o "$dir/$file" "https://pkg.opnsense.org/releases/26.1/$file" &&
+  curl -fsS -o "$dir/$file.sig" "https://pkg.opnsense.org/releases/26.1/$file.sig" &&
+  openssl base64 -d -in "$dir/$file.sig" -out "$dir/sig.bin" &&
+  openssl dgst -sha256 -verify tools/ci/checksums/keys/opnsense-26.1.pem -signature "$dir/sig.bin" "$dir/$file" &&
+  grep 'nano-amd64.img.bz2' "$dir/$file"
+```
+
+Copy that hash into `sha256`, and set `version` (quoted, so a release such as `26.7` stays text) and `url`.
+
+The key belongs to a release series. A move to the next series fails the check with a missing manifest until the series in the entry's two URLs, the key file and its fingerprint in [`registry.py`](../../../tools/ci/checksums/registry.py) change in the same pull request. Take the new key from the release's documentation page and the changelog repository, compare the two, and take its fingerprint from:
+
+```bash
+key=tools/ci/checksums/keys/opnsense-26.7.pem
+openssl pkey -pubin -in "$key" -outform DER | sha256sum
+```
+
+## The workflow
+
+[`scratch-gateway-qemu.yml`](../../../.github/workflows/scratch-gateway-qemu.yml) runs `rehearsal` on a hosted runner with `--backend qemu`.
+
+| Trigger | Runs |
+| :--- | :--- |
+| pull request touching a file the gateway depends on (the workflow's `paths:`) | `rehearsal` |
+| [schedule](../engineering/ci/scheduled-jobs.md) on the default branch | `rehearsal`; keeps the cached image from eviction |
+| `workflow_dispatch` | `rehearsal` or `seed-vlans` |
+
+- It is not a required check: it needs a runner with `/dev/kvm`, and a hosted runner's nested virtualization is GitHub's to change.
+- The image is cached by the pin file's hash and saved even when the run fails. A run reads its own ref's cache, then the default branch's, so after a new pin the first run on the default branch downloads again.
+- Its logs and results archive are public, so it runs rehearsal specs only ([`docs/README.md`](../../README.md#public-repo)).
+
+The QEMU backend runs on any host with the tools, `sudo -n` and `/dev/kvm`, privately and without the node. None is set up. The operator host's VM has no `/dev/kvm`, since `proxmox_ubuntu_vm` fixes the CPU type at `x86-64-v2-AES`, which has no `vmx`.
+
+## What it does not do
+
+- [`acceptance.sh`](../../../tofu/scratch/opnsense/acceptance/acceptance.sh) keeps its checks that are not the play or the flows (a forward the play does not write, the GUI login, the API key's scope), and still writes the play's variables itself.
+- It builds one VM at most, and only for a zone the play and flow list have.
+- It never touches the live gateway, and cannot show the real `vmbr1` bridge, the tailnet or the node's own firewall.
 
 ## Tests
 
-The tests of `tools/tests/scratch_run/` cover the loader (every refusal, and that each committed spec loads against the committed flow list), the engine against a backend with behaviour of its own, and the node backend through a runner that records each command it is given, and the API read of the `vlans` step against a TLS server with a certificate of its own. The QEMU backend is tested the same way, through a runner whose commands leave the files the real ones would, a fake QEMU process and a fake TCP check, plus the real process, port and standard-input helpers; the pin is loaded and checked for shape. None of them starts a gateway, so a change to the commands either backend issues is shown to work only by a run: on the node for the node backend, and by the workflow above for the QEMU one.
+`tools/tests/scratch_run/` covers the loader (every refusal, and that each committed spec loads), the engine against a stand-in backend, the node backend through a runner that records its commands, the `vlans` API read against a TLS server, and the QEMU backend through a stand-in runner, process and TCP check. None starts a gateway, so a change to the commands a backend issues is proven only by a run: on the node, or by the workflow.
+
+```bash
+uv run python -m pytest -q tests/scratch_run
+```

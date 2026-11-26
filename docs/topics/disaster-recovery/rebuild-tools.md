@@ -114,13 +114,18 @@ after it is dumped and destroyed and before the apply.
 | `grant` | A note whether the Tofu user holds `Sys.Modify` on `/` | Fails unless it holds it, since the create's startup order is refused without it |
 | `dns` | [`rebuild_check.dns`](#rebuild_checkdns) passes. On a host outside the DNS servers' zone it is a note with the command to run from `services`, and no check | |
 
-`NODE` is the node's SSH target; a node that takes a password needs `SSH_CONTROL_PATH`, and the script
-says so once, with `ssh`'s own error, and skips the checks that read the node. The plan needs the
-checkout to have had `tofu init` and Tofu's state settings, which the script sources from `STATE_ENV`
-([state and credentials](../infra/tofu/state-and-credentials.md)). `CREDENTIALS` (`~/.config/tofu/credentials.tfvars`), `SEED`
-(`~/opnsense-seed/seed.img`, `create` only), `VM_ID` (201), `GATEWAY_NAME` (`OPNsense`), `TOFU_USER`
-(`tofu@pve`), `DUMP_DIR` (`/mnt/vzdump`) and `SSH_CONTROL_PATH` (a master connection opened by hand)
-override what the script assumes. The plan is read by
+| Variable | Default | Is |
+| :--- | :--- | :--- |
+| `NODE` | none, required | The node's SSH target |
+| `SSH_CONTROL_PATH` | unset | A master connection opened by hand. A node that takes a password needs it; without it the script says so once, with `ssh`'s own error, and skips the checks that read the node |
+| `STATE_ENV` | `~/.config/tofu/state-backend.env` | Tofu's state settings, which the script sources ([state and credentials](../infra/tofu/state-and-credentials.md)) |
+| `CREDENTIALS` | `~/.config/tofu/credentials.tfvars` | The credentials file |
+| `SEED` | `~/opnsense-seed/seed.img` | The seed, for `create` only |
+| `VM_ID`, `GATEWAY_NAME` | `201`, `OPNsense` | The gateway VM |
+| `TOFU_USER` | `tofu@pve` | The user whose grant is checked |
+| `DUMP_DIR` | `/mnt/vzdump` | Where the dump is |
+
+The plan needs the checkout to have had `tofu init`. It is read by
 [`rebuild_check.gateway_plan`](../../../tools/rebuild_check/gateway_plan.py), which takes the plan's
 JSON and runs nothing. It does not run the rebuild's sequence, the root module's apply or the play:
 the [rehearsal](../infra/tofu/opnsense-vm.md#rebuilding-the-production-gateway) on a scratch gateway

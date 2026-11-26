@@ -48,7 +48,36 @@ flowchart TB
 | 12 | Check the host, then that both DNS servers agree on it | `cd tools && python3 -m rebuild_check.host <host>`; `python3 -m rebuild_check.dns <host>` ([what they check](rebuild-tools.md#what-the-checks-look-at)) | yes |
 | 13 | Record the restore in the private drill record, then delete the dump and `fstrim` the pool | [`fire-drill.md`](fire-drill.md#results); [`retire_vm.sh`](rebuild-tools.md#retire_vmsh) `drop-dump` | partly |
 
-Why the order inside the cycle:
+### Commands
+
+Name the host once:
+
+```sh
+# paste alone; it waits for the host's name
+read -r -p 'host: ' host
+```
+
+```sh
+# step 1, from the repo root
+python3 ansible/scripts/restore_all.py --check --host "$host"
+```
+
+```sh
+# step 9, from ansible/
+ansible-playbook playbooks/deploy.yaml --limit "$host,localhost"
+```
+
+```sh
+# step 10, from the repo root; add --skip step-ca on security
+python3 ansible/scripts/restore_all.py --host "$host"
+```
+
+```sh
+# step 12, from tools/
+python3 -m rebuild_check.host "$host" && python3 -m rebuild_check.dns "$host"
+```
+
+### Why this order
 
 - **The Kea reservation goes at step 6.** The new VM holds its address from
   cloud-init. A reservation left in place would hide a failed static

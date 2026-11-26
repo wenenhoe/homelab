@@ -1,190 +1,177 @@
 # Molecule Testing
 
-Each role is tested in isolation with [Molecule](https://ansible.readthedocs.io/projects/molecule/),
-using the co-located convention: a role's scenarios live under
-`ansible/roles/<role>/molecule/<scenario>/`. Molecule brings up a real
-Docker container per scenario, converges the role into it, verifies the
-result, then re-converges to check idempotence — mirroring what
-`deploy.yaml` does against real hosts.
+Each role is tested in isolation with [Molecule](https://ansible.readthedocs.io/projects/molecule/), its scenarios under `ansible/roles/<role>/molecule/<scenario>/`. A scenario starts a real Docker container, converges the role into it, converges again to check idempotence, then verifies the result.
 
-## Scenario matrix
+## Running scenarios
 
-| Role | Scenario(s) | What it covers |
-| :--- | :--- | :--- |
-| `apt` | `default` | Package updates only — no systemd, no privileged mode. |
-| `fwupd` | *(none)* | Needs real firmware/LVFS hardware; not containerizable. |
-| `docker` | `default` | Installing Docker Engine in a privileged/systemd container. The daemon reports `no-new-privileges` as a default. A container created afterwards carries the daemon's log rotation defaults, and the storage driver seeded in `daemon.json` survives the role's merge. |
-| `host_hardening` | `default` | Platform assertion and the unattended-security-updates area, checked through the effective apt configuration — no systemd, no privileged mode (the area skips its service tasks in a container). |
-| `cd_agent` | `default` | Real systemd as PID 1, no Docker-in-Docker, and network access to GitHub. Fixture jobs (one poll, the others calendar, plus two chain-only successors) are started for real as their own users against this repository over HTTPS. The commit recorded as deployed matches the one a job ran on and a second start does nothing. A job finds `uv` on its `PATH` and its two environment variables set, cannot write outside its state directory or read another job's credential, and can read its own; neither another job's user nor `nobody` can read it. A chain-only successor runs as its own user in its own checkout, with no timer and an environment naming only its own credential and state directories, after a predecessor that succeeds and after one that fails, and cannot enter the predecessor's state directory. The scenario also checks the directory modes, the timers, the installed runner and toolchain step, `uv`'s and `rclone`'s ownership and `rclone`'s pinned version, and `sshd -T -C`'s effective configuration for the operator address and for others. |
-| | `invalid_input` | Nineteen bad inputs (a wildcard, CIDR or out-of-range operator address, a bad or job-user admin name, a job with both schedules, a job nothing starts, a successor that is no job or not a list, a cycle, a job that follows itself, a bad name, an empty or string command, duplicate names, no jobs, and the machine Ansible is running on), each refused by the check that names it, before anything touches the host. No systemd, no privileged mode. |
-| `qemu_guest_agent` | `default` | Package installs; shipped unit still matches the udev-activated shape the role relies on (no `[Install]`/`WantedBy=`). No systemd start/enable path — see [`qemu-guest-agent.md`](../infra/qemu-guest-agent.md). |
-| `tailscale_node` | `default` | A logged-out node with the vendor script's one-line apt source and keyring, as VM 202 has them, joins with a one-time key and a tag. The role's DEB822 source and key are in place, the vendor's source is gone, tailscale is installed and `tailscaled` is enabled, the forwarding drop-in holds both sysctls and both are on, and the stub client saw one join and one `set` that named only the advertised routes and auto-update. The key is in no file under `/etc`, `/var/lib`, `/var/log`, `/root`, `/tmp` or `/usr/local`. The client is a stub (`molecule/default/files`) answering from a state file, because the join and the preference comparison need a control plane; its `debug prefs` keys and values are the ones recorded for VM 202 in [`network-infra.md`](../infra/network-infra.md). Real `tailscaled` runs, but nothing talks to it. |
-| | `client_node` | A node that advertises nothing and does not accept the tailnet's DNS, and that an earlier run left with a forwarding drop-in and forwarding on: the drop-in is removed and both forwarding values are off, no advertised-routes flag (an empty list equals the null the node reports), and a `set` naming only the DNS setting and auto-update. |
-| | `drift` | A logged-in node with VM 202's preferences and no key or tag, whose daemon is down when the play starts (the first status read fails, its stored login is found, and the role reads the login again once the service is up, with the first two calls both status reads): the role repairs auto-update with no join, a hand change is made, a check run reports the difference and applies nothing (the stub saw no further `set`), and the next run repairs it. No `idempotence` step: the check run reports the difference every time it runs. |
-| | `no_key` | A logged-out node with a tag and no key is refused by the key check, with no apt source, key file or package on the host and the stub having seen only the status read. No systemd, no privileged mode. |
-| `compose` | `default` | Main init/deploy happy path. |
-| | `volumes` | Named-volume creation, config seeding, teardown. A staged file owned by uid 1000 at `0600` is seeded, keeps its owner and mode, and is overwritten by a second seed; a staged `2775` directory owned by gid 1000 keeps its setgid bit. |
-| | `scripts` | The two script-deployment paths in `init.yaml` (direct copy vs. volume-seeded). |
-| | `build` | The `build: true` branch of `deploy.yaml`. |
-| | `cleanup` | `cleanup.yaml` dry-run, keep-content path, and label-fallback teardown. |
-| | `reset` | Wiping a volume that mixes seeded config with app-written runtime state restores the config, discards the runtime state; a pure-runtime volume with no seeded content comes back genuinely empty; running without explicit confirmation refuses and leaves everything untouched. |
-| `compose_app` | `default` | Batch-driving `compose/` across apps, continuing past a failure. |
-| | `strict` | `compose_app_continue_on_error: false`. |
-| | `continue_on_error` | One broken app (bad config source) alongside healthy ones: batch reports the failure, healthy apps still deploy, self-managed apps (`bind9`/`caddy`) untouched. |
-| `secrets` | `default` | First-run generation + idempotent second run for one `hex`, one `uuid4`, two `manual` (present-empty, present-non-empty) entries; correct length/charset, RFC 4122 v4 shape, `0600` perms. |
-| | `manual_missing` | A `manual` entry with no cache file fails the play loudly, naming the secret and pointing at `openbao_utils/bootstrap.py`. |
-| | `vault_approle_missing` | The controller's AppRole credential files present but blank fails the play loudly before any real Vault reachability is attempted, naming the blank files and pointing at `auth.md`. No OpenBao/step-ca target needed — the gate fires before `vault_login.yaml`'s own cert-fetch step ever runs. |
-| | `vault_approle_files_missing` | Sibling to `vault_approle_missing`: the credential files don't exist at all (never provisioned even once), not present-but-blank — fails loudly via the distinct `[cache files missing]` gate, naming the missing files and pointing at `auth.md`. Same no-OpenBao/step-ca-needed shape. |
-| | `cache_dir_env` | With `HOMELAB_SECRETS_DIR` set, a manual secret is read from that directory and not from a differently-valued file of the same name in the checkout's cache, the AppRole gate's missing-file message names that directory, a relative value is refused before anything else, and neither directory is changed. Same Docker-free shape as `vault_approle_files_missing`. |
-| | `delivered_root_cert` | `check_delivered_root_cert.yaml` against a stand-in for the fetched root: no delivered copy passes, a copy equal to it up to surrounding whitespace passes, and a copy that differs fails naming the delivered file. Same Docker-free shape as `cache_dir_env`; the fetch itself is `vault_backed`'s. |
-| | `vault_manual_missing` | A Vault-backed `manual` entry with a real, working AppRole login but nothing ever written to its own Vault path fails the play loudly, naming the secret and pointing at `openbao_utils/bootstrap.py` — proving the role reaches Vault successfully and then fails specifically on the missing secret, not that it can't reach Vault at all (independently confirmed in `verify.yml` via a direct re-query showing the same path still 404s). |
-| | `vault_backed` | Same generate-once-and-cache mechanism as `default`, against a real OpenBao target (real leaf cert, real controller.hcl policy) instead of the file cache: CAS create/idempotent-reuse (checked against Vault's own KV version, not just Ansible's `changed:false`), a Vault-backed `manual` entry read back correctly, two `ensure_vault_secret` calls started together for one new secret (one value, one creator, one KV version), the module's `no_log: true` call run at `-vvv` in a process of its own to prove neither the generated nor the reused value is printed (with a control run that does print it), and the real policy's own `hosts/*` grant proven to exclude `delete`. Sibling containers on the control node, not Docker-in-Docker — see `molecule_helpers/tasks/start_openbao_test_target.yaml`'s header comment for why. |
-| | `rotate_secret` | Genuinely imports and runs the real `playbooks/rotate-secret.yaml` (not a reimplementation) against the same real OpenBao target as `vault_backed`, twice: creates a hex secret and a uuid4 secret via the real `secrets` role, rotates each in turn (exercising both of `generate_vault_value.yaml`'s format branches), and confirms each value actually changed and each one's own Vault KV version incremented by exactly one — proving an update-in-place, not a delete-and-recreate (the property this playbook's design depends on, since `controller`'s policy grants no `delete` on `hosts/*`). No `idempotence` step: rotation is supposed to change something every run. |
-| | `snapshot_restore` | The restore drill in `docs/topics/security/openbao/backup-restore.md`, run for real on the OpenBao image the helper pins: as the `controller` AppRole, writes a known secret and saves a snapshot (gzip, positional path); on a second, freshly initialized node, a plain restore is refused with the hash-file error, `restore -force` succeeds, the node reseals, the source's original unseal key brings it back, the node's own pre-restore root token no longer works, and `controller` logs in and reads the known secret. Runs on every bump of the image pin, since the pin sits in `start_openbao_test_target.yaml`. No `idempotence` step: a restore is one-way. |
-| `caddy` | `default` | Custom DigitalOcean-DNS Caddy build (xcaddy from source) + deploy. Slowest scenario (Go module compile). A route with `read_only: true` still proxies a read but answers a write with 405, while the same write on an unrestricted route proxies. |
-| | `unregistered` | `caddy_has_compose_app == false` — config renders and image builds, nothing seeded/deployed. |
-| `caddy_cert_expiry` | `default` | Stands up a real Caddy target with internal-CA certs (same `caddy_local_certs: true` shape as `caddy`'s own `default` scenario) and runs the check script for real against its live TLS handshake. Caddy's internal issuer defaults leaf certs to a 12h lifetime, so this scenario overrides `caddy_cert_expiry_threshold_days` to `0` to get a genuine live pass at the exact boundary the internal CA can reach — the production `30`-day default (`defaults/main.yaml`) is only exercised structurally, not against a real cert of that age. Also confirms a real `OnFailure=` alert fires for an SNI with no configured site/cert at all. See `telegram_notify` below for why the alert side is only exercised indirectly here. |
-| | `no_routed_apps` | The guard clause fires before anything Docker/Caddy-related runs, so this needs no privileged/Docker-in-Docker driver at all (same lightweight shape as `apt`'s own scenario) — a host whose `compose_apps` has no `caddy:` route at all, confirming the role fails loudly naming the missing route rather than proceeding with nothing to check. |
-| `telegram_notify` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through whatever role includes it: `caddy_cert_expiry` above, `step_ca_cert`, and `cloud_sync` (see `docs/topics/monitoring/telegram-notifications.md`). |
-| `opnsense_gateway` | *(none)* | Talks only to a gateway's API, which no Molecule target provides, and makes no change on any Ansible host. `ansible/tests/test_opnsense_pin.py` checks that the collection commit in `requirements.yml` is the one in the role's defaults, and `ansible/tests/test_opnsense_policy.py` that the role's zones are the ones the seed creates. |
-| `telegram_topic_pins` | *(none)* | Library role, control-node-only (`hosts: localhost` in `playbooks/pin-telegram-topics.yaml`) — nothing here to containerize in Molecule's per-host model. |
-| `gatus_push` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through whatever role includes it: `cloud_sync` and `caddy_cert_expiry` (see `docs/topics/monitoring/gatus.md`). Both scenarios check the curl config's contents and mode, that the token is not in the unit's command line, and that the unit loads and runs. |
-| `systemd_reload` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through the roles that depend on it: `backup_agent`, `caddy_cert_expiry`, `cloud_sync` and `step_ca_cert` (see `docs/topics/monitoring/telegram-notifications.md`). |
-| `bind9` | `default` | Zone-file aggregation/rendering/reload against a single self-hosting instance, with no secondary declared: transfers refused, no key rendered. |
-| | `secondary` | A primary and a secondary on two instances. The primary allows transfers to the key alone and notifies the secondary: a transfer without the key, or under another secret, is refused, from the primary itself and from the secondary's address. The key is `0640` for uid/gid `9970` in staging and in the seeded volume. The secondary declares every host's zones as `type secondary`, renders no zone file, serves the host zone, a generated CNAME and a zone declared by its own host, holds the same serial for every zone, and wrote each zone to its `records` volume. A record added to the host zone and converged again on the primary reaches the secondary with its container left running. A host addressed by an IPv4 address gets a record in the host zone, which the secondary serves too, while a host addressed by name gets none. |
-| | `invalid_host_records` | The host zone's record checks on their own, on a plain container (no systemd, no Docker-in-Docker), one case at a time: a host name that is not one DNS label (a trailing hyphen, 64 characters, a leading digit, an underscore, upper case, and a good name beside a bad one), a host that a static record in the host zone also names (in the same case or another), and generated records with no host zone, each refused by the check that names it. Valid inputs pass beside them: a 63-character name, no generated host and no host zone, a host zone with no static records, and a name another zone holds by hand. |
-| `seaweedfs_bucket` | `default` | Bucket doesn't exist → role creates it against a real throwaway SeaweedFS target, verified by listing the bucket after. Also writes a probe object and deletes it with a plain delete, and confirms no version or delete marker is left, so a retention prune actually frees the archive. |
-| | `wrong_credentials` | Mismatched credentials must fail loudly, not get retried into a slow eventual failure or otherwise swallowed. |
-| | `identity_scoping` | Renders the real production `s3-identity.json.j2` (not a synthetic config) against a real SeaweedFS target with two fake backup hosts. Confirms each host's identity can read/write only its own prefix — cross-prefix write and read are both actually denied, not just untested — that a scoped identity has no Admin-level access (can't remove the bucket), and that the `cloud-sync-reader` identity reads and lists the whole bucket but is denied a new write, an overwrite and a delete, with the admin identity confirming nothing changed. The one scenario that exercises this file at all; every other SeaweedFS-backed scenario uses `molecule_helpers`' own trivial single-identity default instead. |
-| `step_ca_client` | `default` | Caches a real, throwaway step-ca's root cert on the host, verified byte-for-byte against the container's actual root. |
-| | `not_running` | No running step-ca target at all — the guard at the top of the role fails loudly, before anything else runs. |
-| `step_ca_cert` | `default` | Deploys the real lldap compose stack on a cold (unseeded) `certs` volume, issues its initial cert against a real step-ca, confirms lldap recovers from the resulting crash loop, and confirms the systemd renewal units are installed correctly — including running the exact `ExecStart`/`ExecStartPost` commands directly and asserting their real side effects (cert serial changes, lldap's start time changing, the rendered env file carries `RENEW_ACTION=restart` and a blank `CHOWN_IMAGE`). Doesn't wait on or exercise the timer's own `needs-renewal` gating — see `renewal_timing` below for that. |
-| | `renewal_timing` | Issues a real 1-minute-lifetime cert (lldap's instance only — proving the generic timer/env mechanism works once is enough) and exercises the installed `cert-renewer@lldap.service` unit's actual `ExecCondition` gating against `step certificate needs-renewal`'s documented 66%-of-lifetime default threshold — confirms a too-early attempt (~10s in) is correctly skipped and a comfortably-due one (~50s in) actually renews. Takes real wall-clock time (~50s), unlike every other scenario in this repo; no `idempotence` step. |
-| | `signal_chown` | Deploys the real openbao compose stack on cold `data` and `certs` volumes through `roles/openbao`. The data volume is chowned to the image's non-root `openbao` user, the initial cert from a real step-ca is chowned back to `openbao` (not left root-owned by `step ca certificate`'s `--user root`), and openbao recovers from the resulting crash loop. The rendered `cert-renewer@openbao.service` carries the generic, env-driven `ExecStartPost=` lines and no per-app branching, and its own `ExecCondition=`, `ExecStart=` and chown `ExecStartPost=` lines are run with its env file and their effects asserted. `ExecCondition=` exits 1 (not due) on a `0600` certificate owned by `openbao`, where an unreadable one exits 255. The cert serial changes, ownership returns to `openbao`, and a raw `openssl s_client` handshake, not `bao status`, shows the listener serving the renewed cert without a container restart. |
-| | `not_running` | No running target container at all — the guard at the top of the role fails loudly, naming the missing container, before anything step-ca-related runs. Generic (an arbitrary `widget` app name), since the guard itself doesn't depend on which real app the instance represents. |
-| | `san_drift` | A running stand-in app whose certs volume holds a cert issued for a different domain than the role requests — the names check fails loudly, naming both name sets and the `volume-file-rm.yaml` command to reissue on purpose, before any renewal unit is installed. Confirms the failing run left the cert byte-identical and the app un-restarted. No step-ca target needed: the check only reads the cert already in the volume. |
-| | `probe_fails` | A running stand-in app, with the step-cli image pointed at a registry that cannot resolve, so the probe that looks for an already-issued cert never runs and leaves no exit status. The role stops at the probe guard, naming the app and saying nothing was changed, instead of reading the missing result as "no cert" and issuing over one. Confirms nothing was issued and no renewal unit was installed. |
-| `lldap_bootstrap` | `default` | Observer account doesn't exist → role creates it (in `lldap_strict_readonly`) against a real throwaway lldap target, verified by querying its group membership as admin. |
-| | `not_running` | No running lldap target at all — the guard at the top of the role fails loudly, naming the missing container, before touching anything. |
-| `openbao` | `data_chown` | Deploys the real openbao compose stack through `roles/openbao` over a data volume the role does not own: root's at the top, with a `0700` subtree owned by another uid. The chown reaches the whole subtree with its modes kept, which a recursive chown can only do for a `0700` directory with `DAC_OVERRIDE`. A file left root-owned beneath a top directory that is already right stays root's through a second deploy, so the guard reads the top directory only and skips the chown when it matches. The cert tasks and OpenBao's recovery from its crash loop are `step_ca_cert`'s `signal_chown` scenario's. It then waits for OpenBao to answer over TLS, and issues the cert a second time with the issuance alone, as `bootstrap-security.yaml` does, which finds the cert there and changes nothing. |
-| `openbao_cli` | `default` | Deploys the real openbao container with a leaf cert from a real step-ca, in the order `deploy.yaml`'s Play 6 runs them, then runs the role: the `.deb` is downloaded from GitHub and checked against the pin in the role's defaults, `bao version` on the host equals the server's, and `bao status` over TLS with step-ca's root and the certificate's own name exits 0 or 2 where a name the certificate does not carry exits 1. The package's standalone-server scaffolding is gone and its unit is masked. Needs network access to GitHub. |
-| | `not_running` | No running `openbao` container at all: the guard at the top of the role fails loudly, naming the container, before the role compares or downloads anything, and no binary is installed. |
-| `tinyauth` | `default` | Stands up a throwaway lldap target, runs `lldap_bootstrap` against it for real, then deploys the real tinyauth compose app and waits for it to report healthy — only reachable having already bound to LDAP at boot. Molecule-only; not wired into `deploy.yaml`. |
-| `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — confirms the SSL_CERT_FILE/Go-cert-pool mechanism `docs/topics/services/lldap.md` documents. Asserts on `docker logs`-observed process-start count (`>= 2`) rather than `RestartCount`, which resets on the scenario's own restart; `>= 2`, not tinyauth's own `== 0`, since reproducing the cold-start-then-recover race is the point, not avoiding it. |
-| | `not_running` | No running tinyauth target at all — the guard at the top of the role fails loudly, before anything CA-bundle-related runs. |
-| `backup_agent` | `default` | One schedule per app, always SeaweedFS: cloud targets belong to `cloud_sync`, not here. Stop-label isolation is shown behaviorally: an app that opts into stopping has its container's `StartedAt` change when its own schedule's real (test-sped-up) cron fires, and one that does not never does, though every schedule shares one container. Archives land in the test bucket encrypted to a throwaway keypair the scenario generates on the controller, so it needs `gpg` there, and `verify` decrypts one and lists it as a tar.gz of the app's volume. `backup-agent` reads a `0700` directory and a `0600` file owned by uid 1000 while holding `DAC_READ_SEARCH` alone. The Docker API proxy sidecar runs from the deployed rules file and not from flags, with every capability dropped and `no-new-privileges` set. The rules are tried on a second copy of the pinned proxy image in front of a fake Docker socket: each call `docker-volume-backup` makes must arrive unchanged, and each call the rules refuse must get a 403 and never arrive. A stale schedule file is removed once, not on the `idempotence` re-run. The freshness check's liveness push ([`gatus.md`](../monitoring/gatus.md)) is shown both ways: a push against real just-uploaded archives, and a non-push when every app misses the window. The assertions are split across the `verify_*.yml` files because the fixture is expensive to stand up. |
-| | `no_stop_apps` | No app on the host opts into `stop_during_backup` — confirms `backup-dockerproxy` (and `DOCKER_HOST`) are entirely absent from the rendered compose.yaml, not just unused, and that the rules file is not deployed. |
-| | `varying_cron` | Three apps on genuinely different cron cadences (daily, every-6-hours, weekdays-only) get correctly differentiated freshness thresholds from `cron_period_hours`, pinned to exact values — including the weekdays-only case, whose real worst-case gap (Friday to Monday, 72h) isn't the naive 24h a same-day-every-week average would suggest. No Docker-in-Docker needed: exercises `build_schedules.yaml` directly, the same lightweight shape as `secrets`' own `manual_missing`. |
-| `cloud_sync` | `default` | A real SeaweedFS target stands in for the source and for the R2/B2/OCI destinations, since real credentials are not reachable from CI. Two synthetic backup hosts are read through `hostvars[host].backup_plan`, as the real role reads them: an app with no override must reach every default target, and one with `cloud_targets` restricted to a single target must reach only that one. `idempotence` covers only the role's rendering. `verify.yml` triggers the real `Type=oneshot` service and asserts the destination buckets' contents with `rclone.conf` at uid 1000 `0600`, so the run needs the unit's `DAC_OVERRIDE`; a oneshot job reports changed every time it fires, so this stays outside the idempotence-checked path. `side_effect.yml` runs after `idempotence`: it edits the Telegram notifier unit, then the Gatus push unit, out of band and re-runs `converge.yml`, and asserts the role put each file back and that `systemd_reload`'s conditional reload ran instead of being skipped. |
-| `restore` | `default` | Full restore of a single volume: stop → extract → overwrite → redeploy, with `StartedAt` and content checks. The archive records uid 1000 for every entry and carries a `0700` directory, a `0600` file and a setgid directory; the volume first holds a `0700` directory owned by uid 2000. After the restore each entry has the archive's owner and mode, and the old directory is gone. |
-| | `multi_volume` | Multiple volumes restored from one archive at different nesting depths, ignoring a decoy and an unrelated app's directory. |
-| | `uncompressed_archive` | The same restore from an uncompressed `.tar` (an app with `compression: none`): the archive is shown not to be gzip first, then the stale content is replaced by the archive's, the app is stopped and redeployed, and the scratch volume and archive copy are gone. |
-| | `validation_failure` | A missing archive path, and an archive that is neither gzip nor tar, each block every destructive step (asserted via unchanged `StartedAt`/content, not just task failure). |
-| | `confirmation_declined` | Valid vars/archive but `restore_confirm: false` — same side-effect assertions as `validation_failure`. |
-| `restore_discovery` | `default` | Manifest/rclone.conf content and ordering against synthetic fixtures — scope derivation from `app_catalog`'s `backup:` key, `restore_discovery_excluded_apps`, step-ca hoisting, cloud-target fan-out/override, read-not-write credentials. No Docker needed — every task is `delegate_to: localhost`, same shape as `secrets`' own scenario. |
-| | `discovery_and_restore` | Runs the real role against a real throwaway SeaweedFS target and a real freshly-generated GPG keypair, then drives `restore_all.py`'s `load_manifest()`/`discover_and_decrypt()` directly against that real output: newest-object-by-timestamp selection, and falling over to a cloud target when SeaweedFS is unreachable, both against genuine S3 responses and a genuine decrypt. |
+Each block starts at the repository root, with the [Python environment](../deploy/controller-setup.md#python-environment) activated. Set the names to the role and scenarios you want.
 
-Negative-path scenarios assert on `ansible_failed_task`/`ansible_failed_result`
-(task name + a distinctive substring of the failure message) rather than a
-bare `rescue:` firing — a bare rescue can't tell the expected failure apart
-from an unrelated one (e.g. Docker not ready). See
-`ansible/roles/restore/molecule/validation_failure/converge.yml` for the
-pattern to copy when adding a new one.
-
-`restore`'s `default`/`multi_volume` skip the `idempotence` step (a
-restore is meant to re-execute unconditionally, not converge to a no-op).
-`confirmation_declined` skips it because its fixture unconditionally
-rebuilds the test archive every run.
-
-`lldap_bootstrap`'s tasks are tagged `molecule-idempotence-notest` (same
-mechanism `compose_app` uses): Render/Remove create-then-delete the same
-`/tmp` file every run, by design, so its `idempotence` step doesn't
-re-exercise the role — only the rest of the scenario (Docker/network
-setup, the throwaway lldap target) is checked for a no-op.
-`bootstrap.sh`'s own idempotency is a source-level fact, not something
-re-checked live.
-
-Run a single scenario:
+One scenario of one role:
 
 ```sh
-cd ansible/roles/apt
-molecule test
+role=compose scenario=volumes
+(cd "ansible/roles/$role" && molecule test -s "$scenario")
 ```
 
-Non-default scenario:
+Every scenario of one role:
 
 ```sh
-cd ansible/roles/compose
-molecule test -s volumes
+role=compose
+./ansible/scripts/molecule-test-all.sh "$role"
+```
+
+Several scenarios of one role (repeat `-s`):
+
+```sh
+role=compose
+./ansible/scripts/molecule-test-all.sh "$role" -s reset -s build
 ```
 
 Every scenario of every role:
 
 ```sh
-./scripts/molecule-test-all.sh          # every role
-./scripts/molecule-test-all.sh compose  # just one
+./ansible/scripts/molecule-test-all.sh
 ```
 
-One scenario of one role, without `cd`-ing into it:
+`molecule-test-all.sh` runs one `molecule test -s <scenario>` at a time from each role's directory, in name order, and stops a role at its first failure. `molecule test --all` from `ansible/` does not work: Molecule's scenario glob does not reach `roles/*/molecule/*/`, and a recursive glob rejects the many scenarios named `default` as duplicates.
 
-```sh
-./scripts/molecule-test-all.sh compose -s volumes
-```
+The script prints a table of seconds per scenario, which CI also puts in the job summary and which shows whether a role is worth splitting across runners. With `MOLECULE_TIMINGS_FILE` set it writes the same rows, tab-separated, to that file for [the scheduled timing run](molecule-timings.md).
 
-Repeat `-s` to run several scenarios of the one role:
+## Scenario matrix
 
-```sh
-./scripts/molecule-test-all.sh compose -s reset -s build
-```
+One line per scenario. What exactly each one asserts is in its `verify.yml` and, for refusals, its `converge.yml`.
 
-`molecule test --all` doesn't work from `ansible/` directly — Molecule's
-scenario glob doesn't recurse into `roles/*/molecule/*/`, and many
-scenarios across different roles share the name `default`, which a
-recursive glob would reject as a collision. `molecule-test-all.sh` runs
-from each role directory instead, one `molecule test -s <scenario>` per
-scenario in name order, so each invocation only sees that role's own
-unique scenario names. A role stops at its first failing scenario, as
-`--all` does. Every scenario is timed: the script prints a table of
-seconds per scenario and, in CI, appends it to the job summary, which is
-the data for deciding whether a role is worth splitting across runners.
-With `MOLECULE_TIMINGS_FILE` set it also writes each row, tab-separated, to
-that file, which [the scheduled timing run](molecule-timings.md) collects.
+| Role | Scenario(s) | What it covers |
+| :--- | :--- | :--- |
+| `apt` | `default` | Package updates, with no systemd or privileged mode. |
+| `fwupd` | *(none)* | Needs real firmware and LVFS hardware. |
+| `docker` | `default` | Engine install; `no-new-privileges` and log rotation defaults reach a new container; a `daemon.json` key the role does not own survives. |
+| `host_hardening` | `default` | Platform assertion, and unattended security updates read back from the effective apt configuration. |
+| `cd_agent` | `default` | Fixture jobs run for real as their own users: what ran, job isolation, successor chains, timers, installed tools and the `sshd` restriction. |
+| | `invalid_input` | Each bad input is refused by the check that names it, before the host is touched. |
+| `qemu_guest_agent` | `default` | Package install, and the shipped unit still has the udev-activated shape ([`qemu-guest-agent.md`](../infra/qemu-guest-agent.md)). |
+| `tailscale_node` | `default` | A logged-out node joins with a key and tag; the vendor apt source is replaced, forwarding is on and the key is left in no file. |
+| | `client_node` | A node that advertises nothing: the earlier forwarding drop-in is removed and only DNS and auto-update are set. |
+| | `drift` | A check run reports a hand change and applies nothing, and the next run repairs it. Starts with the daemon down. |
+| | `no_key` | A logged-out node with no key is refused before anything is installed. |
+| `compose` | `default` | Init and deploy happy path. |
+| | `volumes` | Named-volume creation, config seeding with owner and mode kept, teardown. |
+| | `scripts` | Both script deployment paths: direct copy and volume-seeded. |
+| | `build` | The `build: true` deploy branch. |
+| | `cleanup` | `cleanup.yaml` dry run, keep-content path and label-fallback teardown. |
+| | `reset` | A reset restores seeded config, discards runtime state, and refuses without confirmation. |
+| `compose_app` | `default` | Batch run of `compose/` across apps. |
+| | `strict` | `compose_app_continue_on_error: false`. |
+| | `continue_on_error` | One broken app is reported while the healthy ones still deploy. |
+| `secrets` | `default` | Generates `hex` and `uuid4` entries once and reads `manual` ones; formats and `0600` modes. |
+| | `manual_missing` | A `manual` entry with no cache file fails, naming the secret. |
+| | `vault_approle_missing` | Blank AppRole credential files fail before OpenBao is contacted. |
+| | `vault_approle_files_missing` | Absent AppRole credential files fail through their own check. |
+| | `cache_dir_env` | `HOMELAB_SECRETS_DIR` chooses the cache directory, and a relative value is refused. |
+| | `delivered_root_cert` | A delivered root certificate that differs from the fetched one fails, naming the file. |
+| | `vault_manual_missing` | A real AppRole login, then a failure for a `manual` secret never written to OpenBao. |
+| | `vault_backed` | Against real OpenBao: create then reuse, checked by KV version; concurrent creators; no value in `-vvv` output; no `delete` on `hosts/*`. |
+| | `rotate_secret` | Runs the real `rotate-secret.yaml`: each value changes and its KV version rises by exactly one. |
+| | `snapshot_restore` | The [restore drill](../security/openbao/backup-restore.md) on a second node. Runs on every bump of the OpenBao pin. |
+| `caddy` | `default` | Custom Caddy build and deploy; a `read_only: true` route proxies reads and answers writes with 405. |
+| | `unregistered` | Without the Compose app, config renders and the image builds but nothing deploys. |
+| `caddy_cert_expiry` | `default` | The check script against a live TLS handshake, the Gatus push config, and the `OnFailure=` alert for an unknown name. |
+| | `no_routed_apps` | A host with no `caddy:` route fails, naming what is missing. |
+| `telegram_notify` | *(none)* | Library role, covered through the roles that include it. |
+| `opnsense_gateway` | *(none)* | Needs a gateway API. `ansible/tests/test_opnsense_pin.py` and `test_opnsense_policy.py` check the collection pin and zones. |
+| `telegram_topic_pins` | *(none)* | Runs only on the control node (`pin-telegram-topics.yaml`). |
+| `gatus_push` | *(none)* | Library role, covered through the roles that include it. |
+| `systemd_reload` | *(none)* | Library role, covered through the roles that include it. |
+| `bind9` | `default` | Zone rendering and reload with no secondary: transfers refused, no key rendered. |
+| | `secondary` | Primary and secondary: keyed transfers only, matching serials, and a new record arrives without a restart. |
+| | `invalid_host_records` | Each bad host record is refused by the check that names it, and valid edge cases pass. |
+| `seaweedfs_bucket` | `default` | Creates a missing bucket; a plain delete leaves no version or delete marker, so a prune frees space. |
+| | `wrong_credentials` | Bad credentials fail at once instead of being retried. |
+| | `identity_scoping` | The production `s3-identity.json.j2`: each host reaches only its own prefix, and the cloud-sync reader cannot write. |
+| `step_ca_client` | `default` | The cached root certificate matches the CA's byte for byte. |
+| | `not_running` | No step-ca: the first guard fails. |
+| `step_ca_cert` | `default` | First certificate for lldap on an empty volume, recovery from its crash loop, and the renewal unit's commands and effects. |
+| | `renewal_timing` | The timer skips a certificate that is not due and renews one that is. |
+| | `signal_chown` | OpenBao: ownership returns to `openbao` and the listener serves the renewed certificate without a restart. |
+| | `not_running` | No target container: fails before anything touches step-ca. |
+| | `san_drift` | A certificate for other names fails with the reissue command and is left unchanged. |
+| | `probe_fails` | A probe that cannot run stops the role instead of issuing over a certificate. |
+| `lldap_bootstrap` | `default` | Creates the observer account in `lldap_strict_readonly`. |
+| | `not_running` | No lldap: the guard fails before anything else. |
+| `openbao` | `data_chown` | The data volume chown reaches the whole subtree with modes kept, and is skipped when the top directory already matches. |
+| `openbao_cli` | `default` | Pinned `.deb` install, version matching the server, TLS `bao status`, and the server unit masked. |
+| | `not_running` | No `openbao` container: fails before downloading anything. |
+| `tinyauth` | `default` | Real tinyauth binds to a throwaway lldap and reports healthy. |
+| `tinyauth_ca_trust` | `default` | tinyauth with `tinyauth_ldap_insecure: false` trusts lldap's step-ca certificate ([`lldap.md`](../services/lldap.md)). |
+| | `not_running` | No tinyauth: the guard fails before any CA bundle work. |
+| `backup_agent` | `default` | Per-app schedules and stop labels, encrypted archives that decrypt, least-capability volume reads, the Docker API proxy rules call by call, stale-schedule removal and the freshness push. |
+| | `no_stop_apps` | With no app to stop, no Docker API proxy or rules file is rendered. |
+| | `varying_cron` | Different cron cadences give different freshness thresholds, from the longest gap. |
+| `cloud_sync` | `default` | Syncs each host's apps to their cloud targets; the job's real side effects, and repair of hand-edited units. |
+| `restore` | `default` | Stop, extract, overwrite, redeploy, with the archive's owners and modes. |
+| | `multi_volume` | Several volumes from one archive, ignoring a decoy and another app. |
+| | `uncompressed_archive` | The same restore from a plain `.tar`. |
+| | `validation_failure` | A missing or unreadable archive blocks every destructive step. |
+| | `confirmation_declined` | `restore_confirm: false` blocks every destructive step. |
+| `restore_discovery` | `default` | Manifest and `rclone.conf` content and order from synthetic input. |
+| | `discovery_and_restore` | `restore_all.py` picks the newest object and falls over to a cloud target, with real S3 and GPG. |
 
-`molecule_helpers`'s shared scaffolding — the reference table of its
-task files, and how the DinD test containers it prepares actually
-work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
+Beyond Docker, `cd_agent`'s and `openbao_cli`'s `default` need network access to GitHub, and `backup_agent`'s `default` needs `gpg` on the controller.
+
+The scaffolding the scenarios share, in `molecule_helpers`, and how its Docker-in-Docker containers work are in [`molecule-fixtures.md`](molecule-fixtures.md).
+
+## Idempotence exceptions
+
+These scenarios have no `idempotence` step:
+
+| Why | Scenarios |
+| :--- | :--- |
+| Every run is a refusal the scenario expects | `bind9/invalid_host_records`, `cd_agent/invalid_input`, `tailscale_node/no_key`, `secrets/{manual_missing, vault_manual_missing, vault_approle_missing, vault_approle_files_missing, cache_dir_env, delivered_root_cert}` |
+| What it runs is meant to change something every time | `restore/{default, multi_volume, uncompressed_archive}`, `secrets/{rotate_secret, snapshot_restore}` |
+| Its setup makes new data every run | `restore/confirmation_declined`, `restore_discovery/discovery_and_restore` |
+| It waits out a real certificate lifetime | `step_ca_cert/renewal_timing` |
+| Its check run reports a difference every time | `tailscale_node/drift` |
+| The scenario records no reason | `seaweedfs_bucket/identity_scoping` |
+
+Two more are narrower than they look:
+
+- `lldap_bootstrap`'s bootstrap block is tagged `molecule-idempotence-notest`, because it creates and removes the same `/tmp` file on every run. Idempotence therefore does not re-run it, and `bootstrap.sh`'s own idempotency is not checked live.
+- `cloud_sync`'s step covers only rendering. A oneshot sync reports changed each time it fires, so `verify.yml` triggers it separately; `side_effect.yml` then edits the notifier and push units by hand and checks that a converge puts them back.
+
+## What a pass does not show
+
+| Scenario | Limit |
+| :--- | :--- |
+| `tailscale_node` | The client is a stub answering from a state file, since a join needs a control plane. Its preference keys and values are those recorded in [`network-infra.md`](../infra/network-infra.md); real `tailscaled` runs but nothing talks to it. |
+| `cloud_sync` | SeaweedFS stands in for R2, B2 and OCI, whose credentials CI does not have. |
+| `caddy_cert_expiry` | The internal CA's certificates are too short-lived for the production threshold, so the live pass uses `caddy_cert_expiry_threshold_days: 0`. |
+| `step_ca_cert/default` | Runs the renewal commands directly; only `renewal_timing` exercises the timer's `needs-renewal` gate. |
+| `host_hardening`, `qemu_guest_agent` | Service tasks do not run in these containers. |
+
+## Writing assertions
+
+A scenario asserts the side effect, not the exit code ([`AGENTS.md`](../../../AGENTS.md#verification-before-writing-it-down)): a container's `StartedAt`, a volume's content, a KV version.
+
+A negative-path scenario asserts on `ansible_failed_task` and `ansible_failed_result` (the task name and a distinctive part of the message), not on a bare `rescue:` firing, which cannot tell the expected failure from an unrelated one such as Docker not being ready. Copy the pattern in [`restore/molecule/validation_failure/converge.yml`](../../../ansible/roles/restore/molecule/validation_failure/converge.yml).
+
+`backup_agent`'s `default` splits its assertions across `verify_*.yml` files, because its fixture is too expensive to stand up more than once.
 
 ## Adding a new scenario
 
-1. Copy an existing scenario directory (e.g. `compose/molecule/default`
-   for anything deployed via Compose).
-2. If it needs Docker-in-Docker, use `ghcr.io/wenenhoe/molecule-dind:latest@sha256:…`
-   (copy the digest from an existing scenario) as the platform `image:` and point `prepare` at
-   `molecule_helpers/playbooks/prepare_dind_prebuilt.yml` — that's what
-   every scenario uses except `docker`'s own (tests installing Docker
-   from a clean base) and `bind9`'s (its own tasks conflict with the
-   baked `daemon.json`, see [Pre-baked DinD image in
-   `molecule-fixtures.md`](molecule-fixtures.md#pre-baked-dind-image)). Docker
-   is already running once the container boots, so `converge.yml` doesn't
-   install it.
-3. If the role uses `app_catalog`/`compose_apps`, point `converge.yml`
-   at `molecule_helpers`'s `resolve_compose_apps.yaml`, and read
-   `resolved_apps`. A scenario that builds other hosts with `add_host` sets
-   each one's `resolved_apps` with `| resolve_apps(app_catalog)`.
-   If the role reads a `backup_plan`, define `backup_defaults` in the
-   scenario's vars, then either run `resolve_backup_plan.yaml` after
-   `resolve_compose_apps.yaml` (the role reads its own host's plan) or give
-   each `add_host` host `backup_plan: "{{ ... | resolve_apps(app_catalog) |
-   backup_plan(backup_defaults) }}"` (the role reads other hosts'). If it, or
-   the SeaweedFS identity file it renders, reads `backup_hosts`, derive it from
-   the fake hosts with `groups['<group>'] | backup_hosts(hostvars)` in a
-   `set_fact` after the `add_host`; each such host needs a non-empty
-   `backup_plan`.
-4. Don't add `dependency.options` or a `provisioner.env` block — the base
-   config already supplies both to every scenario.
-5. Run `molecule test` locally before opening a PR for faster feedback —
-   CI also runs every role whose watch set a PR touches (see
-   [`ci/change-scoping.md`](../engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep)).
+1. Copy an existing scenario directory, such as `compose/molecule/default` for anything deployed with Compose.
+2. For Docker-in-Docker, use `ghcr.io/wenenhoe/molecule-dind:latest@sha256:…` as the platform `image:`, with the digest from an existing scenario, and point `prepare` at `molecule_helpers/playbooks/prepare_dind_prebuilt.yml`. Docker is running once the container boots, so `converge.yml` does not install it. The exceptions are `docker` (it tests the install) and `bind9` ([why](molecule-fixtures.md#pre-baked-dind-image)).
+3. If the role uses `app_catalog` or `compose_apps`, point `converge.yml` at `molecule_helpers`' `resolve_compose_apps.yaml` and read `resolved_apps`. Then, as the role needs:
+
+   | The role reads | In the scenario |
+   | :--- | :--- |
+   | its own host's `backup_plan` | define `backup_defaults`, and run `resolve_backup_plan.yaml` after `resolve_compose_apps.yaml` |
+   | other hosts' `resolved_apps` (hosts built with `add_host`) | set each one with `\| resolve_apps(app_catalog)` |
+   | other hosts' `backup_plan` | define `backup_defaults`, and give each `add_host` host `backup_plan: "{{ ... \| resolve_apps(app_catalog) \| backup_plan(backup_defaults) }}"` |
+   | `backup_hosts`, itself or through the SeaweedFS identity file | after the `add_host`, `set_fact` it from `groups['<group>'] \| backup_hosts(hostvars)`; each such host needs a non-empty `backup_plan` |
+
+4. Add no `dependency.options` or `provisioner.env` block: the base config supplies both.
+5. Add the scenario's row to the [matrix](#scenario-matrix), and to [Idempotence exceptions](#idempotence-exceptions) if it has no such step.
+6. Run it locally before opening a pull request. CI also runs every role whose watch set the pull request touches ([`ci/change-scoping.md`](../engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep)).
 
 ## Coverage
 

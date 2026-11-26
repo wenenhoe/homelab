@@ -64,7 +64,7 @@ Keeping the lab secure: how information is classed, the scanning and review that
 | Doc | Covers |
 | :--- | :--- |
 | [`policy/data-classification.md`](security/policy/data-classification.md) | The classes of information (public, private, local, secret), the questions that place a kind of information in one, and the rules that follow. |
-| [`policy/nist-800-53-alignment.md`](security/policy/nist-800-53-alignment.md) | Selective, narrative NIST SP 800-53 alignment — which existing decisions resemble which control's intent, and one control evaluated and left unmapped. Not a compliance artifact. |
+| [`policy/nist-800-53-alignment.md`](security/policy/nist-800-53-alignment.md) | Selective, narrative NIST SP 800-53 alignment — which existing decisions resemble which control's intent, and how far each goes. Not a compliance artifact. |
 | [`policy/security-scanning.md`](security/policy/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
 | [`policy/security-findings.md`](security/policy/security-findings.md) | The private `homelab-security` tracker for code-review findings: what it holds, the contract a writer follows, how findings are triaged, and how this repo may refer to them. |
 | [`policy/pr-review.md`](security/policy/pr-review.md) | Asking for a review of a pull request from the private checkout: when a change is worth asking for, the command, what it checks first, and where the output lives, which is a private Issue and nothing in this repo. |

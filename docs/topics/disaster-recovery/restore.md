@@ -92,6 +92,8 @@ In order:
 5. Copies it over the live volume.
 6. Cleans up and redeploys.
 
+A failure after step 1 still removes the copied archive and the scratch volume.
+
 It pauses for `yes` before touching anything.
 
 For `lldap` (multiple volumes in one archive), same rule — one

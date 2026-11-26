@@ -162,6 +162,35 @@
       delegate_to: localhost
       become: false
 
+    # An app with no deploy directory makes the stack stop fail, after the
+    # archive has reached the target and before anything is extracted.
+    - name: "Run restore role [block / rescue] (the stack stop is made to fail)"
+      block:
+        - name: Run the restore role for an app with no deploy directory
+          ansible.builtin.include_role:
+            name: restore
+          vars:
+            restore_app: restore_multi_nostack
+            restore_archive_local_path: "{{ restore_test_archive }}"
+            restore_volumes:
+              - restore_multi_certs
+            restore_confirm: true
+      rescue:
+        - name: Record which task failed
+          ansible.builtin.set_fact:
+            restore_multi_stop_failed_task: "{{ ansible_failed_task.name }}"
+
+    - name: Look for the archive copy the failed attempt put on the target
+      ansible.builtin.stat:
+        path: /tmp/restore_multi_nostack-restore-archive
+      register: restore_multi_stop_failed_copy
+
+    - name: Confirm the stack stop failed and the archive copy is gone
+      ansible.builtin.assert:
+        that:
+          - restore_multi_stop_failed_task | default('') == "Stop the app's compose stack so nothing writes during restore"
+          - not restore_multi_stop_failed_copy.stat.exists
+
     - name: Run the restore role for both volumes out of the one archive
       ansible.builtin.include_role:
         name: restore

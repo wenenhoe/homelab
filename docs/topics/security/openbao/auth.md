@@ -106,28 +106,14 @@ supplied explicitly (see
      secret_id_num_uses=0
    ```
 
-   No `secret_id_bound_cidrs`/`token_bound_cidrs` — `controller` has no
-   stable address to bind to (ADR 0020). Parameter choices:
+   No `secret_id_bound_cidrs`/`token_bound_cidrs`: `controller` has no
+   stable address to bind to (ADR 0020).
 
-   - `token_ttl`/`token_max_ttl` **1h, non-renewable.** Long enough for
-     a full `deploy.yaml` run; short enough that a token leaked from
-     one run doesn't outlive it by much. If a run genuinely needs
-     longer, re-authenticate rather than renew — simpler than adding
-     a renewal path to a role deleted outright once
-     [its retirement](../../../projects/cd-agent-controller-approle-retirement.md) lands.
-   - `secret_id_ttl` **2160h (90 days), `secret_id_num_uses=0`
-     (unlimited within that window).** Matches this repo's existing
-     90-day rotation cadence for every other leaf/rotation credential
-     ([ADR 0109 (Cloud credential expiry)](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)),
-     rather than cd_agent's never-expire shape — that shape is
-     justified for an always-on box logging in every 2 minutes
-     (0022); `controller` is a laptop with no fixed cadence, and
-     [re-issuing the secret ID](#re-issuing-the-secret-id) by hand every
-     quarter costs nothing extra over the credential rotation this repo
-     already does by habit.
-     `secret_id_num_uses` isn't capped separately, since the number of
-     `ansible-playbook` runs in 90 days isn't something to predict or
-     constrain.
+   | Parameters | Why |
+   | :--- | :--- |
+   | `token_ttl`, `token_max_ttl` (non-renewable) | Covers a full `deploy.yaml` run without a leaked token outliving it by much. A run that needs longer logs in again; no renewal path is added to a role that [its retirement](../../../projects/cd-agent-controller-approle-retirement.md) deletes. |
+   | `secret_id_ttl` | The same rotation cadence as every leaf and rotation credential ([ADR 0109 (Cloud credential expiry)](../../../decisions/0109-knowing-a-cloud-credential-is-about-to-expire/revision-000.md)). `cd_agent`'s never-expiring shape suits an always-on host, not a laptop; [re-issuing](#re-issuing-the-secret-id) by hand joins a routine already kept. |
+   | `secret_id_num_uses=0` (unlimited) | The number of `ansible-playbook` runs in that window can't be predicted. |
 
 5. **Generate `role_id` and `secret_id`:**
 

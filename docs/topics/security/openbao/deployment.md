@@ -106,43 +106,19 @@ the bootstrap script is covered in
 
 ## Non-root user, and what it costs
 
-`openbao/openbao`'s Dockerfile creates a system user named `openbao`, `chown -R openbao:openbao
-/openbao` at build time, then `USER openbao` — the container process
-never runs as root. lldap has the same property but manages it itself
-(`LLDAP_UID`/`LLDAP_GID` env vars its own entrypoint reads); OpenBao's
-image has no such mechanism, so this repo has to handle two
-consequences directly:
+The `openbao/openbao` image runs as its own system user, `openbao`, never as root. Unlike lldap's
+image (`LLDAP_UID`/`LLDAP_GID`), it has no setting to change that, so this repo handles the two
+consequences, both by username because the numeric id is assigned when the image is built:
 
-- A freshly-created named volume is root-owned, and the `openbao` user
-  can't write into one it doesn't own. Fixed for the raft data volume
-  by [`roles/openbao`](../../../../ansible/roles/openbao) — a plain, guarded
-  `docker run --rm --user root ... chown -R openbao:openbao` that only
-  actually runs when the volume's current owner doesn't already match,
-  checked before every deploy. By username, not a hardcoded UID:
-  `adduser -S` assigns that number at image-build time, and it's not
-  this repo's business to pin it.
+| Problem | Handled by |
+| :--- | :--- |
+| A new named volume is root-owned, so `openbao` can't write the raft data. | [`roles/openbao`](../../../../ansible/roles/openbao) runs a guarded `chown -R openbao:openbao` as root before a deploy, only when the owner differs. |
+| `step ca certificate` and `step ca renew` run as root, so `fullchain.pem` and `privkey.pem` come out root-owned and unreadable. | `step_ca_cert`'s issue task, and the `ExecStartPost=` chown in `cert-renewer@.service` (a no-op unless the instance's env file sets `CHOWN_IMAGE`). |
 
-  A one-shot `openbao-init` compose service (`depends_on:
-  condition: service_completed_successfully`) doesn't work for this:
-  Compose brings every service to "running" on `docker compose up`, and
-  a `restart: "no"` container that already exited successfully doesn't
-  count as running — so Compose restarts it on *every* `up`, which
-  `community.docker.docker_compose_v2` reports as changed,
-  unconditionally, forever. `openbao` is self-managed
-  (`compose_self_managed_apps`, same mechanism `caddy`/`bind9` use, see
-  [`deployment-flow.md`](../../deploy/deployment-flow.md)'s Play 4) specifically so
-  this chown could be a plain guarded task instead.
-- `step ca certificate`/`step ca renew` both run as `--user root` too
-  (same freshly-created-volume issue `step_ca_cert` already documents),
-  so every issuance and every renewal leaves `fullchain.pem`/`privkey.pem`
-  root-owned — which the non-root `openbao` process then can't read.
-  `step_ca_cert`'s issuance task, and its `ExecStartPost=` chown line in
-  the shared `cert-renewer@.service` template (a no-op unless the
-  instance's own env file sets `CHOWN_IMAGE`), both hand the `certs`
-  volume back to `openbao:openbao` by the same by-username approach
-  right after `step` runs. This one was a plain Ansible task and a
-  systemd `ExecStart=` line from the start, never a compose service, so
-  it never hit the same problem.
+The chown is a role task, not a one-shot `openbao-init` compose service: Compose starts an exited
+`restart: "no"` container on every `up`, so `community.docker.docker_compose_v2` would report a
+change every run. That is why `openbao` is self-managed (`compose_self_managed_apps`, see
+[`deployment-flow.md`](../../deploy/deployment-flow.md)'s Play 4).
 
 ## Duplicate configuration warning
 
@@ -302,10 +278,18 @@ cd tools && python3 -m openbao_utils.unseal
 Run it 2 times (the threshold above). Each run asks for one of the 3
 shares first (`Unseal key share (hidden):`), then connects and submits
 it; bao's own prompt line is not shown, since the share is already in.
-To check seal state without spending a share, on `security` itself: `bao status -address=https://127.0.0.1:8200
--tls-server-name=openbao.{{ caddy_domain }}
--ca-cert=/etc/step-ca/root_ca.crt` - native CLI, real TLS, no login
-needed.
+
+To check seal state without spending a share (no login needed):
+
+```sh
+# security: paste alone; it waits for security's caddy_domain
+read -r -p 'caddy_domain of security: ' caddy_domain
+```
+
+```sh
+# same shell
+bao status -address=https://127.0.0.1:8200 -tls-server-name="openbao.$caddy_domain" -ca-cert=/etc/step-ca/root_ca.crt
+```
 
 ## Audit logging
 

@@ -13,19 +13,14 @@ reusing that pipeline.
 
 ## Why manual, not a systemd timer
 
-A scheduled job needs a Vault token on disk to authenticate with.
-[`auth.md`](auth.md)'s policy for `controller`'s
-AppRole grants read-only on `sys/storage/raft/snapshot` specifically
-for this. What's still missing is somewhere unattended to run it from:
-`controller` is the operator's own machine, never a `managed_hosts`
-member, and isn't meant to run scheduled jobs at all. That's the
-[CD agent project](../../../projects/cd-agent.md)'s `cd_agent` host's job
-([decision](../../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)),
-not built yet — for now, this proves the mechanism with a
-human running it interactively, authenticating as `controller`'s
-AppRole rather than the root token (see "Running a backup" below).
-`tools/openbao_utils/scripts/snapshot-push.sh` is a plain script, not
-installed or enabled as a systemd unit anywhere.
+A scheduled job needs a Vault credential on disk and a host to run on. `controller` is the
+operator's own machine, never a `managed_hosts` member, and runs no scheduled jobs. That is the job
+of the [CD agent project](../../../projects/cd-agent.md)'s `cd_agent` host
+([decision](../../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)), not
+built yet. Until then
+`tools/openbao_utils/scripts/snapshot-push.sh` is a plain script, run by hand as `controller`'s
+AppRole (whose policy grants read on `sys/storage/raft/snapshot` for this), and installed as no
+systemd unit.
 
 ## Push credential
 
@@ -66,33 +61,19 @@ found," since rclone's own pre-flight check is what's being denied.
 tools/openbao_utils/scripts/snapshot-push.sh "$(cat ansible/files/secrets/openbao-controller-role-id)"
 ```
 
-From `controller`, using the same `controller` AppRole `role_id`
-cached per [`auth.md`](auth.md)'s runbook. It reads
-`secret_id` from the cached `openbao-controller-secret-id` file in the
-secrets directory (`HOMELAB_SECRETS_DIR`, else `ansible/files/secrets`),
-and falls back to a hidden prompt when that file is missing or empty. The
-script never takes it as an argument. One
-process end to end: logs in over real TLS, saves the snapshot,
-GPG-encrypts it (same public key as
-[`backup.md`](../../disaster-recovery/backup.md)'s
-`backup-gpg-public-key.asc`, independently of Vault's own encryption),
-pushes it to both R2 and B2, and revokes the token — all from one
-`mktemp -d` scratch directory removed when the script exits, nothing
-left behind on `controller` either way.
+From `controller`, using the `role_id` cached by [`auth.md`](auth.md)'s runbook. The script:
 
-Confirmed live against a real OpenBao instance:
-`bao write -field=token auth/approle/login role_id=<role_id>
-secret_id=@<file>` returns a 200 with the client token under the
-`token` field (no trailing newline) — the shape
-`snapshot-push.sh` builds on directly. The token this mints is
-short-lived (`controller`'s role config: `token_ttl=1h`), which is why
-the script logs in fresh on every run rather than trying to reuse one
-across invocations.
+1. Reads the `secret_id` from the cached `openbao-controller-secret-id` in the secrets directory
+   (`HOMELAB_SECRETS_DIR`, else `ansible/files/secrets`), or prompts for it, hidden, when that file
+   is missing or empty. It is never an argument.
+2. Logs in over TLS. The token is short-lived, so each run logs in again.
+3. Saves the snapshot and GPG-encrypts it with the public key
+   [`backup.md`](../../disaster-recovery/backup.md) uses (`backup-gpg-public-key.asc`), on top of
+   Vault's own encryption.
+4. Pushes it to both R2 and B2, then revokes the token.
 
-`BAO_TOKEN` only ever lives in this one script's own process
-environment — never written to a file, never passed as a command-line
-argument to anything it calls. `bao operator raft snapshot save`
-inherits it the same way any other native `bao` invocation does.
+Everything sits in one `mktemp -d` directory removed on exit. `BAO_TOKEN` lives only in the
+script's environment, never in a file or an argument.
 
 **Version note:** the behavior described below was last confirmed live,
 by running the drill end to end, on `openbao/openbao:2.7.1`.
@@ -108,31 +89,18 @@ are what to revisit.
 
 ## `bao` CLI behavior this script and the restore drill depend on
 
-Confirmed against a real running instance, not inferred from docs:
+Confirmed against a running instance:
 
-- `bao operator raft snapshot save <path>` takes a plain positional
-  path, prints nothing on success, and produces a gzip-compressed
-  file readable only by the user the server runs as.
-- Plain `bao operator raft snapshot restore <path>` **fails** (HTTP
-  400, CLI exit 2) — `could not verify hash file, possibly the snapshot
-  is using a different set of unseal keys; use the snapshot-force API
-  to bypass this check` — on any target whose keyring doesn't
-  already match the snapshot's. This is not an edge case for the drill
-  below: a freshly-initialized throwaway host *always* has different
-  keys, so the plain restore path never works for real disaster
-  recovery.
-- `bao operator raft snapshot restore -force <path>` is the actual
-  mechanism — a documented flag (`bao operator raft snapshot restore
-  -h`, easy to miss), not an undocumented workaround.
-- **After a forced restore, OpenBao reseals itself.** It must be
-  unsealed again using the *original snapshot's* Shamir shares — not
-  the throwaway host's own freshly-generated ones from its local
-  `bao operator init`. The throwaway host's own pre-restore root token
-  also stops working once the restore completes; `controller`'s
-  AppRole (part of the restored data itself) is what's valid against
-  the restored data, not a root token — see
-  `vault-bootstrap.md` if a step ever needs more than
-  `controller`'s own read access.
+| Command | Behaviour |
+| :--- | :--- |
+| `bao operator raft snapshot save <path>` | Prints nothing on success; writes a gzip file readable only by the server's user. |
+| `bao operator raft snapshot restore <path>` | Fails (HTTP 400, exit 2, `could not verify hash file`) when the target's keyring differs from the snapshot's, which a freshly initialised host's always does. |
+| `bao operator raft snapshot restore -force <path>` | The documented way to do that restore. OpenBao reseals itself afterwards. |
+
+After a forced restore, unseal with the **snapshot's** Shamir shares, not the ones from the target's
+own `bao operator init`; the target's earlier root token stops working too. `controller`'s AppRole is
+part of the restored data, so it logs in. Anything beyond its read access needs
+[`vault-bootstrap.md`](vault-bootstrap.md).
 
 ## Pulling a snapshot
 
@@ -209,6 +177,18 @@ to the operator ([ADR 0099 (Rebuilding security from nothing)](../../../decision
 It is for `security` only: a rebuilt `services`, `storage` or `tailscale`
 passes Play 0 as soon as `security` is healthy.
 
+```mermaid
+flowchart TD
+    P["predeploy.yaml: Docker and stacks directory"] --> S1["stage1: OpenBao on loopback, placeholder cert"]
+    S1 --> O1["Operator: init and unseal with throwaway keys"]
+    O1 --> O2["Operator: restore the snapshot with -force"]
+    O2 --> O3["Operator: unseal with the original shares"]
+    O3 --> S2["stage2: step-ca restored from its archive"]
+    S2 --> S3["stage3: real cert from step-ca, which reseals OpenBao"]
+    S3 --> O4["Operator: unseal with the original shares"]
+    O4 --> D["deploy.yaml, then restore.yaml"]
+```
+
 What you need before starting, none of it on the new VM:
 
 - The latest OpenBao snapshot, fetched and decrypted with
@@ -278,12 +258,19 @@ refuses the connection.
    docker exec -e BAO_TOKEN -e BAO_ADDR=https://127.0.0.1:8200 -e BAO_SKIP_VERIFY=true \
      openbao bao operator raft snapshot restore -force /tmp/restore.snap
    docker exec openbao rm /tmp/restore.snap
+   exit
    ```
 
-6. Check `bao status`, then unseal with the original shares, twice, whether or
+6. Check the status, then unseal with the original shares, twice, whether or
    not it reports sealed:
 
    ```sh
+   # controller
+   ssh security 'docker exec -e BAO_ADDR=https://127.0.0.1:8200 -e BAO_SKIP_VERIFY=true openbao bao status'
+   ```
+
+   ```sh
+   # controller, in tools/: once per share, twice
    python3 -m openbao_utils.unseal
    ```
 

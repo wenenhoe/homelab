@@ -138,6 +138,7 @@ A Mermaid block is drawn to SVG during the build, so a reader needs no script. `
 - Each diagram is drawn in the light and dark themes, and the stylesheet shows the one `prefers-color-scheme` asks for.
 - A diagram that does not draw stops the build with the file, the fence's line and Mermaid's message.
 - The seed for node outlines is fixed, which keeps builds reproducible.
+- The build and the [layout check](#the-layout-check) start Chrome with its sandbox on (`doc_site/chrome.py`), except as root, where Chrome cannot start with it.
 - The block's source is not shown, and a diagram is scaled to its column.
 - `page_anchors`, which the drift check calls, draws nothing.
 

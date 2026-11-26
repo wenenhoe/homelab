@@ -31,6 +31,8 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
+from doc_site import chrome
+
 # Two portrait phones, a tablet and a phone held sideways: 360 and 390 are common Android and iPhone portrait widths, 768 is a
 # small tablet, and 844 by 390 is an iPhone in landscape, where the height is what a bar that stays on screen eats into. The
 # others are 800 tall.
@@ -236,7 +238,7 @@ def _check_chunk(base: str, paths: Sequence[str], sizes: Sequence[tuple[int, int
     """The problems of `paths` as (path, index of the size, problem), in one browser of its own."""
     found: list[tuple[str, int, str]] = []
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel="chrome")
+        browser = chrome.launch(playwright)
         try:
             page = browser.new_page()
             for path in paths:

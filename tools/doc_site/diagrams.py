@@ -58,9 +58,11 @@ def draw(sources: list[str], bundle: Path = BUNDLE) -> list[Drawn]:
         raise DiagramError(errors[0])
     from playwright.sync_api import sync_playwright  # imported here: a build with no diagram needs no browser
 
+    from doc_site import chrome
+
     drawn: list[Drawn] = []
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel="chrome")
+        browser = chrome.launch(playwright)
         try:
             page = browser.new_page(java_script_enabled=True)
             page.route("**/*", lambda route: route.abort())

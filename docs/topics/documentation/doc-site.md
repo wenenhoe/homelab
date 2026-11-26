@@ -88,13 +88,13 @@ A document page is a repository file shown as it reads on GitHub. `doc_site/docu
 | A lineage with several revisions | all of them listed with state; the current and the one being read marked |
 | End of a decision page | links to the decisions before and after by number |
 | `##` and `###` headings | GitHub's anchors, listed in the menu |
-| Four or more menu headings | an "On this page" list, and a link back to it at each `##` |
+| Four or more menu headings | an "On this page" list, and where it is not beside the prose a link back to it at each `##` |
 | A link to a page of the site | stays on the site, anchor kept; any other file goes to GitHub |
 | `[ ]`, `[x]` list items | disabled checkboxes |
 | Tables | cards on a phone, each cell labelled; a `Status` cell is a pill |
 | Code blocks | wrapped, with a copy button |
 
-- **Contents list.** A `<details open>`, so it needs no script. From 1040 pixels wide it sits beside the prose; below that the script closes it. It does not stay on screen. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
+- **Contents list.** A `<details open>`, so it needs no script. From 1040 pixels wide it sits beside the prose and stays on screen, scrolling on its own when it is taller than the window, and the headings' links back to it are hidden; below that it is above the prose, where the script closes it. A heading with the anchor `on-this-page` stops the build. The home page, the views and the Topics index have none.
 - **Copy button.** Added in the top right corner where the browser has a clipboard (HTTPS or `localhost`). Its icon turns into a tick, or a cross if the write is refused, with the same said to a screen reader. It copies the block without the final newline, so a pasted last line is not run. Blocks are written to be pasted whole ([`AGENTS.md`](../../../AGENTS.md#command-blocks-for-the-operator)).
 - **Navigation.** Planning, Projects, Decisions, Topics, Architecture and DR coverage; the home page has a tile for each.
 - **Section landings.** Projects opens on a list of projects by status and initiative, above its README; Decisions on the decision index, with the README as a guide in the breadcrumb; Topics and Architecture on their READMEs.

@@ -80,3 +80,20 @@ def test_a_project_with_markup_the_renderer_refuses_stops_the_build(tree):
     )
     with pytest.raises(UnsupportedMarkup, match=r"four\.md"):
         site.build(tree)
+
+
+def project_list(tree) -> str:
+    html = site.build(tree)["projects/index.html"].decode()
+    return html[html.index('<section id="project-list">') : html.index('<h2 id="guide">')]
+
+
+def test_the_projects_not_started_are_in_a_block_that_is_open_in_the_markup(tree):
+    listing = project_list(tree)
+    before, folded = listing.split('<details class="fold" open><summary>Not started (1)</summary>')
+    assert "one/" in before and "two/" not in before
+    assert "two/" in folded
+
+
+def test_a_list_with_nothing_waiting_has_no_block(tree):
+    (tree / "docs/projects/two.md").unlink()
+    assert "<details" not in project_list(tree)

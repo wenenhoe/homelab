@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import html
+import math
 import posixpath
 import re
 from collections.abc import Sequence
@@ -285,9 +286,22 @@ def _page_addresses(targets: dict[str, str], depth: int) -> dict[str, str]:
     return {source: f"{'../' * depth}{slug}/" if slug else "../" * depth or "./" for source, slug in targets.items()}
 
 
+VIEWBOX_WIDTH = re.compile(r'<svg\b[^>]*?\bviewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"')
+# The column of the narrowest phone the layout check opens: a diagram no wider than this is never shrunk, so it takes no box to enlarge it.
+ALWAYS_FITS_PX = 328
+
+
 def _figure(drawn: Drawn) -> str:
-    """A diagram in both renderings; the stylesheet shows the one that goes with the reader's colour scheme."""
-    return f'<figure class="diagram"><div class="light">{drawn.light}</div><div class="dark">{drawn.dark}</div></figure>'
+    """A diagram in both renderings; the stylesheet shows the one that goes with the reader's colour scheme. A diagram that a screen can
+    shrink has a "Full size" box, which the stylesheet reads, so it needs no script. The box is hidden where the diagram is not shrunk."""
+    canvas = f'<div class="canvas"><div class="light">{drawn.light}</div><div class="dark">{drawn.dark}</div></div>'
+    found = VIEWBOX_WIDTH.search(drawn.light)
+    width = math.ceil(float(found[1])) if found else 0
+    if width <= ALWAYS_FITS_PX:
+        return f'<figure class="diagram">{canvas}</figure>'
+    hidden = f"<style>@container (min-width:{width}px){{.w{width}>.zoom{{display:none}}}}</style>"
+    box = '<label class="zoom"><input type="checkbox"> Full size</label>'
+    return f'<figure class="diagram w{width}" style="--full:{width}px">{hidden}{box}{canvas}</figure>'
 
 
 def _targets(documents: list[Document]) -> dict[str, str]:
@@ -427,6 +441,24 @@ def _project_list(documents: list[Document]) -> Table:
         for d in projects
     )
     return Table(("Project", "Status", "Initiative", "Summary"), (":---",) * 4, rows)
+
+
+def _folded(projects: Table, resolve) -> str:
+    """The project list with the projects not started yet in a block of their own. It is open in the markup so that it needs no script,
+    which closes it on a narrow screen."""
+    status = projects.headers.index("Status")
+    waiting = tuple(row for row in projects.rows if row[status] == PROJECT_STATUS["not-started"])
+    if not waiting:
+        return _table(projects, resolve)
+    # The list is in the order of `PROJECT_ORDER`, so the block takes its place in it, with a table on either side where there is one.
+    first = projects.rows.index(waiting[0])
+
+    def table(rows: tuple[tuple[str, ...], ...]) -> str:
+        return _table(Table(projects.headers, projects.aligns, rows), resolve) if rows else ""
+
+    summary = f"<summary>{PROJECT_STATUS['not-started']} ({len(waiting)})</summary>"
+    block = f'<details class="fold" open>{summary}{table(waiting)}</details>'
+    return table(projects.rows[:first]) + block + table(projects.rows[first + len(waiting) :])
 
 
 def _crumbs(document: Document, title: str, base: str, lineages: dict[str, Lineage], root: Path, topic_groups: set[str]) -> dict | None:
@@ -600,8 +632,8 @@ def build(root: Path = ROOT, stamp: Stamp | None = None, draw: Draw = diagrams.d
         if document.source == "docs/projects/README.md":
             if {"project-list", "guide"} & {h.id for h in page.headings}:
                 raise ValueError(f"{document.source} has a heading with the anchor of the project list or of the guide")
-            table = _table(_project_list(documents), resolve)
-            lead = f'<section id="project-list"><h2>The projects</h2>{table}</section>\n<h2 id="guide">Guide to projects</h2>\n'
+            listing = _folded(_project_list(documents), resolve)
+            lead = f'<section id="project-list"><h2>The projects</h2>{listing}</section>\n<h2 id="guide">Guide to projects</h2>\n'
             headings = (Heading(2, "project-list", "The projects"), Heading(2, "guide", "Guide to projects"), *page.headings)
         contents = ""
         if document.source in TABBED_DOCUMENTS:

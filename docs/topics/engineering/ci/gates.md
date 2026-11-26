@@ -1,196 +1,142 @@
 # CI Gates
 
-The regression checks and gates in `.github/workflows/pr-checks.yml` that look at one kind of change: deploy ordering, the secret and app catalogs, compose and `docker_container` hardening, Molecule coverage, booting compose apps and Dockerfile builds. Image tags and pinned release checksums have their own pages, [`image-tag-check.md`](image-tag-check.md) and [`release-checksum-check.md`](release-checksum-check.md). How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
+The regression checks and gates in `.github/workflows/pr-checks.yml` that each look at one kind of change. Image tags and pinned release checksums have their own pages, [`image-tag-check.md`](image-tag-check.md) and [`release-checksum-check.md`](release-checksum-check.md). How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
+
+## Gates at a glance
+
+| Gate | Runs as |
+| :--- | :--- |
+| [Deploy ordering](#deploy-ordering-check) | the `deploy-ordering-check` job |
+| [Secret catalog rules](#secret-catalog-rules) | the `check-secret-catalog` hook |
+| [App catalog rules](#app-catalog-rules) | the `check-app-catalog` hook |
+| [Compose hardening rules](#compose-hardening-rules) | the `check-compose-hardening` hook |
+| [docker_container rules](#docker_container-rules) | the `check-docker-container-hardening` hook |
+| [Flow list rules](#flow-list-rules) | the `check-flow-list` hook |
+| [Molecule coverage](#molecule-coverage-gate) | the `molecule-coverage` job |
+| [Compose boot-test](#compose-boot-test) | the `compose-boot-test` job, and `compose-syntax-check` for excluded apps |
+| [Dockerfile changes](#dockerfile-changes) | the `check-image-pins`, `check-molecule-image-vars` and `check-image-digests` hooks, and the `dockerfile-build-check` job |
+
+The `pre-commit-checks` job runs every hook on every pull request. To run one hook locally, from the repository root with the [Python environment](../../deploy/controller-setup.md#python-environment) activated:
+
+```sh
+hook=check-app-catalog
+pre-commit run "$hook" --all-files
+```
+
+Each rule check prints every violation with what it is about and the rule, and fails on any. Each has a test for each of its rules under `tools/tests/`, most of which also run it over the real files.
 
 ## Deploy-ordering-check
 
-Regression coverage for `ansible_host` (`inventory.yaml`) resolving
-through a role-generated fact (`secrets_generated`), a chain nothing
-else in CI exercises — every other check either bypasses `ansible_host` resolution entirely
-or tests the `secrets` role against a synthetic inventory that never
-touches the real one.
+Regression coverage for `ansible_host` resolving through a fact a role generates (`secrets_generated`). Nothing else in CI exercises that chain: other checks bypass `ansible_host` resolution or test the `secrets` role against a synthetic inventory.
 
-Runs the **real** `deploy.yaml` (not a copy) against
-`inventory/ci-deploy-ordering-inventory.yaml`, a purpose-built inventory
-that mirrors `inventory.yaml`'s `ansible_host` → `host_domain` →
-`main_domain` → `secrets_generated` chain and its
-`managed_hosts`/`controller` group split, while staying CI-safe:
-`ansible_connection: local` everywhere, and `--tags` matching nothing
-real so provisioning never runs — only secrets generation/propagation
-and the `ansible_host` resolution it gates.
+| Run | What it does | It fails when |
+| :--- | :--- | :--- |
+| `deploy` | The real `deploy.yaml` against `inventory/ci-deploy-ordering-inventory.yaml`, with `--tags` that match nothing, so only secrets generation and the resolution it gates happen | the play fails |
+| `restore` | `bootstrap-secrets.yaml` and `restore.yaml` in one invocation, as [`restore.md`](../../disaster-recovery/restore.md) describes, with an archive that does not exist | anything other than the archive-not-found failure happens, a failure to resolve `ansible_host` above all |
 
-`ansible/inventory/**` in the trigger list covers `inventory.yaml` itself
-plus `group_vars/all/main.yaml`/`secret_catalog.yaml` — deliberately
-broad, since either is the shape of change that caused the original
-regression. `pyproject.toml`/`uv.lock` are in the trigger list too: this
-job runs the real playbooks through the uv-managed `ansible-core`, so an
-`ansible-core` bump is exercised here as well as by
-[Molecule](change-scoping.md#molecule-watch-sets).
+The CI inventory mirrors `inventory.yaml`'s `ansible_host` → `host_domain` → `main_domain` → `secrets_generated` chain and its `managed_hosts`/`controller` split, with `ansible_connection: local` everywhere. The restore run covers the two-file invocation only; `restore`'s own validation is [Molecule's](../../testing/molecule-testing.md). Both runs and the verdict are [`deploy_ordering.py`](../../../../tools/ci/gates/deploy_ordering.py).
 
-Both runs and the verdict on the second are
-[`tools/ci/gates/deploy_ordering.py`](../../../../tools/ci/gates/deploy_ordering.py),
-run as `python -m ci.gates.deploy_ordering deploy|restore` from `tools/`;
-`tools/tests/ci/gates/` tests the verdict against sample logs and checks
-that the expected failure message is still the `restore` role's own.
+The job is triggered by the `deploy_ordering` filter. It includes all of `ansible/inventory/**`, since a catalog or `group_vars` change is the kind that broke this, and `pyproject.toml` and `uv.lock`, so an `ansible-core` bump is exercised here too.
 
-`restore.yaml` gets a second, separate step: it can't import
-`bootstrap-secrets.yaml` as a leading play the way `deploy.yaml` does
-(see [`restore.md`](../../disaster-recovery/restore.md)), so this
-step is the regression check for that two-file invocation pattern
-specifically — not for `restore`'s own validation logic, which
-[Molecule](../../testing/molecule-testing.md) already covers. It deliberately points
-at a nonexistent archive and asserts the failure is the expected
-archive-not-found message, not an `ansible_host`/`secrets_generated`
-resolution failure (that signature means the regression is back).
+Two [fixtures](../../../../tools/ci/fixtures) run first, both reading the real `secret_catalog.yaml`:
 
-Two fixtures run first, both in
-[`tools/ci/fixtures/`](../../../../tools/ci/fixtures) and both read from the real
-`secret_catalog.yaml` at run time, so neither can drift from it:
+- `preseed_manual_secrets` writes a throwaway file under `ansible/files/secrets/` for each `store: controller_file` secret the operator would enter (empty for an `allow_blank` entry). It refuses a catalog key that is not a plain file name.
+- `file_cache_catalog` writes only the `store: controller_file` entries to the catalog override both runs load, because the job has no OpenBao or step-ca. It fails if `main-domain`, which the ordering chain resolves, is not one of them. Reaching OpenBao is covered by the `secrets` role's `vault_backed` and `rotate_secret` scenarios.
 
-- `preseed_manual_secrets` writes every `source: manual` secret kept in the
-  file cache (the entries with `store: controller_file`) as a plain file under
-  `ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py`
-  produces — an empty file for an `allow_blank` entry, `ci-dummy-<key>`
-  otherwise. Throwaway CI values, same non-secret status as
-  `ci-inventory/group_vars/all/ci_dummy_vars.yaml`. A catalog key that isn't
-  a plain file name is refused, since it becomes a path.
-- `file_cache_catalog` writes the catalog's `store: controller_file` entries, unchanged,
-  to `/tmp/ci-secret-catalog-no-vault.json`, which both playbook runs load
-  with `-e @`. This job has no OpenBao or step-ca target, so an entry stored
-  in OpenBao would make `vault_login.yaml` run and fail; Vault reachability
-  is Molecule's job (`vault_backed`, `rotate_secret`). The ordering chain
-  resolves `main-domain` from the file cache and reads no other secret, so
-  the file-cache entries are all the job needs, and the fixture fails if
-  `main-domain` isn't one of them. The output path is fixed in the workflow
-  step and in `deploy_ordering.py`, and a test holds the two equal.
-
-`tools/tests/ci/fixtures/` covers both, including a run over the real
-catalog, and checks the job's steps run them before the playbooks.
+Do not run these fixtures on the controller: they write into the real secret cache directory.
 
 ## Secret catalog rules
 
-`ci.gates.secret_catalog_rules` checks every entry in
-`secret_catalog.yaml` against the rules the file's header comment states:
-kebab-case names and no unknown keys (so the old `format` and
-`vault_scope` fields are refused); `source` one of `hex`, `uuid4` or
-`manual`; `store` stated on every entry as `openbao` or `controller_file`;
-`length` on `hex` entries and nowhere else; a `scope`, of one of the three
-shapes the header names, on every `store: openbao` entry and on no
-`controller_file` entry; `store: openbao` on every `hex` and `uuid4` entry; a
-`description` on every `manual` entry; and `allow_blank` and `sensitive` only
-on `manual` entries, as booleans. Each violation is printed
-with the entry and the rule, and any violation fails the check.
+`ci.gates.secret_catalog_rules` holds every `secret_catalog.yaml` entry to the rules in that file's header comment. Without it a wrong combination surfaces at deploy or rotation time, or not at all: the `secrets` role skips a `hex` entry stored outside OpenBao without an error.
 
-It runs as the `check-secret-catalog` pre-commit hook, so `pre-commit-checks`
-runs it on every PR, and the hook needs only PyYAML. A wrong combination
-would otherwise surface at deploy or rotation time: the `secrets` role skips
-a `hex` entry stored anywhere but OpenBao without an error.
-`tools/tests/ci/gates/test_secret_catalog_rules.py` has a case for each rule
-and runs the check over the real catalog.
+| Key | Rule |
+| :--- | :--- |
+| entry name | kebab-case |
+| any | no unknown key |
+| `source` | `hex`, `uuid4` or `manual` |
+| `store` | stated on every entry, `openbao` or `controller_file`; always `openbao` for `hex` and `uuid4` |
+| `length` | on `hex` entries, and nowhere else |
+| `scope` | on every `store: openbao` entry, in one of the header's shapes, and on no `controller_file` entry |
+| `description` | on every `manual` entry |
+| `allow_blank`, `sensitive` | only on `manual` entries, as booleans |
 
 ## App catalog rules
 
-`ci.gates.app_catalog_rules` checks the invariants of `app_catalog.yaml` that a merge cannot. Every route has an `upstream`. A `backup:` block names at least one volume (an app with nothing to back up leaves the block out), and every name in `backup.volumes` is a volume the app's `volumes` declares. Each backup setting keeps its shape: `cloud_targets` a list of names, `retention_days` a positive integer, `compression` one of `gz`, `zst` or `none`, `stop_during_backup` a boolean, `cron` a non-empty string. A key that is not a backup setting is refused with the nearest valid one (`retention_day` names `retention_days`), because the plan ignores it without a word; this holds for an app's block, for a host's own `backup:` override in `compose_apps` (which keeps the same shapes, and may empty `volumes` to switch an app's backup off on that host) and for `backup_defaults`. A route map under the old `caddy` key and cloud targets under the old `backup.extra_cloud_targets` key are refused, in any of those places, because both are ignored silently otherwise. A route may set `auth: false` only if the module's `OPEN_ROUTES` lists it, by app and route id, with the reason it is safe to leave without Tinyauth; the route then relies on the app's own authentication, so a new entry is a security review. A listed route that is gone or gated again fails as stale, so the list cannot outlive the exposure it excuses. A `restart_after` is a list of other apps of the catalog, never the app itself. A `recovery_tier` is `1` or left out. A `doc` is the repo-relative path of a markdown file under `docs/topics/` (the app's service record, [ADR 0100](../../../decisions/0100-recording-how-a-system-is-integrated/revision-000.md)); that the file exists and holds its sections is checked by the [docs drift check](../../documentation/doc-checks.md#docs-drift-check). No app name appears twice (the loader refuses a repeated name instead of keeping the last). A `volumes`, `backup` or route entry of the wrong shape is reported as such, not left to crash the check.
+`ci.gates.app_catalog_rules` checks what merging a host's entry over `app_catalog.yaml` cannot.
 
-It also checks the catalog against the inventory, read as plain YAML with no value rendered ([ADR 0068 (Backup defaults)](../../../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)). `backup_defaults` supplies every setting in its shape. Every cloud target an app or `backup_defaults` names is a key of `cloud_sync_targets` in `host_vars/storage.yaml`. Every managed host that runs a backed-up app (Ansible's `backup_hosts`, derived here from each host's `compose_apps` and the catalog) has its own `seaweedfs-s3-access-key-<host>` and `seaweedfs-s3-secret-key-<host>` in `secret_catalog.yaml`, scoped to `hosts/<host>`, and its own `seaweedfs_s3_access_key` and `seaweedfs_s3_secret_key` host variables taken from them. Without these, a misspelt target or a host's first backed-up app would surface at deploy time as an undefined variable. Each violation is printed with the app or host and the rule, and any violation fails the check.
+| About | Rule |
+| :--- | :--- |
+| app names | none appears twice |
+| `routes` | each has an `upstream`; the old `caddy` key is refused |
+| `auth: false` | only for a route listed, with its reason, in `OPEN_ROUTES` |
+| `backup` block | names at least one volume, each declared in `volumes`; an app with nothing to back up has no block |
+| `cloud_targets` | list of names |
+| `retention_days` | positive integer |
+| `compression` | `gz`, `zst` or `none` |
+| `stop_during_backup` | boolean |
+| `cron` | non-empty string |
+| unknown backup key | refused, with the nearest valid one; the old `backup.extra_cloud_targets` is refused too |
+| `restart_after` | a list of other apps in the catalog |
+| `recovery_tier` | `1` or absent |
+| `doc` | a markdown path under `docs/topics/`, the app's [service record](../../../decisions/0100-recording-how-a-system-is-integrated/revision-000.md); that it exists with its sections is the [docs drift check's](../../documentation/doc-checks.md#docs-drift-check) |
+| wrong shapes | a `volumes`, `backup` or route entry of the wrong shape is reported, not left to crash the check |
 
-It runs as the `check-app-catalog` pre-commit hook, so `pre-commit-checks` runs it on every PR; locally the hook runs when the catalog or any inventory file it reads changes, and it needs only PyYAML. `tools/tests/ci/gates/test_app_catalog_rules.py` has a case for each rule and runs the check over the real catalog and inventory. Because the hook cannot import Ansible code, two tests in `ansible/tests/test_backup_plan.py` keep its restatements honest: its list of backup settings equals the `backup_plan` filter's, and the backup hosts it derives equal the `backup_hosts` Ansible derives from the real inventory. `ansible/tests/test_backup_plan_invariants.py` fails if a role, template or playbook reads an app's `backup` block or `backup_defaults` instead of `backup_plan`, or if a variable or key that ADR 0068 retired is used again.
+The backup-setting rules hold in an app's block, in a host's own `backup:` override in `compose_apps` (which may also empty `volumes`, switching that app's backup off on the host) and in `backup_defaults`. A new `OPEN_ROUTES` entry is a security review, since the route then relies on the app's own authentication; an entry whose route is gone or gated again fails as stale.
+
+It also checks the catalog against the inventory, read as plain YAML ([ADR 0068 (Backup defaults)](../../../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)):
+
+- `backup_defaults` supplies every setting.
+- Every cloud target named is a key of `cloud_sync_targets` in `host_vars/storage.yaml`.
+- Every managed host running a backed-up app has its own `seaweedfs-s3-access-key-<host>` and `seaweedfs-s3-secret-key-<host>` in the secret catalog, scoped to `hosts/<host>`, and the `seaweedfs_s3_access_key` and `seaweedfs_s3_secret_key` host variables taken from them.
+
+The hook runs when the catalog or an inventory file it reads changes. It cannot import Ansible code, so `ansible/tests/test_backup_plan.py` holds its list of backup settings and its derivation of backup hosts equal to Ansible's. `ansible/tests/test_backup_plan_invariants.py` fails if a role, template or playbook reads an app's `backup` block or `backup_defaults` instead of `backup_plan`, or uses a name ADR 0068 retired.
 
 ## Compose hardening rules
 
-`ci.gates.compose_hardening_rules` keeps the baseline of [container hardening](../../deploy/container-hardening.md) exact. Every service in a production compose file sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]` (the `=true` spelling counts too). Anything that widens a container beyond that is an exception and needs an entry, with its reason, in `EXCEPTIONS` in the module: each `cap_add` capability, `privileged`, a host `network_mode`, `pid`, `ipc`, `uts` or `userns_mode`, `devices`, a mount of the Docker socket (short or long form), and any `security_opt` value other than the one above. An entry is keyed by file, service and setting (`cap_add:CHOWN`, `network_mode:host`, `docker-socket`), so a capability added to a service that already has others is a new line to review, and an exception for one service never covers another. An entry that nothing uses any more fails the check, so the list cannot keep a reason for a setting that is gone.
+`ci.gates.compose_hardening_rules` keeps the [container hardening](../../deploy/container-hardening.md) baseline. Every service in a production compose file sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]` (`=true` counts too). Anything wider needs an entry with its reason in the module's `EXCEPTIONS`: each `cap_add` capability, `privileged`, a host `network_mode`, `pid`, `ipc`, `uts` or `userns_mode`, `devices`, a Docker socket mount, and any other `security_opt`. An entry is keyed by file, service and setting (`cap_add:CHOWN`, `network_mode:host`, `docker-socket`), and one nothing uses any more fails.
 
-It reads the compose files under `docker/` and the compose templates of Ansible roles; Molecule fixtures are test platforms and are left out. Jinja is read as text: `{{ ... }}` becomes a placeholder and a line holding only a `{% ... %}` statement is dropped, so the body of an `if` or `for` is read once. A statement that shares a line with other text is refused, since dropping it would change the YAML. A file with `include`, and a service with `extends`, are refused too: their settings live somewhere the check does not read. A repeated key is refused rather than keeping the last one.
-
-It runs as the `check-compose-hardening` pre-commit hook, so `pre-commit-checks` runs it on every PR, and the hook needs only PyYAML. `tools/tests/ci/gates/test_compose_hardening_rules.py` has a case for each rule and runs the check over the real files, and checks that every entry in `EXCEPTIONS` carries a reason and names a file in scope.
-
-Not covered: containers that a systemd unit starts for one job. They are not compose files, so their hardening is still reviewed by hand. The helper containers that an Ansible task starts are checked by the [docker_container rules](#docker_container-rules) below.
+| Scope | Detail |
+| :--- | :--- |
+| Read | compose files under `docker/` and compose templates of Ansible roles |
+| Not read | Molecule fixtures |
+| Jinja | read as text: `{{ ... }}` becomes a placeholder, and a line holding only `{% ... %}` is dropped, so an `if` or `for` body is read once |
+| Refused | a statement sharing a line with other text, `include` in a file, `extends` in a service, a repeated key |
+| Not covered | containers a systemd unit starts for one job, reviewed by hand; containers an Ansible task starts, which the next check reads |
 
 ## docker_container rules
 
-`ci.gates.docker_container_rules` holds a container that Ansible starts with `community.docker.docker_container` to the same baseline as a compose service. The task sets `cap_drop: [ALL]` (exactly that list) and `security_opts: [no-new-privileges:true]` (the `=true` spelling counts too). Anything wider needs an entry, with its reason, in `EXCEPTIONS` in the module, named as the compose gate names it: `cap_add:<CAPABILITY>` for each entry of `capabilities`, `privileged`, `network_mode:host`, `pid:host`, `ipc:host`, `uts:host` or `userns_mode:host`, `devices`, `docker-socket` for a `volumes` entry or a `mounts` source that names `docker.sock`, and `security_opt:<value>` for any other `security_opts` value. An entry is keyed by file, task name and setting, with the task name written as it is in the file, Jinja included. An entry that nothing uses any more fails the check.
+`ci.gates.docker_container_rules` holds a container started with `community.docker.docker_container` to the same baseline: `cap_drop: [ALL]` exactly and `security_opts: [no-new-privileges:true]`. Exceptions are in the module's `EXCEPTIONS`, keyed by file, task name (as written, Jinja included) and setting, and a stale one fails. The settings are named as for compose; `capabilities` entries are `cap_add:<CAPABILITY>`, and `docker-socket` covers a `volumes` entry or `mounts` source naming `docker.sock`.
 
-It reads the playbooks under `ansible/playbooks/` and the tasks and handlers of every role except `molecule_helpers`, whose containers are Molecule test targets; Molecule scenarios are left out too. The files are read as YAML, at any depth, so a task inside `block`, `rescue` or `always` is found. A task whose `state` is `absent` creates nothing and is skipped. `docker_container_exec` and `docker_container_info` create nothing either and are not read. A tag such as `!vault` is accepted and its value read as text, and a repeated key is refused.
-
-Some shapes are refused because the check cannot judge them:
-
-- `cap_drop`, `capabilities` or `security_opts` that is not a literal list of names, or a `privileged`, `devices`, `volumes`, `mounts`, host-namespace or `state` value that is only a Jinja expression. Write the literal value.
-- A task without a `name`, and a second checked task in a file with the same name, since they would share an entry.
-- A `command` or `shell` task that runs `docker run` (a comment does not count), which would start a container outside the check. Use the module.
-
-It runs as the `check-docker-container-hardening` pre-commit hook, so `pre-commit-checks` runs it on every PR, and the hook needs only PyYAML. `tools/tests/ci/gates/test_docker_container_rules.py` has a case for each rule, runs the check over the real files, and removes each entry of `EXCEPTIONS` in turn to show that the real tree then fails.
-
-Not covered: containers started through `command`, `shell` or `script` other than by `docker run`, and a `docker_compose_v2` task, whose containers come from a compose template the compose gate reads.
+| Scope | Detail |
+| :--- | :--- |
+| Read | playbooks, and every role's tasks and handlers, at any depth (`block`, `rescue`, `always`) |
+| Not read | `molecule_helpers` and Molecule scenarios; `state: absent` tasks; `docker_container_exec` and `docker_container_info` |
+| Tolerated | a tag such as `!vault`, read as text |
+| Refused | a repeated key; a task without a `name`, or two checked tasks of one name in a file; a `command` or `shell` task running `docker run` |
+| Refused as unjudgeable | `cap_drop`, `capabilities` or `security_opts` that is not a literal list; `privileged`, `devices`, `volumes`, `mounts`, a host namespace or `state` given only as a Jinja expression |
+| Not covered | containers started by `command`, `shell` or `script` other than with `docker run`; `docker_compose_v2` tasks, whose compose template the compose check reads |
 
 ## Flow list rules
 
-`network_checks.rules` checks the flow list in `tools/network_checks/flows.yaml`
-([ADR 0094](../../../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md)).
-The loader, `network_checks.flow_list`, refuses a file with an unknown or
-repeated key, a zone whose canary is not inside its subnet, a flow with no
-`kind`, `expect` or port, a deny with no `control`, an allow with one, and a
-`query` anywhere but a `dns` flow, and names every problem it finds. The
-rules then report a repeated flow id, a flow from a zone nobody declared, a
-zone with no allow flow from its canary, a control that is not an allow flow
-or tries another destination, port or kind, and an ordered pair of zones that
-no flow covers. Each violation is printed with the flow or zone and the rule,
-and any violation fails the check.
-
-It runs as the `check-flow-list` pre-commit hook, so `pre-commit-checks` runs
-it on every PR, and the hook needs only PyYAML.
-`tools/tests/network_checks/` has a case for each shape check and each rule and
-loads the committed list. [`network-boundary-checks.md`](../../infra/network-boundary-checks.md)
-describes the list.
+`network_checks.rules` checks the flow list in `tools/network_checks/flows.yaml` ([ADR 0094](../../../decisions/0094-showing-the-network-boundary-behaves-as-declared/revision-000.md)). What it and the loader enforce is in [`network-boundary-checks.md`](../../infra/network-boundary-checks.md#what-the-loader-and-rules-enforce).
 
 ## Molecule coverage gate
 
-Each `molecule` leg packs the coverage data its scenarios wrote and uploads
-it. The `molecule-coverage` job then unpacks every leg's data into one
-directory, regenerates each tested role's task inventory
-(`molecule_cov.cli inventory` - its output is gitignored, tied to the
-checkout's absolute paths, so not committed) and runs
-`molecule_cov.cli report --thresholds-file thresholds.yaml` for each. A sharded
-role's legs write different scenarios' files, so unpacking them together gives
-the report the whole role's data. The paths are the same on the legs and in
-that job because both check the repository out at the same workspace path;
-the data joins on the absolute task path.
-Per-role, not one global number, since roles aren't structurally
-comparable - see
-[`molecule-coverage/README.md`](../../../../ansible/molecule-coverage/README.md)
-for what the report actually measures.
+Each `molecule` leg uploads the coverage data its scenarios wrote. The `molecule-coverage` job unpacks all of it into one directory, regenerates each tested role's task inventory (gitignored, since it holds absolute paths) and reports each role against its floor in [`thresholds.yaml`](../../../../ansible/molecule-coverage/thresholds.yaml). A sharded role's legs write different scenarios' files, so together they give the whole role; the data joins on the absolute task path, which matches because every job checks out at the same workspace path. What the report measures, and how to run it locally, is in [`molecule-coverage/README.md`](../../../../ansible/molecule-coverage/README.md).
 
-A role with no entry in `thresholds.yaml` fails the check (exit 2, not a
-silent pass) - a new role needs a deliberate floor, not an inherited
-default. Every floor is taken from a real run;
-the below-100% floors are legitimate, understood gaps rather than
-untested code (see [`thresholds.yaml`](../../../../ansible/molecule-coverage/thresholds.yaml)
-for the current values):
+Floors are per role, taken from a real run. A role with no entry fails the job, so a new role gets a deliberate floor. A floor below 100% is an understood gap:
 
-- `apt` - the reboot-if-required task is untested by design:
-  `/var/run/reboot-required` never appears in the container fixture,
-  and a scenario that triggers `ansible.builtin.reboot` would reboot the
-  underlying Docker host's kernel (moby/moby#21929). Closing it needs
-  isolation Docker-based Molecule doesn't provide, such as a real VM.
-- `bind9` - the resolv.conf-upstream task needs a pre-existing
-  non-upstream resolv.conf to be worth simulating.
-- `openbao` - the failure task of the wait for OpenBao to answer needs an
-  OpenBao that never does, and the role's 20 retries 5 seconds apart cannot be
-  shortened from a scenario, so it would cost over 100 seconds.
-- `openbao_cli` - the failure task for a native CLI whose version differs from
-  the server's needs a server at a version other than the one the role
-  installs, which no scenario runs.
-- `restore` - the interactive confirmation prompt is bypassed on
-  purpose in every scenario, to test the rest of the role
-  non-interactively.
-- `secrets` - the Vault CAS re-read-after-losing-a-create-race task
-  needs a genuine concurrent write conflict to trigger, which no single
-  Molecule scenario can engineer deliberately.
+| Role | Not covered | Why |
+| :--- | :--- | :--- |
+| `apt` | the reboot-if-required task | A privileged container's `reboot` reboots the Docker host's own kernel (moby/moby#21929). Covering it needs isolation such as a real VM. |
+| `bind9` | the resolv.conf upstream task | It needs an existing non-upstream `resolv.conf`, not worth simulating. |
+| `openbao` | the failure task of the wait for OpenBao | It needs an OpenBao that never answers, and a scenario cannot shorten the role's retries. |
+| `openbao_cli` | the failure on a version mismatch between CLI and server | No scenario runs a server at another version. |
+| `restore` | the interactive confirmation prompt | Every scenario bypasses it to run non-interactively. |
 
 ## Compose boot-test
 
-Shared logic lives in `_compose-boot-test.yml` (`workflow_call`), used
-by both `pr-checks.yml` (changed apps only) and `boot-test-all.yml`
-(every app, `workflow_dispatch` only — a manual "test everything" run).
+`_compose-boot-test.yml` is the shared job, called by `pr-checks.yml` for changed apps and by `boot-test-all.yml` for every app (manual only).
 
 ```mermaid
 flowchart LR
@@ -204,185 +150,80 @@ flowchart LR
     logs --> down
 ```
 
-Per app: seeds it via the real `compose` role
-(`ansible/playbooks/ci_boot_test.yaml`, against `ci-inventory/` rather
-than the real `inventory.yaml`, since the latter's `all:vars` assumes a
-real remote host), first applying the `docker` role's daemon defaults
-to the runner's Docker (see [`docker-daemon.md`](../../deploy/docker-daemon.md)),
-so the container boots under the same `no-new-privileges` default as
-production, builds the app's `Dockerfile` if it has one (see
-[Dockerfile changes](#dockerfile-changes)), brings the stack up with
-`docker compose`, waits for
-a healthy state (or that it stayed running, if no healthcheck is
-defined), dumps logs on failure, then tears down. The wait is
-[`tools/ci/gates/compose_health.py`](../../../../tools/ci/gates/compose_health.py):
-per service, in order, it polls a defined healthcheck (a fixed number of
-polls, a fixed interval apart; `unhealthy` fails at once) or, with none, waits a 10s grace period
-and requires the container still be running. Every failure prints that
-container's logs, and each container of a scaled service is checked.
-`tools/tests/ci/gates/` drives it against a fake `docker`.
+Seeding uses the real `compose` role (`ansible/playbooks/ci_boot_test.yaml` against `ci-inventory/`, since the real inventory assumes a remote host), after applying the `docker` role's [daemon defaults](../../deploy/docker-daemon.md) so containers run under production's `no-new-privileges`. The Dockerfile step is [below](#dockerfile-changes). [`compose_health.py`](../../../../tools/ci/gates/compose_health.py) takes each service in turn: with a healthcheck it polls a fixed number of times and fails at once on `unhealthy`; without one the container must still be running after a grace period. It checks every container of a scaled service and prints the logs of a failing one.
 
-**Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
-workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
+`lldap` also gets a real certificate from a throwaway `smallstep/step-ca`, by [`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh), with the same `step ca certificate` call `step_ca_cert` makes. A change to that script, `_compose-boot-test.yml`, `ci_boot_test.yaml` or `ansible/ci-inventory/` queues the `lldap` boot test.
+
+### Excluded apps
+
+Listed in `.github/compose-boot-test-exclusions.txt`:
 
 | App | Why not boot-tested | Covered by |
 | :--- | :--- | :--- |
-| `bind9`, `caddy` | Molecule gives stronger real-protocol assertions than a healthcheck poll. | Their own role's scenario. |
-| `seaweedfs` | Same. | `seaweedfs_bucket`'s and `backup_agent`'s scenarios (see [`#molecule-watch-sets`](change-scoping.md#molecule-watch-sets)). |
-| `tinyauth` | Needs an `lldap` host to resolve, which per-app isolation can't provide. | `tinyauth/molecule/default`: a throwaway lldap target, `lldap_bootstrap` against it (see [`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then tinyauth reaching a healthy, LDAP-bound state. |
-| `molecule-dind` | Not a deployed compose app: a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no `compose.yaml`/`.j2`. | Nothing to run. |
-| `openbao` | Can't boot in isolation (below). | `step_ca_cert/molecule/signal_chown` and `openbao/molecule/data_chown`: both deploy the real `compose.yaml.j2` through `roles/openbao`, the first on cold volumes and the second over a volume it does not own. `compose-syntax-check` skips the `.j2`, so those scenarios are the only check of the file. |
+| `bind9`, `caddy` | Molecule asserts the real protocol, which a health poll does not. | Their role's scenarios. |
+| `seaweedfs` | Same. | The `seaweedfs_bucket` and `backup_agent` scenarios ([watch sets](change-scoping.md#molecule-watch-sets)). |
+| `tinyauth` | It needs an `lldap` to resolve, which per-app isolation cannot give. | `tinyauth/default`: a real lldap, bootstrapped ([`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then tinyauth healthy and bound. |
+| `molecule-dind` | An image for Molecule, with no compose file. | Nothing to run. |
+| `openbao` | It cannot boot in isolation (below). | `step_ca_cert/signal_chown` and `openbao/data_chown`, which deploy the real `compose.yaml.j2` through `roles/openbao`. These are the only checks of that file. |
 
-`openbao` fails in isolation for three reasons, each enough alone. Its data
-volume is chowned to the image's non-root user by `roles/openbao` before the
-container starts, which boot-test seeding doesn't do, so the server dies
-opening `vault.db`. Its listener needs a leaf cert in the `certs` volume, and
-the workflow issues one only for `lldap`. And its healthcheck, `bao status`,
-exits non-zero while OpenBao is sealed or uninitialized (see the comment on it
-in `docker/openbao/compose.yaml.j2`), which a fresh volume always is. It is
-also a self-managed app (`compose_self_managed_apps`).
+`openbao` fails in isolation for three reasons, each enough alone:
 
-`lldap` is not excluded: `_compose-boot-test.yml` issues it a real cert from a
-throwaway `smallstep/step-ca` container (stock `DOCKER_STEPCA_INIT_*`
-auto-init) using the same `step ca certificate` call `step_ca_cert` runs; see
-[`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh).
-The CA and its password exist only for the job. A change to that script,
-`_compose-boot-test.yml`, `ci_boot_test.yaml` or `ansible/ci-inventory/` queues
-the `lldap` boot test, since `lldap` is the app that runs all four.
+1. `roles/openbao` chowns its data volume to the image's non-root user before it starts; boot-test seeding does not.
+2. Its listener needs a leaf certificate, which the workflow issues only for `lldap`.
+3. Its healthcheck, `bao status`, fails while OpenBao is sealed or uninitialized, as a fresh volume is.
 
-Excluded apps still get `compose-syntax-check`'s weaker
-`docker compose config --quiet` validation, so nothing goes fully
-unchecked. That job runs only when `detect-changes` reports one of their
-compose files (`excluded_compose`), and checks each changed `compose*.yaml` under an excluded
-app (not the `.j2` templates, which aren't valid compose until rendered),
-runs every file even after one fails, and stubs an empty `.env` where an
-explicit `env_file:` needs one.
+Excluded apps still get `compose-syntax-check`: `docker compose config --quiet` on each changed `compose*.yaml` of theirs (not `.j2` templates), running every file even after one fails, with an empty `.env` stubbed where an `env_file:` needs one.
 
-`tools/ci/scope/compose_apps.py` is the only code that reads the exclusion
-list, for three callers: `detect-changes` (`changed`, which also produces
-the Dockerfile list), `boot-test-all.yml` (`all`) and `compose-syntax-check`
-(`syntax-check`). Names are matched exactly, and
-`tools/tests/ci/scope/` asserts that every exclusion names a real
-`docker/` directory and that every directory is either a compose app or
-excluded.
+[`compose_apps.py`](../../../../tools/ci/scope/compose_apps.py) is the only reader of the exclusion list (`changed`, `all` and `syntax-check`). Names match exactly, and a test holds that every exclusion names a real `docker/` directory.
 
 ## Dockerfile changes
 
-The images built from `docker/<app>/Dockerfile` are published only after
-merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
-`build-gatus-image.yml`, `build-molecule-dind-image.yml`), and compose
-files pin the published tag. A PR's boot test therefore builds a changed
-Dockerfile locally, since the published image would be the old one or not
-exist yet. Each of these workflows runs on a push to
-`main` that changes its Dockerfile, weekly, and on demand. The push filter is
-`on.push.paths`, so a merge that touches no Dockerfile starts no run;
-`molecule-dind`'s also lists the `docker` role's tasks file its Dockerfile
-mirrors.
+An image built from `docker/<app>/Dockerfile` is published only after merge, by its `build-*-image.yml` workflow, and compose files pin the published tag. Each workflow runs on a push to `main` that changes its Dockerfile, weekly, and on demand; `molecule-dind`'s also watches the `docker` role's tasks file that its Dockerfile mirrors.
 
-Only `main` publishes an image. A manual run builds from the branch it was
-started on, so the build job carries `if: github.ref == 'refs/heads/main'` and a
-run from `maintenance`, `develop` or any other branch skips it. A branch cannot
-be trusted to keep that line, since whoever pushes there can edit the workflow;
-the part it cannot change is the source ref in the attestation each build makes,
-which the [provenance check](image-provenance-check.md#tiers) requires to be
-`refs/heads/main` for an image built here. A pull request
-tests a changed Dockerfile without publishing it: the boot test and
-`dockerfile-build-check` build it on the runner.
-`tools/tests/ci/branches/test_image_publishing.py` fails for any workflow whose
-job pushes an image without that condition, or that a pull request or a branch
-other than `main` can start.
+Only `main` publishes: the build job has `if: github.ref == 'refs/heads/main'`. Whoever pushes a branch can edit that line there, so the [provenance check](image-provenance-check.md#tiers) also requires the build's attestation to name `refs/heads/main`. `tools/tests/ci/branches/test_image_publishing.py` fails for a workflow that pushes an image without the condition, or that a pull request or another branch can start.
 
-Three pieces cover this. All of them are stdlib-only Python that
-runs on the runner's own `python3` (a test enforces that), so the jobs
-that use them install nothing — notably the `build-*-image.yml` jobs,
-which hold a package-write token.
+[`registry.py`](../../../../tools/ci/images/registry.py) is the one place each image's published name and tag rule are written. The build workflows ask it for their tags.
 
-- **The image registry**, `tools/ci/images/registry.py`, is the one place
-  each image's published name and tag rule are written down: `caddy` is
-  published as `caddy-digitalocean` and tagged with the final stage's
-  Caddy version, `wastebin` with the upstream wastebin version, `gatus`
-  with the upstream Gatus version less its leading `v` (upstream tags
-  `v5.37.0`; the image is published as `5.37.0`, and a `v` left on a
-  compose pin fails `check-pins`) and `molecule-dind` as `latest`. The
-  four `build-*-image.yml` workflows ask it for their `tags:`
-  (`python3 -m ci.images.registry tags <image>`) instead of grepping the
-  Dockerfile themselves. Unlike the greps it replaced, it fails unless the Dockerfile has exactly one
-  match and the tag looks like a version. `check-pins` (the
-  `check-image-pins` pre-commit hook, so it runs in `pre-commit-checks`
-  on every PR) fails when a compose file pins a `ghcr.io/wenenhoe` tag
-  newer than the one the Dockerfile will publish, a Molecule scenario
-  names an unpublished tag, an image has no entry, or a
-  `docker/<app>/Dockerfile` has none. A new tag exists only after the
-  merge that publishes it, so a Renovate bump to a Dockerfile's version
-  merges on its own and the compose pin follows in a second Renovate PR,
-  which the docker-compose manager opens once the tag is in `ghcr.io`.
-  Until then the pin lags the Dockerfile, which the check allows.
-- **`check-molecule-image-vars`** (`ci.images.molecule_vars check`, also a
-  pre-commit hook, so it runs in `pre-commit-checks` on every PR) keeps
-  Molecule playbooks on the shared image files under
-  `ansible/roles/molecule_helpers/vars/images/`. It fails on an image
-  literal in a scenario's playbooks (Renovate's ansible manager only reads
-  `tasks/`, so that pin would never be bumped), on a play that uses an
-  image variable without loading its file or loads one it doesn't use (an
-  unused load reruns that role whenever the image is bumped), and on an
-  image file no play loads. See
-  [`molecule-fixtures.md`](../../testing/molecule-fixtures.md#shared-image-pins).
-- **`check-image-digests`** (`ci.images.digests check`, also a pre-commit hook,
-  so it runs in `pre-commit-checks` on every PR) fails on an image reference
-  with no `@sha256` digest, on one `name:tag` pinned to two digests, and on
-  a malformed digest ([ADR 0108 (Images a deploy runs)](../../../decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)).
-  It reads the same references as the weekly
-  [image tag check](image-tag-check.md), so compose files, Ansible YAML,
-  Dockerfiles and the pins Renovate's regex managers track are all judged.
-  The `geerlingguy` Molecule platform image and the `hello-world` probe stay on
-  floating tags, each listed with its reason in `FLOATING` in
-  `tools/ci/images/digests.py`; an entry nothing names, or one that has been
-  pinned, fails too, so the list cannot go stale. A reference that cannot be
-  pinned (a template, `scratch`, a `:local` build) is skipped.
-- **`dockerfile-build-check`** (`ci.images.build build-check`, keyed off
-  `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
-  Dockerfile with `docker build`, without pushing, tagged
-  `local/<app>:pr-check`, then runs
-  `.github/image-smoke-tests/<app>.sh <image>`; a change to that script queues
-  the build too. Every registry image needs
-  a smoke test there — a new one without it fails the job — and
-  `tools/tests/ci/images/` asserts the two sets match. The smoke test
-  checks what the image exists to add: `caddy` the DigitalOcean DNS
-  module and `curl`; `molecule-dind` Docker Engine,
-  `python3-requests`, `fuse-overlayfs` and its `daemon.json` default;
-  `wastebin` only that the build produced an image, since
-  `compose-boot-test` boots it for real; `gatus` that the image's user is
-  a non-root number and, booting the image alone on a fresh volume with a
-  one-endpoint config, that its own `/wget` gets `/health` and the sqlite
-  file appears in `/data` (`compose-boot-test` covers the deployed stack
-  and its real config). This covers the Dockerfiles `compose-boot-test`
-  excludes (`caddy`, `molecule-dind`).
-- **Shadow-tagging** in `_compose-boot-test.yml`
-  (`ci.images.build shadow-tag`, and a `Dockerfile` change queues the
-  app): for an app with a `Dockerfile`, it reads the images the deployed
-  compose file pins (`docker compose config --images`), builds the
-  Dockerfile and tags the result as the `ghcr.io/wenenhoe/<image>`
-  references among them, where the image name comes from the registry.
-  Compose's default `pull_policy` (`missing`) uses a local image when the
-  tag exists, so the boot test runs this checkout's Dockerfile with no
-  change to the compose file. An app with no Dockerfile, or a compose
-  file pinning none of its image, is left alone; a Dockerfile with no
-  registry entry fails. The reusable workflow's `build-dockerfiles` input
-  (default on) gates this step, so it's on for a PR. `boot-test-all.yml`
-  passes `false`: a full sweep boots the **published** images, which is
-  what a deploy pulls, so it also fails when a compose pin's tag was never
-  published. That run is manual (`workflow_dispatch`); nothing schedules it.
+| `docker/` directory | Published as `ghcr.io/wenenhoe/…` | Tag |
+| :--- | :--- | :--- |
+| `caddy` | `caddy-digitalocean` | the final stage's Caddy version |
+| `wastebin` | `wastebin` | the upstream wastebin version |
+| `gatus` | `gatus` | the upstream Gatus version without its leading `v` |
+| `molecule-dind` | `molecule-dind` | `latest` |
 
-Not covered: Molecule scenarios that pull a published image
-(`caddy`'s scenarios pull `caddy-digitalocean`, and every DinD scenario
-pulls `molecule-dind`) still run the published one, so a
-Dockerfile change reaches them only after merge and the next build. For
-`caddy` that is the compose pin's tag, so the PR that bumps the pin is
-the first to run the scenarios on the new version.
-`check-pins` reads the Dockerfile and compose text; it doesn't check the
-registry itself, so a pin that agrees with a tag that was never pushed
-passes it, and a PR can't tell either, since its boot test builds the
-Dockerfile locally. Two checks do fail on a tag that isn't in the registry:
-the manual `boot-test-all.yml` sweep, which boots the published images, and
-the weekly [image tag check](image-tag-check.md), which
-asks every registry about every pinned image.
+A tag rule fails unless the Dockerfile has exactly one match that looks like a version (`latest` aside). The tools here are stdlib-only Python on the runner's `python3`, which a test enforces, so the build jobs, which hold a package-write token, install nothing.
+
+### Checks on image references
+
+| Check | Fails on |
+| :--- | :--- |
+| `check-image-pins` (`ci.images.registry check-pins`) | a compose pin newer than what the Dockerfile will publish; a Molecule scenario naming an unpublished tag; an image with no registry entry; a Dockerfile with none |
+| `check-molecule-image-vars` (`ci.images.molecule_vars`) | an image literal in a scenario's playbooks (Renovate would never bump it); a play using an image variable without loading its file, or loading one it does not use; an image file nothing loads ([shared image pins](../../testing/molecule-fixtures.md#shared-image-pins)) |
+| `check-image-digests` (`ci.images.digests`) | a reference with no `@sha256` digest; one `name:tag` pinned to two digests; a malformed digest ([ADR 0108](../../../decisions/0108-which-images-a-deploy-runs-and-where-they-come-from/revision-000.md)) |
+
+A compose pin may lag its Dockerfile, never lead it: a Renovate bump of a Dockerfile merges first, and the pin follows in a second pull request once the tag exists. `check-image-digests` reads the same references as the weekly [image tag check](image-tag-check.md). A few images stay on floating tags, each with its reason in `FLOATING` in `digests.py`, and an entry nothing names fails. A reference that cannot be pinned (a template, `scratch`, a `:local` build) is skipped.
+
+### Building a changed Dockerfile
+
+`dockerfile-build-check` builds each changed Dockerfile without pushing, then runs `.github/image-smoke-tests/<app>.sh` against it. Every registry image needs a smoke test, and a change to one queues the build too.
+
+| Smoke test | Checks |
+| :--- | :--- |
+| `caddy` | the DigitalOcean DNS module, and `curl` |
+| `gatus` | a non-root numeric user; booted alone, its `/wget` gets `/health` and the sqlite file appears in `/data` |
+| `molecule-dind` | Docker Engine, `python3-requests`, `fuse-overlayfs` and its `daemon.json` default |
+| `wastebin` | only that the build produced an image; `compose-boot-test` boots it |
+
+To run the same build and smoke test locally, from the repository root with Docker running:
+
+```sh
+app=gatus
+(cd tools && python3 -m ci.images.build build-check "$app")
+```
+
+In a pull request's boot test, an app with a Dockerfile also runs the image built from it: `ci.images.build shadow-tag` tags the build as the `ghcr.io/wenenhoe/<image>` reference the compose file pins, and Compose uses the local tag instead of pulling. `boot-test-all.yml` turns this off (`build-dockerfiles: false`), so a full sweep boots the published images a deploy pulls, and fails on a pin whose tag was never published.
+
+### What is not covered
+
+- Molecule scenarios that pull a published image (`caddy-digitalocean`, and `molecule-dind` for every DinD scenario) run the published one, so a Dockerfile change reaches them only after merge and a build. For `caddy`, the pull request that bumps the compose pin is the first to run the new version.
+- `check-image-pins` reads text and never asks the registry, so a pin to a tag that was never pushed passes it. The manual `boot-test-all.yml` sweep and the weekly [image tag check](image-tag-check.md) fail on one.

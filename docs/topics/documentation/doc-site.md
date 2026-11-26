@@ -139,7 +139,7 @@ A Mermaid block is drawn to SVG during the build, so a reader needs no script. `
 - A diagram that does not draw stops the build with the file, the fence's line and Mermaid's message.
 - The seed for node outlines is fixed, which keeps builds reproducible.
 - The build and the [layout check](#the-layout-check) start Chrome with its sandbox on (`doc_site/chrome.py`), except as root, where Chrome cannot start with it.
-- The block's source is not shown, and a diagram is scaled to its column.
+- The block's source is not shown, and a diagram is scaled to its column. Where that shrinks it, a "Full size" box above it draws it at its own width in a canvas that scrolls; the stylesheet reads the box, so it needs no script.
 - `page_anchors`, which the drift check calls, draws nothing.
 
 ## Anchors and links

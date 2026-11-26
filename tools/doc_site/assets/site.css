@@ -207,7 +207,12 @@ main:has(.doc):not(:has(.with-toc)){max-width:55rem}
 @media (max-width:1039.98px){main:has(.doc){max-width:55rem}}
 
 /* diagrams, drawn at build time in a light and a dark rendering */
-.diagram{margin:1.25rem 0;overflow-x:auto}
+.diagram{margin:1.25rem 0;container-type:inline-size}
+.diagram .canvas{overflow-x:auto}
+.diagram .zoom{display:flex;justify-content:flex-end;align-items:center;gap:.4rem;min-height:44px;margin:0;font-size:.85rem;color:var(--text-light);cursor:pointer}
+.diagram .zoom input{margin:0}
+/* ticked, the drawing takes its own width and the canvas scrolls */
+.diagram:has(.zoom input:checked) svg{width:var(--full);max-width:none!important}
 .diagram svg{display:block;margin-inline:auto;height:auto}
 .diagram .dark{display:none}
 @media (prefers-color-scheme:dark){.diagram .light{display:none}.diagram .dark{display:block}}

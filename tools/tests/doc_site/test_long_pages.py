@@ -172,6 +172,42 @@ def test_a_list_beside_the_prose_stays_on_screen_and_scrolls_on_its_own(tree, tm
             browser.close()
 
 
+# The width of main's content, and the space on each side of main.
+COLUMN = """() => {
+  const main = document.querySelector('main'), box = main.getBoundingClientRect(), style = getComputedStyle(main);
+  return [box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), box.left, document.documentElement.clientWidth - box.right];
+}"""
+
+
+@needs_chrome
+@pytest.mark.parametrize(
+    ("network", "path", "width", "column"),
+    [
+        pytest.param(SHORT, "topics/infra/network/", 1920, 848, id="no-list"),
+        pytest.param(LONG, "topics/infra/network/", 1000, 848, id="list-above"),
+        pytest.param(LONG, "topics/infra/network/", 1920, 1120, id="list-beside"),
+        pytest.param(SHORT, "decision-index/", 1920, 1120, id="view"),
+    ],
+)
+def test_a_document_without_a_list_beside_it_is_a_centred_column(tree, tmp_path, network, path, width, column):
+    pytest.importorskip("playwright")
+    from playwright.sync_api import sync_playwright
+
+    built(tree, network=network)
+    out = tmp_path / "site"
+    site.write(out, tree)
+    with layout.serving(out) as base, sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel="chrome")
+        try:
+            page = browser.new_page(viewport={"width": width, "height": 800})
+            page.goto(f"{base}/{path}")
+            content, left, right = page.evaluate(COLUMN)
+            assert content == pytest.approx(column, abs=1)
+            assert left == pytest.approx(right, abs=1)
+        finally:
+            browser.close()
+
+
 @needs_chrome
 def test_a_site_with_a_long_page_and_tabs_fits_every_width(tree, tmp_path):
     pytest.importorskip("playwright")

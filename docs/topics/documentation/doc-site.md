@@ -51,7 +51,7 @@ Where a choice about a page is open, these decide it.
 | **Show where you are** | A breadcrumb, the page's own entry in the navigation, and a contents list of its headings |
 | **Orient, don't hide** | Show a page's shape rather than folding its narrative away. Only a list of links is tabbed, by a rule that names the one page |
 | **Every state has an address** | A heading, a tab and a view's section open from their anchor. A filter's text has no address |
-| **Readable measure, full-width data** | See [the stylesheet](#the-stylesheet) |
+| **Readable measure, one column** | See [the stylesheet](#the-stylesheet) |
 | **Targets and contrast** | Menu, contents and tab links and copy buttons are at least 44 pixels tall; colours come from one set of tokens, light and dark. No check measures either, so read a page on a phone |
 
 ## Generated views
@@ -119,7 +119,13 @@ Every heading has the anchor GitHub gives it: lowercase, everything but letters,
 
 Pages use [Simple.css](https://simplecss.org/) (MIT) and diagrams use Mermaid, both vendored: nothing is fetched at build time or by a reader's browser. `site.css` and `site.js` in `tools/doc_site/assets/` are this repository's.
 
-Prose (paragraphs, lists, quotes, headings, the lede) keeps one reading measure; tables, code blocks and figures use the page's width, less the contents column. A view's lede, captions and legend run as wide as its table.
+Prose (paragraphs, lists, quotes, headings, the lede) keeps one reading measure; tables, code blocks and figures use the width of the column they are in.
+
+| Page | Column |
+| :--- | :--- |
+| A document page with its contents list beside the prose | the page's width, less the list's column |
+| Any other document page, the home page among them | at most 53rem, centred |
+| A generated view | the page's width; its lede, captions and legend run as wide as its table |
 
 | | Simple.css | Mermaid |
 | :--- | :--- | :--- |

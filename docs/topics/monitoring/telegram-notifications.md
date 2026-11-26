@@ -21,6 +21,7 @@ flowchart LR
 | :--- | :--- | :--- |
 | Host/container monitoring (Beszel) | Beszel's built-in notifications | `telegram_chatid_monitoring` |
 | Backup job failures | `docker-volume-backup`'s notifier | `telegram_chatid_backups` |
+| Backup freshness check failures | `telegram-notify-backup-freshness` (systemd) | `telegram_chat_id` / `telegram_topic_id_backups` |
 | Cloud-sync relay failures | `telegram-notify-cloud-sync` (systemd) | `telegram_chat_id` / `telegram_topic_id_backups` |
 | Cert renewal failures (lldap) | `telegram-notify@` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
 | Caddy cert-expiry check failures | `telegram-notify-cert-expiry` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
@@ -62,7 +63,7 @@ Two address formats are needed:
 | `docker-volume-backup`, Beszel (through [shoutrrr](https://containrrr.dev/shoutrrr/v0.8/services/telegram/)) | One `chat_id:topic_id` string | `telegram_chatid_*` |
 | The systemd notifiers (Bot API directly) | `chat_id` and `message_thread_id` apart; the colon form is not understood | `telegram_chat_id`, `telegram_topic_id_*` |
 
-**All three systemd-based notifiers share one library role**,
+**The systemd-based notifiers share one library role**,
 `telegram_notify` (`ansible/roles/telegram_notify`):
 
 - A oneshot unit that curls `sendMessage` directly, parameterized by
@@ -137,6 +138,10 @@ only test placeholders.
   `Config.BackupSources` (`/backup/<app>`) and `BACKUP_HOST_NAME` — so
   the alert names which app and host failed instead of just "backup
   failed".
+- **Backup freshness check**: `ansible/roles/backup_agent/templates/check-freshness.service.j2`
+  sets `OnFailure=telegram-notify-backup-freshness.service`. It fires when the
+  check cannot list a prefix or cannot push its heartbeat, not when a backup is
+  only stale: Gatus reports that ([`gatus.md`](gatus.md#the-backup-freshness-check)).
 - **cloud_sync**: `ansible/roles/cloud_sync/templates/cloud-sync.service.j2`
   sets `OnFailure=telegram-notify-cloud-sync.service`, a plain (non-`@`)
   consumer of `telegram_notify` above — posts to the same Backups topic
@@ -203,7 +208,8 @@ The header is static: there is no live status pin that each notifier edits.
 
 ## Verifying it actually delivers
 
-Molecule (`ansible/roles/step_ca_cert/molecule/default`,
+Molecule (`ansible/roles/backup_agent/molecule/default`,
+`ansible/roles/step_ca_cert/molecule/default`,
 `ansible/roles/step_ca_cert/molecule/signal_chown`,
 `ansible/roles/cloud_sync/molecule/default`, and
 `ansible/roles/caddy_cert_expiry/molecule/default`) confirms the
@@ -216,6 +222,12 @@ after deploying:
 # on security: the cert-renewal alert
 sudo systemctl start telegram-notify@lldap.service
 journalctl -u telegram-notify@lldap.service --no-pager -n 20
+```
+
+```sh
+# on a host that runs the backup agent: the freshness-check alert
+sudo systemctl start telegram-notify-backup-freshness.service
+journalctl -u telegram-notify-backup-freshness.service --no-pager -n 20
 ```
 
 ```sh

@@ -767,6 +767,226 @@
    "bot": false,
    "group": "Project: coding-agent-network",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "f67aa12f3011450bcf4e212917b7558d335ee52c",
+   "date": "2026-11-25T14:45:49+08:00",
+   "kind": "pr",
+   "pr": 1092,
+   "title": "correct what a scratch gateway WAN needs",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "99e435999780dcf2a51ed09787942dd8ce54e9b7",
+   "date": "2026-11-25T15:48:20+08:00",
+   "kind": "pr",
+   "pr": 1093,
+   "title": "add price, sandbox and capacity facts to placement",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "55270a10067924d779548b771f6b75a946412b1f",
+   "date": "2026-11-25T16:24:12+08:00",
+   "kind": "pr",
+   "pr": 1094,
+   "title": "offer a router and resolver in Kea scopes",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d451c46fc8723d6d32f992448a0627d23887f423",
+   "date": "2026-11-25T17:11:55+08:00",
+   "kind": "pr",
+   "pr": 1095,
+   "title": "give the firmware status its own timeout",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "82714ca639ec2d6bd58374183b5cac2d1094269c",
+   "date": "2026-11-25T17:29:33+08:00",
+   "kind": "pr",
+   "pr": 1096,
+   "title": "choose a VLAN 10 zone for a scratch gateway's WAN",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: scratch-gateway-wan",
+   "events": [
+    [
+     "adr",
+     "ADR 0120 r000 \u00b7 where a scratch gateway on the node gets its wan",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "scratch-gateway-wan",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "969fcc751a6bd2daeec5c02f109d36de71119e7b",
+   "date": "2026-11-25T18:53:12+08:00",
+   "kind": "pr",
+   "pr": 1097,
+   "title": "start building the scratch gateway WAN project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: scratch-gateway-wan",
+   "events": [
+    [
+     "project",
+     "scratch-gateway-wan",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "af95be2d795085df50560c0399f6e16f65d72265",
+   "date": "2026-11-25T18:57:57+08:00",
+   "kind": "pr",
+   "pr": 1098,
+   "title": "lease a scratch gateway its WAN from VLAN 10",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "6eb776bccadc39f644138e87c6465c31800eeaac",
+   "date": "2026-11-25T21:50:59+08:00",
+   "kind": "pr",
+   "pr": 1099,
+   "title": "rewrite the gateway rebuild runbook as commands",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f52f6d851a1f583abee704a82d721ba34b2687cf",
+   "date": "2026-11-25T23:26:35+08:00",
+   "kind": "pr",
+   "pr": 1100,
+   "title": "default a scratch gateway's WAN to VLAN 10",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: scratch-gateway-wan",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dfb04b0394fa85bccf4d09baa96be057db8c0ae6",
+   "date": "2026-11-25T23:36:14+08:00",
+   "kind": "pr",
+   "pr": 1101,
+   "title": "leave a zone with no address out of the canary namespaces",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "cd8ed5f84dd83ece850ebd46c8887b6a87af8c50",
+   "date": "2026-11-26T00:53:16+08:00",
+   "kind": "pr",
+   "pr": 1102,
+   "title": "close the scratch gateway WAN project with its runs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: scratch-gateway-wan",
+   "events": [
+    [
+     "adr",
+     "ADR 0120 r000 \u00b7 where a scratch gateway on the node gets its wan",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "scratch-gateway-wan",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "b7bb46ceaf8862247ab3ba3dc2c65653ffa0a56f",
+   "date": "2026-11-26T01:55:05+08:00",
+   "kind": "pr",
+   "pr": 1103,
+   "title": "leave out the flows that need an absent canary",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "cf1c619aecaf389e288a55d91694386d88eadd1b",
+   "date": "2026-11-26T01:59:26+08:00",
+   "kind": "pr",
+   "pr": 1104,
+   "title": "refuse a switch that is not a boolean",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "65f17bcd0eba9b9e7ec3937a69b8ba4a88265276",
+   "date": "2026-11-26T02:02:57+08:00",
+   "kind": "pr",
+   "pr": 1105,
+   "title": "skip the dns check outside the services zone",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "883b3caa0afa6d72fef97bd52b51d60eabdcc490",
+   "date": "2026-11-26T03:10:57+08:00",
+   "kind": "pr",
+   "pr": 1106,
+   "title": "make operator command blocks safe to paste",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "54d8b33cf144e6d19819e689b13c0772ec085a83",
+   "date": "2026-11-26T03:16:01+08:00",
+   "kind": "pr",
+   "pr": 1107,
+   "title": "check that command blocks are safe to paste",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
   }
  ]
 }

@@ -8,7 +8,12 @@ Both commands are standard library only, run from `tools/` on the runner's own `
 
 ## Fetching the clones
 
-`python3 -m ci.shell_tests.fetch DIR` clones each pin into `DIR/<repository name>` by its SHA, not its tag, and refuses unless the clone's `HEAD` equals the SHA.
+```sh
+# from tools/
+python3 -m ci.shell_tests.fetch "$(mktemp -d)"
+```
+
+`ci.shell_tests.fetch DIR` clones each pin into `DIR/<repository name>` by its SHA, not its tag, and refuses unless the clone's `HEAD` equals the SHA.
 
 - A directory that is already there is never modified. It is accepted when its `HEAD` is the pin and refused otherwise, with a message to remove it, so a clone left at an older pin is not run in place of the new one. A directory that holds no clone is refused the same way, even when it sits inside another repository.
 - A fetch that fails leaves no directory behind, so a retry starts clean.
@@ -16,7 +21,12 @@ Both commands are standard library only, run from `tools/` on the runner's own `
 
 ## Checking the pins
 
-`python3 -m ci.shell_tests.pins check` resolves each entry's tag with `git ls-remote` and fails when it does not point at the pinned SHA. An annotated tag is a tag object, so the check reads the commit it peels to; a lightweight tag is the commit itself. A pin copied from the tag object instead of the commit fails.
+```sh
+# from tools/
+python3 -m ci.shell_tests.pins check
+```
+
+It resolves each entry's tag with `git ls-remote` and fails when it does not point at the pinned SHA. An annotated tag is a tag object, so the check reads the commit it peels to; a lightweight tag is the commit itself. A pin copied from the tag object instead of the commit fails.
 
 It reports every entry before it exits non-zero, each failure as an `::error::` annotation. A tag that is missing or moved is a clean answer; a repository that can't be reached is retried three times and then fails: a pin that could not be checked has not been shown to be the publisher's.
 

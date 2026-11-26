@@ -134,10 +134,13 @@ ANCHORS = """
     const id = decodeURIComponent(link.getAttribute('href').slice(1));
     const target = document.getElementById(id);
     if (!target) { hidden.push(`the link to #${id} names nothing on the page`); continue; }
+    // A tab's panel is shown by the address alone, so a heading in one is reached the way its link reaches it.
+    if (target.getClientRects().length === 0) location.hash = id;
     target.scrollIntoView();
     const top = target.getBoundingClientRect().top;
     if (top < bar - tolerance) hidden.push(`#${id} lands ${Math.round(bar - top)}px under the bar that stays on screen`);
   }
+  if (location.hash) location.replace(location.pathname + '#');
   window.scrollTo(0, 0);
   return [...new Set(hidden)];
 }

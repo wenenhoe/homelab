@@ -1,6 +1,6 @@
 # Homelab progress log
 
-Generated from `main` up to `54d8b33`. Weeks run Monday to Sunday (UTC+8). Past weeks are frozen once written; add your own notes under the marker in a week file and they survive regeneration.
+Generated from `main` up to `8dfa348`. Weeks run Monday to Sunday (UTC+8). Past weeks are frozen once written; add your own notes under the marker in a week file and they survive regeneration.
 
 _Counts are merged PRs (direct commits before the PR workflow). **Code** = changed code, config, tests or deployment · **Docs** = docs and decisions only · **Project-doc edits** = changed only project docs._
 
@@ -8,7 +8,7 @@ _Counts are merged PRs (direct commits before the PR workflow). **Code** = chang
 
 | Week | Code | Docs | Project-doc edits | Dep. updates | Projects closed |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| [2026-W48](weeks/2026-W48.md) | 38 | 34 | 6 | 0 | 1 |
+| [2026-W48](weeks/2026-W48.md) | 57 | 41 | 6 | 0 | 1 |
 | [2026-W47](weeks/2026-W47.md) | 77 | 50 | 18 | 0 | 1 |
 | [2026-W46](weeks/2026-W46.md) | 65 | 49 | 17 | 0 | 9 |
 | [2026-W45](weeks/2026-W45.md) | 48 | 16 | 9 | 0 | 4 |

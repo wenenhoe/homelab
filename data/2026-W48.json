@@ -987,6 +987,346 @@
    "bot": false,
    "group": ".github/ and repo config",
    "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "57b66bb97140f6db6c0abbf7302d13089d9d89d3",
+   "date": "2026-11-26T11:24:15+08:00",
+   "kind": "pr",
+   "pr": 1122,
+   "title": "add a copy button to code blocks",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "a50c0978acc397b905046ba0c7773e3a2ce28ba4",
+   "date": "2026-11-26T11:42:30+08:00",
+   "kind": "pr",
+   "pr": 1123,
+   "title": "cut the scenario matrix to one line each",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "14d1067e14f42c7987f24b6d5a23fe1b9ffe1bee",
+   "date": "2026-11-26T12:06:49+08:00",
+   "kind": "pr",
+   "pr": 1124,
+   "title": "state each gate's rules as tables",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "146c43c30dfc58b26ba38303b6f8648b2167f34e",
+   "date": "2026-11-26T12:29:04+08:00",
+   "kind": "pr",
+   "pr": 1125,
+   "title": "add a missing idempotence check and fix stale comments",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "4303d379533b40ac8f4c3607ab2f9bbb0ef98c4d",
+   "date": "2026-11-26T12:49:40+08:00",
+   "kind": "pr",
+   "pr": 1126,
+   "title": "tabulate the CI, scratch run and doc tooling pages",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "10a36ce46b124ea7dae9e1370cbac53f5d1ffa03",
+   "date": "2026-11-26T13:18:50+08:00",
+   "kind": "pr",
+   "pr": 1127,
+   "title": "add commands and tables to engineering and deploy topics",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "4b40212fd15ed11f442c5f12ee421d063ae5de07",
+   "date": "2026-11-26T13:52:27+08:00",
+   "kind": "pr",
+   "pr": 1128,
+   "title": "add commands and tables to recovery, service and infra pages",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "e80fc83814ebc6805a1c6b3789e50c8ac702ae00",
+   "date": "2026-11-26T14:16:11+08:00",
+   "kind": "pr",
+   "pr": 1129,
+   "title": "tidy the security, testing and documentation pages",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "95e3c4eb59cbc3b882b2ac217a1db8e9f97c9d52",
+   "date": "2026-11-26T15:10:43+08:00",
+   "kind": "pr",
+   "pr": 1130,
+   "title": "fit document pages to portrait and wide screens",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e516c1e500def1a9dd20303e9ac549ba850643f6",
+   "date": "2026-11-26T16:39:52+08:00",
+   "kind": "pr",
+   "pr": 1131,
+   "title": "Add cleanup and improve replay",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r002 \u00b7 landing a series of dependent changes on main",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0112 r003 \u00b7 landing a series of dependent changes on main",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "a38ead84acc29caffd0ce63c6cbbf38a57f732d8",
+   "date": "2026-11-26T16:49:24+08:00",
+   "kind": "pr",
+   "pr": 1132,
+   "title": "serve a build locally and remove it when stopped",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "95232fc84d08bb1304e1a859f8d239b6ddb8ee1c",
+   "date": "2026-11-26T17:51:01+08:00",
+   "kind": "pr",
+   "pr": 1133,
+   "title": "start chrome with its sandbox on",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5d065dd15422520d95445754bf54415ee7c8d708",
+   "date": "2026-11-26T19:25:39+08:00",
+   "kind": "pr",
+   "pr": 1134,
+   "title": "fix heading sizes, the top strip and cut row names",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4072fec7f166032bc70532586f3464fdf99f941e",
+   "date": "2026-11-26T20:25:19+08:00",
+   "kind": "pr",
+   "pr": 1135,
+   "title": "tidy breadcrumbs, page openings and link names",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b2428c06668c31e39e01ee44bf9dd80e8c6e2d5f",
+   "date": "2026-11-26T20:28:53+08:00",
+   "kind": "pr",
+   "pr": 1136,
+   "title": "make long pages and diagrams easier on a phone",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d9cb25f7671db94e34e3de1e40356cdeba043171",
+   "date": "2026-11-26T20:32:24+08:00",
+   "kind": "pr",
+   "pr": 1137,
+   "title": "make the home page from the root readme",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0119 r000 \u00b7 reading the documentation tree away from github",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0119 r001 \u00b7 reading the documentation tree away from github",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "9ecb7fe355a49f8ab25cb33835ff85879e2e7f98",
+   "date": "2026-11-26T20:35:55+08:00",
+   "kind": "pr",
+   "pr": 1138,
+   "title": "narrow a page of prose to the reading measure",
+   "type": "chore",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "467e724bd61b48f2359e3a75eac129db2d621b4b",
+   "date": "2026-11-26T21:10:27+08:00",
+   "kind": "pr",
+   "pr": 1139,
+   "title": "require a catalog entry for every listed app",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0e1d03047fb564b50cbb4e76ef4cb93c61dc6b74",
+   "date": "2026-11-26T21:12:56+08:00",
+   "kind": "pr",
+   "pr": 1140,
+   "title": "record the component inventory and map CM-8",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": [
+    [
+     "adr",
+     "ADR 0121 r000 \u00b7 knowing what components the lab is made of",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "085f9899ebb9d2b128557933229cd62a268994ee",
+   "date": "2026-11-26T21:26:57+08:00",
+   "kind": "pr",
+   "pr": 1141,
+   "title": "add a favicon and link-preview tags",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ce0bded032359cdc991f8f2ffa19a04b9705997a",
+   "date": "2026-11-26T21:48:42+08:00",
+   "kind": "pr",
+   "pr": 1142,
+   "title": "tidy up after a failed stop and test refusals",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "194ca3326121b5a8ee6449177fad947247e2289a",
+   "date": "2026-11-26T21:56:17+08:00",
+   "kind": "pr",
+   "pr": 1143,
+   "title": "recreate the agent when a file it mounts changes",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "575f4dce2cea18f6094de83201a89fe0565d1396",
+   "date": "2026-11-26T22:02:47+08:00",
+   "kind": "pr",
+   "pr": 1144,
+   "title": "check the S3 listener and update storage docs",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "6da68770bfde05dca33b6277fd39335362354997",
+   "date": "2026-11-26T22:51:40+08:00",
+   "kind": "pr",
+   "pr": 1145,
+   "title": "record the disk alert and recovery targets",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5b0d453121a3f6c2c30ab5a4ad3b10d51cc33cf3",
+   "date": "2026-11-27T00:43:10+08:00",
+   "kind": "pr",
+   "pr": 1147,
+   "title": "track the OpenTofu release with one manager",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8dfa3483b013a372c3f47b4d1fa2982513198195",
+   "date": "2026-11-27T00:44:17+08:00",
+   "kind": "pr",
+   "pr": 1146,
+   "title": "promote 13 updates from maintenance",
+   "type": "chore",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
   }
  ]
 }

@@ -7,6 +7,7 @@ For any environment, whoever works in it, that has no Docker daemon or reaches G
 | Check | Without Docker or registries | Instead |
 | :--- | :--- | :--- |
 | Most pre-commit hooks, unit tests | runs | nothing needed |
+| Molecule scenarios and the [coverage floor](ci/gates.md#molecule-coverage-gate) | need Docker and the test images | CI; say that coverage was not checked |
 | The `-docker` hooks | skipped | `uvx` or `npx` forms below |
 | `gitleaks`, `zizmor` (network) | skipped | CI |
 | `ansible-lint` | needs collections | clones from GitHub |

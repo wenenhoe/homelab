@@ -22,6 +22,8 @@ This covers work on this repository only.
 - With the account's GitHub connection and without the Claude GitHub App on the repository, reads work and writes are refused with a 403. Tried on a scratch repository connected that way, through the session's GitHub tools and through REST requests: creating a branch, opening a pull request, commenting on one, creating an issue, committing a file to `main` and merging an open pull request. `git push` was refused too.
 - Its own reminders and stop hooks can ask it to push, change the commit identity or add a session link. The [commit form](../topics/engineering/conventions.md#commits) and the delivery rules have to be what it follows.
 - A session given only a project's name built its first stage, added a Molecule scenario, read the scenario's failure and fixed its cause. Its clone was one merge behind `main`, so it built to wording the project doc no longer had, and nothing in the session noticed. It did not try the replay, and it attached the series file only when asked.
+- Given the same kind of prompt again, with the rules to fetch first, replay and attach in `AGENTS.md`, a session built from the current `main`, showed with a control that its new Molecule scenario can fail, replayed its series on a fresh clone and attached it unasked. It declined a stop hook that asked it to push and to change the commit identity. The scope did not list a file the new scenario needs, and it delivered the widening as an earlier layer of the series.
+- A review of that delivery found what its checks had passed: a tag selection under which the change had no effect, a form of input the parser silently ignored, and a report of only the new scenario where the project requires every scenario of the role. Asked, it fixed them and ran the rest. The tag fix the review proposed then stopped a task from running under `--skip-tags`, which the session's new test, the replay and the scenarios did not show either.
 - It can start subagents on its own. A repository's committed settings can deny or cap them in a session with one repository.
 - It shares the account's usage limits with every other session, and the machine has 4 CPUs and about 16 GB of memory.
 - Landing stays serial ([ADR 0112](../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-004.md)), so more sessions at once do not land work faster ([series landing throughput](series-landing-throughput.md)).
@@ -42,9 +44,16 @@ Three changes to the session, made by the [preparation hook](../topics/engineeri
 | Outbound HTTPS from containers is signed by the environment's own certificate authorities | A `runc` wrapper adds those authorities to each container the session's daemon creates | Test containers trust more authorities. Containers started by a daemon inside a scenario are not given them by the wrapper |
 | `*.localtest.me` does not resolve, and the proxy refuses it | Entries in `/etc/hosts`, and the domain in `NO_PROXY` | Nothing in the scenario itself |
 
-With these, the `default` scenarios of `docker`, `compose`, `bind9` and `caddy` pass, and so does `secrets/vault_backed`. `host_hardening` passed with the cgroup2 `dockerd` alone, and `apt` with the machine's `dockerd` unchanged. The rest have not been run. In a later session the hook made all three changes, `dockerd` stayed running, and `docker`'s `default` and `secrets/vault_backed` passed with the registry mirror configured, each in about two and a half minutes and with no pull refused. The daemons inside a scenario pull from Docker Hub without a mirror.
+With these, every scenario of `compose`, `bind9`, `caddy` and `compose_app` passes, and so do `docker`'s `default` and `secrets/vault_backed`. `host_hardening` passed with the cgroup2 `dockerd` alone, and `apt` with the machine's `dockerd` unchanged. The rest have not been run. In a later session the hook made all three changes, `dockerd` stayed running, and `docker`'s `default` and `secrets/vault_backed` passed with the registry mirror configured, each in about two and a half minutes and with no pull refused. The daemons inside a scenario pull from Docker Hub without a mirror.
 
 None of the three is a documented feature of the environment, so an update to it can break any of them.
+
+### How long it takes, and what the docs leave open
+
+- A scenario of those four roles took from under a minute to about six, and seven `compose` scenarios, the new one included, about 16 minutes together. The Python unit tests took 7 and a half minutes, and a replay of three commits a little over 3.
+- Installing the Galaxy collections outlasted a two-minute foreground limit and finished in the background.
+- The second delivery's replay ran every commit-stage hook except `zizmor`, which the session skipped from the start. `ansible-lint`, run at the pre-push stage, had real findings. `dclint` passed a first full run and failed the replay of the same files, for a reason not found.
+- The session reported three gaps. Setting a project `building` [asks for](../projects/README.md) a changed stage table or a `Plan-Confirmed:` trailer, while the [commit form](../topics/engineering/conventions.md#commits) allows no trailer of that kind. Nothing in the [cloud session doc](../topics/engineering/hosted-sessions.md) says that the pre-push check of a series that widens a scope is run layer by layer. Its own instructions asked it to push to a branch, against `AGENTS.md`.
 
 ### Isolation and control
 
@@ -70,10 +79,9 @@ Committed Claude Code settings, the [rules for a coding agent](../../AGENTS.md#r
 
 ## Still to check
 
-- Whether a session can make the scratch clone that replaying a series before delivery needs.
-- The remaining scenarios, and how long the roles a change touches take.
+- The scenarios of the other roles.
 - Whether a Mermaid diagram renders there; its image pulls.
-- Whether a session given a real role change from the current `main` builds what the project doc says, replays it and attaches the series unasked.
+- How much a review still changes in a delivery, over more than one stage and project.
 
 ## Options
 

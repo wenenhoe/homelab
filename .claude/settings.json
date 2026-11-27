@@ -9,5 +9,19 @@
       "Bash(git push *)",
       "Bash(gh *)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" != true ] || { cd \"$CLAUDE_PROJECT_DIR\"/tools && python3 -m cloud_session.prepare; }",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
   }
 }

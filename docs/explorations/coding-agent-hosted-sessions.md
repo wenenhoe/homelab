@@ -33,7 +33,7 @@ This covers work on this repository only.
 
 ### What Molecule needs
 
-Three changes to the session, none to the repository:
+Three changes to the session, made by the [preparation hook](../topics/engineering/hosted-sessions.md#what-the-hook-prepares):
 
 | Obstacle | Change | What it leaves different from CI |
 | :--- | :--- | :--- |
@@ -63,17 +63,14 @@ None of the three is a documented feature of the environment, so an update to it
 - One task to a session and one writer to a series. Subagents are denied at first, then allowed for reading only.
 - What a session reports as verified is kept apart from what it assumed, and CI stays the authority.
 
-## What the repository would need
+## What the repository holds
 
-- Committed Claude Code settings: no session link, `git push` denied, subagents denied or capped. A deny rule guides a session and is not a security boundary.
-- The rules a hosted session needs, in the repository: never push, the delivery commands, and that the repository's rules win over a reminder or hook.
-- A script that prepares Docker for a cloud session (the mirror, the cgroup2 namespace, the certificate wrapper and the host entries), run by a `SessionStart` hook that does nothing elsewhere. It is code that runs without being asked, so a change to it is reviewed like other tooling.
-- A section in [`checks-without-docker.md`](../topics/engineering/checks-without-docker.md), or a topic doc beside it, for hosted sessions.
+Committed Claude Code settings, the [rules for a coding agent](../../AGENTS.md#rules-for-a-coding-agent), the preparation hook and [its topic doc](../topics/engineering/hosted-sessions.md). A deny rule in those settings guides a session and is not a security boundary.
 
 ## Still to check
 
-- Whether opening or merging a pull request, and other API writes, are refused too.
-- Whether a `SessionStart` hook can start `dockerd` so that it stays running.
+- Whether opening or merging a pull request, and other API writes, are refused too, tried where a write that succeeds does no harm.
+- Whether `dockerd` stays running when the `SessionStart` hook starts it, and the scenarios pass on what the hook prepares, the registry mirror included.
 - The remaining scenarios, and how long the roles a change touches take.
 - Whether a Mermaid diagram renders there; its image pulls.
 - Whether a session given a real role change runs Molecule, reads a failure and fixes its cause without weakening the test.

@@ -17,6 +17,7 @@ allowed_paths:
   - ansible/roles/compose/**
   - ansible/roles/caddy/**
   - ansible/roles/step_ca_cert/molecule/signal_chown/**
+  - .github/molecule-shards.yml
   - ansible/filter_plugins/compose_mounts.py
   - ansible/tests/test_compose_mounts.py
   - ansible/tests/test_resolved_apps_consumers.py

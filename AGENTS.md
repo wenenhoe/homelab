@@ -84,6 +84,9 @@ Docker or registry access, see
   layer that [the stop list](docs/topics/engineering/landing-a-series.md#the-stop-list)
   stops for and each that touches a hook, CI or tooling path.
 
+A Claude Code cloud session is described in
+[`docs/topics/engineering/hosted-sessions.md`](docs/topics/engineering/hosted-sessions.md).
+
 ## Security and reliability defaults
 
 - **Public exposure.** Every app in `compose_apps` is proxied through

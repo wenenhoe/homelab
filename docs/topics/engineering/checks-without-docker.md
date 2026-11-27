@@ -1,6 +1,6 @@
 # Running the Checks Without Docker or Registries
 
-For any environment, whoever works in it, that has no Docker daemon or reaches GitHub but not container registries or Ansible Galaxy: a hosted sandbox, a laptop without Docker, or a host with filtered egress. It says which checks still run, which do not, and what stands in for them. CI is the authority either way; this is for getting a change right before it gets there.
+For any environment, whoever works in it, that has no Docker daemon or reaches GitHub but not container registries or Ansible Galaxy: a hosted sandbox, a laptop without Docker, or a host with filtered egress. It says which checks still run, which do not, and what stands in for them. CI is the authority either way; this is for getting a change right before it gets there. A Claude Code cloud session has Docker and registry access once prepared; see [`hosted-sessions.md`](hosted-sessions.md).
 
 ## What runs here
 

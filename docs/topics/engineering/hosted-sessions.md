@@ -2,6 +2,10 @@
 
 A [cloud session](https://code.claude.com/docs/en/claude-code-on-the-web) is a disposable virtual machine with a fresh clone of the repository, in which Docker runs. This page says what it needs, what the repository gives it and how it differs from CI, which stays the authority. A session delivers a change as every other one does ([`landing-a-series.md`](landing-a-series.md)).
 
+## Starting a task and handing it over
+
+The session's clone can be behind `main`, for one when a series lands after the session starts. [The rules for a coding agent](../../../AGENTS.md#rules-for-a-coding-agent) have a session fetch before it reads the task. The maintainer cannot reach the machine's files, so the session writes the `.series` file outside the checkout, where it is not left as an untracked file, and attaches it to its reply.
+
 ## Settings outside the repository
 
 These are set on the account and the [cloud environment](https://code.claude.com/docs/en/cloud-environments), and no file here can set them.
@@ -75,5 +79,6 @@ read -r -p 'role: ' role
 - Test containers trust the environment's certificate authorities. Containers started by a daemon inside a scenario are not given them.
 - The daemons inside a scenario pull from Docker Hub without the mirror.
 - `hadolint-docker` runs an untagged image, and a cached copy can differ from the one CI pulls.
+- `zizmor` can fail with a 401 when its `ref-confusion` audit lists another repository's branches. Set `SKIP=zizmor` and say that it was skipped.
 
 None of what the hook does is a documented feature of the environment, so an update to it can break any of it.

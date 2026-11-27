@@ -21,6 +21,7 @@ This covers work on this repository only.
 - It starts from a fresh clone in a new virtual machine, reads the committed [`AGENTS.md`](../../AGENTS.md), and can deliver a series that replays as [`land_series`](../topics/engineering/landing-a-series.md) expects. Instructions kept outside the repository for chat sessions do not reach it.
 - With the account's GitHub connection and without the Claude GitHub App on the repository, reads work and writes are refused with a 403. Tried on a scratch repository connected that way, through the session's GitHub tools and through REST requests: creating a branch, opening a pull request, commenting on one, creating an issue, committing a file to `main` and merging an open pull request. `git push` was refused too.
 - Its own reminders and stop hooks can ask it to push, change the commit identity or add a session link. The [commit form](../topics/engineering/conventions.md#commits) and the delivery rules have to be what it follows.
+- A session given only a project's name built its first stage, added a Molecule scenario, read the scenario's failure and fixed its cause. Its clone was one merge behind `main`, so it built to wording the project doc no longer had, and nothing in the session noticed. It did not try the replay, and it attached the series file only when asked.
 - It can start subagents on its own. A repository's committed settings can deny or cap them in a session with one repository.
 - It shares the account's usage limits with every other session, and the machine has 4 CPUs and about 16 GB of memory.
 - Landing stays serial ([ADR 0112](../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-004.md)), so more sessions at once do not land work faster ([series landing throughput](series-landing-throughput.md)).
@@ -70,10 +71,9 @@ Committed Claude Code settings, the [rules for a coding agent](../../AGENTS.md#r
 ## Still to check
 
 - Whether a session can make the scratch clone that replaying a series before delivery needs.
-- Whether a session can hand the maintainer a `.series` file as it was written.
 - The remaining scenarios, and how long the roles a change touches take.
 - Whether a Mermaid diagram renders there; its image pulls.
-- Whether a session given a real role change runs Molecule, reads a failure and fixes its cause without weakening the test.
+- Whether a session given a real role change from the current `main` builds what the project doc says, replays it and attaches the series unasked.
 
 ## Options
 

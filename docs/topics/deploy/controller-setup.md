@@ -78,5 +78,5 @@ Several tools resolve paths against the directory they start in.
 | `ansible`, `ansible-playbook` | `ansible/`, where `ansible.cfg` sets the inventory sources and `roles_path` |
 | `python3 -m <package>` for a package under `tools/`, such as `openbao_utils.bootstrap` | `tools/` |
 | `molecule` | the role's directory; see [`molecule-testing.md`](../testing/molecule-testing.md) |
-| `uv run pytest ansible/tests/ tools/tests/` | the repo root; see [`conventions.md`](../engineering/conventions.md) |
+| `uv run pytest ansible/tests/ tools/tests/ -n auto --dist worksteal` | the repo root; see [`conventions.md`](../engineering/conventions.md) |
 | `tofu` | the repo root, as `tofu -chdir=tofu`, with the environment [`vm-provisioning.md`](../infra/vm-provisioning.md#tofu-project) sets |

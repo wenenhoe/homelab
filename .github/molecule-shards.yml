@@ -17,7 +17,7 @@ step_ca_cert:
   - [default, not_running, probe_fails]
   - [renewal_timing]
 compose:
-  - [reset, scripts, build]
+  - [reset, scripts, build, mounted_files]
   - [volumes, cleanup, default]
 backup_agent:
   - [default]

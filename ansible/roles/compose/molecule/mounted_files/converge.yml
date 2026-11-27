@@ -1,0 +1,18 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  tasks:
+    - name: Resolve compose_apps against the app catalog
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Initialise and deploy each resolved test app
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main.yaml
+      loop: "{{ resolved_apps }}"
+      loop_control:
+        loop_var: compose_app_item
+        label: "{{ compose_app_item.name }}"

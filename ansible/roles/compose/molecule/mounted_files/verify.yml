@@ -1,0 +1,145 @@
+---
+# converge.yml deployed version 1 of both apps. Each step below changes what the
+# stack directory holds, runs the role again with files/docker_changed as the
+# source (version 2 of the config and the script), and reads the containers.
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Resolve compose_apps against the app catalog
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Read the containers and the label file of version 1
+      ansible.builtin.include_tasks: tasks/observe.yml
+
+    - name: Confirm version 1 is what the reader sees, and the label file names only the services that mount
+      ansible.builtin.assert:
+        that:
+          - compose_mounted_config.stdout | trim == 'version=v1'
+          - compose_mounted_script.stdout | trim == 'script-v1'
+          - compose_mounted_rules.stdout | trim == 'rules=v1'
+          - (compose_mounted_override.content | b64decode | from_yaml).services.keys() | sort == ['lister', 'reader']
+          - (compose_mounted_override.content | b64decode | from_yaml).services.reader.labels['homelab.mounted-files-sha256'] | length == 64
+          - not compose_plain_override.stat.exists
+    - name: Keep what version 1 looked like
+      ansible.builtin.set_fact:
+        compose_mounted_v1:
+          reader: "{{ compose_mounted_reader.container.Id }}"
+          lister: "{{ compose_mounted_lister.container.Id }}"
+          bystander: "{{ compose_mounted_bystander.container.Id }}"
+          label: "{{ (compose_mounted_override.content | b64decode | from_yaml).services.reader.labels['homelab.mounted-files-sha256'] }}"
+
+    # A run that writes version 2 and fails before the stack is brought up, as
+    # a failed task between the two would. The container keeps reading the file
+    # it mounted, the premise of the whole mechanism.
+    - name: Write version 2 of the files and fail before deploying
+      block:
+        - name: Initialise the app from the changed source
+          ansible.builtin.include_role:
+            name: compose
+            tasks_from: init.yaml
+          vars:
+            compose_source_dir: "{{ playbook_dir }}/files/docker_changed"
+            compose_app_item: "{{ resolved_apps | selectattr('name', 'equalto', 'mountapp') | first }}"
+        - name: Fail between writing the files and deploying
+          ansible.builtin.fail:
+            msg: simulated failure after the files were written
+      rescue:
+        - name: Carry on from the simulated failure
+          ansible.builtin.assert:
+            that: ansible_failed_result.msg == 'simulated failure after the files were written'
+
+    - name: Read the containers and the label file after the failed run
+      ansible.builtin.include_tasks: tasks/observe.yml
+
+    - name: Confirm the files on the host are version 2 and the running reader still reads version 1
+      ansible.builtin.assert:
+        that:
+          - compose_host_config.content | b64decode == 'version=v2\n'
+          - compose_mounted_reader.container.Id == compose_mounted_v1.reader
+          - compose_mounted_config.stdout | trim == 'version=v1'
+          - compose_mounted_script.stdout | trim == 'script-v1'
+
+    # The files did not change in this run: the label is what carries the change.
+    - name: Deploy again from the changed source
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main.yaml
+      vars:
+        compose_source_dir: "{{ playbook_dir }}/files/docker_changed"
+      loop: "{{ resolved_apps }}"
+      loop_control:
+        loop_var: compose_app_item
+        label: "{{ compose_app_item.name }}"
+
+    - name: Read the containers and the label file after the deploy
+      ansible.builtin.include_tasks: tasks/observe.yml
+
+    - name: Confirm the services that mount files were recreated and read version 2, and the bystander was left alone
+      ansible.builtin.assert:
+        that:
+          - compose_mounted_reader.container.Id != compose_mounted_v1.reader
+          - compose_mounted_reader.container.State.Running
+          - compose_mounted_config.stdout | trim == 'version=v2'
+          - compose_mounted_script.stdout | trim == 'script-v2'
+          # The lister mounts only a directory, so only what is inside it can have recreated it.
+          - compose_mounted_lister.container.Id != compose_mounted_v1.lister
+          - compose_mounted_rules.stdout | trim == 'rules=v2'
+          - compose_mounted_bystander.container.Id == compose_mounted_v1.bystander
+          - (compose_mounted_override.content | b64decode | from_yaml).services.reader.labels['homelab.mounted-files-sha256'] != compose_mounted_v1.label
+    - name: Keep what version 2 looked like
+      ansible.builtin.set_fact:
+        compose_mounted_v2:
+          reader: "{{ compose_mounted_reader.container.Id }}"
+          lister: "{{ compose_mounted_lister.container.Id }}"
+          bystander: "{{ compose_mounted_bystander.container.Id }}"
+          override: "{{ compose_mounted_override.content }}"
+
+    - name: Deploy the same source a second time
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main.yaml
+      vars:
+        compose_source_dir: "{{ playbook_dir }}/files/docker_changed"
+      loop: "{{ resolved_apps }}"
+      loop_control:
+        loop_var: compose_app_item
+        label: "{{ compose_app_item.name }}"
+
+    - name: Read the containers and the label file after the second deploy
+      ansible.builtin.include_tasks: tasks/observe.yml
+
+    - name: Confirm a second run changed nothing
+      ansible.builtin.assert:
+        that:
+          - compose_mounted_reader.container.Id == compose_mounted_v2.reader
+          - compose_mounted_lister.container.Id == compose_mounted_v2.lister
+          - compose_mounted_bystander.container.Id == compose_mounted_v2.bystander
+          - compose_mounted_override.content == compose_mounted_v2.override
+
+    # An app that stopped mounting anything has no label file.
+    - name: Leave a label file in the stack of an app that mounts nothing
+      ansible.builtin.copy:
+        content: "services: {}\n"
+        dest: "{{ compose_deploy_dir }}/plainapp/compose.override.yaml"
+        mode: "0644"
+
+    - name: Deploy again
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main.yaml
+      loop: "{{ resolved_apps }}"
+      loop_control:
+        loop_var: compose_app_item
+        label: "{{ compose_app_item.name }}"
+
+    - name: Look for the stale label file
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/plainapp/compose.override.yaml"
+      register: compose_plain_override
+
+    - name: Confirm it was removed
+      ansible.builtin.assert:
+        that: not compose_plain_override.stat.exists

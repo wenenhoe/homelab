@@ -14,6 +14,71 @@
 # caller reaches it, so caddy, bind9 and openbao are reported alongside the
 # apps compose_app loops over.
 
+# A service that mounts a file or directory read-only from the stack directory
+# is recreated when that content changes: Compose does not notice a changed
+# bind-mounted file, and a container keeps the old content of a file replaced by
+# a rename. compose.override.yaml, which Compose reads from the project directory
+# without being named, labels each such service with a checksum of what it
+# mounts, as it is on the host now, so a run after one that failed between
+# writing the file and here still recreates it (ansible/filter_plugins/compose_mounts.py).
+# Written before any Compose call. Tagged `always`, as `up` is: a task tagged
+# images and infra is skipped by --skip-tags on either. The include that reaches
+# this file carries the play's tags.
+- name: Read the deployed compose file ({{ compose_app_item.name }})
+  ansible.builtin.slurp:
+    src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/compose.yaml"
+  register: compose_app_compose_file
+  tags:
+    - always
+
+- name: Find the files its services mount read-only from the stack directory ({{ compose_app_item.name }})
+  ansible.builtin.set_fact:
+    compose_app_mounts: "{{ compose_app_compose_file.content | b64decode | compose_mounts(compose_deploy_dir ~ '/' ~ compose_app_item.name) }}"
+  tags:
+    - always
+
+- name: Stat what its services mount ({{ compose_app_item.name }})
+  ansible.builtin.stat:
+    path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item }}"
+    checksum_algorithm: sha256
+  loop: "{{ compose_app_mounts.values() | flatten | unique | list }}"
+  register: compose_app_mount_stats
+  tags:
+    - always
+
+- name: Find the files in the directories its services mount ({{ compose_app_item.name }})
+  ansible.builtin.find:
+    paths: "{{ item.stat.path }}"
+    recurse: true
+    hidden: true
+    file_type: file
+    get_checksum: true
+  loop: "{{ compose_app_mount_stats.results | selectattr('stat.isdir', 'defined') | selectattr('stat.isdir') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: compose_app_mount_finds
+  tags:
+    - always
+
+- name: Write the label file for its mounted files ({{ compose_app_item.name }})
+  ansible.builtin.copy:
+    content: "{{ compose_app_mounts | compose_mounts_override(compose_app_mount_stats.results, compose_app_mount_finds.results) }}"
+    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/compose.override.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: compose_app_mounts | length > 0
+  tags:
+    - always
+
+- name: Remove the label file of an app with no such mount ({{ compose_app_item.name }})
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/compose.override.yaml"
+    state: absent
+  when: compose_app_mounts | length == 0
+  tags:
+    - always
+
 # Every image reference in a compose file is pinned to a digest (ADR 0108), so
 # a reference that is already on the host is the image the commit names and a
 # changed digest is a reference the host does not have yet. `missing` pulls only
@@ -36,15 +101,18 @@
   tags:
     - images
 
+# `always`, with the label file above: only `up` turns a changed label into a
+# recreated service. `restarted` below keeps the old container, and so the old
+# content of a replaced mounted file.
 - name: Deploy with Docker Compose ({{ compose_app_item.name }})
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
     state: present
   register: compose_app_deploy_up_result
   tags:
-    - images
+    - always
 
-# Separate from the images tag above: for when Caddyfile/named.conf/zone
+# Separate from `up` above: for when Caddyfile/named.conf/zone
 # content changed but the compose file/image didn't, which Compose can't
 # detect on its own (a rebuilt local image with the same tag IS already
 # picked up by the "present" task above).

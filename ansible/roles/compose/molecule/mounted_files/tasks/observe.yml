@@ -1,0 +1,51 @@
+---
+- name: Read the reader container
+  community.docker.docker_container_info:
+    name: mountapp-reader-1
+  register: compose_mounted_reader
+
+- name: Read the bystander container
+  community.docker.docker_container_info:
+    name: mountapp-bystander-1
+  register: compose_mounted_bystander
+
+- name: Read the lister container
+  community.docker.docker_container_info:
+    name: mountapp-lister-1
+  register: compose_mounted_lister
+
+- name: Read the file in the directory the lister mounts
+  community.docker.docker_container_exec:
+    container: mountapp-lister-1
+    command: cat /etc/rules/nested/app.rules
+  register: compose_mounted_rules
+  changed_when: false
+
+- name: Read the config the reader sees
+  community.docker.docker_container_exec:
+    container: mountapp-reader-1
+    command: cat /etc/app.conf
+  register: compose_mounted_config
+  changed_when: false
+
+- name: Read the script the reader sees
+  community.docker.docker_container_exec:
+    container: mountapp-reader-1
+    command: sh /run.sh
+  register: compose_mounted_script
+  changed_when: false
+
+- name: Read the config on the host
+  ansible.builtin.slurp:
+    src: "{{ compose_deploy_dir }}/mountapp/conf/app.conf"
+  register: compose_host_config
+
+- name: Read the label file of the app that mounts files
+  ansible.builtin.slurp:
+    src: "{{ compose_deploy_dir }}/mountapp/compose.override.yaml"
+  register: compose_mounted_override
+
+- name: Look for a label file in the app that mounts nothing
+  ansible.builtin.stat:
+    path: "{{ compose_deploy_dir }}/plainapp/compose.override.yaml"
+  register: compose_plain_override

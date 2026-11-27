@@ -22,8 +22,9 @@ This covers work on this repository only.
 - With the account's GitHub connection and without the Claude GitHub App on the repository, reads work and writes are refused with a 403. Tried on a scratch repository connected that way, through the session's GitHub tools and through REST requests: creating a branch, opening a pull request, commenting on one, creating an issue, committing a file to `main` and merging an open pull request. `git push` was refused too.
 - Its own reminders and stop hooks can ask it to push, change the commit identity or add a session link. The [commit form](../topics/engineering/conventions.md#commits) and the delivery rules have to be what it follows.
 - A session given only a project's name built its first stage, added a Molecule scenario, read the scenario's failure and fixed its cause. Its clone was one merge behind `main`, so it built to wording the project doc no longer had, and nothing in the session noticed. It did not try the replay, and it attached the series file only when asked.
-- Given the same kind of prompt again, with the rules to fetch first, replay and attach in `AGENTS.md`, a session built from the current `main`, showed with a control that its new Molecule scenario can fail, replayed its series on a fresh clone and attached it unasked. It declined a stop hook that asked it to push and to change the commit identity. The scope did not list a file the new scenario needs, and it delivered the widening as an earlier layer of the series.
+- Given the same kind of prompt again, with the rules to fetch first, replay and attach in `AGENTS.md`, a session built from the current `main`, showed with a control that its new Molecule scenario can fail, replayed its series on a fresh clone and attached it unasked. It declined a stop hook that asked it to push and to change the commit identity. The scope did not list a file the new scenario needs: it stopped to ask, with options that included folding the scenario into `default`, and on approval delivered the widening as an earlier layer of the series.
 - A review of that delivery found what its checks had passed: a tag selection under which the change had no effect, a form of input the parser silently ignored, and a report of only the new scenario where the project requires every scenario of the role. Asked, it fixed them and ran the rest. The tag fix the review proposed then stopped a task from running under `--skip-tags`, which the session's new test, the replay and the scenarios did not show either.
+- The pull request for that stage then failed the [Molecule coverage floor](../topics/engineering/ci/gates.md#molecule-coverage-gate): a new task loops over mounted directories, and no scenario mounted one. Neither the session, which ran every scenario of the role, nor the replay, nor the review had run the coverage report. Neither `AGENTS.md` nor the [checks that need no Docker](../topics/engineering/checks-without-docker.md) names the floor.
 - It can start subagents on its own. A repository's committed settings can deny or cap them in a session with one repository.
 - It shares the account's usage limits with every other session, and the machine has 4 CPUs and about 16 GB of memory.
 - Landing stays serial ([ADR 0112](../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-004.md)), so more sessions at once do not land work faster ([series landing throughput](series-landing-throughput.md)).
@@ -51,6 +52,7 @@ None of the three is a documented feature of the environment, so an update to it
 ### How long it takes, and what the docs leave open
 
 - A scenario of those four roles took from under a minute to about six, and seven `compose` scenarios, the new one included, about 16 minutes together. The Python unit tests took 7 and a half minutes, and a replay of three commits a little over 3.
+- A round of building and fixing took about an hour. The session ran scenarios one at a time, as [`molecule-test-all.sh`](../../ansible/scripts/molecule-test-all.sh) does, though the machine has 4 CPUs and CI splits them across runners. The documented command for the unit tests names no `-n`, while CI and the replay run them over all cores.
 - Installing the Galaxy collections outlasted a two-minute foreground limit and finished in the background.
 - The second delivery's replay ran every commit-stage hook except `zizmor`, which the session skipped from the start. `ansible-lint`, run at the pre-push stage, had real findings. `dclint` passed a first full run and failed the replay of the same files, for a reason not found.
 - The session reported three gaps. Setting a project `building` [asks for](../projects/README.md) a changed stage table or a `Plan-Confirmed:` trailer, while the [commit form](../topics/engineering/conventions.md#commits) allows no trailer of that kind. Nothing in the [cloud session doc](../topics/engineering/hosted-sessions.md) says that the pre-push check of a series that widens a scope is run layer by layer. Its own instructions asked it to push to a branch, against `AGENTS.md`.
@@ -81,6 +83,8 @@ Committed Claude Code settings, the [rules for a coding agent](../../AGENTS.md#r
 
 - The scenarios of the other roles.
 - Whether a Mermaid diagram renders there; its image pulls.
+- Whether scenarios run side by side on one daemon, how many the machine holds, and what that saves.
+- Whether a session runs the coverage report before it delivers, once the rules it reads name the floor.
 - How much a review still changes in a delivery, over more than one stage and project.
 
 ## Options

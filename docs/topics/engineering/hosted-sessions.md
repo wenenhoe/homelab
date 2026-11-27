@@ -20,9 +20,10 @@ These are set on the account and the [cloud environment](https://code.claude.com
 | `attribution.sessionUrl` is `false` | No session link in a commit or pull request, as [the commit form](conventions.md#commits) asks |
 | `Agent` is denied | A session starts no subagents |
 | `git push` and `gh` are denied | The commands a session would reach the remote with are refused |
+| The `github` and `claude-code-remote` MCP servers are denied | Their tools, which write to GitHub or start and schedule sessions, are not offered; reading GitHub through them goes too |
 | A `SessionStart` hook | Prepares Docker, in a cloud session only |
 
-A deny rule matches the command as written, so it guides a session and is [not a security boundary](https://code.claude.com/docs/en/permissions): `git -C . push` is not matched.
+A deny rule matches the command as written, so it guides a session and is [not a security boundary](https://code.claude.com/docs/en/permissions): `git -C . push` is not matched. A server is denied by name, so one that is added or renamed is not covered.
 
 ## What the hook prepares
 

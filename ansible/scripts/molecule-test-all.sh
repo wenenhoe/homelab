@@ -24,12 +24,20 @@
 # set, each row is also written there as tab-separated role, scenario,
 # seconds and result, which tools/ci/timing reads.
 #
+# With -j N, N scenarios run at once, across roles too, on one Docker
+# daemon. Each scenario's output is printed whole when it ends, and a role's
+# failure starts no further scenario of that role while those already running
+# finish. Every scenario's `molecule dependency` runs first, one at a time:
+# concurrent installs would write the same Galaxy directory. Times taken this
+# way include contention, so -j refuses MOLECULE_TIMINGS_FILE.
+#
 # Usage (run from ansible/):
 #   ./scripts/molecule-test-all.sh                     # every scenario, every role
 #   ./scripts/molecule-test-all.sh compose              # every scenario, one role
 #   ./scripts/molecule-test-all.sh compose caddy        # every scenario, several roles
 #   ./scripts/molecule-test-all.sh compose -s volumes   # one scenario, one role only
 #   ./scripts/molecule-test-all.sh compose -s reset -s build   # several scenarios of one role
+#   ./scripts/molecule-test-all.sh -j 4 compose caddy  # four scenarios at once
 set -euo pipefail
 # One level up from this script's own new location (ansible/scripts/)
 # to ansible/ itself - every roles/* path below is relative to that,
@@ -37,18 +45,24 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 usage() {
-    echo "Usage: $0 [role...] [-s scenario]..." >&2
+    echo "Usage: $0 [-j jobs] [role...] [-s scenario]..." >&2
     echo "-s requires exactly one role - a scenario name is role-specific." >&2
     exit 2
 }
 
 selected=()
 roles=()
+jobs=1
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -s)
             [ "$#" -ge 2 ] || usage
             selected+=("$2")
+            shift 2
+            ;;
+        -j)
+            [[ "${2:-}" =~ ^[1-9][0-9]*$ ]] || usage
+            jobs=$2
             shift 2
             ;;
         -h | --help)
@@ -63,6 +77,10 @@ done
 
 if [ "${#selected[@]}" -gt 0 ] && [ "${#roles[@]}" -ne 1 ]; then
     usage
+fi
+if [ "$jobs" -gt 1 ] && [ -n "${MOLECULE_TIMINGS_FILE:-}" ]; then
+    echo "-j cannot be used with MOLECULE_TIMINGS_FILE: times taken side by side are not comparable." >&2
+    exit 2
 fi
 
 if [ "${#roles[@]}" -eq 0 ]; then
@@ -80,32 +98,135 @@ fi
 # git rev-parse resolves correctly for both plain clones and worktrees.
 molecule_base_config="$(git rev-parse --show-toplevel)/.config/molecule/config.yml"
 
-failed=()
-timings=()
-for role in "${roles[@]}"; do
-    echo
-    echo "=== $role${selected[*]:+ (${selected[*]})} ==="
+# Sets `scenarios` to what runs for one role.
+scenarios_of() {
+    local dir
     if [ "${#selected[@]}" -gt 0 ]; then
         scenarios=("${selected[@]}")
-    else
-        scenarios=()
-        for dir in "roles/$role"/molecule/*/; do
-            [ -f "${dir}molecule.yml" ] || continue
-            scenarios+=("$(basename "$dir")")
-        done
+        return
     fi
-    for name in "${scenarios[@]}"; do
-        echo "--- $role: $name ---"
-        started=$SECONDS
-        result=passed
-        if ! (cd "roles/$role" && molecule --base-config "$molecule_base_config" test -s "$name"); then
-            result=FAILED
-            failed+=("$role")
-        fi
-        timings+=("$role|$name|$((SECONDS - started))|$result")
-        [ "$result" = passed ] || break
+    scenarios=()
+    for dir in "roles/$1"/molecule/*/; do
+        [ -f "${dir}molecule.yml" ] || continue
+        scenarios+=("$(basename "$dir")")
     done
-done
+}
+
+molecule_in() {
+    local role=$1
+    shift
+    (cd "roles/$role" && molecule --base-config "$molecule_base_config" "$@")
+}
+
+failed=()
+timings=()
+
+run_serially() {
+    local role name started result
+    for role in "${roles[@]}"; do
+        echo
+        echo "=== $role${selected[*]:+ (${selected[*]})} ==="
+        scenarios_of "$role"
+        for name in "${scenarios[@]}"; do
+            echo "--- $role: $name ---"
+            started=$SECONDS
+            result=passed
+            if ! molecule_in "$role" test -s "$name"; then
+                result=FAILED
+                failed+=("$role")
+            fi
+            timings+=("$role|$name|$((SECONDS - started))|$result")
+            [ "$result" = passed ] || break
+        done
+    done
+}
+
+# One entry per scenario in the order a serial run takes them. state is
+# queued, running, finished or skipped.
+run_in_parallel() {
+    local role name i running=0 left collected
+    local job_role=() job_name=() state=() pid=() row=()
+    local -A role_failed=()
+    work=$(mktemp -d)
+    trap 'rm -rf "$work"' EXIT
+    trap 'kill $(jobs -p) 2>/dev/null; exit 130' INT TERM
+
+    for role in "${roles[@]}"; do
+        scenarios_of "$role"
+        for name in "${scenarios[@]}"; do
+            job_role+=("$role")
+            job_name+=("$name")
+            state+=(queued)
+        done
+    done
+
+    for i in "${!job_role[@]}"; do
+        echo "--- dependencies: ${job_role[i]}: ${job_name[i]} ---"
+        molecule_in "${job_role[i]}" dependency -s "${job_name[i]}"
+    done
+
+    left=${#job_role[@]}
+    while [ "$left" -gt 0 ]; do
+        for i in "${!job_role[@]}"; do
+            [ "${state[i]}" = queued ] || continue
+            if [ -n "${role_failed[${job_role[i]}]:-}" ]; then
+                state[i]=skipped
+                left=$((left - 1))
+                continue
+            fi
+            [ "$running" -lt "$jobs" ] || continue
+            echo "--- started: ${job_role[i]}: ${job_name[i]} ---"
+            (
+                started=$SECONDS
+                result=passed
+                molecule_in "${job_role[i]}" test -s "${job_name[i]}" >"$work/$i.log" 2>&1 || result=FAILED
+                echo "$result $((SECONDS - started))" >"$work/$i.tmp"
+                mv "$work/$i.tmp" "$work/$i.status"
+            ) &
+            pid[i]=$!
+            state[i]=running
+            running=$((running + 1))
+        done
+
+        collected=0
+        for i in "${!job_role[@]}"; do
+            [ "${state[i]}" = running ] || continue
+            if [ ! -f "$work/$i.status" ]; then
+                # A job that is gone without a status was killed.
+                kill -0 "${pid[i]}" 2>/dev/null && continue
+                [ -f "$work/$i.status" ] || echo "FAILED 0" >"$work/$i.status"
+            fi
+            local result seconds
+            read -r result seconds <"$work/$i.status"
+            echo
+            echo "--- ${job_role[i]}: ${job_name[i]} ($result) ---"
+            cat "$work/$i.log"
+            row[i]="${job_role[i]}|${job_name[i]}|$seconds|$result"
+            if [ "$result" != passed ] && [ -z "${role_failed[${job_role[i]}]:-}" ]; then
+                role_failed[${job_role[i]}]=1
+                failed+=("${job_role[i]}")
+            fi
+            state[i]=finished
+            running=$((running - 1))
+            left=$((left - 1))
+            collected=1
+        done
+        if [ "$collected" -eq 0 ] && [ "$running" -gt 0 ]; then
+            wait -n 2>/dev/null || true
+        fi
+    done
+    wait
+
+    for i in "${!job_role[@]}"; do
+        [ -z "${row[i]:-}" ] || timings+=("${row[i]}")
+    done
+}
+
+if [ "$jobs" -gt 1 ]; then
+    run_in_parallel
+else
+    run_serially
+fi
 
 table="| Role | Scenario | Seconds | Result |"$'\n'"| :--- | :--- | ---: | :--- |"
 for row in "${timings[@]}"; do

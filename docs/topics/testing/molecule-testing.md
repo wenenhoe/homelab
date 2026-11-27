@@ -27,15 +27,22 @@ role=compose
 ./ansible/scripts/molecule-test-all.sh "$role" -s reset -s build
 ```
 
+Several scenarios at once, here four of them:
+
+```sh
+role=compose
+./ansible/scripts/molecule-test-all.sh -j 4 "$role"
+```
+
 Every scenario of every role:
 
 ```sh
 ./ansible/scripts/molecule-test-all.sh
 ```
 
-`molecule-test-all.sh` runs one `molecule test -s <scenario>` at a time from each role's directory, in name order, and stops a role at its first failure. `molecule test --all` from `ansible/` does not work: Molecule's scenario glob does not reach `roles/*/molecule/*/`, and a recursive glob rejects the many scenarios named `default` as duplicates.
+`molecule-test-all.sh` runs one `molecule test -s <scenario>` at a time from each role's directory, in name order, and stops a role at its first failure. With `-j N` it runs N at once, across roles too, on the one Docker daemon: every scenario's dependencies are installed first, one at a time, each scenario's output is printed whole when it ends, and a failure starts no further scenario of that role. CI does not use `-j`. `molecule test --all` from `ansible/` does not work: Molecule's scenario glob does not reach `roles/*/molecule/*/`, and a recursive glob rejects the many scenarios named `default` as duplicates.
 
-The script prints a table of seconds per scenario, which CI also puts in the job summary and which shows whether a role is worth splitting across runners. With `MOLECULE_TIMINGS_FILE` set it writes the same rows, tab-separated, to that file for [the scheduled timing run](molecule-timings.md).
+The script prints a table of seconds per scenario, which CI also puts in the job summary and which shows whether a role is worth splitting across runners. With `MOLECULE_TIMINGS_FILE` set it writes the same rows, tab-separated, to that file for [the scheduled timing run](molecule-timings.md), and refuses `-j`, since times taken side by side are not comparable.
 
 ## Scenario matrix
 

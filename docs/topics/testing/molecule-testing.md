@@ -178,13 +178,11 @@ A negative-path scenario asserts on `ansible_failed_task` and `ansible_failed_re
 
 4. Add no `dependency.options` or `provisioner.env` block: the base config supplies both.
 5. Add the scenario's row to the [matrix](#scenario-matrix), and to [Idempotence exceptions](#idempotence-exceptions) if it has no such step.
-6. Run it locally before opening a pull request. CI also runs every role whose watch set the pull request touches ([`ci/change-scoping.md`](../engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep)).
+6. Run every scenario of the role locally before opening a pull request, so [its coverage floor](#coverage) is checked too. CI also runs every role whose watch set the pull request touches ([`ci/change-scoping.md`](../engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep)).
 
 ## Coverage
 
-See [`molecule-coverage/README.md`](../../../ansible/molecule-coverage/README.md)
-for the task/loop/branch coverage tool that runs on top of these
-scenarios and gates CI (see [`ci/gates.md`](../engineering/ci/gates.md#molecule-coverage-gate)).
+CI holds each tested role to a floor of task coverage, so a new task, loop or `when:` needs a scenario that runs it ([`ci/gates.md`](../engineering/ci/gates.md#molecule-coverage-gate)). `molecule-test-all.sh` without `-s` applies the same floor to each role whose scenarios all passed, from that run's data, and fails on a role under it. With `-s` it says that coverage was not checked. [`molecule-coverage/README.md`](../../../ansible/molecule-coverage/README.md) describes the report.
 
 ## What molecule scenarios can't catch: tag wiring
 

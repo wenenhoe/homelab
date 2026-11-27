@@ -31,6 +31,11 @@
 # concurrent installs would write the same Galaxy directory. Times taken this
 # way include contention, so -j refuses MOLECULE_TIMINGS_FILE.
 #
+# Without -s, each role whose scenarios all passed is then held to its floor in
+# molecule-coverage/thresholds.yaml, from this run's data alone, and a role
+# under it fails the run. Not in GitHub Actions, where a leg runs part of a
+# sharded role and the molecule-coverage job gates the whole.
+#
 # Usage (run from ansible/):
 #   ./scripts/molecule-test-all.sh                     # every scenario, every role
 #   ./scripts/molecule-test-all.sh compose              # every scenario, one role
@@ -120,6 +125,20 @@ molecule_in() {
 
 failed=()
 timings=()
+
+# Whether a role is one whose coverage data may be dropped and checked.
+has_scenarios() {
+    [[ "$1" =~ ^[A-Za-z0-9_-]+$ ]] && [ -d "roles/$1/molecule" ]
+}
+
+# Holds one role's collected data to its floor.
+coverage_floor() {
+    (
+        cd molecule-coverage &&
+            python3 -m molecule_cov.cli inventory "../roles/$1" --coverage-dir .data &&
+            python3 -m molecule_cov.cli report --coverage-dir .data --role "$1" --thresholds-file thresholds.yaml
+    )
+}
 
 run_serially() {
     local role name started result
@@ -222,6 +241,15 @@ run_in_parallel() {
     done
 }
 
+check_coverage=
+if [ "${#selected[@]}" -eq 0 ] && [ -z "${GITHUB_ACTIONS:-}" ]; then
+    check_coverage=1
+    # A scenario that was renamed or removed would otherwise still count.
+    for role in "${roles[@]}"; do
+        ! has_scenarios "$role" || rm -rf "molecule-coverage/.data/$role"
+    done
+fi
+
 if [ "$jobs" -gt 1 ]; then
     run_in_parallel
 else
@@ -244,6 +272,19 @@ if [ -n "${MOLECULE_TIMINGS_FILE:-}" ]; then
     for row in "${timings[@]}"; do
         printf '%s\n' "${row//|/$'\t'}" >>"$MOLECULE_TIMINGS_FILE"
     done
+fi
+
+if [ -n "$check_coverage" ]; then
+    for role in "${roles[@]}"; do
+        has_scenarios "$role" || continue
+        [[ " ${failed[*]} " != *" $role "* ]] || continue
+        echo
+        echo "=== coverage: $role ==="
+        coverage_floor "$role" || failed+=("$role (coverage)")
+    done
+elif [ "${#selected[@]}" -gt 0 ] && [ -z "${GITHUB_ACTIONS:-}" ]; then
+    echo
+    echo "Coverage not checked: -s runs only some of a role's scenarios."
 fi
 
 echo

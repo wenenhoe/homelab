@@ -71,6 +71,12 @@ read -r -p 'role: ' role
 (cd "ansible/roles/$role" && uv run molecule test -s default)
 ```
 
+Every scenario of the role, which also checks [its coverage floor](../testing/molecule-testing.md#coverage):
+
+```bash
+(cd ansible && uv run ./scripts/molecule-test-all.sh "$role")
+```
+
 [`molecule-testing.md`](../testing/molecule-testing.md) lists the scenarios.
 
 ## Where it differs from CI

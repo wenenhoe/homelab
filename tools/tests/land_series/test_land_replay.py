@@ -418,10 +418,11 @@ def test_a_layer_that_does_not_apply_is_reported_before_the_stop_list_is_asked(r
         ),
         pytest.param([".github/workflows/pr-checks.yml"], [".github/workflows/pr-checks.yml"], id="a workflow"),
         pytest.param([".github/actions/setup/action.yml"], [".github/actions/setup/action.yml"], id="an action"),
+        pytest.param([".claude/settings.json"], [".claude/settings.json"], id="coding agent settings"),
         pytest.param(["tools/doc_scripts/x.py"], ["tools/doc_scripts/x.py"], id="a tool"),
         pytest.param(["pyproject.toml", "uv.lock"], ["pyproject.toml", "uv.lock"], id="the dependencies"),
         pytest.param(["tools/x y.md"], ["tools/x y.md"], id="a path with a space"),
-        pytest.param(["docs/toolsy.md", "docs/.config/x"], [], id="names that only contain a listed one"),
+        pytest.param(["docs/toolsy.md", "docs/.config/x", "docs/.claude/x"], [], id="names that only contain a listed one"),
     ],
 )
 def test_the_stop_list_names_the_paths_on_it(paths: list[str], expected: list[str]) -> None:

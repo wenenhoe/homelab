@@ -1,6 +1,6 @@
 # Landing a Patch Series
 
-How a series of patches reaches `main` as pull requests with [`tools/land_series`](../../../tools/land_series), the maintainer-run tool [ADR 0112 (Landing a patch series)](../../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-003.md) describes. It replays the series, keeps each pull request as a local branch for review, then pushes, waits on and merges them one at a time under the maintainer's own `gh` login. A session that writes a series never holds a credential for it.
+How a series of patches reaches `main` as pull requests with [`tools/land_series`](../../../tools/land_series), the maintainer-run tool [ADR 0112 (Landing a patch series)](../../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-004.md) describes. It replays the series, keeps each pull request as a local branch for review, then pushes, waits on and merges them one at a time under the maintainer's own `gh` login. A session that writes a series never holds a credential for it.
 
 Run it from `tools/` in a clone of the repository, with `gh` logged in as a user who can bypass the `main-review` ruleset ([`branching.md`](branching.md#the-rulesets)):
 
@@ -92,9 +92,9 @@ The replay applies the series on a scratch worktree of `origin/main` (fetched fi
 
 ### The stop list
 
-A commit that changes `.githooks/`, `.pre-commit-config.yaml`, `.config/`, a workflow, an action, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) is on the stop list, since the replay and the checks run that code on this machine. The paths come from the commit `git am` makes, with every hook off, not from the patch text, so no way of writing a patch hides one, and every commit is applied before anything is asked, since applying runs nothing it adds.
+A commit that changes `.githooks/`, `.pre-commit-config.yaml`, `.config/`, a workflow, an action, `.claude/`, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) is on the stop list, since that code can run on this machine: the replay and the checks run most of it, and Claude Code runs the hooks `.claude/` names when a session is opened in the clone. The paths come from the commit `git am` makes, with every hook off, not from the patch text, so no way of writing a patch hides one, and every commit is applied before anything is asked, since applying runs nothing it adds.
 
-The replay lists those commits together, each with its files, their added and removed line counts, and what runs them: hooks, configuration and dependencies; CI workflows and actions; tool tests; tools code. It then asks once for the whole series:
+The replay lists those commits together, each with its files, their added and removed line counts, and what runs them: hooks, configuration and dependencies; CI workflows and actions; coding agent settings and hooks; tool tests; tools code. It then asks once for the whole series:
 
 - `yes` runs the checks, with no further stop.
 - `v` opens the diff of the listed files, and no others, in `less`. `q` returns to the prompt with the terminal as it was. Without `less`, or with `TERM=dumb`, the diff is printed.

@@ -40,7 +40,7 @@ def answers(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
 
 
 def test_the_summary_groups_each_commits_files_by_what_runs_them() -> None:
-    paths = ("tools/run.py", "tools/tests/test_run.py", ".github/workflows/ci.yml", "uv.lock", ".config/zizmor.yml")
+    paths = ("tools/run.py", "tools/tests/test_run.py", ".github/workflows/ci.yml", "uv.lock", ".config/zizmor.yml", ".claude/settings.json")
 
     assert summary([stop(paths=paths)])[1:] == [
         "",
@@ -50,6 +50,8 @@ def test_the_summary_groups_each_commits_files_by_what_runs_them() -> None:
         "    +1 -0  .config/zizmor.yml",
         "  CI workflows and actions",
         "    +1 -0  .github/workflows/ci.yml",
+        "  coding agent settings and hooks",
+        "    +1 -0  .claude/settings.json",
         "  tool tests",
         "    +1 -0  tools/tests/test_run.py",
         "  tools code",

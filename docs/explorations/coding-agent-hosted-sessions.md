@@ -23,7 +23,7 @@ This covers work on this repository only.
 - Its own reminders and stop hooks can ask it to push, change the commit identity or add a session link. The [commit form](../topics/engineering/conventions.md#commits) and the delivery rules have to be what it follows.
 - It can start subagents on its own. A repository's committed settings can deny or cap them in a session with one repository.
 - It shares the account's usage limits with every other session, and the machine has 4 CPUs and about 16 GB of memory.
-- Landing stays serial ([ADR 0112](../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-003.md)), so more sessions at once do not land work faster ([series landing throughput](series-landing-throughput.md)).
+- Landing stays serial ([ADR 0112](../decisions/0112-landing-a-series-of-dependent-changes-on-main/revision-004.md)), so more sessions at once do not land work faster ([series landing throughput](series-landing-throughput.md)).
 
 ### What the environment needs
 

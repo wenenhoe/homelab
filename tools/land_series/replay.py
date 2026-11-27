@@ -24,8 +24,19 @@ from land_series.run import Completed, run
 
 # A layer touching one of these changes code or configuration that a hook or the checks run on this machine
 # before CI sees it; `pyproject.toml` and `uv.lock` decide which packages `uv run` installs and runs. `.config/` holds the real
-# pre-commit configuration that `.pre-commit-config.yaml` links to, and the settings of the hooks it runs.
-STOP_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".config/", ".github/workflows/", ".github/actions/", "tools/", "pyproject.toml", "uv.lock")
+# pre-commit configuration that `.pre-commit-config.yaml` links to, and the settings of the hooks it runs. The replay runs nothing under
+# `.claude/`, but Claude Code runs the hooks its settings name when a session is opened in a clone, a checked-out kept branch included.
+STOP_PREFIXES = (
+    ".githooks/",
+    ".pre-commit-config.yaml",
+    ".config/",
+    ".github/workflows/",
+    ".github/actions/",
+    ".claude/",
+    "tools/",
+    "pyproject.toml",
+    "uv.lock",
+)
 OUTPUT_TAIL_LINES = 40
 NO_HOOKS = ("-c", "core.hooksPath=/dev/null")
 # In a check's argv, the commit the worktree is at before the current pull request's first commit: the tip of the pull request

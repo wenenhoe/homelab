@@ -38,6 +38,7 @@ class Stop:
 GROUPS = (
     ("hooks, configuration and dependencies", (".githooks/", ".pre-commit-config.yaml", ".config/", "pyproject.toml", "uv.lock")),
     ("CI workflows and actions", (".github/",)),
+    ("coding agent settings and hooks", (".claude/",)),
     ("tool tests", ("tools/tests/",)),
     ("tools code", ("tools/",)),
 )
@@ -54,7 +55,7 @@ def visible(text: str) -> str:
 
 def summary(stops: Sequence[Stop]) -> list[str]:
     """The lines naming each commit on the stop list and its files, grouped by what runs them."""
-    lines = ["These commits change code the replay and the checks run on this machine:"]
+    lines = ["These commits change code that can run on this machine:"]
     for stop in stops:
         lines += ["", visible(f"{stop.layer.id}  {stop.layer.subject}")]
         grouped: dict[str, list[Change]] = {}

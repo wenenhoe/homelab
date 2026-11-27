@@ -7,7 +7,8 @@ short: Landing a patch series
 solution: A maintainer-run tool lands a series one pull request at a time, replaying it first, asking once about the code the replay runs and merging each layer with the admin bypass
 summary: How a series of patches reaches main as pull requests when main refuses any update outside a merged pull request and a pull request based on another branch sees neither main's project docs nor a stable head.
 topic: repository-tooling
-status: accepted
+status: superseded
+superseded_by: 4
 supersedes: 2
 related: [ADR-0076]
 ---
@@ -17,16 +18,6 @@ related: [ADR-0076]
 ## Problem
 
 Work is written as a series of patches, and a project's stages are each meant to be one pull request, so a series is the normal shape of a change. Landing one by hand is slow. What has to be true: each layer reaches `main` as its own pull request with a merge commit, so one layer can be reverted alone; every check runs on a layer against the state `main` will be in; a failure that only the order of layers causes shows before a pull request exists; and no credential other than the maintainer's own can merge to `main`.
-
-## Context
-
-- `main` accepts a change only through a pull request merged with the Admin bypass, and the `main-review` ruleset's `update` rule refuses every other actor ([`branching.md`](../../topics/engineering/branching.md#the-rulesets), [ADR 0076 (Branch separation)](../0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md)). GitHub's stacked pull requests merge a whole stack as one update, which that rule refuses. Merging one pull request at a time with the bypass works. `gh pr merge --admin --merge` merges a pull request into `main` through that bypass from the command line, and `main` has no "require branches to be up to date" rule.
-- A stacked layer is based on the branch below it. The `pull_request` branch filter lists no `stack/**`, so an upper layer gets no run and its required checks never report, and GitHub rebases the remaining layers after each merge, each with a new head SHA and a full run: N(N-1)/2 extra runs for N layers.
-- The project scope check judges a pull request against the project docs as they stood on its base, so a layer that needs a widened `allowed_paths` fails until the widening has merged. CI's base for a layer landed after the one before it has that layer's tip tree, because the tool pushes a layer only once the one before it has merged. A check built on `origin/main` for every layer of a run therefore judges the changes of all the layers up to it, which CI never does.
-- The generated views are not committed ([ADR 0117 (Generated doc views)](../0117-delivering-the-generated-doc-views-to-readers/revision-000.md)), so a series holds no view, `git am` has no hook that regenerates one, and two series that each add a decision or a project do not conflict on a view.
-- Series are rare, and most projects' stages are chains. Layers that share no file can still depend on each other, and layers that each flip a row in one project doc conflict when applied independently.
-
-**Threat model.** The asset is `main`, which the CD agent deploys. A tool that applies a series replays patches and runs the checks on the maintainer's machine, so a patch that changes the code the replay runs would execute before CI sees it. A hook installed in the maintainer's clone runs code from that clone's working tree, which is not the commit a push sends. A confirmation guards the machine only when what it covers is read, so what is asked has to be quick to read. The session that writes a series replays it on a machine that is thrown away and holds no credential, with no terminal to answer on. The tool runs under the maintainer's own `gh` login; a session that writes a series never holds a credential for it.
 
 ## Decision
 
@@ -42,27 +33,6 @@ A small tool, run by the maintainer under their own `gh` login, lands a series o
 - **The tool stops for the maintainer** when a commit changes `.githooks/`, the pre-commit configuration, a workflow, an action, `tools/`, or the Python dependencies (`pyproject.toml`, `uv.lock`), which `uv run` installs and runs.
 - **It asks once, before any check runs.** The replay first applies every commit with nothing run, then lists all the commits on the stop list with their files and line counts, offers the diff of those files, and takes one answer for the series. With no terminal it stops.
 - **A dry run on a throwaway machine may answer in advance.** `--accept-stops` prints the same list and replays without asking, and the tool refuses it without `--dry-run`. It is for the machine a series is written on, which holds no credential. The tool cannot check that, and `--dry-run` limits what the run keeps, not what the series' code can do, so using it only there is a rule for whoever runs it.
-
-## Alternatives considered
-
-- **GitHub stacked pull requests, merged a layer at a time.** Needs `gh stack` (a preview) and its metadata, every lower branch carries its ancestors' commits, every merge reruns the layers above, and `stack/**` would have to return to the branch filter.
-- **Plain pull requests chained on each other, retargeted to `main` as the one below merges.** No rebase and no rerun, but a branch still carries its ancestors' commits, and the scope check sees the project docs of a branch, not of `main`.
-- **Opening independent layers together from a dependency graph.** It needs the author to state dependencies, since sharing no file does not prove independence, and the series and projects on record give it little to shorten.
-- **A scope check against `main` for every layer, with a widening delivered and landed as a series of its own.** The tool stays as it was and the maintainer runs it twice for one change; the replay of the second file also has to run on a base that holds the first, and it keeps judging the cumulative changes of the run.
-- **Teaching the scope check about a stack of bases.** It would put the series into the documentation tools, which already answer the question once given the right base.
-- **Running the pre-push hooks in the replay.** The replay runs before any pull request merges, so a hook that judges a push against the default branch sees the changes of every layer up to the one replayed and needs a base of its own, and a failure comes before the first pull request exists at the price of whole-tree lint such as `ansible-lint` there, on a stage that is not the one that runs them.
-- **Leaving the pre-push hooks to the clone.** They run only where the maintainer installed them, and pre-commit runs a hook on the working tree, which may be another commit than the one pushed.
-- **Landing each pull request before replaying the next.** It would match CI exactly, but it gives up the guarantee that nothing is pushed before the whole series has replayed and passed.
-- **Rebuilding each branch from its patch when landing.** It would push a commit nobody reviewed, and it cannot be compared with the kept one.
-- **Asking as the replay reaches each such commit.** The question arrives partway through a long run, one commit at a time, with nothing on screen but file names, so it tends to be answered unread.
-- **A pseudo-terminal that answers the prompt for a session.** It confirms in the same way as a flag while looking like a person, depends on the prompt's wording, and has to be copied from a doc each time.
-- **`--accept-stops` on any run, or an environment variable.** A run that keeps branches or lands is one on the maintainer's machine, and a variable left set would answer without being seen.
-- **A sandbox for the replay, so that nothing is asked.** It removes the need for the confirmation, but the hooks that run a container cannot run in it and a change to the dependencies needs the network. [ADR 0114 (Remote series landing)](../0114-landing-a-series-from-a-device-other-than-the-laptop/revision-000.md) builds one for its console.
-- **Squash or rebase merges.** A squash drops the commits from `main`'s history, which [`branching.md`](../../topics/engineering/branching.md#promoting) rules out.
-
-## Consequences
-
-Each layer waits for its run before the next is opened, so a series of N layers takes N runs in turn. A pre-push hook that fails does so after the pull requests before it have merged, where the replay's checks fail before any pull request exists. A series is replayed again when `main` changes between the replay and the landing. Every commit is applied twice, once to find what to ask about and once to check it. A confirmation still rests on the maintainer reading what it lists. A tool and its tests are code to maintain. How to run it is in [`landing-a-series.md`](../../topics/engineering/landing-a-series.md).
 
 ## Invariants
 
@@ -83,17 +53,9 @@ Each layer waits for its run before the next is opened, so a series of N layers 
 - Widening the Admin bypass or changing the rulesets.
 - Replacing `git am` as the way a series is written and checked.
 
-## Validation
-
-The tool's tests cover the manifest, the replay, the skip of a layer already in `main`, the kept branches, the pull request and merge steps against a stand-in `gh` that merges into a real repository, the review gate, the stop list, which is asked about once and before any check, the refusal of `--accept-stops` without `--dry-run`, and the pre-push hooks, which run on the commit pushed and not the working tree, stop the push when one fails, and leave a hook installed in the clone unrun. A replay test checks that a scope-style check sees, for each pull request, only that pull request's commits, and the same base for every commit of one pull request.
-
 ## Reconsideration triggers
 
 - `--admin` is refused by the bypass from the command line.
 - A required up-to-date rule is added to `main`.
 - CI waits grow long enough that a series should be grouped into fewer, larger layers.
 - Projects are planned with many independent stages.
-
-## Revision notes
-
-Revision 2 asked about each commit on the stop list as the replay reached it, and had no way to answer without a terminal. This revision asks once for the series before any check runs, and adds `--accept-stops` for a dry run.

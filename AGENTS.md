@@ -70,6 +70,10 @@ Docker or registry access, see
 
 ## Rules for a coding agent
 
+- **Start from the current base.** Before reading anything about a task, run
+  `git fetch origin main`, or fetch the branch the change lands on, and work from
+  its tip. A clone can be older than the branch, with a project doc that has since
+  changed. If that moves `HEAD`, read this file and the task's docs again.
 - **Never write to GitHub**: no push, branch, pull request, comment or other API
   write, by any tool. A change is handed to the maintainer as files, as
   [`landing-a-series.md`](docs/topics/engineering/landing-a-series.md) describes.
@@ -80,8 +84,14 @@ Docker or registry access, see
   name.
 - **Before delivering a change**, replay it as
   [`checks-without-docker.md`](docs/topics/engineering/checks-without-docker.md#verifying-a-series-before-delivery)
-  describes. End the delivery with the replay and `--land` commands, and name each
-  layer that [the stop list](docs/topics/engineering/landing-a-series.md#the-stop-list)
+  describes. A replay that cannot run is reported with the command and its error,
+  never skipped on a guess.
+- **Deliver the `.series` file itself**, written outside the checkout and handed
+  over as a download: a path on the agent's machine does not reach the maintainer.
+  End with the maintainer's replay and `--land` commands as
+  [`landing-a-series.md`](docs/topics/engineering/landing-a-series.md#replay) gives
+  them (their replay has no `--dry-run`, which keeps no branch to land), and name
+  each layer that [the stop list](docs/topics/engineering/landing-a-series.md#the-stop-list)
   stops for and each that touches a hook, CI or tooling path.
 
 A Claude Code cloud session is described in

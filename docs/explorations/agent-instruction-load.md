@@ -35,6 +35,8 @@ Instructions kept outside the repository for chat sessions repeat some of the de
 
 One session, given a project's name, skipped the replay, gave final commands that would have landed nothing, left the series file on its own machine and built from a clone one merge old. The first three are steps of a manual recipe. The last would have happened however short the docs were. One run does not show that length caused any of them.
 
+A later delivery of a project stage failed [the Molecule coverage floor](../topics/engineering/ci/gates.md#molecule-coverage-gate) in CI. The floor was named in no doc `AGENTS.md` sends a session to for delivery, and nothing run before the pull request checked it. [A full run of a role](../topics/testing/molecule-testing.md#coverage) now checks it, with no rule added to `AGENTS.md`.
+
 ### What holds each rule today
 
 | Rule | Held by |
@@ -43,6 +45,7 @@ One session, given a project's name, skipped the replay, gave final commands tha
 | A project's `allowed_paths`, start and close, and doc drift | Checkers, at commit, replay and CI |
 | Generated views stay out of a patch | `.gitignore` |
 | Checks pass on every commit | The replay and CI, whether or not the author ran them |
+| A role's Molecule coverage floor | CI, and `molecule-test-all.sh` after a full run of the role; where Molecule cannot run, CI alone |
 | No write to GitHub | A cloud session's connection refuses it, and [deny rules](../topics/engineering/hosted-sessions.md#what-the-repository-sets) guide the agent |
 | No session link | A setting, in Claude Code only |
 | Commit identity, subject, dates and trailer | Nothing found that checks a commit |
@@ -69,6 +72,7 @@ Claude Code [hooks](https://code.claude.com/docs/en/hooks) can refuse a tool cal
 
 - Whether a session can make the replay's clone, and how long a replay takes there.
 - What a second trial, started from the current `main`, gets wrong.
+- Whether a session runs a role's scenarios through `molecule-test-all.sh`, where the coverage check is, or one `molecule test` at a time.
 - Which rules in the decision and project docs a checker already enforces.
 - Whether a hook can tell reliably that a delivery happened, without keeping a session from ending when there is nothing to deliver.
 

@@ -48,6 +48,8 @@ From 1a2b3c4... Mon Sep 17 00:00:00 2001
 ...
 ```
 
+A session that writes a series starts numbering at `0001a` on a fresh checkout of `main`; files attached to it are the only sign of work not yet merged.
+
 A number is a pull request and each letter is a commit in it. Commits that share a number share a slug, and a slug belongs to one number; the tool refuses anything else. Pull requests land in number order. A slug is lowercase kebab-case, and `main`, `maintenance` and `develop` are refused. A slug is not reused from an earlier series: it is the name of the pull request's branch. Keep a pull request to a few commits that each stand alone: a squash would lose each change's blame, and a long list is noise. [Cutting a series](#cutting-a-series) says what is a commit and what is a layer, and [Naming a layer](#naming-a-layer) its slug and its title.
 
 A fix to a layer that has landed is a new commit with the next letter, or a new number. A file that repeats earlier layers unchanged is fine, since a commit already in the base is skipped, so a follow-up file can hold only the new commits.

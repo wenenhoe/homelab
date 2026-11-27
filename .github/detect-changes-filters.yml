@@ -53,6 +53,8 @@ python_unit_tests:
   # Everything under tools/ is plain controller-side Python with tests in tools/tests/, so one glob covers it:
   # a new package needs no entry here (tools/tests/ci/test_layout.py fails if a directory under tools/ is not matched).
   - 'tools/**'
+  # The committed Claude Code settings tools/tests/cloud_session/ reads.
+  - '.claude/**'
   # The specs tools/tests/scratch_run/ loads against the flow list.
   - 'tofu/scratch/opnsense/runs/*.yaml'
   # The OPNsense module's seed builder and first-boot driver; their tests are under tools/tests/opnsense_seed/.

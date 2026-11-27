@@ -1,4 +1,5 @@
 # Excluded files
+.claude/settings.local.json
 *.env
 *.db
 *.tfvars

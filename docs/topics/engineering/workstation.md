@@ -38,7 +38,7 @@ Every hook and the unit tests, from the repository root:
 
 ```bash
 uv run pre-commit run --all-files
-uv run pytest ansible/tests/ tools/tests/
+uv run pytest ansible/tests/ tools/tests/ -n auto --dist worksteal
 ```
 
 One role's Molecule scenarios, from the repository root:

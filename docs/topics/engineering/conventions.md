@@ -74,7 +74,7 @@ concern → topic mapping itself.
 ## Python unit tests
 
 Tests under `ansible/tests/` and `tools/tests/` are written pytest-native
-and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
+and run with `uv run pytest ansible/tests/ tools/tests/ -n auto --dist worksteal`; the choice is in
 [ADR 0069 (Python test style)](../../decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md).
 
 - **Style.** Plain functions or `Test*` classes, plain `assert`, and
@@ -87,8 +87,8 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   setup a parametrized test would repeat, uses the built-in `subtests`
   fixture (`with subtests.test(...)`), so each case still reports on its
   own. Write no `subTest`.
-- **Parallel runs.** CI runs the suite across the runner's cores with
-  `pytest-xdist` (`-n auto --dist worksteal`), so a test runs in any order and
+- **Parallel runs.** That command and CI run the suite across the machine's
+  cores with `pytest-xdist`, so a test runs in any order and
   beside any other: it keeps its files under `tmp_path`, binds no fixed port,
   and leaves no state in the environment or the repo checkout for another to
   read. A test that cannot meet that is a bug in the test, not a reason to

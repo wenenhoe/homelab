@@ -1,0 +1,25 @@
+name: mountapp
+services:
+  bystander:
+    image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+    command:
+      - sh
+      - -c
+      - sleep infinity
+  lister:
+    image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+    volumes:
+      - ./rules:/etc/rules:ro
+    command:
+      - sh
+      - -c
+      - sleep infinity
+  reader:
+    image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+    volumes:
+      - ./conf/app.conf:/etc/app.conf:ro
+      - ./scripts/run.sh:/run.sh:ro
+    command:
+      - sh
+      - -c
+      - sleep infinity

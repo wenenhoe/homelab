@@ -101,11 +101,26 @@ own, and `seaweedfs` mounts its rendered `s3-identity.json` the same way,
 out of its own `data` volume. Needs Docker Engine 25+/Compose CLI v2.22+
 for subpath support.
 
+## Files mounted read-only from the stack directory
+
+A file or directory that Ansible renders or copies into the stack directory, that the container only reads and that nothing in the container writes beside, can be bind-mounted `:ro` from there instead of seeded into a volume ([ADR 0087 (Ansible-rendered files in containers)](../../decisions/0087-delivering-files-ansible-renders-to-a-container/revision-000.md)). The mount is outside every volume, and a mounted secret keeps `no_log` and a mode that excludes other users, set in its catalog entry like any direct config.
+
+A running container keeps the old content of a file that Ansible replaced, because `template` and `copy` rename a new file over it, and Compose does not notice a changed bind-mounted file. The deploy tasks therefore recreate the service that mounts it:
+
+- Before any Compose call, under whichever tag selection reaches it, `deploy.yaml` reads the deployed `compose.yaml` and finds each service's read-only bind mounts whose source is inside the stack directory, in short and long syntax ([`compose_mounts.py`](../../../ansible/filter_plugins/compose_mounts.py)). Named volumes, writable binds, the Docker socket and any other host path are not counted.
+- It writes `compose.override.yaml` in the stack directory, which Compose reads from the project directory without being named. It gives each such service a `homelab.mounted-files-sha256` label: a checksum of the mounted files as they are on the host, with a missing path counted as its own state.
+- A changed label recreates that service in the same run and no other. The label is derived from the files and not from a task's `changed` result, so the run after one that failed between writing a file and deploying recreates it too.
+- An app with no such mount gets no override file, and one left from before is removed.
+- The label is readable by anything with access to the Docker API, so a file that holds a secret is mounted this way only when every secret in it is a generated random value.
+
+A mounted file must exist before its container first starts, or Docker creates a directory at that path: the file is written by `init.yaml`, before the stack comes up. Files seeded into a volume keep the `compose_app_extra_changed` restart, and a directory where the app writes beside a file Ansible placed stays a volume.
+
 ## What stays a bind mount
 
 - **Host system resources** — the Docker socket (`backup_agent`/`beszel-agent`'s
   `dockerproxy` sidecars).
 - **Anything not declared as a volume.**
+- **Files mounted read-only from the stack directory**, as above.
 
 ## Backward compatibility with bind-mounted apps
 

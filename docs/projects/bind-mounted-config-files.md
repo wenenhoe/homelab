@@ -2,7 +2,7 @@
 id: PROJ-bind-mounted-config-files
 title: "Bind-Mounted Config Files"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Restart a container when a file bind-mounted into it changes, then mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own."
 decision: ADR-0087/0
@@ -49,7 +49,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Restart on a changed bind-mounted file | Not started | A changed file that a service mounts read-only from its stack directory recreates that service in the same run and no other, also on the run after one that failed between writing the file and deploying; a `compose` Molecule scenario changes a mounted direct config and a mounted direct script, asserts the container reads the new content, covers the failed run, and shows that a second run changes nothing; `ansible/tests/test_compose_mounts.py` covers the mount parsing; `volumes.md` states the rule and what stays a volume |
+| 1 | Restart on a changed bind-mounted file | Done | A changed file that a service mounts read-only from its stack directory recreates that service in the same run and no other, also on the run after one that failed between writing the file and deploying; a `compose` Molecule scenario changes a mounted direct config and a mounted direct script, asserts the container reads the new content, covers the failed run, and shows that a second run changes nothing; `ansible/tests/test_compose_mounts.py` covers the mount parsing; `volumes.md` states the rule and what stays a volume |
 | 2 | Caddyfile | Not started | The Caddy role writes the file under the stack directory and Caddy mounts it read-only; the `caddyfile` volume and its `subpath` mount are gone from the catalog and the compose file; the Caddy scenario reads the file on disk and a changed file restarts Caddy |
 | 3 | `step-ca`, OpenBao and Minecraft files | Not started | Each file is mounted read-only from the stack directory and the `scripts`, `config` and `extras` volumes are gone; each service starts healthy on a fresh deploy and reads a changed file after the restart |
 | 4 | SeaweedFS identity file | Not started | The file is mounted read-only at mode `0600` with `no_log`, owned by the uid of the image's `seaweed` user, and the process reads it after dropping privileges; the identity-scoping scenario passes |
@@ -91,6 +91,7 @@ Compose reads the override from the project directory without being named, since
 - A label can be read by anything with read access to the Docker API. A checksum of a secret file gives nothing away only while every secret in it is a generated random value, as the keys in `s3-identity.json` are. A secret file holding a value a person chose stops the work.
 - A bind-mounted file must exist before its container first starts, or Docker creates a directory at that path; each stage checks that the deploy writes the file before it brings the stack up.
 - A host keeps a removed volume until the cleanup playbook runs, so stages 2 to 4 leave unused volumes until stage 5.
+- Compose reads `compose.override.yaml` only when no `-f` is given, and `docker/minecraft/scripts/run_restore.sh` runs `docker compose -f compose.yaml up -d`. Once minecraft mounts a file from the stack directory (stage 3), that `up` starts its services from `compose.yaml` alone, without the `homelab.mounted-files-sha256` label, so the restore recreates them and the next deploy recreates them again with the label. The change that moves minecraft's file has to make the script read the override, by naming it or by dropping `-f`. The other `-f compose.yaml` uses are unaffected: the CI boot test runs on a copy that has no override, and a Molecule scenario only restarts.
 - A secret file that its process does not own is unreadable there even at `0600`, and the volume it came from may have hidden that by chowning it; stage 4 checks the owner on a running container, not only the mode.
 
 ## Open items

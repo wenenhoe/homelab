@@ -1,0 +1,39 @@
+---
+# Covers deploy.yaml's recreate-on-change for files a service mounts read-only from the stack directory
+# (ADR 0087): a changed direct config, direct script or file in a mounted directory recreates the service
+# that mounts it and no other,
+# also on the run after one that wrote the files and failed before deploying, and a second run changes nothing.
+# An app with no such mount gets no override file, and a stale one is removed.
+driver:
+  name: docker
+platforms:
+  - name: compose-mounted-files-instance
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:3019b41970da7152988f640e46768641d709d62b1e517b04a2ceab71252092de
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind_prebuilt.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

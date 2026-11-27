@@ -6,6 +6,10 @@ they are imported directly rather than through an Ansible run.
 
 from __future__ import annotations
 
+import os
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import compose_mounts as filter_mod
@@ -217,3 +221,61 @@ def test_override_refuses_a_mount_with_no_stat_result():
 def test_override_refuses_mounts_that_are_not_a_mapping():
     with pytest.raises(AnsibleFilterError, match="expected the mounts mapping"):
         compose_mounts_override(["a"], [], [])
+
+
+DEPLOY_TASKS = REPO / "ansible/roles/compose/tasks/deploy.yaml"
+OVERRIDE_TASKS = {
+    "Read the deployed compose file",
+    "Find the files its services mount read-only from the stack directory",
+    "Stat what its services mount",
+    "Find the files in the directories its services mount",
+    "Write the label file for its mounted files",
+    "Remove the label file of an app with no such mount",
+}
+UP_TASK = "Deploy with Docker Compose"
+
+
+def selected_tasks(tmp_path, *selection):
+    """Return the names `ansible-playbook --list-tasks <selection>` lists for deploy.yaml, which is how Ansible itself selects them.
+
+    The two Compose modules are swapped for `debug` in a copy, so the listing needs no collection and no Docker; their
+    tags are what is under test and the swap leaves those as they are.
+    """
+    deploy = tmp_path / "deploy.yaml"
+    deploy.write_text(re.sub(r"community\.docker\.docker_compose_v2(_pull)?:", "ansible.builtin.debug:", DEPLOY_TASKS.read_text()))
+    playbook = tmp_path / "play.yaml"
+    playbook.write_text(yaml.safe_dump([{"hosts": "localhost", "gather_facts": False, "tasks": [{"ansible.builtin.import_tasks": str(deploy)}]}]))
+    config = tmp_path / "ansible.cfg"
+    config.write_text("")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ansible.cli.playbook",
+            "-i",
+            "localhost,",
+            "--list-tasks",
+            *selection,
+            "-e",
+            "compose_app_item={'name': 'x'}",
+            str(playbook),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "ANSIBLE_CONFIG": str(config), "ANSIBLE_HOME": str(tmp_path / "home")},
+    )
+    assert result.returncode == 0, result.stderr
+    return {re.sub(r" \(.*$", "", line.split("\tTAGS:")[0].strip()) for line in result.stdout.splitlines() if "\tTAGS:" in line and "play #" not in line}
+
+
+@pytest.mark.parametrize("selection", [("--tags", "infra"), ("--tags", "images"), ("--skip-tags", "infra"), ("--skip-tags", "images")], ids=" ".join)
+def test_the_label_file_and_up_are_selected_together(tmp_path, selection):
+    """Only `up` turns a changed label into a recreated service, and a task tagged both is skipped by `--skip-tags` on either."""
+    assert (OVERRIDE_TASKS | {UP_TASK}) <= selected_tasks(tmp_path, *selection)
+
+
+def test_infra_pulls_and_builds_nothing_and_images_does(tmp_path):
+    explicit = {"Pull Docker images the host does not have", "Build Docker images"}
+    assert not explicit & selected_tasks(tmp_path, "--tags", "infra")
+    assert explicit <= selected_tasks(tmp_path, "--tags", "images")

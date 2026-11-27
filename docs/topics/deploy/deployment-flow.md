@@ -166,8 +166,12 @@ See [`adding-an-app.md`](adding-an-app.md) for a worked example.
 | Tag | Covers | Skips |
 | :--- | :--- | :--- |
 | `initial-setup` | Docker Engine + qemu-guest-agent install (Play 1) | Everything else still runs. |
-| `images` | Pull the images a host doesn't have, rebuild the apps built on the host, and recreate containers whose image reference changed (Plays 2–9) | Config rendering, directory/volume provisioning, Docker install |
-| `infra` | Re-render Caddyfile/`named.conf`/zones, restart only changed containers | Image pulls/rebuilds, directory/volume provisioning, Docker install |
+| `images` | Pull the images a host doesn't have, rebuild the apps built on the host, and recreate containers whose image reference or mounted files changed (Plays 2–9) | Config rendering, directory/volume provisioning, Docker install |
+| `infra` | Re-render Caddyfile/`named.conf`/zones, write each stack's `compose.override.yaml` and run `up`, so a service whose mounted files changed is recreated, restart only changed containers | Explicit image pulls/rebuilds, directory/volume provisioning, Docker install |
+
+Under `infra`, `compose/tasks/deploy.yaml` runs for the apps whose own deploy task carries the tag, `caddy` and `bind9`. Its `up` applies whatever the stack directory holds, so it also recreates a service whose label from [the mounted-file check](volumes.md#files-mounted-read-only-from-the-stack-directory) changed, and pulls an image that a compose file left by an earlier run names and the host lacks. A recreated app is reported `changed`, as under `images`, and its catalog `restart_after` apps restart; no catalog entry of those two has one.
+
+The mounted-file tasks and `up` are tagged `always`, so they run in every pass that includes that file, `--skip-tags infra` included. A task tagged both `images` and `infra` is skipped when either tag is.
 
 `preinit` (the stacks directory) and the `secrets` role always run regardless
 of tags, since everything else reads their output. One-time provisioning (`caddy`/`bind9`

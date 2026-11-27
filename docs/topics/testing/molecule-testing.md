@@ -57,6 +57,7 @@ One line per scenario. What exactly each one asserts is in its `verify.yml` and,
 | `compose` | `default` | Init and deploy happy path. |
 | | `volumes` | Named-volume creation, config seeding with owner and mode kept, teardown. |
 | | `scripts` | Both script deployment paths: direct copy and volume-seeded. |
+| | `mounted_files` | A changed read-only mounted config and script recreate the service that mounts them and no other, also on the run after one that failed before deploying; a second run changes nothing; an app with no such mount has no override file. |
 | | `build` | The `build: true` deploy branch. |
 | | `cleanup` | `cleanup.yaml` dry run, keep-content path and label-fallback teardown. |
 | | `reset` | A reset restores seeded config, discards runtime state, and refuses without confirmation. |

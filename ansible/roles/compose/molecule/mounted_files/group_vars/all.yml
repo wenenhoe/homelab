@@ -1,0 +1,17 @@
+---
+ansible_user: root
+compose_deploy_dir: /opt/stacks
+compose_source_dir: "{{ playbook_dir }}/files/docker"
+project_root: "{{ playbook_dir }}"  # noqa: var-naming[no-role-prefix]
+app_catalog:  # noqa: var-naming[no-role-prefix]
+  mountapp:
+    configs:
+      - src: app.conf
+        dest: conf/app.conf
+      - src: app.rules
+        dest: rules/nested/app.rules
+    scripts:
+      - run.sh
+compose_apps:
+  - name: mountapp
+  - name: plainapp

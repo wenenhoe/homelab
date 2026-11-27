@@ -7,7 +7,9 @@
     "deny": [
       "Agent",
       "Bash(git push *)",
-      "Bash(gh *)"
+      "Bash(gh *)",
+      "mcp__github__*",
+      "mcp__claude-code-remote__*"
     ]
   },
   "hooks": {

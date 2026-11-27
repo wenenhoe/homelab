@@ -41,7 +41,7 @@ Three changes to the session, made by the [preparation hook](../topics/engineeri
 | Outbound HTTPS from containers is signed by the environment's own certificate authorities | A `runc` wrapper adds those authorities to each container the session's daemon creates | Test containers trust more authorities. Containers started by a daemon inside a scenario are not given them by the wrapper |
 | `*.localtest.me` does not resolve, and the proxy refuses it | Entries in `/etc/hosts`, and the domain in `NO_PROXY` | Nothing in the scenario itself |
 
-With these, the `default` scenarios of `docker`, `compose`, `bind9` and `caddy` pass, and so does `secrets/vault_backed`. `host_hardening` passed with the cgroup2 `dockerd` alone, and `apt` with the machine's `dockerd` unchanged. The rest have not been run. The daemons inside a scenario pull from Docker Hub without a mirror.
+With these, the `default` scenarios of `docker`, `compose`, `bind9` and `caddy` pass, and so does `secrets/vault_backed`. `host_hardening` passed with the cgroup2 `dockerd` alone, and `apt` with the machine's `dockerd` unchanged. The rest have not been run. In a later session the hook made all three changes, `dockerd` stayed running, and `docker`'s `default` and `secrets/vault_backed` passed with the registry mirror configured, each in about two and a half minutes and with no pull refused. The daemons inside a scenario pull from Docker Hub without a mirror.
 
 None of the three is a documented feature of the environment, so an update to it can break any of them.
 
@@ -70,7 +70,7 @@ Committed Claude Code settings, the [rules for a coding agent](../../AGENTS.md#r
 ## Still to check
 
 - Whether opening or merging a pull request, and other API writes, are refused too, tried where a write that succeeds does no harm.
-- Whether `dockerd` stays running when the `SessionStart` hook starts it, and the scenarios pass on what the hook prepares, the registry mirror included.
+- Whether a session can hand the maintainer a `.series` file as it was written.
 - The remaining scenarios, and how long the roles a change touches take.
 - Whether a Mermaid diagram renders there; its image pulls.
 - Whether a session given a real role change runs Molecule, reads a failure and fixes its cause without weakening the test.

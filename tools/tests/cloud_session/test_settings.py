@@ -18,7 +18,7 @@ def test_no_session_link_is_added_to_a_commit() -> None:
     assert SETTINGS["attribution"] == {"sessionUrl": False}
 
 
-@pytest.mark.parametrize("rule", ["Agent", "Bash(git push *)", "Bash(gh *)"])
+@pytest.mark.parametrize("rule", ["Agent", "Bash(git push *)", "Bash(gh *)", "mcp__github__*", "mcp__claude-code-remote__*"])
 def test_the_tool_call_is_denied(rule: str) -> None:
     assert rule in SETTINGS["permissions"]["deny"]
 

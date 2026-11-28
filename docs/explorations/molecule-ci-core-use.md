@@ -17,7 +17,7 @@ Each `molecule` leg runs its scenarios one at a time on a machine with several c
 - A [standard GitHub-hosted Linux runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) for a public repository has 4 CPUs, 16 GB of memory and 14 GB of disk. Side by side, scenarios share the disk as well as the cores, and each pulls its images into it.
 - A run takes as long as its slowest leg. [Shards](../topics/engineering/ci/pipeline.md#sharded-roles) already split the slow roles across runners.
 - The shard table is balanced on [measured times](../topics/testing/molecule-timings.md) of scenarios run one at a time ([ADR 0115](../decisions/0115-keeping-the-molecule-shard-table-balanced/revision-000.md)). Times taken side by side include contention, so the script refuses to write them.
-- Scenario instance names are unique across roles and no scenario publishes a port. Most set `cgroupns_mode: host`, so their systemd containers share the runner's cgroup tree.
+- Scenario instance names are unique across roles and no scenario publishes a port, but the helper containers some scenarios start are not: `step-ca-test`, `openbao-test`, `lldap-test` and `seaweedfs-test` are fixed names, with a fixed Docker network, and the scenarios that start them (in `secrets`, `step_ca_cert`, `step_ca_client`, `openbao`, `openbao_cli`, `tinyauth_ca_trust`, `lldap_bootstrap` and `cloud_sync`) remove or reuse one another's. Most set `cgroupns_mode: host`, so their systemd containers share the runner's cgroup tree.
 - Each scenario writes its own coverage data file, so the [coverage gate](../topics/engineering/ci/gates.md#molecule-coverage-gate) reads the same data either way.
 - With `-j`, a failure starts no further scenario of that role, while those already running finish.
 
@@ -32,18 +32,20 @@ A [cloud session](../topics/engineering/hosted-sessions.md) has 4 cores and 15 G
 
 Every scenario passed both ways, the coverage floors held, and the two scenarios of `compose` that fail on purpose failed the same way in both. Free memory stayed above 11 GB, disk use rose by 3 GB to 12 GB, and CPU use peaked at 91% to 94%. The second set is bounded by its longest scenario, `bind9`'s `secondary` at 288 s, which no `-j` shortens.
 
+`secrets`, with the most scenarios, did not pass: four of its ten failed with `-j 4`, `rotate_secret`, `vault_backed`, `snapshot_restore` and `vault_manual_missing`, with errors such as `lookup step-ca-test: no such host` and a missing `/certs/root_ca.crt`. Each starts the same `step-ca-test` and `openbao-test` helpers, so one's cleanup or setup undoes another's. `rotate_secret` run alone passed in 142 s. The other six passed, and the run as a whole kept free memory above 13.9 GB, grew disk use by about 1 GB and peaked at 96% CPU, so the resources of the heaviest scenarios were not what failed.
+
 ## Options
 
 - **Leave the legs as they are.** Nothing to build or keep right. The cores stay idle.
-- **`-j` within the existing shards.** Shortens the slowest legs if the scenarios do not contend much. The timing run would still measure one at a time, so the table would be balanced on numbers CI no longer runs at.
+- **`-j` within the existing shards.** Shortens the slowest legs if the scenarios do not contend much. Scenarios that start a fixed-name helper would first need a name of their own each, or a rule that keeps them in turn. The timing run would still measure one at a time, so the table would be balanced on numbers CI no longer runs at.
 - **`-j` with fewer legs.** Saves each removed leg's setup too. The table and ADR 0115 would need to describe a leg by something other than a sum of times.
 
 ## Still to check
 
-- Whether scenarios of different roles pass side by side on one daemon on a runner, and how often, over many runs, they fail only that way. One run in a cloud session did not.
+- Every scenario that starts a helper under a fixed name, and whether giving each its own name is a small change or reaches into `molecule_helpers`.
+- Whether scenarios of different roles that share no helper pass side by side on one daemon on a runner, and how often, over many runs, they fail only that way. One run of three roles in a cloud session did not.
 - The time a leg of two saves against its summed serial times, and a leg of four on a runner.
-- The disk and memory a leg of the heaviest scenarios, such as those of `secrets` or `host_hardening`, needs side by side.
 
 ## Leaning
 
-Time `-j` on a runner next, in a leg of a pull request that can be thrown away. The cloud session's saving is large when a leg holds many short scenarios and small when one scenario dominates, so CI follows only if the saving on the slowest leg is large and the runs are as reliable as serial ones.
+Give each scenario that starts a fixed-name helper a name of its own, or keep those scenarios in turn, since they fail runs that would otherwise pass. Then time `-j` on a runner, in a leg of a pull request that can be thrown away. The cloud session's saving is large when a leg holds many short scenarios and small when one scenario dominates, so CI follows only if the saving on the slowest leg is large and the runs are as reliable as serial ones.

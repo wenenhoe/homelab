@@ -1,7 +1,8 @@
 """python3 -m cloud_session.prepare
 
 Prepare a Claude Code cloud session to run Molecule, as its SessionStart hook; it does nothing anywhere else
-(docs/topics/engineering/hosted-sessions.md). It changes the session's machine and nothing in the repository.
+(docs/topics/engineering/hosted-sessions.md). It changes the session's machine and the checkout's own remote-tracking ref of its branch, and
+nothing else in the repository.
 
 Standard library only: it runs on the machine's own python3 before anything is installed.
 """
@@ -28,6 +29,7 @@ SCENARIO_NAME = re.compile(rf"\b[a-z0-9-]+\.{re.escape(DOMAIN)}\b")
 # Run in the new mount namespace: cgroup2 over the machine's cgroup mount, then the daemon in place of the shell.
 CGROUP2_THEN_RUN = 'mount -t cgroup2 none /sys/fs/cgroup && exec "$@"'
 START_TIMEOUT_SECONDS = 60
+GIT_SECONDS = 30
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,7 @@ class Machine:
     pid_file: Path = Path("/var/run/docker.pid")
     processes: Path = Path("/proc")
     log: Path = Path("/var/log/cloud-session-dockerd.log")
+    repo: Path = REPO_ROOT
 
 
 def write_daemon_config(machine: Machine) -> str:
@@ -88,6 +91,38 @@ def bypass_proxy(env_file: str | None) -> str:
     with path.open("a") as handle:
         handle.writelines(f"{line}\n" for line in lines if line not in written)
     return f".{DOMAIN} bypasses the proxy"
+
+
+def drop_stale_tracking_ref(machine: Machine) -> str:
+    """Drop `refs/remotes/origin/<branch>` of the checked-out branch when `origin` has no such branch.
+
+    The session's stop hook counts the commits above that ref and asks for a push, which a session never makes (AGENTS.md): its work goes to
+    the maintainer as a series file. The ref is only a local record, and a branch `origin` does have, or one that cannot be asked about, keeps it.
+    """
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        # No prompt: a remote that asks for a login fails here instead of holding the hook.
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        return subprocess.run(["git", "-C", str(machine.repo), *args], capture_output=True, text=True, check=False, timeout=GIT_SECONDS, env=env)
+
+    branch = git("branch", "--show-current")
+    if branch.returncode != 0:
+        return f"{machine.repo} is not a git checkout: no tracking ref to drop"
+    name = branch.stdout.strip()
+    if not name:
+        return "HEAD is detached: no tracking ref to drop"
+    ref = f"refs/remotes/origin/{name}"
+    if git("rev-parse", "-q", "--verify", ref).returncode != 0:
+        return f"{name} has no tracking ref"
+    listed = git("ls-remote", "--exit-code", "origin", f"refs/heads/{name}")
+    if listed.returncode == 0:
+        return f"origin has {name}: its tracking ref was left alone"
+    if listed.returncode != 2:  # `--exit-code` exits 2 only when the remote answered and has no such ref
+        return f"origin could not be asked ({(listed.stderr.strip().splitlines() or ['no output'])[-1]}): the tracking ref of {name} was left alone"
+    dropped = git("update-ref", "-d", ref)
+    if dropped.returncode != 0:
+        raise RuntimeError(dropped.stderr.strip())
+    return f"{name} has no branch on origin: its tracking ref was dropped, so the stop hook has no push to ask for"
 
 
 def docker_info() -> str | None:
@@ -146,6 +181,7 @@ def prepare(machine: Machine, env_file: str | None) -> list[str]:
         ("write the daemon config", lambda: write_daemon_config(machine)),
         ("add the scenario names", lambda: add_hosts(machine, scenario_names())),
         ("set NO_PROXY", lambda: bypass_proxy(env_file)),
+        ("drop the stale tracking ref", lambda: drop_stale_tracking_ref(machine)),
         ("start dockerd", lambda: start_docker(machine, wrapped)),
     )
     for name, step in steps:

@@ -189,7 +189,7 @@ and how to run them and what the harness does is in
 
 Every patch the maintainer applies has one form, whichever repository it is for. A change to this repository is delivered as a series ([`landing-a-series.md`](landing-a-series.md)); the form below is what each of its commits carries.
 
-- **Identity.** Author and committer are the maintainer, as the history of `main` shows: the author of the newest commit that is not a bot's, from `git log --no-merges --format='%an|%ae' | grep -v '\[bot\]' | head -1`. Set it for the one command (`git -c user.name=... -c user.email=... commit`), so no repository's configuration changes. The history is needed, so clone with all of it, which [the checks need too](checks-without-docker.md#pre-commit).
+- **Identity.** The author is the maintainer, as the history of `main` shows: the author of the newest commit that is not a bot's, from `git log --no-merges --format='%an|%ae' | grep -v '\[bot\]' | head -1`. The committer is `Claude <noreply@anthropic.com>`, the session's own, which the cloud session's hook asks for. A patch carries the author and not the committer, and `git am` sets the committer to the maintainer's, so the committer never reaches `main`. Set both for the one command (`GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`), so no repository's configuration changes. The history is needed, so clone with all of it, which [the checks need too](checks-without-docker.md#pre-commit).
 - **Subject.** Conventional Commits, in the imperative and lowercase after the colon, at most 72 characters with its type and scope, and with no id, number or slug in it. A pull request's title is a subject of the same form: its first commit's, or the one its series names ([Naming a layer](landing-a-series.md#naming-a-layer)).
 - **Scope.** The name of what the commit changes, spelled as it is on disk and without its extension: `scratch_run`, `cloud_sync`, `opnsense-vm`, never a respelling of it. `projects`, `decisions` and `explorations` scope a doc of that directory; a topic doc takes the component it describes, or its directory under `docs/topics` when it describes none. A change with no single name has no scope.
 - **Dates.** `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` come from `TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800`. A bare `date` prints UTC.
@@ -205,8 +205,8 @@ read -r -p 'subject: ' subject; read -r -p 'model name: ' model
 ```bash
 IFS='|' read -r name email <<<"$(git log --no-merges --format='%an|%ae' | grep -v '\[bot\]' | head -1)"
 now=$(TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800)
-GIT_AUTHOR_DATE="$now" GIT_COMMITTER_DATE="$now" git -c user.name="$name" -c user.email="$email" \
-  commit -m "$subject" -m "Co-Authored-By: $model <noreply@anthropic.com>"
+GIT_AUTHOR_NAME="$name" GIT_AUTHOR_EMAIL="$email" GIT_COMMITTER_NAME=Claude GIT_COMMITTER_EMAIL=noreply@anthropic.com \
+  GIT_AUTHOR_DATE="$now" GIT_COMMITTER_DATE="$now" git commit -m "$subject" -m "Co-Authored-By: $model <noreply@anthropic.com>"
 ```
 
 ## Not yet a convention

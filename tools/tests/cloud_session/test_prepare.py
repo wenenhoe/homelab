@@ -29,6 +29,7 @@ def machine(tmp_path: Path) -> prepare.Machine:
         pid_file=tmp_path / "docker.pid",
         processes=tmp_path / "proc",
         log=tmp_path / "dockerd.log",
+        repo=tmp_path / "no-checkout",
     )
 
 
@@ -138,6 +139,88 @@ def test_a_failed_step_is_reported_and_the_others_still_run(
     assert "FAILED to add the scenario names" in out
     assert "FAILED to start dockerd: no daemon" in out
     assert machine.daemon_json.exists()
+
+
+def git(path: Path, *args: str) -> str:
+    env = {
+        "GIT_AUTHOR_NAME": "a",
+        "GIT_AUTHOR_EMAIL": "a@example.invalid",
+        "GIT_COMMITTER_NAME": "a",
+        "GIT_COMMITTER_EMAIL": "a@example.invalid",
+        "PATH": "/usr/bin:/bin",
+    }
+    return subprocess.run(["git", "-C", str(path), *args], env=env, capture_output=True, text=True, check=True).stdout.strip()
+
+
+@pytest.fixture
+def checkout(machine: prepare.Machine, tmp_path: Path) -> prepare.Machine:
+    """A clone on the branch `session`, which `origin` does not have, with a tracking ref `origin/session` as the environment leaves it."""
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    git(origin, "init", "-q", "-b", "main")
+    git(origin, "commit", "-q", "--allow-empty", "-m", "first")
+    git(tmp_path, "clone", "-q", str(origin), "no-checkout")
+    git(machine.repo, "switch", "-q", "-c", "session")
+    git(machine.repo, "update-ref", "refs/remotes/origin/session", "HEAD")
+    git(machine.repo, "commit", "-q", "--allow-empty", "-m", "work")
+    return machine
+
+
+def tracking_ref_exists(machine: prepare.Machine) -> bool:
+    return (
+        subprocess.run(
+            ["git", "-C", str(machine.repo), "rev-parse", "-q", "--verify", "refs/remotes/origin/session"], capture_output=True, check=False
+        ).returncode
+        == 0
+    )
+
+
+def test_a_tracking_ref_of_a_branch_origin_lacks_is_dropped(checkout: prepare.Machine) -> None:
+    said = prepare.drop_stale_tracking_ref(checkout)
+
+    assert said.startswith("session has no branch on origin: its tracking ref was dropped")
+    assert not tracking_ref_exists(checkout)
+    assert git(checkout.repo, "log", "-1", "--format=%s") == "work"
+
+
+def test_the_tracking_ref_of_a_branch_origin_has_is_kept(checkout: prepare.Machine) -> None:
+    git(checkout.repo, "push", "-q", "origin", "session")
+
+    assert prepare.drop_stale_tracking_ref(checkout) == "origin has session: its tracking ref was left alone"
+    assert tracking_ref_exists(checkout)
+
+
+def test_the_tracking_ref_is_kept_when_origin_cannot_be_asked(checkout: prepare.Machine, tmp_path: Path) -> None:
+    git(checkout.repo, "remote", "set-url", "origin", str(tmp_path / "nowhere"))
+
+    assert prepare.drop_stale_tracking_ref(checkout).startswith("origin could not be asked (")
+    assert tracking_ref_exists(checkout)
+
+
+def test_a_branch_with_no_tracking_ref_is_left_as_it_is(checkout: prepare.Machine) -> None:
+    git(checkout.repo, "update-ref", "-d", "refs/remotes/origin/session")
+
+    assert prepare.drop_stale_tracking_ref(checkout) == "session has no tracking ref"
+
+
+def test_a_detached_head_has_no_tracking_ref_to_drop(checkout: prepare.Machine) -> None:
+    git(checkout.repo, "switch", "-q", "--detach")
+
+    assert prepare.drop_stale_tracking_ref(checkout) == "HEAD is detached: no tracking ref to drop"
+    assert tracking_ref_exists(checkout)
+
+
+def test_a_directory_that_is_no_checkout_is_left_alone(machine: prepare.Machine) -> None:
+    assert prepare.drop_stale_tracking_ref(machine).endswith("is not a git checkout: no tracking ref to drop")
+
+
+def test_the_preparation_drops_the_tracking_ref_with_the_other_steps(checkout: prepare.Machine, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(prepare, "start_docker", create_autospec(prepare.start_docker, return_value="dockerd started"))
+
+    report = prepare.prepare(checkout, None)
+
+    assert any("its tracking ref was dropped" in line for line in report)
+    assert not tracking_ref_exists(checkout)
 
 
 def test_it_imports_only_the_standard_library() -> None:

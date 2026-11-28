@@ -35,12 +35,13 @@ A deny rule matches the command as written, so it guides a session and is [not a
 
 ## What the hook prepares
 
-[`cloud_session.prepare`](../../../tools/cloud_session/prepare.py) runs when a session starts or resumes. The session's first reply waits for it, and its report is in the session's context. A step that fails is named there, and the session starts all the same. It changes the session's machine only.
+[`cloud_session.prepare`](../../../tools/cloud_session/prepare.py) runs when a session starts or resumes. The session's first reply waits for it, and its report is in the session's context. A step that fails is named there, and the session starts all the same. It changes the session's machine and one ref of its checkout.
 
 - Where the machine uses cgroup v1, which the systemd in current Ubuntu images cannot start on, `dockerd` runs in its own mount namespace with cgroup2 on `/sys/fs/cgroup`. The machine's own mounts stay.
 - Outbound HTTPS is signed by the environment's certificate authorities, so [`runc_ca.py`](../../../tools/cloud_session/runc_ca.py) is installed as dockerd's runtime and adds them to each container.
 - The daemon pulls through `mirror.gcr.io`, unless the machine already has a `daemon.json`.
 - The `localtest.me` names the Molecule scenarios use resolve to `127.0.0.1` and bypass the proxy.
+- The checkout's remote-tracking ref of its branch, `origin/<branch>`, is dropped when `origin` has no such branch, which a session never pushes ([`AGENTS.md`](../../../AGENTS.md#rules-for-a-coding-agent)). The environment's stop hook counts the commits above that ref and asks for a push each time a reply ends, so a ref left at the session's first commit makes it ask for all of the session's work, landed work included. A branch `origin` has, or an `origin` that cannot be reached, keeps the ref.
 
 `dockerd` logs to `/var/log/cloud-session-dockerd.log`. To run the preparation again, from the repository root, which leaves a running daemon alone:
 

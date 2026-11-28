@@ -59,7 +59,7 @@ Update at the start and end of each PR that works a stage.
 
 - **Allowed to change:** `allowed_paths` in the frontmatter once it is set.
 - **Must not change:** the replay's semantics for the CLI, the rulesets, who may bypass them, and anything that gives the console host an infrastructure credential.
-- **Relevant files and interfaces:** `tools/land_series/`, [`landing-a-series.md`](../topics/engineering/landing-a-series.md), [`tailnet-policy.md`](../topics/infra/tailnet-policy.md), [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), [`cd-agent-host.md`](../topics/deploy/cd-agent-host.md).
+- **Relevant files and interfaces:** `tools/land_series/` (its `replay` and `land` already take their confirmation, progress and display as callbacks, so stage 1 is mostly the per-repository stop list and checks), [`landing-a-series.md`](../topics/engineering/landing-a-series.md), [`tailnet-policy.md`](../topics/infra/tailnet-policy.md), [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), [`cd-agent-host.md`](../topics/deploy/cd-agent-host.md).
 - **Required checks:** `pre-commit run --all-files`, the tests under `tools/tests/`, and a replay of a real series, as [`checks-without-docker.md`](../topics/engineering/checks-without-docker.md) describes.
 
 A change to `tools/land_series` is applied with `git am`, not landed by the tool.

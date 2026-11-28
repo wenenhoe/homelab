@@ -17,7 +17,7 @@ Each `molecule` leg runs its scenarios one at a time on a machine with several c
 - A [standard GitHub-hosted Linux runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners) for a public repository has 4 CPUs, 16 GB of memory and 14 GB of disk. Side by side, scenarios share the disk as well as the cores, and each pulls its images into it.
 - A run takes as long as its slowest leg. [Shards](../topics/engineering/ci/pipeline.md#sharded-roles) already split the slow roles across runners.
 - The shard table is balanced on [measured times](../topics/testing/molecule-timings.md) of scenarios run one at a time ([ADR 0115](../decisions/0115-keeping-the-molecule-shard-table-balanced/revision-000.md)). Times taken side by side include contention, so the script refuses to write them.
-- Scenario instance names are unique across roles and no scenario publishes a port, but the helper containers some scenarios start are not: `step-ca-test`, `openbao-test`, `lldap-test` and `seaweedfs-test` are fixed names, with a fixed Docker network, and the scenarios that start them (in `secrets`, `step_ca_cert`, `step_ca_client`, `openbao`, `openbao_cli`, `tinyauth_ca_trust`, `lldap_bootstrap` and `cloud_sync`) remove or reuse one another's. Most set `cgroupns_mode: host`, so their systemd containers share the runner's cgroup tree.
+- Scenario instance names are unique across roles. The openbao helper publishes a host port, which each `secrets` scenario already sets to a number of its own. The helper containers some scenarios start are not unique: `step-ca-test`, `openbao-test`, `lldap-test` and `seaweedfs-test` are fixed names, with a fixed Docker network, and the scenarios that start them (in `secrets`, `step_ca_cert`, `step_ca_client`, `openbao`, `openbao_cli`, `tinyauth_ca_trust`, `lldap_bootstrap` and `cloud_sync`) remove or reuse one another's. Most set `cgroupns_mode: host`, so their systemd containers share the runner's cgroup tree.
 - Each scenario writes its own coverage data file, so the [coverage gate](../topics/engineering/ci/gates.md#molecule-coverage-gate) reads the same data either way.
 - With `-j`, a failure starts no further scenario of that role, while those already running finish.
 
@@ -48,4 +48,8 @@ Every scenario passed both ways, the coverage floors held, and the two scenarios
 
 ## Leaning
 
+The work that makes helper names per scenario is [a project](../projects/molecule-helper-names.md); this question waits on its first stage.
+
 Give each scenario that starts a fixed-name helper a name of its own, or keep those scenarios in turn, since they fail runs that would otherwise pass. Then time `-j` on a runner, in a leg of a pull request that can be thrown away. The cloud session's saving is large when a leg holds many short scenarios and small when one scenario dominates, so CI follows only if the saving on the slowest leg is large and the runs are as reliable as serial ones.
+
+The trial on a runner would be a separate workflow that runs on demand only, not a mode of [`molecule-timings.yml`](../../.github/workflows/molecule-timings.yml). That workflow records serial times into a shared Actions cache that the shard table is balanced on, and `-j` refuses to write times. A separate one has no cache write, and runs a role serial and then with `-j 2` and `-j 4` on one runner, so runner noise cancels out. It is a workflow file, so the series that adds it is on the stop list, and `workflow_dispatch` generally needs the file on the default branch before it can be run.

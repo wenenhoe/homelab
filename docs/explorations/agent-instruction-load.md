@@ -37,6 +37,10 @@ One session, given a project's name, skipped the replay, gave final commands tha
 
 A later delivery of a project stage failed [the Molecule coverage floor](../topics/engineering/ci/gates.md#molecule-coverage-gate) in CI. The floor was named in no doc `AGENTS.md` sends a session to for delivery, and nothing run before the pull request checked it. [A full run of a role](../topics/testing/molecule-testing.md#coverage) now checks it, with no rule added to `AGENTS.md`.
 
+A second trial was a rehearsal: a fresh session, given only a project's name, read what `AGENTS.md` sends it to and answered eleven questions about what it would do, changing and running nothing. It fetched first, read the project's `decision:` revision and fields, stopped on a path outside `allowed_paths`, named `molecule-test-all.sh` without `-s` for the coverage floor, wrote the commit form whole, declined the push and `--reset-author`, and described `deliver_series` and the handover correctly. It opened sixteen docs, five of them by search only, and said it would skip most of the project lifecycle, the maintainer's side of `landing-a-series.md` and `checks-without-docker.md` next time. What it said it would do is not what it does, so this shows the docs can be followed and not that a session follows them.
+
+Three questions it could not answer from a doc. No doc says how a task that stops on scope is handed back, or how an agent that finds an unfixed weakness tells the maintainer. And the stop list names a workflow and an action while the handover names every layer that touches a CI path, so the session could not tell whether `.github/molecule-shards.yml` counts as one.
+
 ### Where the prose has drifted
 
 The replay went from asking at each commit on the stop list to asking once for the series. [The rules for a coding agent](../../AGENTS.md#rules-for-a-coding-agent) were written after that and worded the stop list as stopping for each layer. A [rule for cutting a series](../topics/engineering/landing-a-series.md#cutting-a-series) still kept a stop-list layer apart so that the confirmation attached to its code.
@@ -79,8 +83,7 @@ Claude Code [hooks](https://code.claude.com/docs/en/hooks) can refuse a tool cal
 
 ## Still to check
 
-- What a second trial, started from the current `main`, gets wrong.
-- Whether a session runs a role's scenarios through `molecule-test-all.sh`, where the coverage check is, or one `molecule test` at a time.
+- Whether a session that does the work, and does not describe it, runs a role's scenarios through `molecule-test-all.sh` or one `molecule test` at a time, and what a trial of a task that names no project gets wrong.
 - Which rules in the topic docs a delivery touches, such as `docs/README.md` and the security policy, a checker already enforces.
 - Whether a hook can tell reliably that a delivery happened, without keeping a session from ending when there is nothing to deliver.
 

@@ -31,7 +31,8 @@ def toplevel(repo: Path) -> Path:
 
 def require_clean(repo: Path) -> None:
     """Refuse a tree with a change that is staged, unstaged or untracked: the series holds commits, so such a change would be left out of it."""
-    changed = git(repo, "status", "--porcelain", "--untracked-files=all").splitlines()
+    # Not `git()`, which strips the output and with it the first line's leading space.
+    changed = checked(["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=all"]).stdout.decode("utf-8", errors="replace").splitlines()
     if changed:
         listed = "; ".join(line[3:] for line in changed[:LISTED_FILES])
         more = f" and {len(changed) - LISTED_FILES} more" if len(changed) > LISTED_FILES else ""

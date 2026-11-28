@@ -112,7 +112,10 @@ def test_a_tree_with_changes_is_refused(workspace: Workspace, plan_file: Path, c
     change(workspace.work)
     plan_file.write_text("gateway-vm 1\n")
 
-    assert "the working tree has changes" in refused(workspace, plan_file, capsys)
+    said = refused(workspace, plan_file, capsys)
+
+    assert said.startswith("deliver_series: the working tree has changes (")
+    assert any(name in said for name in ("(base.txt", "(new.txt", "(staged.txt"))
 
 
 def test_a_merge_is_refused(workspace: Workspace, plan_file: Path, capsys: pytest.CaptureFixture[str]) -> None:

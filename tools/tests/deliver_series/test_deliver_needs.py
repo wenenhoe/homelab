@@ -10,14 +10,15 @@ from unittest.mock import MagicMock, create_autospec
 import pytest
 import yaml
 from deliver_series import probes
-from deliver_series.needs import NEEDS, skipped
+from deliver_series.needs import skipped
+from deliver_series.repository import HOMELAB
 
 CONFIG = Path(__file__).resolve().parents[3] / ".config" / ".pre-commit-config.yaml"
-DOCKER, GO, GITHUB, ANSIBLE = (need.name for need in NEEDS)
+DOCKER, GO, GITHUB, ANSIBLE = (need.name for need in HOMELAB.needs)
 
 
 def all_met() -> dict:
-    return {need.name: (lambda: None) for need in NEEDS}
+    return {need.name: (lambda: None) for need in HOMELAB.needs}
 
 
 def test_a_machine_with_every_need_skips_nothing() -> None:
@@ -45,13 +46,13 @@ def configured_hooks() -> list[str]:
 
 
 def test_every_hook_a_need_names_is_in_the_pre_commit_configuration() -> None:
-    named = {hook for need in NEEDS for hook in need.hooks}
+    named = {hook for need in HOMELAB.needs for hook in need.hooks}
 
     assert named <= set(configured_hooks())
 
 
 def test_every_docker_hook_of_the_pre_commit_configuration_is_listed() -> None:
-    named = {hook for need in NEEDS for hook in need.hooks}
+    named = {hook for need in HOMELAB.needs for hook in need.hooks}
 
     assert {hook for hook in configured_hooks() if hook.endswith("-docker")} <= named
 
@@ -183,4 +184,4 @@ def test_collections_are_missing_when_uv_is_not_installed(bin_dir: Path, ansible
 
 
 def test_the_real_probes_answer_every_need(tmp_path: Path) -> None:
-    assert set(probes.real(tmp_path)) == {need.name for need in NEEDS}
+    assert set(probes.real(tmp_path)) == {need.name for need in HOMELAB.needs}

@@ -241,7 +241,7 @@ def test_a_commit_without_the_commit_form_is_refused(
 
 
 def test_the_trailers_a_check_reads_go_beside_the_models(workspace: Workspace, plan_file: Path) -> None:
-    text = message("feat(gateway): add the vm", TRAILER, "Plan-Confirmed: docs/projects/delivery-command.md", "Editorial-Fix: yes")
+    text = message("feat(gateway): add the vm", TRAILER, "Plan-Confirmed: the-plan", "Editorial-Fix: yes")
     workspace.commit("feat(gateway): add the vm", text=text)
     plan_file.write_text("gateway-vm 1\n")
 

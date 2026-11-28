@@ -9,15 +9,9 @@ from pathlib import Path
 from land_series.replay import stopped_by
 
 from deliver_series.build import Layer
+from deliver_series.repository import HOMELAB
 
-# A change to one of these is to code that runs the checks, a hook, CI or the agent's own settings.
-TOOLING_PREFIXES = (".githooks/", ".pre-commit-config.yaml", ".config/", ".github/", ".claude/", "tools/")
 ROLE = re.compile(r"ansible/roles/([^/]+)/")
-
-# `landing-a-series.md` gives these; a test holds them equal to its blocks.
-SERIES_PROMPT = "read -r -p 'series file: ' series"
-REPLAY_COMMAND = 'uv run python -m land_series "$series" --repo ..'
-LAND_COMMAND = f"{REPLAY_COMMAND} --land"
 
 
 def _layer_files(layer: Layer, paths: Mapping[str, list[str]]) -> list[str]:
@@ -37,9 +31,9 @@ def stop_list(layers: Sequence[Layer], paths: Mapping[str, list[str]]) -> list[t
 def tooling_layers(layers: Sequence[Layer], paths: Mapping[str, list[str]]) -> dict[str, list[str]]:
     """The layers that touch a hook, CI or tooling path, with those files."""
     return {
-        f"{layer.number:04d} {layer.plan.slug}": sorted({path for path in _layer_files(layer, paths) if path.startswith(TOOLING_PREFIXES)})
+        f"{layer.number:04d} {layer.plan.slug}": sorted({path for path in _layer_files(layer, paths) if path.startswith(HOMELAB.tooling_prefixes)})
         for layer in layers
-        if any(path.startswith(TOOLING_PREFIXES) for path in _layer_files(layer, paths))
+        if any(path.startswith(HOMELAB.tooling_prefixes) for path in _layer_files(layer, paths))
     }
 
 
@@ -70,8 +64,8 @@ def render(series: Path, layers: Sequence[Layer], paths: Mapping[str, list[str]]
 def commands() -> str:
     """The maintainer's replay and `--land` commands, each in a block of its own."""
     blocks = [
-        ["# paste alone; it waits for the series file's path, absolute or from tools/", SERIES_PROMPT],
-        ["cd tools", REPLAY_COMMAND],
-        [LAND_COMMAND],
+        ["# paste alone; it waits for the series file's path, absolute or from tools/", HOMELAB.series_prompt],
+        ["cd tools", HOMELAB.replay_command],
+        [HOMELAB.land_command],
     ]
     return "\n\n".join("```bash\n" + "\n".join(block) + "\n```" for block in blocks)

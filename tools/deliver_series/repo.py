@@ -6,9 +6,9 @@ from pathlib import Path
 
 from land_series.run import CommandError, checked, run
 
-from deliver_series.form import Commit, Identity
+from deliver_series.form import Commit
+from deliver_series.repository import HOMELAB, Identity
 
-REMOTE = "origin"
 FETCH_SECONDS = 300
 LISTED_FILES = 10
 _FIELDS = "%an%x00%ae%x00%cn%x00%ce%x00%ai%x00%ci%x00%B"
@@ -40,8 +40,8 @@ def require_clean(repo: Path) -> None:
 
 def fetch_base(repo: Path, base: str) -> str:
     """Fetch the base branch and return `origin/<base>`."""
-    ref = f"{REMOTE}/{base}"
-    git(repo, "fetch", "--quiet", REMOTE, f"+refs/heads/{base}:refs/remotes/{ref}", timeout=FETCH_SECONDS)
+    ref = f"{HOMELAB.remote}/{base}"
+    git(repo, "fetch", "--quiet", HOMELAB.remote, f"+refs/heads/{base}:refs/remotes/{ref}", timeout=FETCH_SECONDS)
     return ref
 
 
@@ -90,7 +90,7 @@ def changed_paths(repo: Path, sha: str) -> list[str]:
 
 
 def origin_url(repo: Path) -> str:
-    return git(repo, "remote", "get-url", REMOTE)
+    return git(repo, "remote", "get-url", HOMELAB.remote)
 
 
 def rev(repo: Path, ref: str) -> str:

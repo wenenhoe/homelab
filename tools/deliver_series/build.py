@@ -10,9 +10,10 @@ from pathlib import Path
 
 from land_series.manifest import SeriesError, order_layers, parse_series
 
-from deliver_series.form import Commit, Identity, problems
+from deliver_series.form import Commit, problems
 from deliver_series.plan import PlannedLayer
 from deliver_series.repo import RepoError, patch_of
+from deliver_series.repository import HOMELAB, Identity
 
 # `land_series` reads a patch in full before it replays it, which an encoded header or a binary body prevents.
 # A line of file content starts with `+`, `-` or a space, so a line that starts with these words is git's own.
@@ -61,7 +62,7 @@ def check_form(layers: Sequence[Layer], maintainer: Identity) -> None:
 
 def render(layers: Sequence[Layer], base: str, repo: Path) -> bytes:
     """The series file: the manifest, a blank line, then every patch."""
-    lines = [] if base == "main" else [f"# base: {base}"]
+    lines = [] if base == HOMELAB.default_base else [f"# base: {base}"]
     patches = []
     for layer in layers:
         lines.extend(f"{layer_id} {layer.plan.slug}" for layer_id in layer.ids())

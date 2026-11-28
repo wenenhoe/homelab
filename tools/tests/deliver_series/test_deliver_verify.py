@@ -8,11 +8,10 @@ from pathlib import Path
 import pytest
 from _delivery_repo import Workspace, git
 from deliver_series.__main__ import main
-from deliver_series.form import Identity
-from deliver_series.needs import NEEDS
+from deliver_series.repository import HOMELAB, Identity
 from deliver_series.verify import Machine, VerifyError, fresh_clone, make_shim
 
-HOOKS = {need.name: need.hooks for need in NEEDS}
+HOOKS = {need.name: need.hooks for need in HOMELAB.needs}
 DOCKER = "a Docker daemon"
 TITLE = "feat(gateway): declare the production gateway"
 
@@ -42,7 +41,7 @@ def calls(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPa
 
 
 def met() -> dict:
-    return {need.name: (lambda: None) for need in NEEDS}
+    return {need.name: (lambda: None) for need in HOMELAB.needs}
 
 
 def run_full(workspace: Workspace, plan: Path, *extra: str, probes: dict | None = None) -> int:

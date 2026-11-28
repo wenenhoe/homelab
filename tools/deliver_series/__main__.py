@@ -27,6 +27,7 @@ from deliver_series.needs import Probe, skipped
 from deliver_series.plan import PlanError, check_numbers, numbering_after, parse_plan
 from deliver_series.probes import real
 from deliver_series.repo import RepoError, changed_paths, commits_on_top, fetch_base, maintainer, require_clean, require_on_tip, rev, toplevel
+from deliver_series.repository import HOMELAB
 from deliver_series.verify import Machine, VerifyError, make_shim, verify
 
 TOOLS = Path(__file__).resolve().parent.parent
@@ -37,8 +38,9 @@ class Refused(Exception):
 
 
 def require_remote_session() -> None:
-    if os.environ.get("CLAUDE_CODE_REMOTE") != "true":
-        raise Refused("this runs only where CLAUDE_CODE_REMOTE is `true`; it is for a session on a machine that is thrown away")
+    variable, value = HOMELAB.session_variable
+    if os.environ.get(variable) != value:
+        raise Refused(f"this runs only where {variable} is `{value}`; it is for a session on a machine that is thrown away")
 
 
 def output_directory(out: Path | None, checkout: Path) -> Path:
@@ -63,7 +65,7 @@ def deliver(argv: Sequence[str], probes: Mapping[str, Probe] | None = None) -> s
     parser.add_argument("plan", help="the plan file, or - for standard input")
     parser.add_argument("--repo", type=Path, default=Path(), help="the checkout (default: the current directory)")
     parser.add_argument("--out", type=Path, help="the directory for the series file (default: a new one)")
-    parser.add_argument("--base", default="main", help="the branch the series lands on (default: main)")
+    parser.add_argument("--base", default=HOMELAB.default_base, help=f"the branch the series lands on (default: {HOMELAB.default_base})")
     stops = parser.add_mutually_exclusive_group()
     stops.add_argument("--patches-read", action="store_true", help="the patches of the commits on the stop list were read, so they may be replayed")
     stops.add_argument("--build-only", action="store_true", help="write the series file and stop: nothing is replayed")
@@ -92,7 +94,7 @@ def deliver(argv: Sequence[str], probes: Mapping[str, Probe] | None = None) -> s
     if (stops_found := handover.stop_list(layers, paths)) and not args.patches_read:
         named = "; ".join(f"{layer_id} ({', '.join(files)})" for layer_id, _, files in stops_found)
         raise Refused(f"these commits are on the stop list: {named}. Read their patches, then run again with --patches-read")
-    skips = skipped(probes or real(checkout / "ansible"))
+    skips = skipped(probes or real(checkout / HOMELAB.ansible_dir))
     for hook, reason in skips.items():
         progress(f"skipping {hook}: {reason}")
     unchecked = write(layers, args.base, checkout, out, suffix=".unchecked")

@@ -48,6 +48,7 @@ The clone to start from was described unevenly. `AGENTS.md` had a session fetch 
 | Rule | Held by |
 | :--- | :--- |
 | Series manifest, layer ids, slugs and the form and length of a `# title` | `land_series`, when it reads the file |
+| Which layer a change goes in, and which branch the series targets | Prose only; the replay checks that each commit passes, and `land_series` the form of a `# base:` line |
 | A project's `allowed_paths`, start and close, and doc drift | Checkers, at commit, replay and CI |
 | Generated views stay out of a patch | `.gitignore` |
 | Checks pass on every commit | The replay and CI, whether or not the author ran them |

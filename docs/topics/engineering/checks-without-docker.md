@@ -70,7 +70,7 @@ From a checkout of the tool:
 
 ```bash
 clone=$(mktemp -d)
-git clone --depth 50 https://github.com/wenenhoe/homelab.git "$clone"
+git clone https://github.com/wenenhoe/homelab.git "$clone"
 (cd "$clone" && uvx --python 3.14 pre-commit install)
 mkdir -p ~/bin
 printf '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit

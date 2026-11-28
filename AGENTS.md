@@ -57,9 +57,8 @@ checklist in
 [`docs/projects/README.md#closing-checklist`](docs/projects/README.md#closing-checklist).
 
 A change that touches a project doc may only change that project's
-`allowed_paths` (plus the project docs, the generated decision index
-and project-planning view, and its own decision revisions: the ones it
-names and the ones those supersede). Work that needs a file outside them
+`allowed_paths` (plus the project docs and its own decision revisions:
+the ones it names and the ones those supersede). Work that needs a file outside them
 stops there; see [`docs/projects/README.md#scope`](docs/projects/README.md#scope).
 
 Verify a docs change with `pre-commit run --all-files`; it regenerates

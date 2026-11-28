@@ -57,16 +57,16 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | The step-ca and OpenBao helpers, and the four `secrets` scenarios | Done | The helpers take a container name and host directories that default to what they use today, so a scenario not yet changed behaves as before. The four scenarios derive their names from their own, and use them in converge, verify and cleanup. `uv run ./scripts/molecule-test-all.sh -j 4 secrets` passes all ten scenarios and so does the same run without `-j`, and the other roles that start these helpers pass in CI |
 | 2 | The scenarios that start a helper on the control node's daemon, other than the `secrets` ones | Done | None exist: every other scenario that starts a helper does so inside its own Docker-in-Docker platform, so no scenario needed a change. `-j 4` of `backup_agent`, `cloud_sync`, `restore_discovery` and `seaweedfs_bucket` shows no failure that the same scenario does not also have alone (`backup_agent/default`, an idempotence failure) |
-| 3 | The check and the docs | Not started | A test fails when two scenarios resolve to the same helper container, network, host directory or published port, and fails on a copy with one name made shared; it counts only scenarios whose helpers share a daemon with another's, which a Docker-in-Docker scenario's do not. The Molecule topic docs say a scenario's helpers are named from the scenario and that `-j` is safe |
+| 3 | The check and the docs | Done | A test fails when two scenarios resolve to the same helper container, network, host directory or published port, and fails on a copy with one name made shared; it counts only scenarios whose helpers share a daemon with another's, which a Docker-in-Docker scenario's do not. The Molecule topic docs say a scenario's helpers are named from the scenario and that `-j` is safe |
 
 Stage status is `Not started`, `In progress`, or `Done`. Stage 1 is one pull request: a half-renamed `secrets` scenario cannot pass, so it is not split. Stage 3 comes last, because its check fails until stage 2 is done.
 
 ## Acceptance criteria
 
-- [ ] No two scenarios resolve to the same helper container name, network, host directory or published port, shown by the check in stage 3.
+- [x] No two scenarios resolve to the same helper container name, network, host directory or published port, shown by the check in stage 3.
 - [ ] `uv run ./scripts/molecule-test-all.sh -j 4` shows no collision for any role that starts a helper, in a cloud session: a scenario that fails beside others also fails alone, and says why.
 - [ ] The two `not_running` scenarios still assert an absent container, and pass beside the scenarios that start the helper.
-- [ ] [`molecule-testing.md`](../topics/testing/molecule-testing.md) no longer lists scenarios that cannot run side by side.
+- [x] [`molecule-testing.md`](../topics/testing/molecule-testing.md) no longer lists scenarios that cannot run side by side.
 - [ ] `pre-commit run --all-files` passes.
 
 ## Agent handoff

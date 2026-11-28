@@ -19,7 +19,7 @@ Scenarios that start the same throwaway helper container give it one fixed name,
 
 ## Scope
 
-In: the four `start_*_test_target.yaml` helpers in `ansible/roles/molecule_helpers/tasks/`; every scenario that starts one or names its container, network or host directory (the inventory below); a test that fails when two scenarios resolve to the same helper name, network, host directory or published port; the Molecule topic docs.
+In: the four `start_*_test_target.yaml` helpers in `ansible/roles/molecule_helpers/tasks/`; every scenario that starts one on a daemon it shares with another scenario (the inventory below); a test that fails when two scenarios resolve to the same helper name, network, host directory or published port; the Molecule topic docs.
 
 Not in: the scenario platform containers, whose instance names are already unique across roles; CI, which does not use `-j` and stays as it is; a CI workflow that times `-j` on a runner, which waits until a set of scenarios passes side by side here; the helpers' images and digests; capability sets, which [`molecule-container-hardening.md`](molecule-container-hardening.md) owns.
 
@@ -47,7 +47,7 @@ Scenarios that start each helper (their converge, verify and cleanup also write 
 - lldap: `lldap_bootstrap/default`, `step_ca_cert/default`, `tinyauth/default`, `tinyauth_ca_trust/default`.
 - SeaweedFS: `backup_agent/default`, `cloud_sync/default`, `restore_discovery/discovery_and_restore`, `seaweedfs_bucket/{default,identity_scoping,wrong_credentials}`.
 
-The four `secrets` scenarios already use a network of their own (`secrets-<scenario>-net`). The others create and use one shared network, `caddy-proxy`, so two of them running at once also create, use and remove the same network. Nobody has run them side by side yet, so which of them fail together is unknown.
+The four `secrets` scenarios already use a network of their own (`secrets-<scenario>-net`). The scenarios of `openbao`, `openbao_cli`, `step_ca_cert`, `step_ca_client`, `tinyauth`, `tinyauth_ca_trust` and `lldap_bootstrap` start their helpers, create `caddy-proxy` and write `/tmp` inside their own Docker-in-Docker platform, so the fixed names are on a daemon of their own and cannot collide. A run of those roles with `-j 4` after stage 1 passed 9 of 14 scenarios. The five that failed are `lldap_bootstrap/default`, `tinyauth/default`, `tinyauth_ca_trust/default` (an lldap container reported paused) and `step_ca_cert/default` (an idempotence failure on the lldap compose deploy), so each involves lldap, not a shared name; a failure counts as a collision only when the scenario passes alone. `lldap_bootstrap/default` failed alone too; the other three were not run alone. The scenarios that start a helper on the control node's daemon are the `secrets` ones, now done, and those of `backup_agent`, `restore_discovery`, and perhaps `cloud_sync` and `seaweedfs_bucket`; their daemon was not checked, and they were not run side by side.
 
 ## Execution plan
 
@@ -56,16 +56,15 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | The step-ca and OpenBao helpers, and the four `secrets` scenarios | Done | The helpers take a container name and host directories that default to what they use today, so a scenario not yet changed behaves as before. The four scenarios derive their names from their own, and use them in converge, verify and cleanup. `uv run ./scripts/molecule-test-all.sh -j 4 secrets` passes all ten scenarios and so does the same run without `-j`, and the other roles that start these helpers pass in CI |
-| 2 | The remaining step-ca and lldap consumers, and the shared network | Not started | Each scenario of `openbao`, `openbao_cli`, `step_ca_cert`, `step_ca_client`, `tinyauth`, `tinyauth_ca_trust` and `lldap_bootstrap` has helper names, a network and host directories of its own, and a run of those roles with `-j 4` passes |
-| 3 | The SeaweedFS helper and its consumers | Not started | Each scenario of `backup_agent`, `cloud_sync`, `restore_discovery` and `seaweedfs_bucket` has a SeaweedFS name and identity file of its own, and a run of those roles with `-j 4` passes |
-| 4 | The check and the docs | Not started | A test fails when two scenarios resolve to the same helper container, network, host directory or published port, and fails on a copy with one name made shared. The Molecule topic docs say a scenario's helpers are named from the scenario and that `-j` is safe |
+| 2 | The scenarios that start a helper on the control node's daemon, other than the `secrets` ones | Not started | Each scenario that starts a helper outside its own Docker-in-Docker platform has a helper name, network and host directory of its own (the SeaweedFS helper takes a name and identity file the way stage 1's helpers do), and a run with `-j 4` of the roles that hold them shows no failure that the same scenario does not also have alone |
+| 3 | The check and the docs | Not started | A test fails when two scenarios resolve to the same helper container, network, host directory or published port, and fails on a copy with one name made shared; it counts only scenarios whose helpers share a daemon with another's, which a Docker-in-Docker scenario's do not. The Molecule topic docs say a scenario's helpers are named from the scenario and that `-j` is safe |
 
-Stage status is `Not started`, `In progress`, or `Done`. Stage 1 is one pull request: a half-renamed `secrets` scenario cannot pass, so it is not split. Stages 2 and 3 are independent and merge in either order; stage 4 comes last, because its check fails until they are done.
+Stage status is `Not started`, `In progress`, or `Done`. Stage 1 is one pull request: a half-renamed `secrets` scenario cannot pass, so it is not split. Stage 3 comes last, because its check fails until stage 2 is done.
 
 ## Acceptance criteria
 
-- [ ] No two scenarios resolve to the same helper container name, network, host directory or published port, shown by the check in stage 4.
-- [ ] `uv run ./scripts/molecule-test-all.sh -j 4` passes for every role that starts a helper, in a cloud session and in CI's Molecule job.
+- [ ] No two scenarios resolve to the same helper container name, network, host directory or published port, shown by the check in stage 3.
+- [ ] `uv run ./scripts/molecule-test-all.sh -j 4` shows no collision for any role that starts a helper, in a cloud session: a scenario that fails beside others also fails alone, and says why.
 - [ ] The two `not_running` scenarios still assert an absent container, and pass beside the scenarios that start the helper.
 - [ ] [`molecule-testing.md`](../topics/testing/molecule-testing.md) no longer lists scenarios that cannot run side by side.
 - [ ] `pre-commit run --all-files` passes.
@@ -89,13 +88,13 @@ Run it as a tracked background command with the longest timeout, since a serial 
 
 - [`molecule-container-hardening.md`](molecule-container-hardening.md) edits the same `start_*_test_target.yaml` files and many of the same scenarios, so whichever lands second rebases onto the first. The two do not depend on each other.
 - A scenario that checks a name by value (a certificate SAN, an `api_addr`, a DNS name in a verify task) breaks if the helper renames the container and the check keeps the literal. Each stage's scenarios are run for real, not read.
-- A published host port is a fixed number a scenario picks. A new scenario that picks one already taken fails only when run beside the other, which is what the stage 4 check is for.
+- A published host port is a fixed number a scenario picks. A new scenario that picks one already taken fails only when run beside the other, which is what the stage 3 check is for.
 
 ## Open items
 
 1. How a scenario gets its names. Settled in stage 1: `molecule_helpers/vars/helper_names.yml` derives them from `MOLECULE_PROJECT_DIRECTORY` and `MOLECULE_SCENARIO_NAME`, which Molecule sets in the environment of every playbook, `cleanup` included, and a scenario loads it with `vars_files`. The helpers take the names as variables and keep their old fixed names when none is set, so a scenario not yet changed behaves as before.
-2. What the stage 4 check can decide. A name built from `MOLECULE_SCENARIO_NAME` is unique by construction and a literal is not, so the check may only need to fail on a literal helper name in a scenario. It is settled when the check is written.
-3. Whether the roles that share `caddy-proxy` need a network each, or can share one the first creates and the last removes. Stage 2 settles it by running them side by side.
+2. What the stage 3 check can decide. A name built from `MOLECULE_SCENARIO_NAME` is unique by construction and a literal is not, so the check may only need to fail on a literal helper name in a scenario. It is settled when the check is written.
+3. Which SeaweedFS scenarios start their helper on the control node's daemon rather than in their platform. Stage 2 finds out by reading each converge and by running the roles with `-j 4`.
 
 ## Closing checklist
 

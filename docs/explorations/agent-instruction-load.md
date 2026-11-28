@@ -74,6 +74,10 @@ The table covers delivery, the rules in `AGENTS.md`, and the lifecycle rules of 
 
 Claude Code [hooks](https://code.claude.com/docs/en/hooks) can refuse a tool call before it runs, add text for the model after one succeeds or fails, and keep a session from ending with a reason. A checker's failure already reaches an agent in the command's output, so how to fix it belongs in the checker's message, which a chat session, CI and a person read too. A hook adds something where nothing fails on its own: a commit that skips the checks, or a session that ends with commits and no replayed series. It acts only in Claude Code, and a change to `.claude/` is on [the stop list](../topics/engineering/landing-a-series.md#the-stop-list).
 
+A `Stop` hook receives `stop_hook_active`, which is true while the turn is already continuing because of a stop hook, and `last_assistant_message`. It blocks with `decision: "block"` and a `reason`, or by exiting 2 with the reason on stderr. Claude Code ends the turn anyway after eight consecutive continuations, and a hook that returns nothing when `stop_hook_active` is true asks once per reply. Project hooks in `.claude/settings.json` run in cloud sessions.
+
+What is owed can be read from the checkout. `git cherry origin/main HEAD` marks a commit `-` once an equal patch is on `main`, which holds after a series lands under new hashes, and `+` for one that is not, so no commits owed means nothing to deliver and the hook allows the stop. What `git cherry` cannot say is that a series was built and replayed for those commits: [`deliver_series`](../topics/engineering/delivering-a-series.md) records nothing a hook could read, and the transcript is a weaker signal. A hook that blocks while `+` commits remain would nudge a session that is holding them back on purpose, once per reply.
+
 ## Options
 
 - **Trim the prose by hand.** No code. The steps stay manual, which is where the trial failed.
@@ -85,7 +89,7 @@ Claude Code [hooks](https://code.claude.com/docs/en/hooks) can refuse a tool cal
 
 - Whether a session that does the work, and does not describe it, runs a role's scenarios through `molecule-test-all.sh` or one `molecule test` at a time, and what a trial of a task that names no project gets wrong.
 - Which rules in the topic docs a delivery touches, such as `docs/README.md` and the security policy, a checker already enforces.
-- Whether a hook can tell reliably that a delivery happened, without keeping a session from ending when there is nothing to deliver.
+- Whether `deliver_series` should leave a record of the commit it delivered, such as a ref in the checkout, so that a `Stop` hook can ask for a delivery only when the commits above `main` have none, and whether a nudge once per reply is worth a hook on the stop list.
 
 ## Leaning
 

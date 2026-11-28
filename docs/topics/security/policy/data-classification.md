@@ -48,6 +48,7 @@ A result, a date or a finding does not become Public by being reworded.
 - **Reasons.** A reason that explains why something is urgent or unsafe is private, even when what is being done is public.
 - **Open questions.** An unanswered question in a record, such as "Unknown: ... check ...", is public: it states no weakness. When it is checked, the answer is placed by the test, and a confirmed weakness is private until it is fixed.
 - **Explorations.** A question is placed by what its answer will record, not by how the question reads: one whose answer will record a private kind of information is opened on the private side even when its text is a design question. A public exploration is never edited to reflect a private result.
+- **Telling the maintainer.** An agent that finds a private kind of information while working says so in its reply to the maintainer, which is no file of the repository: not a doc, a comment, a commit message, a patch, a project's risk list or a handover. It names where it saw it and which question of [placing information](#placing-information) made it private, and leaves the rest to the maintainer.
 - **Declassifying** is the maintainer's decision, made per kind and recorded privately. An agent never moves information to a more open class.
 - **When unsure,** write the more closed class and say which question left it unclear. A private fact can be published later; a published one cannot be taken back.
 

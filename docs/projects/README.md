@@ -206,6 +206,8 @@ to a human when:
 - the scope needs to grow, which includes a file outside `allowed_paths`
   (see [Scope](#scope)).
 
+A stop is handed back in the final message, in plain text, with: the stop condition that fired; the path or fact that fired it; what the stage needs from it; the change that would let the work go on, such as the widening of `allowed_paths` proposed as its own change; and what was finished inside scope, with the checks run on it. Nothing outside scope is edited to make the work fit.
+
 For the first two, record it (an agent's only permitted ADR edits are in
 [`docs/decisions/README.md#assumptions`](../decisions/README.md#assumptions))
 and stop; don't improvise around it.

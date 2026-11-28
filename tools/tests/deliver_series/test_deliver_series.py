@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from _delivery_repo import BOT, TRAILER, Workspace, commit, git, message
+from _delivery_repo import BOT, MAINTAINER, TRAILER, Workspace, commit, git, message
 from deliver_series.__main__ import main
 from land_series.manifest import order_layers, parse_base, parse_series
 
@@ -199,7 +199,11 @@ OTHER = ("Someone Else", "else@example.invalid")
     ("kwargs", "said"),
     [
         pytest.param({"identity": OTHER}, "is Someone Else <else@example.invalid>, not the maintainer", id="not-the-maintainers-identity"),
-        pytest.param({"identity": BOT}, "not the maintainer", id="a-bots-identity"),
+        pytest.param({"identity": BOT}, "not the maintainer", id="a-bots-author"),
+        pytest.param({"committer": MAINTAINER}, "the committer is Maint Ainer <maint@example.invalid>, not the session's", id="the-maintainer-as-committer"),
+        pytest.param(
+            {"committer": ("Claude", "else@example.invalid")}, "not the session's Claude <noreply@anthropic.com>", id="the-sessions-name-with-another-email"
+        ),
         pytest.param({"date": "2026-11-28T02:00:00+0000"}, "is not at +0800", id="utc-dates"),
         pytest.param({"text": message("Add the vm")}, "not Conventional Commits", id="subject-not-conventional"),
         pytest.param({"text": message("feat(gateway): Add the vm")}, "not Conventional Commits", id="subject-capitalised"),

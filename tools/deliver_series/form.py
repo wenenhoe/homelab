@@ -25,6 +25,10 @@ class Identity:
         return f"{self.name} <{self.email}>"
 
 
+# The committer of a session's commits. A patch carries no committer, so it never reaches `main`.
+SESSION = Identity("Claude", "noreply@anthropic.com")
+
+
 @dataclass(frozen=True)
 class Commit:
     sha: str
@@ -48,9 +52,10 @@ def _trailers(message: str) -> list[str]:
 def problems(commit: Commit, maintainer: Identity, slug: str) -> list[str]:
     """What is wrong with the commit's form; empty when it has the form."""
     found: list[str] = []
-    for role, who in (("author", commit.author), ("committer", commit.committer)):
-        if who != maintainer:
-            found.append(f"the {role} is {who}, not the maintainer {maintainer}")
+    if commit.author != maintainer:
+        found.append(f"the author is {commit.author}, not the maintainer {maintainer}")
+    if commit.committer != SESSION:
+        found.append(f"the committer is {commit.committer}, not the session's {SESSION}")
     for role, date in (("author", commit.author_date), ("committer", commit.committer_date)):
         if not date.endswith(DATE_OFFSET):
             found.append(f"the {role} date {date!r} is not at +0800 (use `TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800`)")

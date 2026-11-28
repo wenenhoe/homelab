@@ -91,8 +91,9 @@ Docker or registry access, see
   End with the maintainer's replay and `--land` commands as
   [`landing-a-series.md`](docs/topics/engineering/landing-a-series.md#replay) gives
   them (their replay has no `--dry-run`, which keeps no branch to land), and name
-  each layer that [the stop list](docs/topics/engineering/landing-a-series.md#the-stop-list)
-  stops for and each that touches a hook, CI or tooling path.
+  each layer with a commit on
+  [the stop list](docs/topics/engineering/landing-a-series.md#the-stop-list) and
+  each that touches a hook, CI or tooling path.
 
 A Claude Code cloud session is described in
 [`docs/topics/engineering/hosted-sessions.md`](docs/topics/engineering/hosted-sessions.md).

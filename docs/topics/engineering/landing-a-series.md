@@ -65,7 +65,7 @@ A layer costs and a commit does not. Each layer is a full CI run waited for befo
 1. **A stage.** A project stage is one pull request ([What a stage is](../../projects/README.md#what-a-stage-is)).
 2. **An order the checks force.** The replay judges a layer's project scope against the state before its pull request, so a widened `allowed_paths` has to merge in an earlier layer than the one that needs it. One early layer carries every widening the series needs, not one layer per widening.
 3. **A revert of its own.** The rest of the series still makes sense without it, and the maintainer could want to undo one and keep the other. If both would always be undone together, they are one layer.
-4. **The stop list or a review.** A layer that changes a path on [the stop list](#replay), or that trips a criterion of [`pr-review.md`](../security/policy/pr-review.md#when-it-is-worth-asking), stays apart from layers that do not, so the confirmation and the review attach to the code that asked for them. The docs that describe that code stay with it.
+4. **A review.** A layer that trips a criterion of [`pr-review.md`](../security/policy/pr-review.md#when-it-is-worth-asking) stays apart from layers that do not, so the review attaches to the code that asked for it. The docs that describe that code stay with it.
 
 These always join the layer that does the work, as commits in it:
 

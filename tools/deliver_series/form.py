@@ -7,26 +7,13 @@ from dataclasses import dataclass
 
 from land_series.manifest import TITLE_FORM, TITLE_MAX
 
-DATE_OFFSET = " +0800"
-MODEL_TRAILER = re.compile(r"Co-Authored-By: \S.* <noreply@anthropic\.com>")
+from deliver_series.repository import HOMELAB, Identity
+
+MODEL_TRAILER = re.compile(rf"Co-Authored-By: \S.* <{re.escape(HOMELAB.trailer_email)}>")
 TRAILER = re.compile(r"([A-Za-z][A-Za-z-]*): \S.*")
-ALLOWED_TRAILERS = ("Plan-Confirmed", "Editorial-Fix")
 # A bare layer id, a pull request number, or a session link: none of them belongs in a message.
 ID_IN_TEXT = re.compile(r"(?<![\w-])\d{4}[a-z](?![\w-])|(?<!\w)#\d+")
 SESSION_LINK = re.compile(r"https?://\S*claude\.ai\S*|\bsession_[A-Za-z0-9]+", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class Identity:
-    name: str
-    email: str
-
-    def __str__(self) -> str:
-        return f"{self.name} <{self.email}>"
-
-
-# The committer of a session's commits. A patch carries no committer, so it never reaches `main`.
-SESSION = Identity("Claude", "noreply@anthropic.com")
 
 
 @dataclass(frozen=True)
@@ -54,10 +41,10 @@ def problems(commit: Commit, maintainer: Identity, slug: str) -> list[str]:
     found: list[str] = []
     if commit.author != maintainer:
         found.append(f"the author is {commit.author}, not the maintainer {maintainer}")
-    if commit.committer != SESSION:
-        found.append(f"the committer is {commit.committer}, not the session's {SESSION}")
+    if commit.committer != HOMELAB.committer:
+        found.append(f"the committer is {commit.committer}, not the session's {HOMELAB.committer}")
     for role, date in (("author", commit.author_date), ("committer", commit.committer_date)):
-        if not date.endswith(DATE_OFFSET):
+        if not date.endswith(HOMELAB.date_offset):
             found.append(f"the {role} date {date!r} is not at +0800 (use `TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800`)")
     subject = commit.subject
     if len(subject) > TITLE_MAX:
@@ -84,6 +71,6 @@ def _trailer_problems(message: str) -> list[str]:
         found.append("a `Co-Authored-By` line is outside the trailer block, the last paragraph")
     for line in kept:
         key = line.split(":", 1)[0]
-        if not line.lower().startswith("co-authored-by:") and key not in ALLOWED_TRAILERS:
-            found.append(f"the trailer {key!r} is not allowed; only {' and '.join(ALLOWED_TRAILERS)} go beside Co-Authored-By")
+        if not line.lower().startswith("co-authored-by:") and key not in HOMELAB.other_trailers:
+            found.append(f"the trailer {key!r} is not allowed; only {' and '.join(HOMELAB.other_trailers)} go beside Co-Authored-By")
     return found

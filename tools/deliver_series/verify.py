@@ -16,12 +16,12 @@ from land_series.__main__ import default_push_checks
 from land_series.run import CommandError, checked
 
 from deliver_series.build import Layer
-from deliver_series.form import Identity
-from deliver_series.repo import REMOTE, RepoError, git, patch_of, rev
+from deliver_series.repo import RepoError, git, patch_of, rev
+from deliver_series.repository import HOMELAB, Identity
 
 TAIL_LINES = 40
 CLONE_SECONDS = 600
-SHIM = '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n'
+SHIM = f'#!/bin/bash\nexec uvx --python {HOMELAB.python} pre-commit "$@"\n'
 
 Progress = Callable[[str], None]
 
@@ -129,9 +129,9 @@ def push_stage(clone: Path, spans: Mapping[str, tuple[str, str]], machine: Machi
 
 
 def verify(repo: Path, layers: list[Layer], series: Path, base: str, machine: Machine, tools: Path, log: Path, progress: Progress, expected: str) -> None:
-    base_ref = f"{REMOTE}/{base}"
+    base_ref = f"{HOMELAB.remote}/{base}"
     try:
-        with fresh_clone(git(repo, "remote", "get-url", REMOTE), base_ref, expected, machine, progress) as clone:
+        with fresh_clone(git(repo, "remote", "get-url", HOMELAB.remote), base_ref, expected, machine, progress) as clone:
             replay(clone, series, base_ref, machine, tools, log, progress)
             push_stage(clone, apply_series(clone, layers, repo, base_ref, machine), machine, progress)
     except (RepoError, OSError) as error:

@@ -112,7 +112,10 @@ def test_a_tree_with_changes_is_refused(workspace: Workspace, plan_file: Path, c
     change(workspace.work)
     plan_file.write_text("gateway-vm 1\n")
 
-    assert "the working tree has changes" in refused(workspace, plan_file, capsys)
+    said = refused(workspace, plan_file, capsys)
+
+    assert said.startswith("deliver_series: the working tree has changes (")
+    assert any(name in said for name in ("(base.txt", "(new.txt", "(staged.txt"))
 
 
 def test_a_merge_is_refused(workspace: Workspace, plan_file: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -241,7 +244,7 @@ def test_a_commit_without_the_commit_form_is_refused(
 
 
 def test_the_trailers_a_check_reads_go_beside_the_models(workspace: Workspace, plan_file: Path) -> None:
-    text = message("feat(gateway): add the vm", TRAILER, "Plan-Confirmed: docs/projects/delivery-command.md", "Editorial-Fix: yes")
+    text = message("feat(gateway): add the vm", TRAILER, "Plan-Confirmed: the-plan", "Editorial-Fix: yes")
     workspace.commit("feat(gateway): add the vm", text=text)
     plan_file.write_text("gateway-vm 1\n")
 

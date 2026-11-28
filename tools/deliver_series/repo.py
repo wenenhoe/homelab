@@ -6,9 +6,9 @@ from pathlib import Path
 
 from land_series.run import CommandError, checked, run
 
-from deliver_series.form import Commit, Identity
+from deliver_series.form import Commit
+from deliver_series.repository import HOMELAB, Identity
 
-REMOTE = "origin"
 FETCH_SECONDS = 300
 LISTED_FILES = 10
 _FIELDS = "%an%x00%ae%x00%cn%x00%ce%x00%ai%x00%ci%x00%B"
@@ -31,7 +31,8 @@ def toplevel(repo: Path) -> Path:
 
 def require_clean(repo: Path) -> None:
     """Refuse a tree with a change that is staged, unstaged or untracked: the series holds commits, so such a change would be left out of it."""
-    changed = git(repo, "status", "--porcelain", "--untracked-files=all").splitlines()
+    # Not `git()`, which strips the output and with it the first line's leading space.
+    changed = checked(["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=all"]).stdout.decode("utf-8", errors="replace").splitlines()
     if changed:
         listed = "; ".join(line[3:] for line in changed[:LISTED_FILES])
         more = f" and {len(changed) - LISTED_FILES} more" if len(changed) > LISTED_FILES else ""
@@ -40,8 +41,8 @@ def require_clean(repo: Path) -> None:
 
 def fetch_base(repo: Path, base: str) -> str:
     """Fetch the base branch and return `origin/<base>`."""
-    ref = f"{REMOTE}/{base}"
-    git(repo, "fetch", "--quiet", REMOTE, f"+refs/heads/{base}:refs/remotes/{ref}", timeout=FETCH_SECONDS)
+    ref = f"{HOMELAB.remote}/{base}"
+    git(repo, "fetch", "--quiet", HOMELAB.remote, f"+refs/heads/{base}:refs/remotes/{ref}", timeout=FETCH_SECONDS)
     return ref
 
 
@@ -90,7 +91,7 @@ def changed_paths(repo: Path, sha: str) -> list[str]:
 
 
 def origin_url(repo: Path) -> str:
-    return git(repo, "remote", "get-url", REMOTE)
+    return git(repo, "remote", "get-url", HOMELAB.remote)
 
 
 def rev(repo: Path, ref: str) -> str:

@@ -7,7 +7,7 @@ short: "Preparing a series"
 solution: "One command that checks the commits, builds the series file, replays it skipping only what the machine cannot run, and prints the handover"
 summary: "How the author of a series builds and checks it before handing it over."
 topic: repository-tooling
-status: approved
+status: accepted
 weight: light
 related: [ADR-0037, ADR-0112, ADR-0122]
 ---
@@ -20,11 +20,9 @@ A series must be handed over built on the current base, in the commit form, chec
 
 ## Context
 
-- The recipe is carried out by hand. A trial session skipped the replay and gave commands that would have landed nothing.
-- A hand-typed skip list has named hooks the repository does not have, and nothing said so.
-- Chat sessions and cloud sessions both write series ([ADR 0122 (Where coding-agent work runs)](../0122-where-coding-agent-work-is-built-and-tried/revision-000.md)). A cloud session has Docker. A chat sandbox without a daemon also had `CLAUDE_CODE_REMOTE` set to `true`.
+- The recipe was carried out by hand, and a step left out went unnoticed: a replay skipped, and a skip list naming hooks the repository does not have.
+- Chat sessions and cloud sessions both write series ([ADR 0122 (Where coding-agent work runs)](../0122-where-coding-agent-work-is-built-and-tried/revision-000.md)). A cloud session has Docker; a chat sandbox may have none, and one without a daemon also had `CLAUDE_CODE_REMOTE` set to `true`.
 - There the Docker hooks, `gitleaks` and `zizmor` could not run.
-- Nothing checks a commit's identity, dates or trailer ([commit form](../../topics/engineering/conventions.md#commits)).
 - A replay with no terminal needs `--accept-stops`, which [ADR 0112 (Landing a patch series)](../0112-landing-a-series-of-dependent-changes-on-main/revision-004.md) keeps for a machine that is thrown away and holds no credential.
 
 ## Decision

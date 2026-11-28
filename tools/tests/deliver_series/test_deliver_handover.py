@@ -7,8 +7,9 @@ from pathlib import Path
 
 from deliver_series import handover
 from deliver_series.build import Layer
-from deliver_series.form import Commit, Identity
+from deliver_series.form import Commit
 from deliver_series.plan import PlannedLayer
+from deliver_series.repository import Identity
 
 LANDING = Path(__file__).resolve().parents[3] / "docs" / "topics" / "engineering" / "landing-a-series.md"
 WHO = Identity("Maint Ainer", "maint@example.invalid")

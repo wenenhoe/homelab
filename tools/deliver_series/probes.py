@@ -10,7 +10,8 @@ from pathlib import Path
 import yaml
 from land_series.run import CommandError, run
 
-from deliver_series.needs import NEEDS, Probe
+from deliver_series.needs import Probe
+from deliver_series.repository import HOMELAB
 
 PROBE_SECONDS = 20
 # What `gitleaks` is built with: a Go toolchain newer than the one installed is downloaded from here.
@@ -78,6 +79,6 @@ def real(ansible_dir: Path) -> dict[str, Probe]:
     """The probes by the name of the need they answer."""
     by_name = {"a Docker daemon": docker, "a download of the Go toolchain": go_toolchain, "the GitHub API": github_api}
     by_name["the Ansible collections"] = lambda: ansible_collections(ansible_dir)
-    if set(by_name) != {need.name for need in NEEDS}:
+    if set(by_name) != {need.name for need in HOMELAB.needs}:
         raise RuntimeError("every need in needs.py has exactly one probe")
     return by_name

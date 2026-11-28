@@ -1,6 +1,6 @@
 # Delivering a Series
 
-How a session turns the commits of a change into the `.series` file the maintainer lands ([`landing-a-series.md`](landing-a-series.md)), with [`tools/deliver_series`](../../../tools/deliver_series). [ADR 0123 (Preparing a series)](../../decisions/0123-preparing-a-series-for-delivery/revision-000.md) says why it is one command. It checks the commits, builds the series file, replays it, runs the push stage and prints the handover, so no step of delivery is carried out by hand.
+How a session turns the commits of a change into the `.series` file the maintainer lands ([`landing-a-series.md`](landing-a-series.md)), with [`tools/deliver_series`](../../../tools/deliver_series). [ADR 0123 (Preparing a series)](../../decisions/0123-preparing-a-series-for-delivery/revision-000.md) says why it is one command. It checks the commits, builds the series file, replays it, runs the push stage and prints the handover, so no step of delivery is carried out by hand. What is particular to this repository (its remote, the committer, the hooks and their needs, the tooling paths and the maintainer's commands) is one object, [`repository.py`](../../../tools/deliver_series/repository.py).
 
 It runs only where `CLAUDE_CODE_REMOTE` is `true` and refuses anywhere else, since a series is written on a machine that is thrown away ([`hosted-sessions.md`](hosted-sessions.md)). A cut of the commits into layers comes first: [`landing-a-series.md`](landing-a-series.md#cutting-a-series) says what is a commit and what is a layer.
 
@@ -95,6 +95,8 @@ A hook is skipped only when the probe of what it needs finds that missing, and t
 | A download of the Go toolchain | `proxy.golang.org` serves the toolchain list | `gitleaks` |
 | The GitHub API | The request `zizmor`'s `ref-confusion` audit makes, the branches of `actions/checkout`, is answered 200 | `zizmor` |
 | The Ansible collections | Each collection `ansible/requirements.yml` names, but not one pinned by a git URL, is in `ansible-galaxy collection list` | `ansible-lint`, which runs only in the push stage |
+
+In a [cloud session](hosted-sessions.md), once its hook has started `dockerd`, `gitleaks` and the three Docker hooks run. `zizmor` is skipped there, the request of its audit being refused with a 403. `ansible-lint` runs only after [the collections are installed](hosted-sessions.md#running-molecule). A run of a series of two commits took about four minutes with Docker and about three without it.
 
 A test fails when the pre-commit configuration holds a hook ending in `-docker` that is not listed, or a listed hook that the configuration does not have. The collections are present in a [cloud session](hosted-sessions.md) only once [installed](hosted-sessions.md#running-molecule).
 

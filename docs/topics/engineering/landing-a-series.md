@@ -102,7 +102,7 @@ The replay lists those commits together, each with its files, their added and re
 - `v` opens the diff of the listed files, and no others, in `less`. `q` returns to the prompt with the terminal as it was. Without `less`, or with `TERM=dumb`, the diff is printed.
 - Anything else stops the run. With no terminal it stops and names the commits and files.
 
-`--accept-stops` prints the same list and replays without asking. It is taken only with `--dry-run`, and is for a machine that is thrown away and holds no credential, such as the one a series is written on ([verifying a series](checks-without-docker.md#verifying-a-series-before-delivery)). The tool cannot tell what machine it is on: `--dry-run` limits what the run keeps, not what the series' code can do while it runs, so the flag is not for the maintainer's own.
+`--accept-stops` prints the same list and replays without asking. It is taken only with `--dry-run`, and is for a machine that is thrown away and holds no credential, such as the one a series is written on ([delivering a series](delivering-a-series.md)). The tool cannot tell what machine it is on: `--dry-run` limits what the run keeps, not what the series' code can do while it runs, so the flag is not for the maintainer's own.
 
 A control or format character in a subject, a file name or a diff is shown as an escape, such as `\x1b`, so a patch cannot hide or rewrite what is on screen.
 

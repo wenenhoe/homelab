@@ -39,7 +39,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Check the commits and build the series | In progress | From a plan of layers, the command writes a series file `land_series` reads, outside the checkout, and refuses a stale base, a changed tree and a commit without the commit form. Tests cover each refusal. |
+| 1 | Check the commits and build the series | Done | From a plan of layers, the command writes a series file `land_series` reads, outside the checkout, and refuses a stale base, a changed tree and a commit without the commit form. Tests cover each refusal. |
 | 2 | Replay, probes and handover | Not started | The same command replays the series and the push stage, skips only hooks whose need a probe found missing, and prints the handover. It has run in a session with Docker and in one without. The docs it replaces are cut. |
 
 **Plan input.** One line per layer, in order: slug, number of commits, and a title, which a layer of one commit may leave out. Numbering starts at `0001`, or after the ids of series files named as not yet merged.

@@ -37,6 +37,12 @@ One session, given a project's name, skipped the replay, gave final commands tha
 
 A later delivery of a project stage failed [the Molecule coverage floor](../topics/engineering/ci/gates.md#molecule-coverage-gate) in CI. The floor was named in no doc `AGENTS.md` sends a session to for delivery, and nothing run before the pull request checked it. [A full run of a role](../topics/testing/molecule-testing.md#coverage) now checks it, with no rule added to `AGENTS.md`.
 
+### Where the prose has drifted
+
+The replay went from asking at each commit on the stop list to asking once for the series. [The rules for a coding agent](../../AGENTS.md#rules-for-a-coding-agent) were written after that and worded the stop list as stopping for each layer. A [rule for cutting a series](../topics/engineering/landing-a-series.md#cutting-a-series) still kept a stop-list layer apart so that the confirmation attached to its code.
+
+The clone to start from was described unevenly. `AGENTS.md` had a session fetch the base, [the commit form](../topics/engineering/conventions.md#commits) asked for a depth of 50 at least, and [`checks-without-docker.md`](../topics/engineering/checks-without-docker.md) asked for the whole history, without which a moved-file check passes unrun, while its replay recipe cloned to a depth of 50.
+
 ### What holds each rule today
 
 | Rule | Held by |

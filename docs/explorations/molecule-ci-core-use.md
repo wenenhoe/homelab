@@ -21,6 +21,17 @@ Each `molecule` leg runs its scenarios one at a time on a machine with several c
 - Each scenario writes its own coverage data file, so the [coverage gate](../topics/engineering/ci/gates.md#molecule-coverage-gate) reads the same data either way.
 - With `-j`, a failure starts no further scenario of that role, while those already running finish.
 
+## What a cloud session showed
+
+A [cloud session](../topics/engineering/hosted-sessions.md) has 4 cores and 15 GB of memory, like a runner, with one Docker daemon. One run of each, serial against `-j 4`:
+
+| Scenarios | Serial | `-j 4` | Speedup |
+| :--- | :--- | :--- | :--- |
+| the 7 of `compose` | 948 s | 292 s | 3.2× |
+| the 8 of `compose_app`, `bind9` and `caddy` | 885 s | 487 s | 1.8× |
+
+Every scenario passed both ways, the coverage floors held, and the two scenarios of `compose` that fail on purpose failed the same way in both. Free memory stayed above 11 GB, disk use rose by 3 GB to 12 GB, and CPU use peaked at 91% to 94%. The second set is bounded by its longest scenario, `bind9`'s `secondary` at 288 s, which no `-j` shortens.
+
 ## Options
 
 - **Leave the legs as they are.** Nothing to build or keep right. The cores stay idle.
@@ -29,10 +40,10 @@ Each `molecule` leg runs its scenarios one at a time on a machine with several c
 
 ## Still to check
 
-- Whether scenarios of different roles pass side by side on one daemon, on a runner and in a cloud session, and how often they fail only that way.
-- The time a leg of two or four saves against its summed serial times.
-- The disk and memory a leg of the heaviest scenarios needs side by side.
+- Whether scenarios of different roles pass side by side on one daemon on a runner, and how often, over many runs, they fail only that way. One run in a cloud session did not.
+- The time a leg of two saves against its summed serial times, and a leg of four on a runner.
+- The disk and memory a leg of the heaviest scenarios, such as those of `secrets` or `host_hardening`, needs side by side.
 
 ## Leaning
 
-Time `-j` on a workstation, and try it in a cloud session, first. CI follows only if the saving on the slowest leg is large and the runs are as reliable as serial ones.
+Time `-j` on a runner next, in a leg of a pull request that can be thrown away. The cloud session's saving is large when a leg holds many short scenarios and small when one scenario dominates, so CI follows only if the saving on the slowest leg is large and the runs are as reliable as serial ones.

@@ -81,3 +81,17 @@ def patch_of(repo: Path, sha: str) -> bytes:
     if done.returncode != 0:
         raise RepoError(f"cannot write the patch of {sha[:12]}: {done.output}")
     return done.stdout
+
+
+def changed_paths(repo: Path, sha: str) -> list[str]:
+    """Every path the commit changes, a rename counted as a removal and an addition."""
+    listed = checked(["git", "-C", str(repo), "diff", "--no-renames", "--name-only", "-z", f"{sha}^", sha]).stdout
+    return [path.decode("utf-8", errors="surrogateescape") for path in listed.split(b"\0") if path]
+
+
+def origin_url(repo: Path) -> str:
+    return git(repo, "remote", "get-url", REMOTE)
+
+
+def rev(repo: Path, ref: str) -> str:
+    return git(repo, "rev-parse", ref)

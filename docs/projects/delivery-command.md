@@ -2,11 +2,20 @@
 id: PROJ-delivery-command
 title: "Delivery Command"
 type: project
-status: not-started
+status: building
 plan: confirmed
 blocked: false
 summary: "One command that builds, checks and hands over a series, replacing the hand recipe, with and without Docker."
 decision: ADR-0123/0
+allowed_paths:
+  - tools/deliver_series/**
+  - tools/tests/deliver_series/**
+  - AGENTS.md
+  - docs/topics/engineering/conventions.md
+  - docs/topics/engineering/delivering-a-series.md
+  - docs/topics/engineering/landing-a-series.md
+  - docs/topics/engineering/checks-without-docker.md
+  - docs/topics/engineering/hosted-sessions.md
 ---
 
 # Delivery Command
@@ -30,7 +39,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Check the commits and build the series | Not started | From a plan of layers, the command writes a series file `land_series` reads, outside the checkout, and refuses a stale base, a changed tree and a commit without the commit form. Tests cover each refusal. |
+| 1 | Check the commits and build the series | Done | From a plan of layers, the command writes a series file `land_series` reads, outside the checkout, and refuses a stale base, a changed tree and a commit without the commit form. Tests cover each refusal. |
 | 2 | Replay, probes and handover | Not started | The same command replays the series and the push stage, skips only hooks whose need a probe found missing, and prints the handover. It has run in a session with Docker and in one without. The docs it replaces are cut. |
 
 **Plan input.** One line per layer, in order: slug, number of commits, and a title, which a layer of one commit may leave out. Numbering starts at `0001`, or after the ids of series files named as not yet merged.
@@ -59,7 +68,7 @@ A test fails when the pre-commit configuration holds a Docker hook that is not l
 
 ## Agent handoff
 
-- **Allowed to change:** set `allowed_paths` in the change that starts building. Expected: `tools/deliver_series/**`, `tools/tests/deliver_series/**`, `AGENTS.md`, and under `docs/topics/engineering/` the pages on delivery, checks and cloud sessions.
+- **Allowed to change:** the `allowed_paths` above: the command and its tests, `AGENTS.md`, and under `docs/topics/engineering/` the pages on delivery, landing, checks and cloud sessions.
 - **Must not change:** `tools/land_series/`, the pre-commit configuration, `.claude/`.
 - **Relevant files and interfaces:** `land_series.replay.stopped_by` and `STOP_PREFIXES`, `land_series.manifest.parse_series`, and `land_series --dry-run --accept-stops`.
 - **Required checks:** the unit tests, and a real run of the command on this project's own series.

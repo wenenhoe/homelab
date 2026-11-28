@@ -64,7 +64,7 @@ mmdc -p /tmp/puppeteer.json -i "$diagram" -o /tmp/diagram.png -s 2
 
 ## Verifying a series before delivery
 
-Replay a `.series` file the way the maintainer will ([`landing-a-series.md`](landing-a-series.md)), on a fresh clone of `main`, with `--dry-run`, which pushes nothing and keeps no branch:
+The series file is built and its commits checked by [`deliver_series`](delivering-a-series.md). Once it is built, replay the `.series` file the way the maintainer will ([`landing-a-series.md`](landing-a-series.md)), on a fresh clone of `main`, with `--dry-run`, which pushes nothing and keeps no branch:
 
 From a checkout of the tool:
 

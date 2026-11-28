@@ -1,10 +1,12 @@
 # Working in a Claude Code Cloud Session
 
-A [cloud session](https://code.claude.com/docs/en/claude-code-on-the-web) is a disposable virtual machine with a fresh clone of the repository, in which Docker runs. This page says what it needs, what the repository gives it and how it differs from CI, which stays the authority. A session delivers a change as every other one does ([`landing-a-series.md`](landing-a-series.md)).
+A [cloud session](https://code.claude.com/docs/en/claude-code-on-the-web) is a disposable virtual machine with a fresh clone of the repository, in which Docker runs. This page says what it needs, what the repository gives it and how it differs from CI, which stays the authority. A session delivers a change as every other one does ([`landing-a-series.md`](landing-a-series.md)). [ADR 0122 (Where coding-agent work runs)](../../decisions/0122-where-coding-agent-work-is-built-and-tried/revision-000.md) says why sessions are used this way.
 
 ## Starting a task and handing it over
 
 The session's clone can be behind `main`, for one when a series lands after the session starts. [The rules for a coding agent](../../../AGENTS.md#rules-for-a-coding-agent) have a session fetch before it reads the task. The maintainer cannot reach the machine's files, so the session writes the `.series` file outside the checkout, where it is not left as an untracked file, and attaches it to its reply.
+
+A session takes one task, and a series has one writer: stop one session before another changes what it was working on. What it reports as verified is kept apart from what it assumed, and CI is the authority.
 
 ## Settings outside the repository
 
@@ -14,6 +16,8 @@ These are set on the account and the [cloud environment](https://code.claude.com
 - **Setup script** and **environment variables** are empty.
 - **GitHub** is connected without the Claude GitHub App on the repository, and not with `/web-setup`, which sends the local `gh` token.
 - No connectors, no scheduled or triggered sessions, and one repository to a session: with several, the repository's settings and hooks are not read.
+- Sessions are kept private.
+- After a change to the GitHub connection or the environment, try a branch, a pull request, a commit and a `git push` again on a scratch repository connected the same way; each must be refused.
 
 ## What the repository sets
 
@@ -78,6 +82,8 @@ Every scenario of the role, which also checks [its coverage floor](../testing/mo
 ```
 
 [`molecule-testing.md`](../testing/molecule-testing.md) lists the scenarios.
+
+Not every role has been run in a session. Scenarios of `compose`, `bind9`, `caddy`, `compose_app`, `docker`, `secrets`, `host_hardening` and `apt` have passed there. The [Mermaid render check](../documentation/doc-checks.md#mermaid-render-check) and `molecule-test-all.sh -j` have not been tried there.
 
 ## Where it differs from CI
 

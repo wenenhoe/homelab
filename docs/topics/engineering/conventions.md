@@ -193,7 +193,7 @@ Every patch the maintainer applies has one form, whichever repository it is for.
 - **Subject.** Conventional Commits, in the imperative and lowercase after the colon, at most 72 characters with its type and scope, and with no id, number or slug in it. A pull request's title is a subject of the same form: its first commit's, or the one its series names ([Naming a layer](landing-a-series.md#naming-a-layer)).
 - **Scope.** The name of what the commit changes, spelled as it is on disk and without its extension: `scratch_run`, `cloud_sync`, `opnsense-vm`, never a respelling of it. `projects`, `decisions` and `explorations` scope a doc of that directory; a topic doc takes the component it describes, or its directory under `docs/topics` when it describes none. A change with no single name has no scope.
 - **Dates.** `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` come from `TZ=Etc/GMT-8 date +%Y-%m-%dT%H:%M:%S+0800`. A bare `date` prints UTC.
-- **Trailer.** The message ends with one `Co-Authored-By: <model name> <noreply@anthropic.com>` line, naming the model that wrote the work, and no other trailer. A session link does not go in a commit message or a pull request's text.
+- **Trailer.** The message ends with one `Co-Authored-By: <model name> <noreply@anthropic.com>` line, naming the model that wrote the work, and no other trailer, apart from one that a check reads: [`Plan-Confirmed:`](../../projects/README.md) as a project starts building, and [`Editorial-Fix:`](../../decisions/README.md#compacting-accepted-records). A session link does not go in a commit message or a pull request's text.
 
 Put together, with the subject and model name read first:
 

@@ -104,6 +104,8 @@ It names whatever the machine lacks before it applies anything, replays each com
 pre-commit run --hook-stage pre-push --from-ref origin/main --to-ref HEAD
 ```
 
+The scope check among these hooks judges every commit since the default branch, whatever `--from-ref` says. For a series that widens a project's scope, run the stage once for each pull request, as `--land` does: with that pull request's last commit checked out and as `--to-ref`, and `CHECK_DOC_CHANGE_BASE` set to the commit before its first.
+
 A change to how `git am` is used is tested with a real `git am` in a throwaway repository.
 
 ## Docker without registries

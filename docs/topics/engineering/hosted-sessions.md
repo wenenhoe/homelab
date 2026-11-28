@@ -83,7 +83,7 @@ Every scenario of the role, which also checks [its coverage floor](../testing/mo
 
 [`molecule-testing.md`](../testing/molecule-testing.md) lists the scenarios.
 
-Not every role has been run in a session. Scenarios of `compose`, `bind9`, `caddy`, `compose_app`, `docker`, `secrets`, `host_hardening` and `apt` have passed there. The [Mermaid render check](../documentation/doc-checks.md#mermaid-render-check) and `molecule-test-all.sh -j` have not been tried there.
+Not every role has been run in a session. Scenarios of `compose`, `bind9`, `caddy`, `compose_app`, `docker`, `secrets`, `host_hardening` and `apt` have passed there. `molecule-test-all.sh -j 4` has run `compose`, and `compose_app`, `bind9` and `caddy` together, and every scenario passed. The [Mermaid render check](../documentation/doc-checks.md#mermaid-render-check) has not been tried there.
 
 ## Where it differs from CI
 

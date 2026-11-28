@@ -24,9 +24,10 @@ runs, so the placement is decided before the stages that build it.
   carries VLAN 30 in the gateway's play. Applying the zone to the production
   gateway, the host, its role, its egress path, its lifecycle and its access path
   have not started.
-- **Whether an own host is the first choice.** [Hosted sessions](coding-agent-hosted-sessions.md)
-  weighs running this work in the provider's cloud sessions instead. This question
-  stands either way, for the host that question keeps as a fallback.
+- **An own host is not the only place.**
+  [ADR 0122](../decisions/0122-where-coding-agent-work-is-built-and-tried/revision-000.md)
+  lets the provider's cloud sessions do this work too, and keeps an own host as
+  the fallback. This question is about that host.
 - **It already runs on demand.** [ADR 0054](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md)
   starts it when the maintainer wants the agent and rebuilds it from its Tofu
   definition each time, so it need not exist between sessions. That fits an

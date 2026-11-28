@@ -10,7 +10,7 @@ related: [ADR-0115]
 
 # Should a Molecule leg in CI use more than one of its runner's cores?
 
-Each `molecule` leg runs its scenarios one at a time on a machine with several cores. [`molecule-test-all.sh -j`](../topics/testing/molecule-testing.md#running-scenarios) can run them side by side, and whether CI should is open: it has not been tried with real scenarios on a runner, and the shard table rests on times taken one at a time.
+Each `molecule` leg runs its scenarios one at a time on a machine with several cores. [`molecule-test-all.sh -j`](../topics/testing/molecule-testing.md#running-scenarios) can run them side by side, and whether CI should is open: it has run real scenarios on a workstation, untimed, and none on a runner, and the shard table rests on times taken one at a time.
 
 ## What bears on it
 
@@ -29,10 +29,10 @@ Each `molecule` leg runs its scenarios one at a time on a machine with several c
 
 ## Still to check
 
-- Whether scenarios of one role, and of different roles, pass side by side on one daemon, and how often they fail only that way.
+- Whether scenarios of different roles pass side by side on one daemon, on a runner and in a cloud session, and how often they fail only that way.
 - The time a leg of two or four saves against its summed serial times.
 - The disk and memory a leg of the heaviest scenarios needs side by side.
 
 ## Leaning
 
-Try `-j` on a workstation and in a cloud session first. CI follows only if the saving on the slowest leg is large and the runs are as reliable as serial ones.
+Time `-j` on a workstation, and try it in a cloud session, first. CI follows only if the saving on the slowest leg is large and the runs are as reliable as serial ones.

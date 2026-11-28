@@ -76,14 +76,15 @@ def render(layers: Sequence[Layer], base: str, repo: Path) -> bytes:
     return ("\n".join(lines) + "\n\n").encode() + b"".join(patches)
 
 
-def write(layers: Sequence[Layer], base: str, repo: Path, out: Path) -> Path:
-    """Write the series file in `out` after reading it back the way `land_series` does."""
+def write(layers: Sequence[Layer], base: str, repo: Path, out: Path, suffix: str = "") -> Path:
+    """Write the series file in `out` after reading it back the way `land_series` does; `suffix` marks a file that has not passed its checks."""
     try:
         data = render(layers, base, repo)
     except RepoError as error:
         raise BuildError(str(error)) from error
-    path = out / f"{layers[0].number:04d}-{layers[-1].number:04d}.series"
-    if path.exists():
+    name = f"{layers[0].number:04d}-{layers[-1].number:04d}.series"
+    path = out / f"{name}{suffix}"
+    if path.exists() or (out / name).exists():
         raise BuildError(f"{path} exists already")
     try:
         order_layers(parse_series(data, path.name))

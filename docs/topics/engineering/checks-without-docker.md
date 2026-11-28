@@ -64,47 +64,7 @@ mmdc -p /tmp/puppeteer.json -i "$diagram" -o /tmp/diagram.png -s 2
 
 ## Verifying a series before delivery
 
-The series file is built and its commits checked by [`deliver_series`](delivering-a-series.md). Once it is built, replay the `.series` file the way the maintainer will ([`landing-a-series.md`](landing-a-series.md)), on a fresh clone of `main`, with `--dry-run`, which pushes nothing and keeps no branch:
-
-From a checkout of the tool:
-
-```bash
-clone=$(mktemp -d)
-git clone https://github.com/wenenhoe/homelab.git "$clone"
-(cd "$clone" && uvx --python 3.14 pre-commit install)
-mkdir -p ~/bin
-printf '#!/bin/bash\nexec uvx --python 3.14 pre-commit "$@"\n' > ~/bin/pre-commit && chmod +x ~/bin/pre-commit
-```
-
-Set `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL`, put `~/bin` on `PATH`, and set `SKIP` to the hooks that cannot run here, saying which. Then:
-
-```bash
-# paste alone; it waits for the series file's path, absolute or from tools/
-read -r -p 'series file: ' series
-```
-
-A replay can run longer than the 10 minutes a foreground command is given, so it runs in the background and writes to a log file that ends with its exit status:
-
-```bash
-cd tools
-log=$(mktemp)
-(uv run python -m land_series "$series" --repo "$clone" --base origin/main --no-fetch --dry-run --accept-stops; echo "exit $?") > "$log" 2>&1 &
-replay=$!
-```
-
-Then wait for the process rather than for a length of time. This returns as soon as the replay ends, or after 590 seconds, in which case run it again:
-
-```bash
-timeout 590 tail --pid="$replay" -f "$log"
-```
-
-It names whatever the machine lacks before it applies anything, replays each commit with the scope check and `pre-commit run --all-files`, and lists the commits on [the stop list](landing-a-series.md#the-stop-list), which `--accept-stops` replays without asking. Pass it only after reading those commits' patches, and only on a throwaway machine. It runs no pre-push hook, which `--land` runs: check the push stage in a clone with the series applied, with `ansible-lint` skipped as above:
-
-```bash
-pre-commit run --hook-stage pre-push --from-ref origin/main --to-ref HEAD
-```
-
-The scope check among these hooks judges every commit since the default branch, whatever `--from-ref` says. For a series that widens a project's scope, run the stage once for each pull request, as `--land` does: with that pull request's last commit checked out and as `--to-ref`, and `CHECK_DOC_CHANGE_BASE` set to the commit before its first.
+[`deliver_series`](delivering-a-series.md) replays the series on a fresh clone and runs the push stage, and skips only the hooks this machine cannot run, which it names. Nothing here is carried out by hand.
 
 A change to how `git am` is used is tested with a real `git am` in a throwaway repository.
 

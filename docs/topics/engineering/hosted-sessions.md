@@ -4,7 +4,7 @@ A [cloud session](https://code.claude.com/docs/en/claude-code-on-the-web) is a d
 
 ## Starting a task and handing it over
 
-The session's clone can be behind `main`, for one when a series lands after the session starts. [The rules for a coding agent](../../../AGENTS.md#rules-for-a-coding-agent) have a session fetch before it reads the task. The maintainer cannot reach the machine's files, so the session writes the `.series` file outside the checkout, where it is not left as an untracked file, and attaches it to its reply.
+The session's clone can be behind `main`, for one when a series lands after the session starts. [The rules for a coding agent](../../../AGENTS.md#rules-for-a-coding-agent) have a session fetch before it reads the task. The maintainer cannot reach the machine's files, so the session builds the `.series` file with [`deliver_series`](delivering-a-series.md), outside the checkout, where it is not left as an untracked file, and attaches it to its reply.
 
 A session takes one task, and a series has one writer: stop one session before another changes what it was working on. What it reports as verified is kept apart from what it assumed, and CI is the authority.
 
@@ -91,6 +91,6 @@ Not every role has been run in a session. Scenarios of `compose`, `bind9`, `cadd
 - Test containers trust the environment's certificate authorities. Containers started by a daemon inside a scenario are not given them.
 - The daemons inside a scenario pull from Docker Hub without the mirror.
 - `hadolint-docker` runs an untagged image, and a cached copy can differ from the one CI pulls.
-- `zizmor` can fail with a 401 when its `ref-confusion` audit lists another repository's branches. Set `SKIP=zizmor` and say that it was skipped.
+- `zizmor` can fail with a 401 or 403 when its `ref-confusion` audit lists another repository's branches. [`deliver_series`](delivering-a-series.md#what-it-skips) probes that request and skips the hook when it is refused.
 
 None of what the hook does is a documented feature of the environment, so an update to it can break any of it.

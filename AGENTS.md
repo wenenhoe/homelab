@@ -83,18 +83,16 @@ Docker or registry access, see
 - **The committer is `Claude <noreply@anthropic.com>`** and the author is the
   maintainer, as [the commit form](docs/topics/engineering/conventions.md#commits)
   sets them. A hook's `--reset-author` is declined, since it changes the author.
-- **Before delivering a change**, replay it as
-  [`checks-without-docker.md`](docs/topics/engineering/checks-without-docker.md#verifying-a-series-before-delivery)
-  describes. A replay that cannot run is reported with the command and its error,
-  never skipped on a guess.
-- **Deliver the `.series` file itself**, written outside the checkout and handed
-  over as a download: a path on the agent's machine does not reach the maintainer.
-  End with the maintainer's replay and `--land` commands as
-  [`landing-a-series.md`](docs/topics/engineering/landing-a-series.md#replay) gives
-  them (their replay has no `--dry-run`, which keeps no branch to land), and name
-  each layer with a commit on
-  [the stop list](docs/topics/engineering/landing-a-series.md#the-stop-list) and
-  each that touches a hook, CI or tooling path.
+- **Deliver with [`deliver_series`](docs/topics/engineering/delivering-a-series.md)**,
+  which builds the series, replays it and runs the push stage. It skips only the
+  hooks the machine lacks the need for and names them; a stage that cannot run is
+  reported with the command and its error, never skipped on a guess.
+- **Hand over the `.series` file itself**, written outside the checkout and
+  attached as a download: a path on the agent's machine does not reach the
+  maintainer. End with the handover the command prints: the maintainer's replay and
+  `--land` commands, each layer with a commit on
+  [the stop list](docs/topics/engineering/landing-a-series.md#the-stop-list), each that
+  touches a hook, CI or tooling path, and what was not checked.
 
 A Claude Code cloud session is described in
 [`docs/topics/engineering/hosted-sessions.md`](docs/topics/engineering/hosted-sessions.md).

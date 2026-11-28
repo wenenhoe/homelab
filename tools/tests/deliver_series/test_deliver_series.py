@@ -13,7 +13,7 @@ TITLE = "feat(gateway): declare the production gateway"
 
 
 def deliver(workspace: Workspace, plan: Path, *extra: str) -> int:
-    return main([str(plan), "--repo", str(workspace.work), "--out", str(workspace.out), *extra])
+    return main([str(plan), "--repo", str(workspace.work), "--out", str(workspace.out), "--build-only", *extra])
 
 
 def series_files(workspace: Workspace) -> list[Path]:
@@ -154,7 +154,7 @@ def test_the_series_file_is_not_written_inside_the_checkout(workspace: Workspace
     git(workspace.work, "add", "-A")
     git(workspace.work, "commit", "-q", "-m", message("chore: keep a directory"))
 
-    assert main([str(plan_file), "--repo", str(workspace.work), "--out", str(inside)]) == 1
+    assert main([str(plan_file), "--repo", str(workspace.work), "--out", str(inside), "--build-only"]) == 1
 
     assert "is inside the checkout" in capsys.readouterr().err
     assert sorted(path.name for path in inside.iterdir()) == [".gitkeep"]

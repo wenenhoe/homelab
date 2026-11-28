@@ -60,7 +60,7 @@ class Workspace:
         self.out.mkdir()
         self.upstream.mkdir()
         git(self.upstream, "init", "-q", "-b", "main")
-        commit(self.upstream, "chore: start", {"base.txt": "base\n"})
+        commit(self.upstream, "chore: start", {"base.txt": "base\n", "tools/keep": ""})
         commit(self.upstream, "chore(deps): update a pin", {"pin.txt": "1\n"}, identity=BOT)
         git(root, "clone", "-q", str(self.upstream), "work")
         self.count = 0

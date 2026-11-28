@@ -232,8 +232,7 @@ of a stage in its Execution plan table, or it deletes the doc. Editing
 the doc's prose or links, as a wording or link sweep across every doc
 does, doesn't tie the change to it. Every other file that change touches must
 match `allowed_paths`, apart from what the workflow itself produces:
-project docs, the generated decision index and project-planning view
-(a status change regenerates both), the topics index, every file that names a
+project docs, the topics index, every file that names a
 project doc the change deletes (the drift check fails a path to a doc that no
 longer exists), the NIST alignment page when it links a revision the change
 supersedes, and the decision revisions its

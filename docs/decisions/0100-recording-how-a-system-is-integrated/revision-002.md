@@ -54,10 +54,9 @@ back.
   of [ADR 0101 (DR exercise cadence)](../0101-exercising-disaster-recovery/revision-000.md).
   The coverage view therefore shows each system's tier, which the catalog derives,
   and no drill column.
-- **A view the apply hooks do not name stops the apply.** With the view missing
-  from the list the hooks name, a real `git am` stops on a stale view and makes
-  no commit. A patch that carries the view itself conflicts across two series,
-  which is why patches leave generated views out.
+- **Generated views are not committed.** A patch that carried one would
+  conflict across two series, so `generate-doc-indexes` writes them in a
+  checkout ([`pre-commit.md`](../../topics/engineering/pre-commit.md#installing-the-hooks)).
 - **Rebuild order is a dependency question.** A host comes back only if what each
   system needs to start is back first; the rebuild of `security` needed its own
   procedure because two systems each needed the other
@@ -216,8 +215,7 @@ gap that no section would have caught is a reason to revise the section set.
   emptied.
 - The `doc:` key is a catalog field, so `adding-an-app.md`'s field table, the
   catalog check and `host-vars.md` change with it.
-- The apply hooks name their generated views in a fixed list; the coverage view
-  joins that list.
+- The coverage view is not committed, like the other generated views.
 - The record states current behavior, so it changes in the same pull request as
   the system does, like any topic doc.
 - The coverage view reads catalog fields by name, so renaming one changes the
@@ -244,10 +242,9 @@ gap that no section would have caught is a reason to revise the section set.
 ## Validation
 
 `check_doc_drift.py` for the sections and the link; `check-app-catalog` for the
-`doc:` key's shape; a test that the coverage view is current, the way the
-other generated views are checked; and the apply hooks' test, which fails when
-the view is missing from the list the hooks name. The view no longer reads the fire-drill
-doc, so the check that its table names catalog keys is gone with the column.
+`doc:` key's shape; and tests of the coverage view's generator. The view no
+longer reads the fire-drill doc, so the check that its table names catalog keys
+is gone with the column.
 
 ## Reconsideration triggers
 

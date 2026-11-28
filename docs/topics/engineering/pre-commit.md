@@ -35,11 +35,15 @@ files in [`tools/doc_scripts/view_intros/`](../../../tools/doc_scripts/view_intr
 Two decision lineages with the same number fail `generate-doc-indexes`, so the checks the replay runs after the commit stop the series;
 rewrite the patches with the [renumber helper](../documentation/project-checks.md#renumbering-a-patch-series-lineages) and apply the copies.
 
-Plain patches (a change to `tools/land_series`, and the security series) are named with a letter on every
+Plain patches (a change to `tools/land_series`) are named with a letter on every
 one (`0001a`, `0001b`, `0002a`): a follow-up to `0001a` is `0001b`, and plain `ls` and `git am *.patch`
-order them the same way under the C and `en_US.UTF-8` locales. The security series uses `S0001a`. The ids in
+order them the same way under the C and `en_US.UTF-8` locales. The ids in
 a series file mean something else: a number is a pull request and each letter a commit in it
 ([`landing-a-series.md`](landing-a-series.md#the-input)).
+
+A change to the private security repository is one mbox file, `S0001-<theme>.mbox`, written by
+`git format-patch --stdout`. It holds every commit of the change in order, and one `git am` applies it. The
+next delivery is `S0002`.
 
 ## Hooks
 

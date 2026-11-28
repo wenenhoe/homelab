@@ -1327,6 +1327,203 @@
    "bot": false,
    "group": ".github/ and repo config",
    "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "efc56cbddee69a3be060eabb7471b17a61decb7c",
+   "date": "2026-11-27T14:43:50+08:00",
+   "kind": "pr",
+   "pr": 1148,
+   "title": "weigh hosted coding-agent sessions",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "de75925f698a5d0e3f9d926110dbe11f59c37287",
+   "date": "2026-11-27T15:39:44+08:00",
+   "kind": "pr",
+   "pr": 1149,
+   "title": "stop for a change under .claude",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0112 r003 \u00b7 landing a series of dependent changes on main",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0112 r004 \u00b7 landing a series of dependent changes on main",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "eefc75a69cac96437d5288857b61d385a095f35d",
+   "date": "2026-11-27T16:27:35+08:00",
+   "kind": "pr",
+   "pr": 1150,
+   "title": "set the limits and rules for a coding agent",
+   "type": "chore",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "fd0baa17a75b6fda56d7ed12d3351067f7ef88f5",
+   "date": "2026-11-27T16:31:28+08:00",
+   "kind": "pr",
+   "pr": 1151,
+   "title": "prepare Docker in a Claude Code cloud session",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "49a3ed94388ade2e9d7edfeb728e85ca811d91f2",
+   "date": "2026-11-27T17:56:43+08:00",
+   "kind": "pr",
+   "pr": 1152,
+   "title": "deny the GitHub and remote-session tools",
+   "type": "chore",
+   "bot": false,
+   "group": ".claude/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "79e4e6a71e87429c0c267a03d2cd423b7357eb99",
+   "date": "2026-11-27T18:25:32+08:00",
+   "kind": "pr",
+   "pr": 1153,
+   "title": "record the GitHub writes a hosted session is refused",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "e09dcbfbda37bd5308ba8d78a6f02a65f5eb9f81",
+   "date": "2026-11-27T21:42:32+08:00",
+   "kind": "pr",
+   "pr": 1154,
+   "title": "plan how a changed mounted file is picked up",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5aba0c680b85d8551c65d103c820210888b8ea34",
+   "date": "2026-11-27T22:42:35+08:00",
+   "kind": "pr",
+   "pr": 1155,
+   "title": "start a session from the current base",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "11e9f8598fb711d847731112fcb667123c9e8846",
+   "date": "2026-11-27T22:56:45+08:00",
+   "kind": "pr",
+   "pr": 1156,
+   "title": "ask how to cut down the rules a coding agent follows",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "f21f3ad89223e5078371a1bf670b4b928347ac07",
+   "date": "2026-11-28T01:24:23+08:00",
+   "kind": "pr",
+   "pr": 1157,
+   "title": "record a second role change in a hosted session",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "1770a1f26ec6d2dfd0488f4acd811048cbfe27c8",
+   "date": "2026-11-28T01:40:14+08:00",
+   "kind": "pr",
+   "pr": 1158,
+   "title": "add the molecule shard table to a project's scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: bind-mounted-config-files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "61c99ae51491ec0f6b1362d70ad8fc7a02685562",
+   "date": "2026-11-28T02:26:12+08:00",
+   "kind": "pr",
+   "pr": 1159,
+   "title": "recreate a service when a file it mounts changes",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: bind-mounted-config-files",
+   "events": [
+    [
+     "project",
+     "bind-mounted-config-files",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "e8495f387d2822298e2a7aee0100c5e4f3723bda",
+   "date": "2026-11-28T02:28:39+08:00",
+   "kind": "pr",
+   "pr": 1160,
+   "title": "record why a hosted session's rounds are slow",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "815daea14e29f5bf72433169f16a29d5a244a612",
+   "date": "2026-11-28T03:18:07+08:00",
+   "kind": "pr",
+   "pr": 1161,
+   "title": "run scenarios side by side and check coverage",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "2a658dc73903a9d2cdf6bc01f42cc51805797bda",
+   "date": "2026-11-28T03:21:16+08:00",
+   "kind": "pr",
+   "pr": 1162,
+   "title": "run tests over all cores, ask the same of CI",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
   }
  ]
 }

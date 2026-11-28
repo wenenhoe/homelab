@@ -58,9 +58,13 @@ The clone to start from was described unevenly. `AGENTS.md` had a session fetch 
 | Commit identity, subject, dates and trailer | Nothing found that checks a commit |
 | Work from the current base | Prose only; a stale series that still applies would pass |
 | Replay before delivering, attach the file, give the maintainer's commands, name the stop-list layers | Prose only |
+| A project's status against its decision revision's state and its stage table, `plan: draft`, `allowed_paths`, the start gate and the close | `check_doc_drift`, `check_project_start`, `check_project_scope` and `check_project_close` |
+| A decision lineage: one `approved` revision, no assumptions on an `approved` one, the frozen sections of an `accepted` or `superseded` one, a `**Status:**` body line, the length of a light record | `check_doc_drift` and `check_accepted_records` |
+| Which edits an agent may make to an `approved` or `accepted` revision | Prose only, apart from the frozen sections of an `accepted` one |
+| Condensing a revision before it is set `accepted`, the closing checklist, updating the stage table in each pull request that works a stage | Prose only; nothing checks that the condensing was done |
 | The public-repo rule, data classification, stop conditions, what deserves a decision, comment discipline, verifying before claiming | Judgement; a checker holds only narrow parts, such as the form of a command block |
 
-The table covers delivery and the rules in `AGENTS.md`. The decision and project docs have not been read rule by rule.
+The table covers delivery, the rules in `AGENTS.md`, and the lifecycle rules of [`decisions/README.md`](../decisions/README.md) and [`projects/README.md`](../projects/README.md), which the checkers hold for the most part. What stays prose there is the edit an agent may make to a revision, the condensing at close and the checklist, which is also the judgement that [the stop conditions](../projects/README.md#stop-conditions) ask for. The task docs outside these two have not been read rule by rule.
 
 ### What a hook can do
 
@@ -77,7 +81,7 @@ Claude Code [hooks](https://code.claude.com/docs/en/hooks) can refuse a tool cal
 
 - What a second trial, started from the current `main`, gets wrong.
 - Whether a session runs a role's scenarios through `molecule-test-all.sh`, where the coverage check is, or one `molecule test` at a time.
-- Which rules in the decision and project docs a checker already enforces.
+- Which rules in the topic docs a delivery touches, such as `docs/README.md` and the security policy, a checker already enforces.
 - Whether a hook can tell reliably that a delivery happened, without keeping a session from ending when there is nothing to deliver.
 
 ## Leaning

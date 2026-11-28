@@ -96,6 +96,8 @@ The replay applies the series on a scratch worktree of `origin/main` (fetched fi
 
 A commit that changes `.githooks/`, `.pre-commit-config.yaml`, `.config/`, a workflow, an action, `.claude/`, `tools/` or the Python dependencies (`pyproject.toml`, `uv.lock`) is on the stop list, since that code can run on this machine: the replay and the checks run most of it, and Claude Code runs the hooks `.claude/` names when a session is opened in the clone. The paths come from the commit `git am` makes, with every hook off, not from the patch text, so no way of writing a patch hides one, and every commit is applied before anything is asked, since applying runs nothing it adds.
 
+Only `.github/workflows/` and `.github/actions/` of `.github/` are on the list, so a commit that changes `.github/molecule-shards.yml` is not. [`deliver_series`](delivering-a-series.md#the-handover) still names a layer that changes anything under `.github/` among those that touch a hook, CI or tooling path.
+
 The replay lists those commits together, each with its files, their added and removed line counts, and what runs them: hooks, configuration and dependencies; CI workflows and actions; coding agent settings and hooks; tool tests; tools code. It then asks once for the whole series:
 
 - `yes` runs the checks, with no further stop.

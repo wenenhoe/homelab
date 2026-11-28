@@ -47,8 +47,8 @@
 # motivated this design.
 #
 # Required vars:
-#   molecule_helpers_openbao_network_name — docker network step-ca-test
-#     and openbao-test share
+#   molecule_helpers_openbao_network_name — docker network the step-ca
+#     and OpenBao containers share
 #   molecule_helpers_openbao_extra_san — the hostname
 #     secrets_vault_base_url will actually request. Must resolve to
 #     127.0.0.1 without any control-node setup — pass a
@@ -64,7 +64,7 @@
 #   molecule_helpers_openbao_policy_hcl — policy body (string) applied
 #     to the AppRole role this creates
 #   molecule_helpers_openbao_approle_name
-#   molecule_helpers_openbao_step_ca_password — step-ca-test's own
+#   molecule_helpers_openbao_step_ca_password — the step-ca container's own
 #     bootstrap/provisioner password (same value passed to
 #     start_step_ca_test_target.yaml)
 #   molecule_helpers_openbao_role_id_dest /
@@ -73,29 +73,45 @@
 #     openbao-controller-role-id/-secret-id resolve to for this
 #     scenario's project_root)
 #
-# Leaves behind, in the certs directory (/tmp/molecule-openbao-test-certs):
+# Leaves behind, in the certs directory:
 #   unseal-key — the 1-of-1 unseal key, written once at initialization.
 #     Only a scenario that restores a snapshot of this instance onto a
 #     second node reads it (that node unseals with these shares).
 #
 # Optional:
+#   molecule_helpers_openbao_container_name (default: openbao-test) —
+#     the container's name and DNS name, and what the leaf cert and
+#     config carry as its address. The two cert-issuing helper
+#     containers are named after it. A container name is unique on a
+#     Docker daemon, so two scenarios running at once each pass their
+#     own; vars/helper_names.yml derives one from the scenario.
+#   molecule_helpers_openbao_cert_dir (default:
+#     /tmp/molecule-openbao-test-certs) and
+#     molecule_helpers_openbao_data_dir (default:
+#     /tmp/molecule-openbao-test-data) — host directories, one pair
+#     per scenario for the same reason.
 #   molecule_helpers_openbao_step_ca_container_name (default:
+#     molecule_helpers_step_ca_container_name when set, else
 #     step-ca-test — must already be running, e.g. via
 #     start_step_ca_test_target.yaml, called separately by the caller)
 #   molecule_helpers_openbao_host_port (default: 18200 — published on
 #     127.0.0.1 only, never 0.0.0.0, so this is never reachable from
 #     outside the control node itself)
 #
-# Expects step-ca-test already running (start_step_ca_test_target.yaml,
+# Expects the step-ca container already running (start_step_ca_test_target.yaml,
 # called by the caller first, same composition style
 # step_ca_cert/molecule/signal_chown's own converge.yml already uses).
 
 - name: Set this helper's optional-var defaults
   ansible.builtin.set_fact:
-    molecule_helpers_openbao_step_ca_container_name: "{{ molecule_helpers_openbao_step_ca_container_name | default('step-ca-test') }}"
+    molecule_helpers_openbao_step_ca_container_name: >-
+      {{ molecule_helpers_openbao_step_ca_container_name
+      | default(molecule_helpers_step_ca_container_name | default('step-ca-test')) }}
+    molecule_helpers_openbao_container_name: "{{ molecule_helpers_openbao_container_name | default('openbao-test') }}"
     molecule_helpers_openbao_host_port: "{{ molecule_helpers_openbao_host_port | default(18200) }}"
-    molecule_helpers_openbao_cert_dir: /tmp/molecule-openbao-test-certs
-    molecule_helpers_openbao_data_dir: /tmp/molecule-openbao-test-data
+    molecule_helpers_openbao_cert_dir: "{{ molecule_helpers_openbao_cert_dir | default('/tmp/molecule-openbao-test-certs') }}"
+    molecule_helpers_openbao_data_dir: "{{ molecule_helpers_openbao_data_dir | default('/tmp/molecule-openbao-test-data') }}"
+    molecule_helpers_openbao_node_id: "molecule-{{ molecule_helpers_openbao_container_name | default('openbao-test') }}"
 
 # 0777, not 0755: this is a host bind-mount, not a Docker-managed named
 # volume, and step-cli's container runs as some non-root UID internally
@@ -123,7 +139,7 @@
 # permission error is "failed to open bolt file: ... permission
 # denied" on a 0755 host directory), so raft storage needs write access
 # regardless of which host UID happens to be running Molecule.
-- name: Ensure the data directory exists and is writable by whatever UID openbao-test runs as
+- name: Ensure the data directory exists and is writable by whatever UID the OpenBao container runs as
   ansible.builtin.file:
     path: "{{ molecule_helpers_openbao_data_dir }}"
     state: directory
@@ -131,7 +147,7 @@
 
 # Confirmed-working pattern, verbatim from start_step_ca_test_target.yaml
 # — this specific call (no env:) is the one already proven in this repo.
-- name: Fetch step-ca-test's root cert
+- name: Fetch the step-ca container's root cert
   community.docker.docker_container_exec:
     container: "{{ molecule_helpers_openbao_step_ca_container_name }}"
     command: cat /home/step/certs/root_ca.crt
@@ -162,9 +178,9 @@
 # full hostname whatever's actually connecting will request) — here
 # that's the control node, via molecule_helpers_openbao_extra_san, not
 # a real LAN hostname.
-- name: Issue OpenBao's leaf cert from step-ca-test
+- name: Issue OpenBao's leaf cert from the step-ca container
   community.docker.docker_container:
-    name: openbao-test-cert-issue
+    name: "{{ molecule_helpers_openbao_container_name }}-cert-issue"
     image: smallstep/step-cli:0.31.0@sha256:107e8497646c0e7c06cc5b6fd6fa13b5d2001909df6d7da3706b8541ed42bddf
     networks:
       - name: "{{ molecule_helpers_openbao_network_name }}"
@@ -174,7 +190,7 @@
       - step
       - ca
       - certificate
-      - openbao-test
+      - "{{ molecule_helpers_openbao_container_name }}"
       - /certs/fullchain.pem
       - /certs/privkey.pem
       - --ca-url
@@ -184,7 +200,7 @@
       - --provisioner-password-file
       - /certs/.pwd
       - --san
-      - openbao-test
+      - "{{ molecule_helpers_openbao_container_name }}"
       - --san
       - "{{ molecule_helpers_openbao_extra_san }}"
       - --force
@@ -217,7 +233,7 @@
 # from its real cause would still surface as a task failure.
 - name: Make the leaf cert/key world-readable, as root inside a throwaway container (throwaway test key — no real security value)
   community.docker.docker_container:
-    name: openbao-test-chmod-certs
+    name: "{{ molecule_helpers_openbao_container_name }}-chmod-certs"
     image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
     volumes:
       - /tmp:/tmp
@@ -242,7 +258,7 @@
     content: |
       storage "raft" {
         path    = "/openbao/data"
-        node_id = "molecule-openbao-test"
+        node_id = "{{ molecule_helpers_openbao_node_id }}"
       }
       listener "tcp" {
         address         = "0.0.0.0:8200"
@@ -250,8 +266,8 @@
         tls_cert_file   = "/openbao/certs/fullchain.pem"
         tls_key_file    = "/openbao/certs/privkey.pem"
       }
-      api_addr     = "https://openbao-test:8200"
-      cluster_addr = "https://openbao-test:8201"
+      api_addr     = "https://{{ molecule_helpers_openbao_container_name }}:8200"
+      cluster_addr = "https://{{ molecule_helpers_openbao_container_name }}:8201"
       ui = false
 
 # community.docker.docker_container's own `state: started` already
@@ -270,7 +286,7 @@
 # uses. 127.0.0.1 only, not 0.0.0.0 — see this file's header comment.
 - name: Run the real OpenBao image as a throwaway test target
   community.docker.docker_container:
-    name: openbao-test
+    name: "{{ molecule_helpers_openbao_container_name }}"
     image: openbao/openbao:2.7.3@sha256:ba4b133eb9586630024e71a617e66f37f29cc3534cdd46a6233e098ceded8dc9
     command: server
     networks:
@@ -299,9 +315,9 @@
 # with failed_when: false suppressing the task-level failure, the very
 # first `until` check would otherwise crash on a missing key instead of
 # just retrying like every other transient failure here does.
-- name: Wait for openbao-test to respond at all
+- name: Wait for the OpenBao container to respond at all
   community.docker.docker_container_exec:
-    container: openbao-test
+    container: "{{ molecule_helpers_openbao_container_name }}"
     command: bao status -address=https://127.0.0.1:8200
   register: molecule_helpers_openbao_ready
   until: (molecule_helpers_openbao_ready.rc | default(-1)) in [0, 2, 3]
@@ -310,14 +326,16 @@
   changed_when: false
   failed_when: false
 
-- name: Confirm openbao-test actually came up (not just timed out waiting)
+- name: Confirm the OpenBao container actually came up (not just timed out waiting)
   ansible.builtin.fail:
-    msg: "openbao-test never responded on https://127.0.0.1:8200 inside the container — check `docker logs openbao-test`."
+    msg: >-
+      {{ molecule_helpers_openbao_container_name }} never responded on https://127.0.0.1:8200
+      inside the container — check `docker logs {{ molecule_helpers_openbao_container_name }}`.
   when: (molecule_helpers_openbao_ready.rc | default(-1)) not in [0, 2, 3]
 
-- name: Check whether openbao-test is already initialized
+- name: Check whether the OpenBao container is already initialized
   community.docker.docker_container_exec:
-    container: openbao-test
+    container: "{{ molecule_helpers_openbao_container_name }}"
     command: bao status -address=https://127.0.0.1:8200 -format=json
   register: molecule_helpers_openbao_status_raw
   changed_when: false
@@ -339,12 +357,12 @@
 # already existing IS the mechanism that makes this block correctly
 # skip needing the root token again, exactly mirroring how a real
 # deploy never re-touches an already-provisioned AppRole either.
-- name: "Initialize, unseal, and configure openbao-test [block, once only]"
+- name: "Initialize, unseal, and configure the OpenBao container [block, once only]"
   when: not molecule_helpers_openbao_status.initialized
   block:
     - name: Initialize at 1-of-1 Shamir (confirmed live against real OpenBao — see the spike script)
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         command: bao operator init -address=https://127.0.0.1:8200 -key-shares=1 -key-threshold=1 -format=json
       register: molecule_helpers_openbao_init_raw
       changed_when: true
@@ -357,7 +375,7 @@
 
     - name: Unseal
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         command: "bao operator unseal -address=https://127.0.0.1:8200 {{ molecule_helpers_openbao_unseal_key }}"
       changed_when: true
       no_log: true
@@ -387,7 +405,7 @@
     # behavior.
     - name: Enable the kv-v2 secrets engine at secret/
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         argv:
           - bao
           - secrets
@@ -404,7 +422,7 @@
 
     - name: Enable the approle auth method
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         argv:
           - bao
           - auth
@@ -426,7 +444,7 @@
 
     - name: Upload the policy
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         argv:
           - bao
           - policy
@@ -443,7 +461,7 @@
 
     - name: Create the AppRole role
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         argv:
           - bao
           - write
@@ -470,7 +488,7 @@
     # against a real Molecule scenario yet (see the project doc).
     - name: Read the AppRole's role_id
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         argv:
           - bao
           - read
@@ -486,7 +504,7 @@
 
     - name: Mint a secret_id for the AppRole
       community.docker.docker_container_exec:
-        container: openbao-test
+        container: "{{ molecule_helpers_openbao_container_name }}"
         argv:
           - bao
           - write

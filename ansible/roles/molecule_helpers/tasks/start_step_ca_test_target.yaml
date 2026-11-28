@@ -13,22 +13,32 @@
 # Required vars:
 #   molecule_helpers_step_ca_network_name — a user-defined Docker
 #     network (not the default bridge): embedded DNS-by-name is what
-#     lets consumers reach this container as `step-ca-test`.
+#     lets consumers reach this container by its name.
 #   molecule_helpers_step_ca_password — the CA's init password
 #     (DOCKER_STEPCA_INIT_PASSWORD); callers set it and reuse it to
 #     issue certs against this instance.
+#
+# Optional:
+#   molecule_helpers_step_ca_container_name (default: step-ca-test) —
+#     the container's name and DNS name. A container name is unique on
+#     a Docker daemon, so two scenarios running at once each pass their
+#     own; vars/helper_names.yml derives one from the scenario.
 #
 # Exposes molecule_helpers_step_ca_root_cert for callers that need to
 # fetch the root directly, without a second docker_container_exec
 # round-trip.
 
+- name: Set this helper's optional-var defaults
+  ansible.builtin.set_fact:
+    molecule_helpers_step_ca_container_name: "{{ molecule_helpers_step_ca_container_name | default('step-ca-test') }}"
+
 - name: Run a throwaway step-ca instance for this scenario
   community.docker.docker_container:
-    name: step-ca-test
+    name: "{{ molecule_helpers_step_ca_container_name }}"
     image: smallstep/step-ca:0.30.2@sha256:a2b17872915c193259b75a5474c398326f41bd199f0842093e52cf4182bc8270
     env:
       DOCKER_STEPCA_INIT_NAME: "Molecule Throwaway CA"
-      DOCKER_STEPCA_INIT_DNS_NAMES: "step-ca-test"
+      DOCKER_STEPCA_INIT_DNS_NAMES: "{{ molecule_helpers_step_ca_container_name }}"
       DOCKER_STEPCA_INIT_PASSWORD: "{{ molecule_helpers_step_ca_password }}"
     # The image's HEALTHCHECK sets no interval, so the daemon's 30s default
     # delays the first "healthy" by 30s. test_cli_compatible keeps the
@@ -41,18 +51,18 @@
     state: started
     detach: true
 
-- name: Wait for step-ca-test to report healthy
+- name: Wait for the step-ca container to report healthy
   community.docker.docker_container_info:
-    name: step-ca-test
+    name: "{{ molecule_helpers_step_ca_container_name }}"
   register: molecule_helpers_step_ca_info
   until: >-
     molecule_helpers_step_ca_info.container.State.Health.Status | default('') == 'healthy'
   retries: 30
   delay: 2
 
-- name: Read step-ca-test's root cert
+- name: Read the step-ca container's root cert
   community.docker.docker_container_exec:
-    container: step-ca-test
+    container: "{{ molecule_helpers_step_ca_container_name }}"
     command: cat /home/step/certs/root_ca.crt
   register: molecule_helpers_step_ca_root_cert_read
   changed_when: false

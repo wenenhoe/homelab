@@ -2,9 +2,15 @@
 id: PROJ-molecule-helper-names
 title: "Molecule Helper Names"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Give every throwaway helper a Molecule scenario starts (step-ca, OpenBao, lldap, SeaweedFS) a name, network and host directory of its own per scenario, so scenarios can run side by side on one Docker daemon, and add a check that two scenarios cannot share one."
+allowed_paths:
+  - ansible/roles/molecule_helpers/**
+  - ansible/roles/*/molecule/**
+  - ansible/tests/test_molecule_helper_names.py
+  - docs/topics/testing/molecule-testing.md
+  - docs/topics/testing/molecule-fixtures.md
 ---
 
 # Molecule Helper Names
@@ -49,7 +55,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The step-ca and OpenBao helpers, and the four `secrets` scenarios | Not started | The helpers take a container name and host directories that default to what they use today, so a scenario not yet changed behaves as before. The four scenarios derive their names from their own, and use them in converge, verify and cleanup. `uv run ./scripts/molecule-test-all.sh -j 4 secrets` passes all ten scenarios and so does the same run without `-j`, and the other roles that start these helpers pass in CI |
+| 1 | The step-ca and OpenBao helpers, and the four `secrets` scenarios | Done | The helpers take a container name and host directories that default to what they use today, so a scenario not yet changed behaves as before. The four scenarios derive their names from their own, and use them in converge, verify and cleanup. `uv run ./scripts/molecule-test-all.sh -j 4 secrets` passes all ten scenarios and so does the same run without `-j`, and the other roles that start these helpers pass in CI |
 | 2 | The remaining step-ca and lldap consumers, and the shared network | Not started | Each scenario of `openbao`, `openbao_cli`, `step_ca_cert`, `step_ca_client`, `tinyauth`, `tinyauth_ca_trust` and `lldap_bootstrap` has helper names, a network and host directories of its own, and a run of those roles with `-j 4` passes |
 | 3 | The SeaweedFS helper and its consumers | Not started | Each scenario of `backup_agent`, `cloud_sync`, `restore_discovery` and `seaweedfs_bucket` has a SeaweedFS name and identity file of its own, and a run of those roles with `-j 4` passes |
 | 4 | The check and the docs | Not started | A test fails when two scenarios resolve to the same helper container, network, host directory or published port, and fails on a copy with one name made shared. The Molecule topic docs say a scenario's helpers are named from the scenario and that `-j` is safe |
@@ -87,7 +93,7 @@ Run it as a tracked background command with the longest timeout, since a serial 
 
 ## Open items
 
-1. How a scenario gets its names. The helper could derive a default from `MOLECULE_SCENARIO_NAME` and the role, and expose the result as a variable for converge, verify and cleanup to read, so a new scenario cannot forget; or each scenario could pass a name of its own. The first needs the scenario name to be reachable in a `cleanup` playbook, which runs without the facts of the play that started the helper, so stage 1 checks that before choosing.
+1. How a scenario gets its names. Settled in stage 1: `molecule_helpers/vars/helper_names.yml` derives them from `MOLECULE_PROJECT_DIRECTORY` and `MOLECULE_SCENARIO_NAME`, which Molecule sets in the environment of every playbook, `cleanup` included, and a scenario loads it with `vars_files`. The helpers take the names as variables and keep their old fixed names when none is set, so a scenario not yet changed behaves as before.
 2. What the stage 4 check can decide. A name built from `MOLECULE_SCENARIO_NAME` is unique by construction and a literal is not, so the check may only need to fail on a literal helper name in a scenario. It is settled when the check is written.
 3. Whether the roles that share `caddy-proxy` need a network each, or can share one the first creates and the last removes. Stage 2 settles it by running them side by side.
 

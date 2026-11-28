@@ -1,0 +1,18 @@
+---
+# Names for the throwaway step-ca and OpenBao helpers a scenario starts,
+# derived from the role and scenario so that two scenarios running at once
+# (molecule-test-all.sh -j) never share a container, a DNS name or a host
+# directory. Load it in the converge, verify and cleanup playbooks of the
+# scenario; the start_*_test_target.yaml helpers read these variables
+# themselves, and a playbook reads them to exec into a container or to
+# remove it. MOLECULE_PROJECT_DIRECTORY and MOLECULE_SCENARIO_NAME are in
+# the environment of every playbook Molecule runs, cleanup included.
+# Underscores become hyphens because the names are also DNS names in the
+# helpers' certificates.
+molecule_helpers_scenario_slug: >-
+  {{ (lookup('env', 'MOLECULE_PROJECT_DIRECTORY') | basename
+  ~ '-' ~ lookup('env', 'MOLECULE_SCENARIO_NAME')) | replace('_', '-') }}
+molecule_helpers_step_ca_container_name: "step-ca-{{ molecule_helpers_scenario_slug }}"
+molecule_helpers_openbao_container_name: "openbao-{{ molecule_helpers_scenario_slug }}"
+molecule_helpers_openbao_cert_dir: "/tmp/molecule-openbao-{{ molecule_helpers_scenario_slug }}-certs"
+molecule_helpers_openbao_data_dir: "/tmp/molecule-openbao-{{ molecule_helpers_scenario_slug }}-data"

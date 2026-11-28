@@ -22,7 +22,7 @@ A series lands only from a terminal on the maintainer's laptop under the maintai
 
 ## Context
 
-- [ADR 0112 revision 3 (Landing a patch series)](../0112-landing-a-series-of-dependent-changes-on-main/revision-003.md) replays a series on a scratch worktree, keeps each pull request as a branch, pushes, waits on the required checks and merges each layer with `gh pr merge --admin --merge`. Its credential is the maintainer's `gh` login, a run-wide `--yes` confirms every merge, and a layer that changes hooks, CI, `tools/` or the Python dependencies always asks. The tool's own changes are applied with `git am`, not landed by it.
+- [ADR 0112 revision 4 (Landing a patch series)](../0112-landing-a-series-of-dependent-changes-on-main/revision-004.md) replays a series on a scratch worktree, keeps each pull request as a branch, pushes, waits on the required checks and merges each layer with `gh pr merge --admin --merge`. Its credential is the maintainer's `gh` login, and a run-wide `--yes` confirms every merge. Its replay lists the commits that change hooks or their configuration, CI, coding agent settings, `tools/` or the Python dependencies and asks once for the series, and it runs the pre-push hooks on each commit before pushing it with hooks off. The tool's own changes are applied with `git am`, not landed by it.
 - The CD agent fetches `main` anonymously and deploys what it finds. [ADR 0044 revision 0-c (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md) holds that it has no credential that can write to the GitHub remote, no listener that triggers or serves a job, and runs no unmerged code. [ADR 0056 (Workstation credentials)](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md) puts the push credential on the laptop, and [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) keeps the operator host free of untrusted content.
 - A console parses uploaded patches, shows text written by others and runs the repository's checks on unmerged patches. That is untrusted content with a power over production, so it belongs on none of the three hosts above.
 - The Proxmox node is not on a VLAN. Its management address is on the WAN side, which the gateway's outbound NAT reaches ([`opnsense-gateway.md`](../../topics/infra/tofu/opnsense-gateway.md)). A guest on the WAN bridge would be adjacent to it, which the VLAN rules otherwise prevent. The node is also a tailnet device, and the policy holds explicit grants only ([`tailnet-policy.md`](../../topics/infra/tailnet-policy.md)).
@@ -50,10 +50,10 @@ A web console, called Gatehouse, uploads a `.series` file, shows it for review, 
 - The token is held in memory. GitHub issues a refresh token with it, which is discarded on receipt. The token is revoked when the series completes, is aborted or goes idle, and otherwise expires.
 - Revoking needs the App's client secret, so that secret is the one secret on the host, readable only by the component that revokes. It cannot merge: a token comes from device flow with the maintainer's approval, and the secret only revokes one the holder already has.
 - Starting a series needs the fresh Pocket ID login and the GitHub approval. The approval binds to the hash of the series file and each layer's tree, since a layer's commit changes when it is moved onto a new base and its tree does not.
-- Each merge pins the head commit. A failed check, a tree that differs from the approved one, a layer on the stop list, or a timed-out wait pauses the series until the maintainer acts. A mode that confirms each layer with a tap, without a new login, is available.
+- Each merge pins the head commit. A failed check, a tree that differs from the approved one, a layer with a commit on the stop list, or a timed-out wait pauses the series until the maintainer acts. The command line asks about the stop list once, at replay, and then confirms each merge unless told not to. The console's approval covers the whole series, so this pause is its per-layer check on that code. A mode that confirms each layer with a tap, without a new login, is available.
 - No standing token and no App with a standing bypass exists.
 
-**Replay.** The replay runs in a transient systemd sandbox with no network and no credentials, on dependencies fetched beforehand. It runs the checks that need no container; the rest run as the pull request's required checks, which the land worker waits for before each merge. A layer that changes the dependencies runs with an allowlisted network after the maintainer confirms. The component that holds the token verifies the replay's output against the series hash and runs `git push` with hooks off. It never runs patch code.
+**Replay.** The replay runs in a transient systemd sandbox with no network and no credentials, on dependencies fetched beforehand. It runs the checks that need no container, and for each layer the pre-push hooks on the commit to be pushed; the rest run as the pull request's required checks, which the land worker waits for before each merge. A layer that changes the dependencies runs with an allowlisted network after the maintainer confirms. The component that holds the token verifies the replay's output against the series hash and runs `git push` with hooks off. It never runs patch code.
 
 **Status.** For each series the console shows the merge commits, the required checks and the deploy job's heartbeat, read from Gatus through one read-only grant. It shows no deployed commit.
 
@@ -84,10 +84,16 @@ This diagram shows the design as this revision decided it, not what runs now.
 - **WebAuthn in the console itself.** It can refuse synced credentials and bind an assertion to a transaction, at the cost of more security code to own.
 - **Tailnet identity alone.** A compromised device would be enough to merge.
 - **Replay in the land process.** Simpler, and it gives patch code the token.
+- **Asking about the stop list once, as the command line does.** One question fewer, and no per-layer check on that code once the series is approved.
+- **Leaving the pre-push hooks to the required checks.** The required checks cover them and the sandbox has less to run, but a failure shows only after the push and a CI run, with the layers before it merged.
 - **The source in this repository for good.** The tool would then land changes to the repository it is part of. The seam the console needs is built here first and the tool moved to its own repository once the seam is stable.
 - **Each host exposing its deployed commit, or a statement signed by the CD agent.** The first needs a read path the console's zone lacks. The second proves nothing about the hosts, and the agent has no listener or credential to deliver it.
 
 ## Assumptions
+
+- **Claim:** the pre-push hooks, `ansible-lint` included, run in the replay's sandbox with no network, on dependencies fetched beforehand.
+  **Breaks if wrong:** the console pushes without them, and what they would catch fails in the required checks instead.
+  **Checked by:** running the push stage in that sandbox unit.
 
 - **Claim:** Pocket ID signs in with an NFC key from the phone's browser.
   **Breaks if wrong:** the phone cannot land a series, and a series is landed from the laptop.
